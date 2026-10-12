@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { Prisma } from '@hubium/db';
 import { defineModule, type ModuleCtx } from '@hubium/module-sdk';
 import { bool, optionalNumber } from '@hubium/module-sdk/fields';
+import { checkUrlShape } from '@hubium/module-sdk/net';
 import { decodeJwt } from 'jose';
 import { z } from 'zod';
 import {
@@ -85,6 +86,7 @@ export const ToolInput = z.object({
 export async function saveTool(db: Db, raw: unknown) {
   const input = ToolInput.parse(raw);
   if (!input.jwksUrl && !input.publicKeyPem) throw new Error('Provide a JWKS URL or a public key');
+  if (input.jwksUrl) checkUrlShape(input.jwksUrl);
   const data = {
     name: input.name,
     oidcLoginUrl: input.oidcLoginUrl,

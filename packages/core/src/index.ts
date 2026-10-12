@@ -29,6 +29,7 @@ export * from './modules/module-ctx.ts';
 export * from './modules/registry.ts';
 export * from './notifications/notifications.ts';
 export * from './operation.ts';
+export * from './privacy/privacy.ts';
 export * from './questions/bank.ts';
 export * from './realtime.ts';
 export * from './settings/settings.ts';

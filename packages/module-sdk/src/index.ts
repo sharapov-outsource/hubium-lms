@@ -306,6 +306,14 @@ export interface ActivityModule<S = Record<string, unknown>> {
     tutorPolicy?: 'include' | 'exclude' | 'exclude-while-open';
     blocksTutor?(ctx: ModuleCtx, a: ActivityRef<S>, userId: string): Promise<boolean>;
   };
+  /**
+   * Personal data held in module tables, for the user's data export and for erasure when
+   * the user is deleted (identity is anonymised by core; modules drop content).
+   */
+  privacy?: {
+    export?(ctx: ModuleCtx, userId: string): Promise<unknown>;
+    erase?(ctx: ModuleCtx, userId: string): Promise<void>;
+  };
   /** Notification types; labels come from `mod.<key>.notify.<name>` messages. */
   notifications?: Record<string, NotificationTypeDef>;
   /** Who may read files in each file area (besides users who can manage the course). */
