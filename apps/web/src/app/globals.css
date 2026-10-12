@@ -1,0 +1,5 @@
+@import "tailwindcss";
+@import "@hubium/ui/styles.css";
+
+@source "../../../../packages/ui/src";
+@source "../../../../modules";

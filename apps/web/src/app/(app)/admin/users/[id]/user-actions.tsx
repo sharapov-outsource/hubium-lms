@@ -1,0 +1,114 @@
+'use client';
+
+import { Button, Card, CardContent, Checkbox } from '@hubium/ui';
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogTrigger } from '@hubium/ui/dialog';
+import { toast } from '@hubium/ui/theme';
+import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useTransition } from 'react';
+import {
+  assignSystemRoleAction,
+  deleteUserAction,
+  setUserSuspendedAction,
+} from '@/server/actions/admin';
+
+export function SiteRoleToggles({
+  userId,
+  roles,
+}: {
+  userId: string;
+  roles: { id: string; name: string; assigned: boolean }[];
+}) {
+  const [pending, start] = useTransition();
+  const t = useTranslations('common');
+  return (
+    <ul className="grid gap-2">
+      {roles.map((r) => (
+        <li key={r.id}>
+          <label htmlFor={`role-${r.id}`} className="flex items-center gap-2 text-sm">
+            <Checkbox
+              id={`role-${r.id}`}
+              defaultChecked={r.assigned}
+              disabled={pending}
+              onChange={(e) => {
+                const assigned = e.currentTarget.checked;
+                start(async () => {
+                  const res = await assignSystemRoleAction(userId, r.id, assigned);
+                  if (res.ok) toast.success(t('saved'));
+                  else toast.error(res.message);
+                });
+              }}
+            />
+            {r.name}
+          </label>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function DangerZone({
+  userId,
+  name,
+  suspended,
+  canDelete,
+}: {
+  userId: string;
+  name: string;
+  suspended: boolean;
+  canDelete: boolean;
+}) {
+  const t = useTranslations('admin.user');
+  const tc = useTranslations('common');
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  return (
+    <Card>
+      <CardContent className="grid gap-2 pt-5">
+        <Button
+          variant="outline"
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              const r = await setUserSuspendedAction(userId, !suspended);
+              if (!r.ok) toast.error(r.message);
+              router.refresh();
+            })
+          }
+        >
+          {suspended ? t('unsuspend') : t('suspend')}
+        </Button>
+        {canDelete ? (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="destructive">{tc('delete')}</Button>
+            </DialogTrigger>
+            <DialogContent
+              title={tc('delete')}
+              description={t('deleteConfirm', { name })}
+              closeLabel={tc('close')}
+            >
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">{tc('cancel')}</Button>
+                </DialogClose>
+                <Button
+                  variant="destructive"
+                  disabled={pending}
+                  onClick={() =>
+                    start(async () => {
+                      const r = await deleteUserAction(userId);
+                      if (r && !r.ok) toast.error(r.message);
+                    })
+                  }
+                >
+                  {tc('delete')}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
