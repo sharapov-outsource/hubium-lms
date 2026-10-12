@@ -1,0 +1,5 @@
+{
+  "extends": "@hubium/tooling/tsconfig/react-library.json",
+  "compilerOptions": { "types": ["node"] },
+  "include": ["src", "messages"]
+}
