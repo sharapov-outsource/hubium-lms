@@ -315,6 +315,19 @@ export const scorm = defineModule<ScormSettingsT>({
   archetype: 'activity',
   icon: 'Package',
   supports: { grading: true, viewCompletion: true, backup: true },
+  backup: {
+    // the package is unpacked again from the restored zip
+    async import(ctx, a) {
+      const [file] = await ctx.files.list(a.id, 'package');
+      if (!file) return;
+      const pkg = await ctx.db.scormPackage.upsert({
+        where: { activityId: a.id },
+        create: { activityId: a.id, fileId: file.id },
+        update: { fileId: file.id, status: 'PROCESSING' },
+      });
+      await ctx.jobs.enqueue('scorm.extract', { packageId: pkg.id }, { singletonKey: pkg.id });
+    },
+  },
   settings: {
     schema: ScormSettings as unknown as z.ZodType<ScormSettingsT>,
     defaults: () => ScormSettings.parse({}),

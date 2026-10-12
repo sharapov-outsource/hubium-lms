@@ -306,6 +306,59 @@ export const quiz = defineModule<QuizSettingsT>({
   archetype: 'activity',
   icon: 'ListChecks',
   supports: { grading: true, groups: true, viewCompletion: true, backup: true },
+  backup: {
+    async export(ctx, a) {
+      const slots = await ctx.db.quizSlot.findMany({
+        where: { activityId: a.id },
+        orderBy: { slot: 'asc' },
+      });
+      return {
+        slots: slots.map((s) => ({
+          page: s.page,
+          slot: s.slot,
+          kind: s.kind,
+          questionId: s.questionId,
+          categoryId: s.categoryId,
+          includeSubcats: s.includeSubcats,
+          maxMark: Number(s.maxMark),
+        })),
+      };
+    },
+    async import(ctx, a, data, map) {
+      const slots =
+        (
+          data as {
+            slots?: {
+              page: number;
+              slot: number;
+              kind: 'FIXED' | 'RANDOM';
+              questionId: string | null;
+              categoryId: string | null;
+              includeSubcats: boolean;
+              maxMark: number;
+            }[];
+          }
+        ).slots ?? [];
+      for (const s of slots) {
+        const questionId = s.questionId ? map(s.questionId) : null;
+        const categoryId = s.categoryId ? map(s.categoryId) : null;
+        if (s.kind === 'FIXED' && !questionId) continue;
+        if (s.kind === 'RANDOM' && !categoryId) continue;
+        await ctx.db.quizSlot.create({
+          data: {
+            activityId: a.id,
+            page: s.page,
+            slot: s.slot,
+            kind: s.kind,
+            questionId,
+            categoryId,
+            includeSubcats: s.includeSubcats,
+            maxMark: s.maxMark,
+          },
+        });
+      }
+    },
+  },
   notifications: {
     needsGrading: { email: 'DIGEST' },
     graded: { email: 'IMMEDIATE' },

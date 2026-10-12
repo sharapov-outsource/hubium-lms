@@ -239,6 +239,7 @@ export const forum = defineModule<ForumSettingsT>({
   archetype: 'activity',
   icon: 'MessagesSquare',
   supports: { groups: true, viewCompletion: true, backup: true },
+  backup: { userFileAreas: ['attachment'] },
   settings: {
     schema: ForumSettings as unknown as z.ZodType<ForumSettingsT>,
     defaults: () => ForumSettings.parse({}),

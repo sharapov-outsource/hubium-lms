@@ -293,6 +293,19 @@ export const video = defineModule<VideoSettingsT>({
   archetype: 'activity',
   icon: 'PlaySquare',
   supports: { viewCompletion: true, backup: true },
+  backup: {
+    // generated HLS files are rebuilt from the restored source file
+    async import(ctx, a) {
+      const [source] = await ctx.files.list(a.id, 'source');
+      if (!source) return;
+      const asset = await ctx.db.videoAsset.upsert({
+        where: { activityId: a.id },
+        create: { activityId: a.id, sourceFileId: source.id },
+        update: { sourceFileId: source.id, status: 'UPLOADED' },
+      });
+      await ctx.jobs.enqueue('video.transcode', { assetId: asset.id }, { singletonKey: asset.id });
+    },
+  },
   settings: {
     schema: VideoSettings as unknown as z.ZodType<VideoSettingsT>,
     defaults: () => VideoSettings.parse({}),

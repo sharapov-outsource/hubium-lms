@@ -11,7 +11,7 @@ const REDIRECT = 'https://tool.test/launch';
 describe('mod-lti (LTI 1.3 platform)', () => {
   const t = useTestDb();
   let f: Awaited<ReturnType<typeof courseFixture>>;
-  let toolKey: CryptoKey;
+  let toolKey: Awaited<ReturnType<typeof generateKeyPair>>['privateKey'];
   let tool: { id: string; clientId: string; deploymentId: string };
   let ltiId: string;
 

@@ -285,9 +285,21 @@ export interface ActivityModule<S = Record<string, unknown>> {
   >;
   /** Text for search and the AI tutor. */
   extractText?(a: ActivityRef<S>): string;
+  /**
+   * Course backup / restore / duplication. Settings, intro and the module's file areas
+   * are handled by core; these hooks carry extra module data (e.g. quiz slots). `map`
+   * translates ids from the source course (questions, categories, files, activities).
+   */
   backup?: {
-    export(ctx: ModuleCtx, a: ActivityRef<S>): Promise<unknown>;
-    import(ctx: ModuleCtx, a: ActivityRef<S>, data: unknown): Promise<void>;
+    /** File areas holding learners' data, left out of backups without user data. */
+    userFileAreas?: string[];
+    export?(ctx: ModuleCtx, a: ActivityRef<S>): Promise<unknown>;
+    import?(
+      ctx: ModuleCtx,
+      a: ActivityRef<S>,
+      data: unknown,
+      map: (oldId: string) => string | undefined,
+    ): Promise<void>;
   };
 }
 

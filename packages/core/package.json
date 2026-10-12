@@ -6,6 +6,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./testing": "./test/helpers.ts",
+    "./testing/course-fixture": "./test/course-fixture.ts",
     "./*": "./src/*.ts"
   },
   "scripts": {
