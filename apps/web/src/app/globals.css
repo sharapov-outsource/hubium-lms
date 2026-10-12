@@ -3,3 +3,19 @@
 
 @source "../../../../packages/ui/src";
 @source "../../../../modules";
+
+/* Respect reduced-motion preferences: no animations or smooth scrolling. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    /* biome-ignore lint/complexity/noImportantStyles: must beat component animations */
+    animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: must beat component animations */
+    animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: must beat component animations */
+    transition-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: must beat component animations */
+    scroll-behavior: auto !important;
+  }
+}
