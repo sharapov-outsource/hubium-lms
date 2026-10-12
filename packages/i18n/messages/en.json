@@ -304,7 +304,26 @@
       "storage": "File storage",
       "smtp": "SMTP",
       "jobs": "Job queue",
-      "appUrl": "Site URL"
+      "appUrl": "Site URL",
+      "check": "Check",
+      "status": "Status",
+      "detail": "Details",
+      "statuses": {
+        "ok": "OK",
+        "warn": "Warning",
+        "error": "Error"
+      },
+      "checks": {
+        "database": "Database",
+        "worker": "Background worker",
+        "jobs": "Job queue",
+        "storage": "File storage",
+        "smtp": "Mail (SMTP)",
+        "contentOrigin": "Separate content origin",
+        "push": "Push notifications",
+        "ai": "AI",
+        "ffmpeg": "FFmpeg (video)"
+      }
     },
     "categories": "Categories",
     "courses": "Courses",

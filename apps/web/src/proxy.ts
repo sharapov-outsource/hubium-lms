@@ -36,7 +36,9 @@ export async function proxy(req: NextRequest) {
 
   // Files (sw.js, manifest, icons) keep their own headers; pages get the nonce CSP.
   const isPage =
-    !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !/\.[a-z0-9]+$/i.test(pathname);
+    !pathname.startsWith('/api') &&
+    !pathname.startsWith('/_next') &&
+    !/\.[a-z0-9]+$/i.test(pathname);
   let res: NextResponse;
   if (!isPage) {
     res = NextResponse.next();

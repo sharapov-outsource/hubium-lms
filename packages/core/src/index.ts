@@ -34,4 +34,5 @@ export * from './privacy/privacy.ts';
 export * from './questions/bank.ts';
 export * from './realtime.ts';
 export * from './settings/settings.ts';
+export * from './system/health.ts';
 export * from './users/users.ts';

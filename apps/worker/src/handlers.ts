@@ -5,6 +5,7 @@ import {
   indexCourse,
   PUSH_JOB,
   QUIZGEN_JOB,
+  recordHeartbeat,
   runQuizGeneration,
   sendPushNotifications,
 } from '@hubium/core';
@@ -47,6 +48,14 @@ export const coreHandlers: JobHandlerDef[] = [
     batchSize: 5,
     async handler(data: { ids: string[] }, { db }) {
       return { sent: await sendNotificationEmails(db, data.ids) };
+    },
+  },
+  {
+    // Proves to Admin → Environment and /api/metrics that scheduled jobs run.
+    name: 'system.heartbeat',
+    cron: '* * * * *',
+    async handler(_data: never, { db }) {
+      return recordHeartbeat(db);
     },
   },
   {
