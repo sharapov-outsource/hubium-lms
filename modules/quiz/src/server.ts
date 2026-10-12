@@ -306,6 +306,10 @@ export const quiz = defineModule<QuizSettingsT>({
   archetype: 'activity',
   icon: 'ListChecks',
   supports: { grading: true, groups: true, viewCompletion: true, backup: true },
+  notifications: {
+    needsGrading: { email: 'DIGEST' },
+    graded: { email: 'IMMEDIATE' },
+  },
   settings: {
     schema: QuizSettings as unknown as z.ZodType<QuizSettingsT>,
     defaults: () => QuizSettings.parse({}),
@@ -519,7 +523,7 @@ export const quiz = defineModule<QuizSettingsT>({
           if (needs?.needsManualGrading) {
             await ctx.notify.send(graders, {
               type: 'quiz.needsGrading',
-              title: a.name,
+              title: { key: 'mod.quiz.notify.needsGradingTitle', values: { name: a.name } },
               url: `/course/${a.courseId}/a/${a.id}?tab=grading`,
               courseId: a.courseId,
               contextId: a.id,
@@ -563,8 +567,18 @@ export const quiz = defineModule<QuizSettingsT>({
             needsManualGrading: all.some((x) => x.needsGrading),
           },
         });
-        if (!qa.attempt.preview)
+        if (!qa.attempt.preview) {
           await updateQuizGrade(ctx, a as ActivityRef<QuizSettingsT>, qa.attempt.userId);
+          if (!all.some((x) => x.needsGrading)) {
+            await ctx.notify.send([qa.attempt.userId], {
+              type: 'quiz.graded',
+              title: { key: 'mod.quiz.notify.gradedTitle', values: { name: a.name } },
+              url: `/course/${a.courseId}/a/${a.id}?attempt=${qa.attemptId}`,
+              courseId: a.courseId,
+              contextId: a.id,
+            });
+          }
+        }
         return { ok: true };
       },
     }),

@@ -114,6 +114,12 @@
     "average": "Average grade",
     "finishedCount": "Finished attempts",
     "facility": "Facility",
-    "saveNow": "Save answers"
+    "saveNow": "Save answers",
+    "notify": {
+      "needsGrading": "Quiz needs manual grading",
+      "graded": "Quiz graded",
+      "needsGradingTitle": "Manual grading needed: {name}",
+      "gradedTitle": "Your quiz was graded: {name}"
+    }
   }
 }
