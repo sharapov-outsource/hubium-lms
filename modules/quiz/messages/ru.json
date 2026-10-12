@@ -120,6 +120,7 @@
       "graded": "Тест проверен",
       "needsGradingTitle": "Нужна ручная проверка: {name}",
       "gradedTitle": "Ваш тест проверен: {name}"
-    }
+    },
+    "timeWarning": "Внимание: осталось {minutes, plural, one {# минута} few {# минуты} other {# минут}}"
   }
 }

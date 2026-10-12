@@ -93,6 +93,7 @@ model User {
   scormAttempts       ScormAttempt[]
 
   aiConsents         AiConsent[]
+  pushSubscriptions  PushSubscription[]
   tutorConversations TutorConversation[]
 
   @@index([status])

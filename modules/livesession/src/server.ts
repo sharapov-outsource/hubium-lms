@@ -154,6 +154,14 @@ export const livesession = defineModule<LiveSettingsT>({
   archetype: 'activity',
   icon: 'Presentation',
   supports: { viewCompletion: true, backup: true },
+  privacy: {
+    async export(ctx, userId) {
+      return ctx.db.liveAttendance.findMany({
+        where: { userId },
+        select: { activityId: true, firstJoinAt: true, lastSeenAt: true, joins: true },
+      });
+    },
+  },
   settings: {
     schema: LiveSettings as unknown as z.ZodType<LiveSettingsT>,
     defaults: () => ({

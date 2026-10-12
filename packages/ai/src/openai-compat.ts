@@ -21,6 +21,8 @@ export interface OpenAiCompatOptions {
   apiKey?: string | null;
   capabilities?: { jsonSchema?: boolean; streaming?: boolean };
   timeoutMs?: number;
+  /** Custom fetch (core passes an SSRF-guarded one). */
+  fetch?: typeof fetch;
 }
 
 function usageOf(u: OpenAI.CompletionUsage | null | undefined): Usage {
@@ -62,6 +64,7 @@ export class OpenAiCompatProvider implements LlmProvider {
       apiKey: opts.apiKey || 'none',
       timeout: opts.timeoutMs ?? 120_000,
       maxRetries: 2,
+      ...(opts.fetch ? { fetch: opts.fetch } : {}),
     });
     this.caps = {
       jsonSchema: opts.capabilities?.jsonSchema ?? false,
@@ -198,11 +201,15 @@ export class OpenAiCompatProvider implements LlmProvider {
 export class OpenAiCompatEmbeddings implements EmbeddingProvider {
   private client: OpenAI;
   constructor(
-    opts: { baseUrl: string; apiKey?: string | null },
+    opts: { baseUrl: string; apiKey?: string | null; fetch?: typeof fetch },
     readonly model: string,
     readonly dims: number,
   ) {
-    this.client = new OpenAI({ baseURL: opts.baseUrl, apiKey: opts.apiKey || 'none' });
+    this.client = new OpenAI({
+      baseURL: opts.baseUrl,
+      apiKey: opts.apiKey || 'none',
+      ...(opts.fetch ? { fetch: opts.fetch } : {}),
+    });
   }
 
   async embed(texts: string[]): Promise<number[][]> {

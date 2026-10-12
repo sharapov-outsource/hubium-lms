@@ -120,6 +120,7 @@
       "graded": "Quiz graded",
       "needsGradingTitle": "Manual grading needed: {name}",
       "gradedTitle": "Your quiz was graded: {name}"
-    }
+    },
+    "timeWarning": "Attention: {minutes, plural, one {# minute} other {# minutes}} left"
   }
 }

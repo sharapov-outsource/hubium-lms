@@ -12,6 +12,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@hubium/api": "workspace:*",
     "@hubium/core": "workspace:*",
     "@hubium/db": "workspace:*",
     "@hubium/editor": "workspace:*",

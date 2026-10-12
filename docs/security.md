@@ -1,0 +1,33 @@
+# Security
+
+This page lists the protections built into Hubium and what an operator should check. Report vulnerabilities privately as described in [SECURITY.md](../SECURITY.md).
+
+## Built in
+
+| Area | Protection |
+|---|---|
+| Authentication | Better Auth sessions (HttpOnly, SameSite=Lax cookies), scrypt password hashing, database-backed rate limiting of auth endpoints in production, TOTP two-factor (can be required for administrators), OAuth (Google, Yandex, VK) |
+| Authorisation | code-defined capabilities checked in core for every operation; roles with overrides per category/course/activity; the API never exceeds the token owner's rights |
+| CSRF | server actions check `Origin`; custom route handlers reject cross-site cookie requests (`Sec-Fetch-Site`), except endpoints built for cross-site use (LTI, one-click unsubscribe, bearer API) |
+| XSS | rich text sanitised on write (allowlist, iframe hosts limited to known video providers); nonce-based CSP with `strict-dynamic`, no `unsafe-inline` scripts; Markdown for AI and policies rendered without raw HTML |
+| Untrusted content | SCORM packages served from a separate origin (`CONTENT_HOST`) with signed short-lived tokens; uploaded files served with `nosniff`, sandboxed CSP and download disposition for active types |
+| Framing | `frame-ancestors 'self'`, `X-Frame-Options: SAMEORIGIN`; frames allowed only for the content origin, video providers, registered LTI tools and the configured BBB/Jitsi hosts |
+| SSRF | server-side fetches of admin/tool URLs (AI endpoints, LTI JWKS) refuse loopback, private, link-local and metadata addresses on every redirect hop unless listed in `SSRF_ALLOW_HOSTS` |
+| Secrets | provider keys encrypted at rest with AES-256-GCM under `APP_SECRET`; rotation command; API tokens stored as SHA-256 hashes; LTI keys sealed |
+| Uploads | resumable uploads with a maximum size and chunk checks, zip-slip/symlink/size/ratio checks for SCORM and course archives, MIME sniffing |
+| Transport | HSTS in production over HTTPS, `upgrade-insecure-requests`, `Referrer-Policy: strict-origin-when-cross-origin`, restrictive `Permissions-Policy` |
+| AI | provider chosen by the administrator, per-feature switches and quotas, consent before first use, pseudonymised grading input, course text and submissions framed as data, suggestions never saved automatically |
+| Privacy | data export for every user, erasure of personal content on deletion, versioned policies with recorded acceptance |
+| Audit | event log of sign-ins, role changes, deletions, token creation, policy publishing and data exports |
+
+## Operator checklist
+
+- [ ] `APP_SECRET` is random (`openssl rand -base64 32`) and not shared with other systems.
+- [ ] `CONTENT_HOST` is a different domain from `APP_URL` (Admin → Environment shows an error otherwise).
+- [ ] The site is served over HTTPS only (Caddy in `docker/compose.yml` does this).
+- [ ] Two-factor authentication is required for administrators (Admin → Settings).
+- [ ] Backups of the database and file storage run daily and a restore was tested.
+- [ ] Only the hosts that really are internal services are listed in `SSRF_ALLOW_HOSTS`.
+- [ ] `METRICS_TOKEN` is long and random, or unset.
+- [ ] A privacy policy is published (Admin → Policies); for personal data of Russian citizens check 152-ФЗ: data localisation and, if an external AI provider is used, cross-border transfer consent.
+- [ ] Dependencies are scanned (CI runs osv-scanner and CodeQL).

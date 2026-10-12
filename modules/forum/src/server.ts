@@ -239,6 +239,29 @@ export const forum = defineModule<ForumSettingsT>({
   archetype: 'activity',
   icon: 'MessagesSquare',
   supports: { groups: true, viewCompletion: true, backup: true },
+  privacy: {
+    async export(ctx, userId) {
+      return ctx.db.forumPost.findMany({
+        where: { authorId: userId, deletedAt: null },
+        select: {
+          id: true,
+          createdAt: true,
+          contentHtml: true,
+          discussion: { select: { title: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+    },
+    async erase(ctx, userId) {
+      // Keep thread structure for other participants; drop the author's words.
+      await ctx.db.forumPost.updateMany({
+        where: { authorId: userId },
+        data: { contentHtml: '', deletedAt: ctx.now },
+      });
+      await ctx.db.forumSubscription.deleteMany({ where: { userId } });
+      await ctx.db.forumReadState.deleteMany({ where: { userId } });
+    },
+  },
   backup: { userFileAreas: ['attachment'] },
   settings: {
     schema: ForumSettings as unknown as z.ZodType<ForumSettingsT>,

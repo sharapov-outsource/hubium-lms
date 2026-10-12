@@ -10,6 +10,7 @@ import { getModule } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
 import { publishRealtime } from '../realtime.ts';
 import { getAllSettings } from '../settings/settings.ts';
+import { PUSH_JOB, pushConfig } from './push.ts';
 
 // Notifications: one row per recipient, rendered in the recipient's language. The in-app
 // centre reads the rows; email goes out immediately (job) or in a daily digest (cron).
@@ -20,13 +21,15 @@ type Tx = Prisma.TransactionClient;
 export interface NotificationTypeDef {
   email: EmailMode;
   inApp?: boolean;
+  /** Push to devices even when not shown in the in-app centre (e.g. chat messages). */
+  push?: boolean;
 }
 
 const coreTypes = new Map<string, NotificationTypeDef>([
   ['enrol.enrolled', { email: 'IMMEDIATE' }],
   ['announcement.course', { email: 'IMMEDIATE' }],
   ['announcement.site', { email: 'IMMEDIATE' }],
-  ['message.new', { email: 'DIGEST', inApp: false }],
+  ['message.new', { email: 'DIGEST', inApp: false, push: true }],
   ['calendar.reminder', { email: 'OFF' }],
 ]);
 
@@ -145,6 +148,21 @@ export async function deliverNotifications(
   if (live.length) await publishRealtime(tx, live, 'notification.new', { type: n.type });
   const pending = rows.filter((r) => r.emailState === 'PENDING').map((r) => r.id!);
   if (pending.length) await enqueue('notification.email', { ids: pending }, { tx });
+  if (pushConfig()) {
+    const pushOff = new Set(prefs.filter((p) => !p.push).map((p) => p.userId));
+    const withDevices = new Set(
+      (
+        await tx.pushSubscription.findMany({
+          where: { userId: { in: rows.map((r) => r.userId).filter((u) => !pushOff.has(u)) } },
+          select: { userId: true },
+        })
+      ).map((s) => s.userId),
+    );
+    const push = rows
+      .filter((r) => (r.inApp || def.push) && withDevices.has(r.userId))
+      .map((r) => r.id!);
+    if (push.length) await enqueue(PUSH_JOB, { ids: push }, { tx });
+  }
   return rows.length;
 }
 
@@ -219,6 +237,7 @@ export async function getNotificationPreferences(db: Db, userId: string, moduleK
       labelKey: notificationTypeLabelKey(type),
       inApp: byType.get(type)?.inApp ?? def.inApp ?? true,
       email: byType.get(type)?.email ?? def.email,
+      push: byType.get(type)?.push ?? true,
     })),
   };
 }
@@ -234,6 +253,7 @@ export const updateNotificationPreferences = defineOperation({
           type: z.string().min(1).max(100),
           inApp: z.boolean(),
           email: z.enum(['OFF', 'IMMEDIATE', 'DIGEST']),
+          push: z.boolean().default(true),
         }),
       )
       .max(200),
@@ -248,8 +268,8 @@ export const updateNotificationPreferences = defineOperation({
       if (!getNotificationType(p.type)) continue;
       await ctx.tx.notificationPreference.upsert({
         where: { userId_type: { userId, type: p.type } },
-        create: { userId, type: p.type, inApp: p.inApp, email: p.email },
-        update: { inApp: p.inApp, email: p.email },
+        create: { userId, type: p.type, inApp: p.inApp, email: p.email, push: p.push },
+        update: { inApp: p.inApp, email: p.email, push: p.push },
       });
     }
     return { ok: true };

@@ -103,6 +103,49 @@ export const assign = defineModule<AssignSettingsT>({
   archetype: 'activity',
   icon: 'ClipboardCheck',
   supports: { grading: true, groups: true, viewCompletion: true, backup: true },
+  privacy: {
+    async export(ctx, userId) {
+      const [submissions, grades] = await Promise.all([
+        ctx.db.assignSubmission.findMany({
+          where: { userId },
+          select: {
+            activityId: true,
+            attemptNumber: true,
+            status: true,
+            onlineText: true,
+            submittedAt: true,
+          },
+        }),
+        ctx.db.assignGrade.findMany({
+          where: { userId },
+          select: {
+            activityId: true,
+            attemptNumber: true,
+            grade: true,
+            feedback: true,
+            gradedAt: true,
+          },
+        }),
+      ]);
+      return { submissions, grades };
+    },
+    async erase(ctx, userId) {
+      const subs = await ctx.db.assignSubmission.findMany({
+        where: { userId },
+        select: { id: true, activityId: true },
+      });
+      for (const s of subs) {
+        const files = await ctx.files.list(s.activityId, 'submission', s.id);
+        if (files.length)
+          await ctx.files.remove(
+            s.activityId,
+            'submission',
+            files.map((f) => f.id),
+          );
+      }
+      await ctx.db.assignSubmission.updateMany({ where: { userId }, data: { onlineText: '' } });
+    },
+  },
   backup: { userFileAreas: ['submission', 'feedback'] },
   notifications: {
     submitted: { email: 'DIGEST' },

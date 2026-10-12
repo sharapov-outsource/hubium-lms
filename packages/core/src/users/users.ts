@@ -5,6 +5,7 @@ import type { RequestContext } from '../context.ts';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { defineOperation } from '../operation.ts';
+import { erasePersonalData } from '../privacy/privacy.ts';
 
 type Tx = Prisma.TransactionClient | Db;
 
@@ -275,6 +276,7 @@ export const deleteUser = defineOperation({
     if (user.isSiteAdmin) throw new ConflictError('Remove admin rights before deleting');
     await ctx.tx.session.deleteMany({ where: { userId: id } });
     await ctx.tx.account.deleteMany({ where: { userId: id } });
+    await erasePersonalData(ctx, ctx.tx, id);
     await ctx.tx.user.update({
       where: { id },
       data: {

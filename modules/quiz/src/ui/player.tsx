@@ -12,6 +12,8 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PublicQuestion } from '../public.ts';
 
+const TIME_WARNINGS = [10, 5, 1];
+
 type Answers = Record<string, unknown>;
 
 function isAnswered(q: PublicQuestion, r: unknown): boolean {
@@ -272,6 +274,9 @@ export function AttemptPlayer({
     (q) => q.type !== 'DESCRIPTION' && !isAnswered(q, answers[q.slot]),
   ).length;
   const left = due ? due - now : null;
+  // Screen readers hear the time only at thresholds, not every second.
+  const stage =
+    left === null ? null : (TIME_WARNINGS.filter((m) => left <= m * 60_000).at(-1) ?? null);
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_15rem]">
@@ -357,6 +362,9 @@ export function AttemptPlayer({
             </CardContent>
           </Card>
         ) : null}
+        <p className="sr-only" aria-live="assertive" aria-atomic="true">
+          {stage ? t('timeWarning', { minutes: stage }) : ''}
+        </p>
         <Card>
           <CardContent className="grid gap-3 pt-4">
             <p className="text-sm font-medium">{t('navigation')}</p>

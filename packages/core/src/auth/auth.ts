@@ -59,7 +59,13 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
       database: { generateId: () => uuidv7() },
       cookiePrefix: 'hubium',
     },
-    rateLimit: { enabled: process.env.NODE_ENV === 'production', storage: 'database' },
+    // On in production; AUTH_RATE_LIMIT=off for automated test runs from one IP.
+    rateLimit: {
+      enabled:
+        process.env.AUTH_RATE_LIMIT === 'on' ||
+        (process.env.NODE_ENV === 'production' && process.env.AUTH_RATE_LIMIT !== 'off'),
+      storage: 'database',
+    },
     session: {
       expiresIn: 60 * 60 * 24 * 30,
       updateAge: 60 * 60 * 24,

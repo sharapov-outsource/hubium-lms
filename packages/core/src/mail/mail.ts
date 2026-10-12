@@ -8,7 +8,7 @@ export function setMailTransport(t: Transporter | undefined): void {
   transport = t;
 }
 
-function getTransport(): Transporter {
+export function getTransport(): Transporter {
   transport ??= nodemailer.createTransport(process.env.SMTP_URL ?? 'smtp://localhost:1025');
   return transport;
 }

@@ -315,6 +315,20 @@ export const scorm = defineModule<ScormSettingsT>({
   archetype: 'activity',
   icon: 'Package',
   supports: { grading: true, viewCompletion: true, backup: true },
+  privacy: {
+    async export(ctx, userId) {
+      return ctx.db.scormAttempt.findMany({
+        where: { userId },
+        select: {
+          activityId: true,
+          attemptNumber: true,
+          startedAt: true,
+          finishedAt: true,
+          score: true,
+        },
+      });
+    },
+  },
   backup: {
     // the package is unpacked again from the restored zip
     async import(ctx, a) {

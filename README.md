@@ -6,12 +6,17 @@
 
 ## Возможности
 
-Проект развивается по этапам (см. [docs/PLAN.md](docs/PLAN.md)):
-
-- **Пользователи и доступ:** вход по почте или логину, регистрация с подтверждением почты, восстановление пароля, двухфакторная аутентификация (TOTP), вход через Google, Яндекс ID и VK ID, активные сеансы.
-- **Права как в Moodle:** роли с архетипами, матрица прав, переопределения на уровне категории, курса и элемента, проверка прав «почему можно / нельзя».
-- **Администрирование:** пользователи (создание, блокировка, обезличивание, загрузка из CSV), роли, настройки сайта, фирменный цвет с автоматической проверкой контраста, логотип.
-- **Курсы, задания, тесты, журнал оценок, форумы, сообщения, видео, SCORM, LTI, импорт из Moodle, AI-помощник** — по мере выхода этапов.
+- **Пользователи и доступ:** вход по почте или логину, подтверждение почты, восстановление пароля, двухфакторная аутентификация (TOTP), вход через Google, Яндекс ID и VK ID, активные сеансы, вход от имени пользователя.
+- **Права как в Moodle:** роли с архетипами, матрица прав, переопределения на уровне категории, курса и элемента, проверка «почему можно / нельзя», режим «смотреть как студент».
+- **Курсы:** категории, разделы, условия доступа, отслеживание завершения, группы и потоки, самостоятельная запись по ключу, корзина, каталог.
+- **Элементы курса:** страница, ссылка, файл, метка, задание, тест с банком вопросов (GIFT, Moodle XML), форум, видео с адаптивным HLS и защитой от перемотки, вебинар (BigBlueButton, Jitsi), SCORM 1.2/2004, внешние инструменты LTI 1.3 (AGS, NRPS, Deep Linking).
+- **Оценивание:** журнал оценок с категориями и формулами агрегирования, отчёт преподавателя, импорт и экспорт CSV, буквенные шкалы.
+- **Коммуникации:** уведомления в приложении, по почте (сразу или дайджестом) и push на телефон, личные и групповые сообщения в реальном времени, объявления, календарь с напоминаниями и подпиской iCal.
+- **AI:** тьютор курса со ссылками на источники, генерация вопросов по материалам курса, помощник проверки заданий; Claude API или любой OpenAI-совместимый сервер (Ollama, vLLM, YandexGPT), квоты, согласие пользователей, псевдонимизация.
+- **Перенос курсов:** резервная копия `.hubium`, копирование курса, импорт курсов из Moodle (`.mbz`).
+- **Интеграции:** REST API v1 с документацией OpenAPI 3.1 и персональными токенами.
+- **Приложение и безопасность:** PWA с офлайн-страницей и push-уведомлениями, CSP с nonce, защита от CSRF и SSRF, экспорт своих данных, обезличивание при удалении, версионные политики с принятием.
+- **Удобство:** спокойный интерфейс, тёмная тема, русский и английский, мобильная навигация, доступность (axe без серьёзных нарушений во всех e2e-сценариях).
 
 ## Быстрый старт (разработка)
 
@@ -50,7 +55,14 @@ docker compose -f docker/compose.yml --env-file .env up -d --build
 | `pnpm --filter @hubium/e2e e2e` | Playwright e2e против запущенного приложения |
 | `pnpm depcruise` | проверка архитектурных границ |
 
-Устройство проекта описано в [docs/architecture.md](docs/architecture.md), правила участия — в [CONTRIBUTING.md](CONTRIBUTING.md).
+Документация:
+
+- [docs/operations.md](docs/operations.md) — установка, настройка, резервное копирование, обновление, мониторинг;
+- [docs/api.md](docs/api.md) — REST API;
+- [docs/modules.md](docs/modules.md) — как написать свой модуль;
+- [docs/security.md](docs/security.md) — встроенная защита и чек-лист администратора;
+- [docs/architecture.md](docs/architecture.md) — устройство проекта, [docs/PLAN.md](docs/PLAN.md) — план;
+- правила участия — [CONTRIBUTING.md](CONTRIBUTING.md), сообщения об уязвимостях — [SECURITY.md](SECURITY.md).
 
 ## Лицензия
 
@@ -73,4 +85,8 @@ pnpm dev                        # http://localhost:3000
 
 Sign in as `admin@hubium.local` / `Admin12345!`. Demo users (`teacher`, `student1`, …) use `Demo12345!`.
 
-See [docs/architecture.md](docs/architecture.md) for the technical design and [docs/PLAN.md](docs/PLAN.md) for the roadmap. Licensed under [AGPL-3.0](LICENSE).
+### Features
+
+Courses with sections, access restrictions and completion; pages, files, assignments, quizzes with a question bank (GIFT, Moodle XML), forums, adaptive HLS video, live sessions (BigBlueButton, Jitsi), SCORM 1.2/2004 and LTI 1.3 tools; a gradebook; notifications by in-app, email digest and Web Push; real-time messaging; an AI course tutor, question generation and grading assistant (Claude API or any OpenAI-compatible server); course backup/restore and Moodle `.mbz` import; a REST API with OpenAPI docs; an installable PWA; Moodle-style roles and capabilities.
+
+Docs: [operations](docs/operations.md) · [REST API](docs/api.md) · [modules](docs/modules.md) · [security](docs/security.md) · [architecture](docs/architecture.md) · [roadmap](docs/PLAN.md). Licensed under [AGPL-3.0](LICENSE).

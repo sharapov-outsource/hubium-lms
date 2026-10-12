@@ -143,6 +143,9 @@ export async function syncCapabilities(db: Db): Promise<{ newCapabilities: strin
       create: { key: SYNCED_KEY, value: [...capabilities.keys()] },
       update: { value: [...new Set([...synced, ...capabilities.keys()])] },
     });
+    // Running web instances cache role definitions; tell them to reload (sent on commit).
+    if (created.length || newCaps.length)
+      await tx.$executeRaw`SELECT pg_notify('hubium_cache', 'roles')`;
     return { newCapabilities: syncedRow ? newCaps : [] };
   });
 }

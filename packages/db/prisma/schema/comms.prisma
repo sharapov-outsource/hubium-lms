@@ -58,6 +58,8 @@ model NotificationPreference {
   type   String
   inApp  Boolean   @default(true)
   email  EmailMode @default(IMMEDIATE)
+  /// Web Push to the user's subscribed devices (only for in-app notifications)
+  push   Boolean   @default(true)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -154,4 +156,20 @@ model Announcement {
   author User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([courseId, publishAt(sort: Desc)])
+}
+
+/// Web Push subscription of one browser/device (PWA).
+model PushSubscription {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String    @db.Uuid
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  lastUsedAt DateTime? @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

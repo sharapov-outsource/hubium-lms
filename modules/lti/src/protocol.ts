@@ -7,8 +7,10 @@ import {
   timingSafeEqual,
 } from 'node:crypto';
 import type { Prisma } from '@hubium/db';
+import { safeFetch } from '@hubium/module-sdk/net';
 import {
   createRemoteJWKSet,
+  customFetch,
   exportJWK,
   generateKeyPair,
   importJWK,
@@ -151,7 +153,14 @@ export async function verifyToolJwt(
   }
   if (!tool.jwksUrl) throw new Error('The tool has no public key or JWKS URL');
   let set = remoteSets.get(tool.jwksUrl);
-  if (!set) remoteSets.set(tool.jwksUrl, (set = createRemoteJWKSet(new URL(tool.jwksUrl))));
+  if (!set)
+    remoteSets.set(
+      tool.jwksUrl,
+      (set = createRemoteJWKSet(new URL(tool.jwksUrl), {
+        // tool-supplied URL: refuse internal addresses (SSRF)
+        [customFetch]: (url: string, init: RequestInit) => safeFetch(url, init),
+      })),
+    );
   return jwtVerify(jwt, set, check);
 }
 

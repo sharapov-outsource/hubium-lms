@@ -120,7 +120,8 @@
     "verify": "Verify",
     "trustDevice": "Trust this device for 30 days",
     "verifiedTitle": "Email verified",
-    "backToSignIn": "Back to sign in"
+    "backToSignIn": "Back to sign in",
+    "tooManyAttempts": "Too many sign-in attempts. Wait a minute and try again."
   },
   "dashboard": {
     "title": "Welcome, {name}",
@@ -167,7 +168,9 @@
     "unknownDevice": "Unknown device",
     "emailPlaceholderHint": "You have no real email address. Add one to receive notifications and reset your password.",
     "notifications": "Notifications",
-    "messages": "Messages"
+    "messages": "Messages",
+    "apiTokens": "API tokens",
+    "privacy": "Privacy"
   },
   "admin": {
     "title": "Administration",
@@ -302,7 +305,26 @@
       "storage": "File storage",
       "smtp": "SMTP",
       "jobs": "Job queue",
-      "appUrl": "Site URL"
+      "appUrl": "Site URL",
+      "check": "Check",
+      "status": "Status",
+      "detail": "Details",
+      "statuses": {
+        "ok": "OK",
+        "warn": "Warning",
+        "error": "Error"
+      },
+      "checks": {
+        "database": "Database",
+        "worker": "Background worker",
+        "jobs": "Job queue",
+        "storage": "File storage",
+        "smtp": "Mail (SMTP)",
+        "contentOrigin": "Separate content origin",
+        "push": "Push notifications",
+        "ai": "AI",
+        "ffmpeg": "FFmpeg (video)"
+      }
     },
     "categories": "Categories",
     "courses": "Courses",
@@ -313,7 +335,8 @@
     "stopImpersonating": "Return to my account",
     "announcements": "Announcements",
     "lti": "LTI",
-    "ai": "AI"
+    "ai": "AI",
+    "policies": "Policies"
   },
   "email": {
     "footer": "You received this email because you have an account on this site.",
@@ -882,7 +905,16 @@
         "DIGEST": "Daily digest"
       },
       "digestHour": "Daily digest time",
-      "saved": "Notification settings saved"
+      "saved": "Notification settings saved",
+      "push": "Push",
+      "pushTitle": "Push notifications on this device",
+      "pushHint": "Get notifications even when Hubium is closed.",
+      "pushEnable": "Enable",
+      "pushDisable": "Disable",
+      "pushOn": "Push notifications enabled",
+      "pushOff": "Push notifications disabled",
+      "pushDenied": "The browser blocked notifications — allow them in the site settings.",
+      "pushUnsupported": "This browser does not support push notifications."
     },
     "unsubscribe": {
       "title": "Unsubscribe",
@@ -1140,5 +1172,65 @@
     "outputTokens": "Output tokens",
     "cacheRead": "From cache",
     "topCourses": "Top courses by usage"
+  },
+  "apiTokens": {
+    "title": "API tokens",
+    "new": "New token",
+    "hint": "A token lets programs use the REST API on your behalf. See the <docs>API documentation</docs>.",
+    "name": "Name",
+    "scopes": "Scopes",
+    "scopeRead": "Read",
+    "scopeWrite": "Write",
+    "expires": "Expires",
+    "days": "{n} days",
+    "never": "Never",
+    "create": "Create token",
+    "createdTitle": "Token created",
+    "createdHint": "Copy it now — it will not be shown again.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "lastUsed": "Last used",
+    "revoke": "Revoke",
+    "revokeConfirm": "Revoke this token? Programs using it will lose access.",
+    "revoked": "Revoked",
+    "empty": "No tokens yet"
+  },
+  "policies": {
+    "title": "Please accept the updated terms",
+    "intro": "Read the documents below and confirm to continue.",
+    "agree": "I have read and accept these documents",
+    "continue": "Continue"
+  },
+  "privacy": {
+    "exportTitle": "My data",
+    "exportHint": "A JSON file with everything stored about you: profile, enrolments, grades, messages, posts, submissions, AI tutor conversations and activity log.",
+    "export": "Download my data",
+    "accepted": "Accepted documents",
+    "noneAccepted": "You have not accepted any documents yet.",
+    "deletion": "To delete your account, contact the administrator: your personal data and content will be anonymised or removed."
+  },
+  "adminPolicies": {
+    "title": "Policies",
+    "description": "Privacy policy, site terms and other documents users accept.",
+    "new": "New document",
+    "key": "Key",
+    "nameRu": "Name (Russian)",
+    "nameEn": "Name (English)",
+    "save": "Save",
+    "create": "Create",
+    "saved": "Saved",
+    "draft": "Not published",
+    "published": "Published {date} · accepted {n}",
+    "contentRu": "Text (Russian)",
+    "contentEn": "Text (English)",
+    "markdown": "Markdown is supported",
+    "mandatory": "Must be accepted",
+    "publish": "Publish a new version",
+    "publishedOk": "New version published"
+  },
+  "offline": {
+    "title": "You are offline",
+    "text": "Check your connection — the page will reload when you are back online.",
+    "retry": "Retry"
   }
 }

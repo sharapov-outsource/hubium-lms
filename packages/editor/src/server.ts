@@ -3,7 +3,7 @@ import sanitize from 'sanitize-html';
 // Server-side rich text handling. The editor produces HTML; we sanitise on every write
 // (defence in depth: never trust the client) and extract plain text for search and AI.
 
-const EMBED_HOSTS = [
+export const EMBED_HOSTS = [
   'www.youtube-nocookie.com',
   'www.youtube.com',
   'rutube.ru',

@@ -316,6 +316,22 @@ export const quiz = defineModule<QuizSettingsT>({
       return open > 0;
     },
   },
+  privacy: {
+    // Attempts stay (they feed grades and statistics) and point at the anonymised user.
+    async export(ctx, userId) {
+      return ctx.db.quizAttempt.findMany({
+        where: { userId, preview: false },
+        select: {
+          activityId: true,
+          attemptNumber: true,
+          state: true,
+          startedAt: true,
+          finishedAt: true,
+          sumGrades: true,
+        },
+      });
+    },
+  },
   backup: {
     async export(ctx, a) {
       const slots = await ctx.db.quizSlot.findMany({

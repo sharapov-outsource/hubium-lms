@@ -16,6 +16,8 @@ env:
   APP_SECRET: ci-secret-ci-secret-ci-secret-ci-secret-0000
   SMTP_URL: smtp://localhost:1025
   NEXT_TELEMETRY_DISABLED: 1
+  # e2e signs in hundreds of times from one IP
+  AUTH_RATE_LIMIT: 'off'
 
 jobs:
   check:

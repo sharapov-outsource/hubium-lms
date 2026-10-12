@@ -45,7 +45,7 @@ test.describe
     });
 
     test('teacher uploads a 1080p video and it is transcoded', async ({ page }) => {
-      test.setTimeout(180_000);
+      test.setTimeout(330_000);
       await login(page, 'teacher', DEMO_PASSWORD);
       const [section] = await sql<{ id: string }>(
         `SELECT id FROM "CourseSection" WHERE "courseId" = $1 ORDER BY rank LIMIT 1`,
@@ -67,7 +67,8 @@ test.describe
       await expect(page.getByText('Видео загружено и отправлено на обработку')).toBeVisible({
         timeout: 60_000,
       });
-      await expect(page.getByText('Готово', { exact: true })).toBeVisible({ timeout: 120_000 });
+      // three renditions of a 1080p clip; slow CI machines need a few minutes
+      await expect(page.getByText('Готово', { exact: true })).toBeVisible({ timeout: 270_000 });
       await expect(page.getByText('360p · 720p · 1080p')).toBeVisible();
       await expectAccessible(page);
     });

@@ -293,6 +293,17 @@ export const video = defineModule<VideoSettingsT>({
   archetype: 'activity',
   icon: 'PlaySquare',
   supports: { viewCompletion: true, backup: true },
+  privacy: {
+    async export(ctx, userId) {
+      return ctx.db.videoProgress.findMany({
+        where: { userId },
+        select: { activityId: true, watchedSec: true, durationSec: true, percent: true },
+      });
+    },
+    async erase(ctx, userId) {
+      await ctx.db.videoProgress.deleteMany({ where: { userId } });
+    },
+  },
   backup: {
     // generated HLS files are rebuilt from the restored source file
     async import(ctx, a) {
