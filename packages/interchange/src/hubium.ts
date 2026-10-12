@@ -11,8 +11,12 @@ import {
 import { storeFile } from '@hubium/core/files/files';
 import { getStorage } from '@hubium/core/files/storage';
 import { type Prisma, uuidv7 } from '@hubium/db';
-import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
+import { sanitizeRichText } from '@hubium/editor/server';
+import { parseSettings } from '@hubium/module-sdk';
+import { type QuestionType, questionDataSchemas, questionTypes } from '@hubium/questions';
+import { strFromU8, strToU8, zipSync } from 'fflate';
 import { z } from 'zod';
+import { type ArchiveLimits, unzipLimited } from './archive.ts';
 
 // The .hubium course format: a zip with manifest.json, course.json, files.json and
 // files/<blobId>. Restoring maps every id from the source course to a new one, so the
@@ -104,7 +108,7 @@ const CourseJson = z.object({
       defaultMark: z.number(),
       penalty: z.number(),
       data: z.unknown(),
-      status: z.string(),
+      status: z.enum(['DRAFT', 'READY', 'HIDDEN']).catch('READY'),
       tags: z.array(z.string()),
       idNumber: z.string().nullable(),
     }),
@@ -304,11 +308,12 @@ const rewriteJson = <T>(v: T, map: Map<string, string>): T =>
   v === null || v === undefined ? v : (JSON.parse(rewriteIds(JSON.stringify(v), map)) as T);
 
 /** Reads and validates a .hubium archive. */
-export function readBackup(zip: Uint8Array) {
+export function readBackup(zip: Uint8Array, limits?: ArchiveLimits) {
   let entries: Record<string, Uint8Array>;
   try {
-    entries = unzipSync(zip);
-  } catch {
+    entries = unzipLimited(zip, limits);
+  } catch (e) {
+    if (e instanceof ValidationError) throw e;
     throw new ValidationError({ file: ['Not a .hubium archive'] });
   }
   if (!entries['manifest.json']) throw new ValidationError({ file: ['Not a .hubium archive'] });
@@ -400,20 +405,29 @@ export async function restoreCourse(
       });
     }
     for (const q of b.course.questions) {
+      const categoryId = map.get(q.categoryId);
+      // The archive is untrusted: only known types with valid data make it into the bank.
+      const data = questionTypes.includes(q.type as QuestionType)
+        ? questionDataSchemas[q.type as QuestionType].safeParse(q.data)
+        : null;
+      if (!categoryId || !data?.success) {
+        warnings.push(`Question "${q.name}" could not be restored`);
+        continue;
+      }
       const id = uuidv7();
       map.set(q.id, id);
       await db.question.create({
         data: {
           id,
-          categoryId: map.get(q.categoryId)!,
-          type: q.type as never,
+          categoryId,
+          type: q.type as QuestionType,
           name: q.name,
-          text: q.text,
-          generalFeedback: q.generalFeedback,
+          text: sanitizeRichText(q.text),
+          generalFeedback: sanitizeRichText(q.generalFeedback),
           defaultMark: q.defaultMark,
           penalty: q.penalty,
-          data: q.data as Prisma.InputJsonValue,
-          status: q.status as never,
+          data: data.data as Prisma.InputJsonValue,
+          status: q.status,
           tags: q.tags,
           idNumber: q.idNumber,
           source: 'IMPORT',
@@ -490,7 +504,7 @@ export async function restoreCourse(
     await db.course.update({
       where: { id: courseId },
       data: {
-        summary: rewriteIds(src.summary, map),
+        summary: sanitizeRichText(rewriteIds(src.summary, map)),
         formatOptions: rewriteJson(src.formatOptions, map) as Prisma.InputJsonValue,
         completionSettings: rewriteJson(src.completionSettings, map) as Prisma.InputJsonValue,
         settings: rewriteJson(src.settings, map) as Prisma.InputJsonValue,
@@ -503,7 +517,7 @@ export async function restoreCourse(
         where: { id: target.id },
         data: {
           title: s.title,
-          summary: rewriteIds(s.summary, map),
+          summary: sanitizeRichText(rewriteIds(s.summary, map)),
           visible: s.visible,
           availability: s.availability
             ? (rewriteJson(s.availability, map) as Prisma.InputJsonValue)
@@ -512,11 +526,15 @@ export async function restoreCourse(
       });
     }
     for (const { row, id } of created) {
+      // Same checks as createActivity, which only saw the archive's settings before ids were mapped.
       await db.activity.update({
         where: { id },
         data: {
-          intro: rewriteIds(row.intro, map),
-          settings: rewriteJson(row.settings, map) as Prisma.InputJsonValue,
+          intro: sanitizeRichText(rewriteIds(row.intro, map)),
+          settings: parseSettings(
+            getModule(row.moduleKey)!,
+            rewriteJson(row.settings, map),
+          ) as Prisma.InputJsonValue,
           availability: row.availability
             ? (rewriteJson(row.availability, map) as Prisma.InputJsonValue)
             : undefined,

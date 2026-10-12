@@ -52,6 +52,14 @@ test.describe
       await expect(page.getByText(/Осталось/)).toBeVisible();
       await expectAccessible(page);
 
+      // the review (with correct answers) is closed while the attempt is open
+      const attemptUrl = page.url();
+      const attemptId = new URL(attemptUrl).searchParams.get('attempt');
+      await page.goto(`/course/${ids.courseId}/a/${ids.quizId}?review=${attemptId}`);
+      await expect(page.getByText('Тест закрыт')).toBeVisible();
+      await expect(page.getByText(/Правильный ответ/)).toHaveCount(0);
+      await page.goto(attemptUrl);
+
       // page 1: multichoice, true/false, short answer
       await page.getByLabel('float', { exact: true }).check();
       await page.getByLabel('Верно', { exact: true }).check();

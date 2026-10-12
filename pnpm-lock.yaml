@@ -917,6 +917,9 @@ importers:
       '@hubium/editor':
         specifier: workspace:*
         version: link:../editor
+      '@hubium/module-sdk':
+        specifier: workspace:*
+        version: link:../module-sdk
       '@hubium/questions':
         specifier: workspace:*
         version: link:../questions

@@ -246,6 +246,9 @@ async function ReviewPage({ activity: a, ctx, attemptId }: Props & { attemptId: 
   const own = ctx.actor.kind === 'user' && at.userId === ctx.actor.userId;
   const teacher = await ctx.perm.can('mod.quiz:viewreports', a.id);
   if (!own && !teacher) return <Alert variant="destructive">{t('closed')}</Alert>;
+  // No review (answers, feedback, verdicts) while the student can still change answers.
+  if (!teacher && !at.preview && at.state === 'IN_PROGRESS')
+    return <Alert variant="destructive">{t('closed')}</Alert>;
   const canGrade = await ctx.perm.can('mod.quiz:grade', a.id);
   const e = await effectiveQuiz(ctx.db, a, at.userId);
   const showAnswers = teacher || at.preview || reviewAllowed(a.settings, e.closeAt, ctx.now);

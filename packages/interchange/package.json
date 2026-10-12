@@ -15,6 +15,7 @@
     "@hubium/core": "workspace:*",
     "@hubium/db": "workspace:*",
     "@hubium/editor": "workspace:*",
+    "@hubium/module-sdk": "workspace:*",
     "@hubium/questions": "workspace:*",
     "fast-xml-parser": "5.11.1",
     "fflate": "0.8.3",
