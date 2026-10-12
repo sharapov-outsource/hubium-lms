@@ -67,6 +67,10 @@ model User {
   courseCompletions   CourseCompletion[]
   calendarEvents      CalendarEvent[]
   calendarFeedToken   CalendarFeedToken?
+  grades              Grade[]
+  assignSubmissions   AssignSubmission[]
+  assignGrades        AssignGrade[]        @relation("AssignGradeUser")
+  quizAttempts        QuizAttempt[]
 
   @@index([status])
   @@index([lastName, firstName])
