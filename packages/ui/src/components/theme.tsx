@@ -1,6 +1,6 @@
 'use client';
 
-import { ThemeProvider as NextThemes } from 'next-themes';
+import { ThemeProvider as NextThemes, useTheme } from 'next-themes';
 import type { ReactNode } from 'react';
 import { Toaster as Sonner } from 'sonner';
 
@@ -23,9 +23,26 @@ export function ThemeProvider({
   );
 }
 
+/** Toasts styled with our tokens (sonner's richColors fail WCAG contrast). */
 export function Toaster() {
-  return <Sonner position="bottom-right" richColors closeButton />;
+  const { resolvedTheme } = useTheme();
+  return (
+    <Sonner
+      position="bottom-right"
+      closeButton
+      theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+      toastOptions={{
+        classNames: {
+          toast: '!bg-card !text-card-foreground !border-border',
+          success: '!bg-success-soft !text-success',
+          warning: '!bg-warning-soft !text-warning',
+          error: '!text-destructive',
+          description: '!text-muted-foreground',
+        },
+      }}
+    />
+  );
 }
 
-export { useTheme } from 'next-themes';
 export { toast } from 'sonner';
+export { useTheme };

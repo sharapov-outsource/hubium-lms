@@ -5,7 +5,9 @@ loadEnv({ path: path.resolve(import.meta.dirname, '../../../.env'), quiet: true 
 
 import type { Db } from '@hubium/db';
 import { createTestDatabase, type TestDatabase } from '@hubium/db/testing';
+import { assignModules } from '@hubium/mod-assign/server';
 import { contentModules } from '@hubium/mod-content/server';
+import { quizModules } from '@hubium/mod-quiz/server';
 import { afterAll, beforeAll } from 'vitest';
 import {
   invalidatePermissionCaches,
@@ -17,7 +19,7 @@ import { registerModules } from '../src/modules/registry.ts';
 import { seed } from '../src/seed/seed.ts';
 import '../src/bootstrap.ts';
 
-registerModules(contentModules as never);
+registerModules([...contentModules, ...assignModules, ...quizModules] as never);
 
 import { invalidateSettingsCache } from '../src/settings/settings.ts';
 

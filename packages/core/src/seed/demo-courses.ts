@@ -21,7 +21,11 @@ function systemCtx(db: Db): RequestContext {
 
 /** Demo categories, courses, materials and enrolments (idempotent by course short name). */
 export async function seedDemoCourses(db: Db, users: Record<string, string>) {
-  if (await db.course.findUnique({ where: { shortName: 'DEMO-PY' } })) return { created: false };
+  const existing = await db.course.findUnique({ where: { shortName: 'DEMO-PY' } });
+  if (existing) {
+    await seedDemoAssessment(db, existing.id);
+    return { created: false };
+  }
   const ctx = systemCtx(db);
   const roles = Object.fromEntries((await db.role.findMany()).map((r) => [r.shortName, r.id]));
 
@@ -180,5 +184,67 @@ export async function seedDemoCourses(db: Db, users: Record<string, string>) {
     startsAt: new Date(lesson.getTime() + 2 * 86_400_000),
     allDay: true,
   });
+  await seedDemoAssessment(db, py);
   return { created: true, courses: [py, hist] };
+}
+
+const DEMO_GIFT = `
+::Тип данных:: Какой тип у значения 3.14 в Python? {=float ~int ~str ~bool}
+
+::Комментарий:: Комментарий в Python начинается с символа «#». {T}
+
+::Вывод:: Какая функция выводит текст на экран? {=print =print()}
+
+::Деление:: Чему равно 7 // 2 в Python? {#3}
+
+::Соответствие:: Сопоставьте значение и тип {
+  =42 -> int
+  ="42" -> str
+  =True -> bool
+}
+
+::Списки:: Какие из этих типов изменяемые? {~%50%list ~%50%dict ~%-100%tuple ~%-100%str}
+`;
+
+/** Demo assignment, question bank and quiz (idempotent: skipped if the course has a quiz). */
+export async function seedDemoAssessment(db: Db, courseId: string) {
+  if (await db.activity.findFirst({ where: { courseId, moduleKey: { in: ['quiz', 'assign'] } } }))
+    return;
+  const ctx = systemCtx(db);
+  const { importGift } = await import('../questions/bank.ts');
+  const { runModuleAction } = await import('../modules/actions.ts');
+  await importGift.run(ctx, { courseId, gift: DEMO_GIFT });
+  const sections = await db.courseSection.findMany({
+    where: { courseId },
+    orderBy: { rank: 'asc' },
+  });
+  const target = sections[2] ?? sections.at(-1)!;
+  const due = new Date(Date.now() + 5 * 86_400_000);
+  due.setUTCHours(20, 59, 0, 0);
+  await createActivity.run(ctx, {
+    courseId,
+    sectionId: target.id,
+    moduleKey: 'assign',
+    name: 'Домашнее задание: калькулятор',
+    intro:
+      '<p>Напишите программу, которая читает два числа и выводит их сумму, разность и произведение. Прикрепите файл <code>.py</code> или вставьте код в ответ.</p>',
+    showIntro: true,
+    completionMode: 'AUTO',
+    completionRules: { module: { submit: true } },
+    settings: { dueAt: due.toISOString(), gradeMax: 10, gradePass: 6, maxFiles: 3 },
+  });
+  const { id: quizId } = await createActivity.run(ctx, {
+    courseId,
+    sectionId: target.id,
+    moduleKey: 'quiz',
+    name: 'Тест по основам Python',
+    completionMode: 'AUTO',
+    completionRules: { module: { pass: true } },
+    settings: { attempts: 3, timeLimitMin: 15, gradeMax: 10, gradePass: 6, perPage: 3 },
+  });
+  const questions = await db.question.findMany({
+    where: { category: { contextId: courseId } },
+    orderBy: { createdAt: 'asc' },
+  });
+  await runModuleAction(ctx, quizId, 'addQuestions', { questionIds: questions.map((q) => q.id) });
 }
