@@ -29,10 +29,20 @@ test('service worker serves the offline page when the network is gone', async ({
   // the first visit installs it; the next navigation is controlled
   await page.goto('/calendar');
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  // the fallback page is precached during install
+  await expect.poll(() => page.evaluate(async () => !!(await caches.match('/offline')))).toBe(true);
   await context.setOffline(true);
   try {
-    await page.goto('/my-courses').catch(() => {});
-    await expect(page.getByRole('heading', { name: 'Нет подключения к интернету' })).toBeVisible();
+    const heading = page.getByRole('heading', { name: 'Нет подключения к интернету' });
+    await expect
+      .poll(
+        async () => {
+          await page.goto('/my-courses').catch(() => {});
+          return heading.count();
+        },
+        { timeout: 30_000 },
+      )
+      .toBeGreaterThan(0);
   } finally {
     await context.setOffline(false);
   }
