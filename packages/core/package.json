@@ -14,7 +14,8 @@
     "seed": "tsx scripts/seed.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "secrets:rotate": "tsx scripts/rotate-secret.ts"
+    "secrets:rotate": "tsx scripts/rotate-secret.ts",
+    "k6:prepare": "tsx scripts/k6-prepare.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1149.0",
