@@ -43,8 +43,20 @@ const SIGNATURES: [string, number[]][] = [
   ['application/zip', [0x50, 0x4b, 0x03, 0x04]],
 ];
 
+const MIME_RE = /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/;
+
+/**
+ * A client-declared type reduced to a single, well-formed `type/subtype`. Lists such as
+ * `text/plain,text/html` (browsers pick the last one) or junk become octet-stream.
+ */
+export function normalizeMimeType(declared: string | null | undefined): string {
+  const t = (declared ?? '').split(';')[0]!.trim().toLowerCase();
+  return MIME_RE.test(t) ? t : 'application/octet-stream';
+}
+
 /** Sniffs the real type of common formats; falls back to the declared type. */
-export function sniffMimeType(data: Buffer, declared: string, name: string): string {
+export function sniffMimeType(data: Buffer, rawDeclared: string, name: string): string {
+  const declared = normalizeMimeType(rawDeclared);
   for (const [mime, sig] of SIGNATURES) {
     if (sig.every((b, i) => data[i] === b)) {
       if (mime === 'application/zip') {
@@ -73,7 +85,7 @@ export function sniffMimeType(data: Buffer, declared: string, name: string): str
 
 /** Types that may be shown inline; everything else downloads. HTML/SVG get a sandbox CSP. */
 export function isInlineSafe(mime: string): boolean {
-  return /^(image\/(png|jpeg|gif|webp|svg\+xml)|application\/pdf|video\/|audio\/|text\/plain|text\/vtt)/.test(
+  return /^(image\/(png|jpeg|gif|webp|svg\+xml)|application\/pdf|video\/[a-z0-9.+-]+|audio\/[a-z0-9.+-]+|text\/plain|text\/vtt)$/.test(
     mime,
   );
 }

@@ -1,6 +1,6 @@
 import 'server-only';
 import { Readable } from 'node:stream';
-import { isInlineSafe } from '@hubium/core/files/files';
+import { isInlineSafe, normalizeMimeType } from '@hubium/core/files/files';
 import { getStorage } from '@hubium/core/files/storage';
 import type { File, FileBlob } from '@hubium/db';
 
@@ -10,7 +10,9 @@ export async function serveFile(
   opts: { download?: boolean; cache?: string } = {},
 ) {
   const storage = getStorage();
-  const inline = !opts.download && isInlineSafe(file.mimeType);
+  // Older rows may hold a raw client-declared type: never serve anything but a clean one.
+  const mime = normalizeMimeType(file.mimeType);
+  const inline = !opts.download && isInlineSafe(mime);
   if (storage.kind === 's3') {
     const url = await storage.signedReadUrl(file.blob.storageKey, {
       ttlSeconds: 60,
@@ -22,13 +24,15 @@ export async function serveFile(
   const stream = await storage.getStream(file.blob.storageKey);
   const disposition = `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(file.name)}`;
   const headers: Record<string, string> = {
-    'Content-Type': file.mimeType,
+    'Content-Type': mime,
     'Content-Length': String(file.size),
     'Content-Disposition': disposition,
     'X-Content-Type-Options': 'nosniff',
     'Cache-Control': opts.cache ?? 'private, max-age=300',
   };
-  if (file.mimeType === 'image/svg+xml')
-    headers['Content-Security-Policy'] = 'sandbox; default-src none; style-src unsafe-inline';
+  // User content never runs as part of the LMS; PDFs keep the browser viewer working.
+  if (mime !== 'application/pdf')
+    headers['Content-Security-Policy'] =
+      "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'";
   return new Response(Readable.toWeb(stream as Readable) as ReadableStream, { headers });
 }

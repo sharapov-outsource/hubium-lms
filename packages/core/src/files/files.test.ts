@@ -10,6 +10,7 @@ import {
   garbageCollectBlobs,
   isInlineSafe,
   listFiles,
+  normalizeMimeType,
   sanitizeFilename,
   sniffMimeType,
   storeFile,
@@ -43,6 +44,16 @@ describe('file helpers', () => {
     expect(isInlineSafe('image/png')).toBe(true);
     expect(isInlineSafe('text/html')).toBe(false);
     expect(isInlineSafe('application/zip')).toBe(false);
+    // browsers take the last type of a list: such values must never pass as "text/plain"
+    expect(isInlineSafe('text/plain,text/html')).toBe(false);
+    expect(isInlineSafe('video/mp4')).toBe(true);
+  });
+  it('never stores a smuggled or malformed declared type', () => {
+    const html = Buffer.from('<script>alert(1)</script>');
+    expect(sniffMimeType(html, 'text/plain,text/html', 'x.html')).toBe('application/octet-stream');
+    expect(sniffMimeType(html, 'text/plain; charset=utf-8', 'x.txt')).toBe('text/plain');
+    expect(normalizeMimeType('Text/HTML ')).toBe('text/html');
+    expect(normalizeMimeType('text/plain\r\nX-Evil: 1')).toBe('application/octet-stream');
   });
   it('sanitizes file names', () => {
     expect(sanitizeFilename('../../etc/passwd')).toBe('.._.._etc_passwd');
