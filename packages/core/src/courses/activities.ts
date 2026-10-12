@@ -256,6 +256,17 @@ export const updateActivity = defineOperation({
     await m.lifecycle?.onUpdate?.(mctx, toActivityRef(a), parseSettings(m, prev.settings));
     if (m.grading) await mctx.grades.syncItems(a.id).catch(() => {});
     await syncCalendar(ctx.tx, a);
+    // New completion rules apply to everyone, not just to the next person who acts.
+    if (
+      a.completionMode === 'AUTO' &&
+      (prev.completionMode !== 'AUTO' ||
+        JSON.stringify(prev.completionRules ?? {}) !== JSON.stringify(completionRules))
+    )
+      await enqueue(
+        'completion.recompute',
+        { activityId: a.id },
+        { tx: ctx.tx, singletonKey: a.id, singletonSeconds: 60, singletonNextSlot: true },
+      );
     await logEvent(ctx.tx, {
       name: 'activity.updated',
       actorId: ctx.perm.userId,
@@ -339,6 +350,11 @@ export const moveActivityStep = defineOperation({
   },
 });
 
+/** Grade items follow the activity into and out of the recycle bin (and the totals with them). */
+async function syncGrades(ctx: RequestContext & { tx: Prisma.TransactionClient }, a: Activity) {
+  if (requireModule(a.moduleKey).grading) await buildModuleCtx(ctx, ctx.tx).grades.syncItems(a.id);
+}
+
 export const deleteActivity = defineOperation({
   name: 'activity.delete',
   input: z.object({ id: z.string().uuid() }),
@@ -346,6 +362,7 @@ export const deleteActivity = defineOperation({
   async handler(ctx, { id }) {
     const a = await ctx.tx.activity.update({ where: { id }, data: { deletedAt: ctx.now } });
     await syncCalendar(ctx.tx, a);
+    await syncGrades(ctx, a);
     await logEvent(ctx.tx, {
       name: 'activity.deleted',
       actorId: ctx.perm.userId,
@@ -365,6 +382,7 @@ export const restoreActivity = defineOperation({
   async handler(ctx, { id }) {
     const a = await ctx.tx.activity.update({ where: { id }, data: { deletedAt: null } });
     await syncCalendar(ctx.tx, a);
+    await syncGrades(ctx, a);
     await scheduleAiIndex(ctx, id);
     return { id };
   },

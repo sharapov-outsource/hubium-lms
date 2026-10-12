@@ -1,4 +1,4 @@
-import { appendFile, mkdir, rm, stat } from 'node:fs/promises';
+import { appendFile, mkdir, rm, stat, truncate } from 'node:fs/promises';
 import path from 'node:path';
 import type { Db, Prisma } from '@hubium/db';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
@@ -23,6 +23,10 @@ function tempPath(id: string): string {
   return path.join(uploadTempDir(), id);
 }
 
+/** Unfinished uploads one user may hold at a time (they occupy the server's disk). */
+export const UPLOAD_PENDING_MAX_BYTES = 2 * UPLOAD_MAX_BYTES;
+export const UPLOAD_PENDING_MAX_COUNT = 20;
+
 export async function createUpload(
   db: Tx,
   userId: string,
@@ -31,6 +35,16 @@ export async function createUpload(
   if (!Number.isInteger(input.size) || input.size <= 0 || input.size > UPLOAD_MAX_BYTES) {
     throw new ValidationError({ size: ['Invalid file size'] });
   }
+  const pending = await db.uploadSession.aggregate({
+    where: { userId, completedAt: null, expiresAt: { gt: new Date() } },
+    _sum: { size: true },
+    _count: { _all: true },
+  });
+  if (
+    pending._count._all >= UPLOAD_PENDING_MAX_COUNT ||
+    Number(pending._sum.size ?? 0n) + input.size > UPLOAD_PENDING_MAX_BYTES
+  )
+    throw new ValidationError({ size: ['Too many unfinished uploads; finish or wait for them'] });
   const s = await db.uploadSession.create({
     data: {
       userId,
@@ -69,19 +83,38 @@ export async function appendUploadChunk(
   const s = await own(db, userId, id);
   if (s.completedAt) throw new ValidationError({ id: ['Upload already completed'] });
   const received = Number(s.received);
-  if (offset !== received) return { received, conflict: true };
-  if (chunk.length > UPLOAD_CHUNK_BYTES * 2 || received + chunk.length > Number(s.size)) {
-    throw new ValidationError({ chunk: ['Chunk exceeds the declared size'] });
-  }
-  // Disk is the source of truth if a previous request died after writing.
+  // A request that died half-way leaves disk and database apart: the database never
+  // runs ahead of the disk, and bytes past it are dropped.
   const onDisk = await stat(tempPath(id)).then(
     (x) => x.size,
     () => 0,
   );
-  if (onDisk !== received) return { received: onDisk, conflict: true };
-  await appendFile(tempPath(id), chunk);
+  if (onDisk > received) await truncate(tempPath(id), received);
+  if (onDisk < received) {
+    await db.uploadSession.update({ where: { id }, data: { received: BigInt(onDisk) } });
+    return { received: onDisk, conflict: true };
+  }
+  if (offset !== received) return { received, conflict: true };
+  if (chunk.length > UPLOAD_CHUNK_BYTES * 2 || received + chunk.length > Number(s.size)) {
+    throw new ValidationError({ chunk: ['Chunk exceeds the declared size'] });
+  }
+  // Claim the offset first so a retried request racing the original cannot append twice.
   const next = received + chunk.length;
-  await db.uploadSession.update({ where: { id }, data: { received: BigInt(next) } });
+  const claim = await db.uploadSession.updateMany({
+    where: { id, received: s.received },
+    data: { received: BigInt(next) },
+  });
+  if (!claim.count)
+    return { received: Number((await own(db, userId, id)).received), conflict: true };
+  try {
+    await appendFile(tempPath(id), chunk);
+  } catch (e) {
+    await db.uploadSession.updateMany({
+      where: { id, received: BigInt(next) },
+      data: { received: s.received },
+    });
+    throw e;
+  }
   return { received: next };
 }
 

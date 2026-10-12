@@ -169,6 +169,29 @@ describe('.hubium backup and restore', () => {
     expect(act.settings).not.toHaveProperty('junk');
   });
 
+  it('restores courses with more sections than a new course may have', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const course = await t.db.course.findUniqueOrThrow({ where: { id: f.courseId } });
+    const entries = unzipSync(zip);
+    const body = JSON.parse(strFromU8(entries['course.json']!));
+    const extra = Array.from({ length: 60 }, (_, i) => ({
+      id: crypto.randomUUID(),
+      title: `Неделя ${i + 1}`,
+      summary: '',
+      visible: true,
+      availability: null,
+    }));
+    body.sections.push(...extra);
+    entries['course.json'] = strToU8(JSON.stringify(body));
+    const r = await restoreCourse(admin, zipSync(entries), { categoryId: course.categoryId });
+    const sections = await t.db.courseSection.findMany({
+      where: { courseId: r.courseId },
+      orderBy: { rank: 'asc' },
+    });
+    expect(sections).toHaveLength(body.sections.length);
+    expect(sections.at(-1)!.title).toBe('Неделя 60');
+  });
+
   it('rejects foreign archives', async () => {
     const admin = await ctxFor(t.db, 'admin@test.local');
     const course = await t.db.course.findUniqueOrThrow({ where: { id: f.courseId } });

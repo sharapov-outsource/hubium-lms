@@ -1,4 +1,5 @@
 import {
+  COMPLETION_RECOMPUTE_JOB,
   expireEnrolments,
   INDEX_COURSE_JOB,
   INDEX_JOB,
@@ -6,6 +7,7 @@ import {
   indexCourse,
   PUSH_JOB,
   QUIZGEN_JOB,
+  recomputeActivityForAll,
   recordHeartbeat,
   runQuizGeneration,
   sendPushNotifications,
@@ -99,6 +101,12 @@ export const coreHandlers: JobHandlerDef[] = [
     cron: '10 * * * *',
     async handler(_data: never, { db }) {
       return { notified: await sendCalendarReminders(db) };
+    },
+  },
+  {
+    name: COMPLETION_RECOMPUTE_JOB,
+    async handler(data: { activityId: string }, { db }) {
+      return { users: await recomputeActivityForAll(db, data.activityId) };
     },
   },
   {

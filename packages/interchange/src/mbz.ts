@@ -21,6 +21,7 @@ import {
   gunzipLimited,
   unzipLimited,
 } from './archive.ts';
+import { addMissingSections } from './hubium.ts';
 
 // Moodle course backup (.mbz) import for Moodle 4.1–5.x: course, sections, the common
 // activities, question bank and files. Anything unsupported becomes a label and is
@@ -330,10 +331,11 @@ export async function importMbz(
     fullName,
     shortName,
     format: txt(courseXml.format) === 'weeks' ? 'WEEKS' : 'TOPICS',
-    sections: Math.max(0, sections.length - 1),
+    sections: Math.min(52, Math.max(0, sections.length - 1)),
     startDate: date(courseXml.startdate) ?? undefined,
     endDate: date(courseXml.enddate) ?? undefined,
   });
+  await addMissingSections(ctx, courseId, sections.length - 1);
   const db = ctx.db;
   let fileCount = 0;
 

@@ -1,4 +1,5 @@
 import {
+  addSection,
   buildModuleCtx,
   createActivity,
   createCourse,
@@ -333,6 +334,15 @@ export function readBackup(zip: Uint8Array, limits?: ArchiveLimits) {
   };
 }
 
+/** createCourse makes at most this many sections; longer courses get the rest added. */
+const MAX_NEW_SECTIONS = 52;
+
+/** Adds sections until the course has `wanted` besides the general one. */
+export async function addMissingSections(ctx: RequestContext, courseId: string, wanted: number) {
+  const have = (await ctx.db.courseSection.count({ where: { courseId } })) - 1;
+  for (let i = have; i < wanted; i++) await addSection.run(ctx, { courseId });
+}
+
 /** Restores a .hubium archive into a new course in `categoryId`. */
 export async function restoreCourse(
   ctx: RequestContext,
@@ -355,7 +365,7 @@ export async function restoreCourse(
     fullName: target.fullName ?? src.fullName,
     shortName,
     format: src.format,
-    sections: src.format === 'SINGLE' ? 0 : sectionsCount,
+    sections: src.format === 'SINGLE' ? 0 : Math.min(MAX_NEW_SECTIONS, sectionsCount),
     startDate: src.startDate ?? undefined,
     endDate: src.endDate ?? undefined,
     lang: (src.lang as 'ru' | 'en' | null) ?? null,
@@ -369,6 +379,7 @@ export async function restoreCourse(
       throw new ForbiddenError('You cannot restore into this course');
     });
     const db = ctx.db;
+    if (src.format !== 'SINGLE') await addMissingSections(ctx, courseId, sectionsCount);
     const newSections = await db.courseSection.findMany({
       where: { courseId },
       orderBy: { rank: 'asc' },

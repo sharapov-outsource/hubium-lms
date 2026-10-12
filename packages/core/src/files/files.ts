@@ -273,11 +273,20 @@ export async function garbageCollectBlobs(db: Db, olderThanMs = 24 * 3600_000): 
     where: { createdAt: { lt: cutoff }, files: { none: {} }, variants: { none: {} } },
     take: 500,
   });
+  let deleted = 0;
   for (const b of orphans) {
-    await getStorage().delete(b.storageKey);
-    await db.fileBlob.delete({ where: { id: b.id } });
+    // The row goes first and only if still unreferenced: an upload of the same content may
+    // have reused the blob since the query above. Only then is the stored object removed.
+    const r = await db.fileBlob.deleteMany({
+      where: { id: b.id, files: { none: {} }, variants: { none: {} } },
+    });
+    if (!r.count) continue;
+    await getStorage()
+      .delete(b.storageKey)
+      .catch((e) => console.warn('[files] could not delete', b.storageKey, e));
+    deleted++;
   }
-  return orphans.length;
+  return deleted;
 }
 
 export function fileUrl(file: Pick<File, 'id' | 'name'>): string {
