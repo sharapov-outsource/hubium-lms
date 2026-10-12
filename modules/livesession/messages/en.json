@@ -1,0 +1,41 @@
+{
+  "livesession": {
+    "name": "Live session",
+    "description": "BigBlueButton or Jitsi webinar with attendance and recordings",
+    "provider": "Platform",
+    "startsAt": "Starts at",
+    "durationMin": "Duration, minutes",
+    "joinEarlyMin": "Room opens before start, minutes",
+    "welcome": "Room welcome message",
+    "record": "Allow recording (BigBlueButton)",
+    "completionAttended": "Student joined the session",
+    "status": {
+      "SCHEDULED": "Scheduled",
+      "LIVE": "Live",
+      "ENDED": "Ended"
+    },
+    "notConfigured": "The BigBlueButton server is not configured by the administrator.",
+    "join": "Join",
+    "startOrJoin": "Start / join",
+    "waitingTeacher": "You can join once the teacher starts the session.",
+    "opensAt": "The room opens {time}",
+    "over": "The session is over.",
+    "end": "End session",
+    "ended": "Session ended",
+    "syncRecordings": "Refresh recordings",
+    "synced": "Recordings refreshed",
+    "recordings": "Recordings",
+    "min": "min",
+    "attendance": "Attendance",
+    "participant": "Participant",
+    "firstJoin": "Joined",
+    "joins": "Joins",
+    "minutes": "Minutes",
+    "moderator": "host",
+    "noAttendance": "Nobody has joined yet",
+    "notify": {
+      "starting": "Live session starting soon",
+      "startingTitle": "“{name}” starts in 15 minutes"
+    }
+  }
+}
