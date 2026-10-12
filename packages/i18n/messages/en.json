@@ -120,7 +120,8 @@
     "verify": "Verify",
     "trustDevice": "Trust this device for 30 days",
     "verifiedTitle": "Email verified",
-    "backToSignIn": "Back to sign in"
+    "backToSignIn": "Back to sign in",
+    "tooManyAttempts": "Too many sign-in attempts. Wait a minute and try again."
   },
   "dashboard": {
     "title": "Welcome, {name}",

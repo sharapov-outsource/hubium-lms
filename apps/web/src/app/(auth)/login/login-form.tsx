@@ -36,7 +36,9 @@ export function LoginForm({
       setError(
         code === 'EMAIL_NOT_VERIFIED'
           ? t('emailNotVerified')
-          : res.error.status === 403 && code !== 'EMAIL_NOT_VERIFIED'
+          : res.error.status === 429
+            ? t('tooManyAttempts')
+            : res.error.status === 403 && code !== 'EMAIL_NOT_VERIFIED'
             ? t('accountSuspended')
             : t('invalidCredentials'),
       );

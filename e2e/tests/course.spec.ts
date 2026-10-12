@@ -9,6 +9,11 @@ test.describe
   .serial('teacher builds a course, student completes it', () => {
     let courseUrl = '';
 
+    // Earlier runs leave webinars in the same days; the dashboard lists only the next few.
+    test.beforeAll(async () => {
+      await sql(`DELETE FROM "CalendarEvent" WHERE title LIKE 'Вебинар %' AND scope = 'COURSE'`);
+    });
+
     test('teacher (course creator) creates a course with a page and self-enrolment key', async ({
       page,
     }) => {
