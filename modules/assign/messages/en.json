@@ -73,6 +73,14 @@
     "outOf": "out of {max}",
     "filterAll": "All",
     "filterNeedsGrading": "Needs grading",
-    "filterNotSubmitted": "Not submitted"
+    "filterNotSubmitted": "Not submitted",
+    "notify": {
+      "submitted": "Submission received",
+      "graded": "Submission graded",
+      "due": "Assignment due soon",
+      "submittedTitle": "{user} submitted: {name}",
+      "gradedTitle": "Your submission was graded: {name}",
+      "dueTitle": "Due tomorrow: {name}"
+    }
   }
 }

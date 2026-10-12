@@ -1,0 +1,157 @@
+// Communications: notifications, messaging, announcements.
+
+enum EmailState {
+  NONE
+  PENDING
+  SENT
+  DIGEST
+  FAILED
+}
+
+enum EmailMode {
+  OFF
+  IMMEDIATE
+  DIGEST
+}
+
+enum MessagePrivacy {
+  ANYONE
+  COURSEMATES
+  NOBODY
+}
+
+enum ConversationKind {
+  DIRECT
+  GROUP
+  SELF
+}
+
+model Notification {
+  id         String     @id @default(uuid(7)) @db.Uuid
+  userId     String     @db.Uuid
+  type       String
+  actorId    String?    @db.Uuid
+  courseId   String?    @db.Uuid
+  contextId  String?    @db.Uuid
+  title      String
+  body       String     @default("")
+  url        String?
+  data       Json       @default("{}")
+  /**
+   * Hidden from the in-app centre when the user turned the in-app channel off.
+   */
+  inApp      Boolean    @default(true)
+  readAt     DateTime?  @db.Timestamptz(3)
+  emailState EmailState @default(NONE)
+  createdAt  DateTime   @default(now()) @db.Timestamptz(3)
+
+  user   User    @relation("NotificationUser", fields: [userId], references: [id], onDelete: Cascade)
+  actor  User?   @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  course Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt(sort: Desc)])
+  @@index([emailState, userId])
+}
+
+model NotificationPreference {
+  userId String    @db.Uuid
+  type   String
+  inApp  Boolean   @default(true)
+  email  EmailMode @default(IMMEDIATE)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, type])
+}
+
+model Conversation {
+  id            String           @id @default(uuid(7)) @db.Uuid
+  kind          ConversationKind
+  name          String?
+  courseId      String?          @db.Uuid
+  groupId       String?          @unique @db.Uuid
+  /**
+   * Sorted pair of user ids for DIRECT conversations.
+   */
+  directKey     String?          @unique
+  createdById   String?          @db.Uuid
+  lastMessageAt DateTime?        @db.Timestamptz(3)
+  createdAt     DateTime         @default(now()) @db.Timestamptz(3)
+
+  course   Course?              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  group    Group?               @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  members  ConversationMember[]
+  messages Message[]
+
+  @@index([courseId])
+}
+
+model ConversationMember {
+  conversationId String    @db.Uuid
+  userId         String    @db.Uuid
+  lastReadAt     DateTime? @db.Timestamptz(3)
+  mutedUntil     DateTime? @db.Timestamptz(3)
+  archivedAt     DateTime? @db.Timestamptz(3)
+  joinedAt       DateTime  @default(now()) @db.Timestamptz(3)
+  leftAt         DateTime? @db.Timestamptz(3)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  conversationId String    @db.Uuid
+  senderId       String?   @db.Uuid
+  body           String
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  editedAt       DateTime? @db.Timestamptz(3)
+  deletedAt      DateTime? @db.Timestamptz(3)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User?        @relation(fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt(sort: Desc)])
+}
+
+model UserBlock {
+  userId        String   @db.Uuid
+  blockedUserId String   @db.Uuid
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+
+  user    User @relation("Blocker", fields: [userId], references: [id], onDelete: Cascade)
+  blocked User @relation("Blocked", fields: [blockedUserId], references: [id], onDelete: Cascade)
+
+  @@id([userId, blockedUserId])
+  @@index([blockedUserId])
+}
+
+model Announcement {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  /**
+   * Null for site-wide announcements.
+   */
+  courseId    String?   @db.Uuid
+  groupId     String?   @db.Uuid
+  authorId    String?   @db.Uuid
+  title       String
+  contentHtml String    @default("")
+  pinned      Boolean   @default(false)
+  publishAt   DateTime  @default(now()) @db.Timestamptz(3)
+  /**
+   * Set once notifications were sent for this announcement.
+   */
+  notifiedAt  DateTime? @db.Timestamptz(3)
+  notify      Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  course Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  group  Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([courseId, publishAt(sort: Desc)])
+}

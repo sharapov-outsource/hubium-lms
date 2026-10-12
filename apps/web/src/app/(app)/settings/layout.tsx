@@ -14,6 +14,8 @@ export default async function SettingsLayout({ children }: { children: ReactNode
           { key: 'account', href: '/settings/account', label: t('account') },
           { key: 'security', href: '/settings/security', label: t('security') },
           { key: 'preferences', href: '/settings/preferences', label: t('preferences') },
+          { key: 'notifications', href: '/settings/notifications', label: t('notifications') },
+          { key: 'messages', href: '/settings/messages', label: t('messages') },
         ]}
       />
       {children}

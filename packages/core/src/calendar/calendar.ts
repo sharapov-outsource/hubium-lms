@@ -2,7 +2,9 @@ import type { CalendarEvent, Db, Prisma } from '@hubium/db';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { randomToken, sha256Hex } from '../crypto.ts';
+import { activeCourseUserIds } from '../enrol/participants.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
+import { notifyUsers } from '../notifications/notifications.ts';
 import { defineOperation } from '../operation.ts';
 
 type Tx = Prisma.TransactionClient | Db;
@@ -219,4 +221,47 @@ export function upcomingRange(days = 14, now = new Date()) {
 export async function requireOwnEvents(ctx: RequestContext) {
   if (!ctx.perm.userId) throw new ForbiddenError();
   return ctx.perm.userId;
+}
+
+/**
+ * Cron (hourly): reminds about custom course, group and personal events starting in
+ * 24-25 hours. Activity dates (due dates) are reminded by their modules.
+ */
+export async function sendCalendarReminders(db: Db, now = new Date()): Promise<number> {
+  const from = new Date(now.getTime() + 24 * 3600_000);
+  const to = new Date(from.getTime() + 3600_000);
+  const events = await db.calendarEvent.findMany({
+    where: {
+      activityId: null,
+      visible: true,
+      scope: { in: ['COURSE', 'GROUP', 'USER'] },
+      startsAt: { gte: from, lt: to },
+    },
+    include: { course: { select: { fullName: true } } },
+  });
+  let n = 0;
+  for (const e of events) {
+    await db.$transaction(async (tx) => {
+      const users =
+        e.scope === 'USER'
+          ? e.userId
+            ? [e.userId]
+            : []
+          : e.courseId
+            ? await activeCourseUserIds(tx, e.courseId, {
+                groupId: e.scope === 'GROUP' ? e.groupId : null,
+                now,
+              })
+            : [];
+      n += await notifyUsers(tx, users, {
+        type: 'calendar.reminder',
+        title: { key: 'notifications.text.calendarReminder', values: { title: e.title } },
+        body: e.course?.fullName ?? '',
+        url: `/calendar?date=${e.startsAt.toISOString().slice(0, 10)}`,
+        courseId: e.courseId,
+        data: { eventId: e.id },
+      });
+    });
+  }
+  return n;
 }

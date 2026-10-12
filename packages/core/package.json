@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@hubium/mod-assign": "workspace:*",
+    "@hubium/mod-forum": "workspace:*",
     "@hubium/mod-content": "workspace:*",
     "@hubium/mod-quiz": "workspace:*",
     "@hubium/tooling": "workspace:*",

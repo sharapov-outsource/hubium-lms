@@ -103,6 +103,11 @@ export const assign = defineModule<AssignSettingsT>({
   archetype: 'activity',
   icon: 'ClipboardCheck',
   supports: { grading: true, groups: true, viewCompletion: true, backup: true },
+  notifications: {
+    submitted: { email: 'DIGEST' },
+    graded: { email: 'IMMEDIATE' },
+    due: { email: 'IMMEDIATE' },
+  },
   settings: {
     schema: AssignSettings as unknown as z.ZodType<AssignSettingsT>,
     defaults: () => AssignSettings.parse({}),
@@ -157,6 +162,50 @@ export const assign = defineModule<AssignSettingsT>({
       canRead: async (ctx, _a, f) => ctx.actor.kind === 'user' && f.itemId === ctx.actor.userId,
     },
   },
+  cron: [
+    {
+      name: 'assign.due.reminder',
+      schedule: '5 * * * *',
+      async handler(ctx) {
+        // Students who have not submitted get a reminder 24-25 hours before the due date.
+        const from = new Date(ctx.now.getTime() + 24 * 3600_000);
+        const to = new Date(from.getTime() + 3600_000);
+        const events = await ctx.db.calendarEvent.findMany({
+          where: { moduleKey: 'assign', kind: 'DUE', startsAt: { gte: from, lt: to } },
+          select: { activityId: true, courseId: true, title: true },
+        });
+        let sent = 0;
+        for (const e of events) {
+          if (!e.activityId || !e.courseId) continue;
+          const act = await ctx.db.activity.findUnique({
+            where: { id: e.activityId },
+            select: { visibility: true, deletedAt: true },
+          });
+          if (!act || act.deletedAt || act.visibility !== 'SHOWN') continue;
+          const students = await ctx.perm.usersWithCap('mod.assign:submit', e.activityId);
+          const done = await ctx.db.assignSubmission.findMany({
+            where: { activityId: e.activityId, latest: true, status: 'SUBMITTED' },
+            select: { userId: true },
+          });
+          const extended = await ctx.db.assignOverride.findMany({
+            where: { activityId: e.activityId },
+            select: { userId: true },
+          });
+          const skip = new Set([...done, ...extended].map((x) => x.userId));
+          const users = students.filter((u) => !skip.has(u));
+          await ctx.notify.send(users, {
+            type: 'assign.due',
+            title: { key: 'mod.assign.notify.dueTitle', values: { name: e.title } },
+            url: `/course/${e.courseId}/a/${e.activityId}`,
+            courseId: e.courseId,
+            contextId: e.activityId,
+          });
+          sent += users.length;
+        }
+        return { sent };
+      },
+    },
+  ],
   actions: {
     saveSubmission: defineAction({
       capability: 'mod.assign:submit',
@@ -214,9 +263,16 @@ export const assign = defineModule<AssignSettingsT>({
         if (submitting) {
           await ctx.completion.recompute(a.id, uid);
           const graders = await ctx.perm.usersWithCap('mod.assign:grade', a.id);
+          const me = await ctx.db.user.findUniqueOrThrow({
+            where: { id: uid },
+            select: { name: true },
+          });
           await ctx.notify.send(graders, {
             type: 'assign.submitted',
-            title: a.name,
+            title: {
+              key: 'mod.assign.notify.submittedTitle',
+              values: { name: a.name, user: me.name },
+            },
             url: `/course/${a.courseId}/a/${a.id}?grade=${uid}`,
             courseId: a.courseId,
             contextId: a.id,
@@ -320,7 +376,7 @@ export const assign = defineModule<AssignSettingsT>({
         }
         await ctx.notify.send([input.userId], {
           type: 'assign.graded',
-          title: a.name,
+          title: { key: 'mod.assign.notify.gradedTitle', values: { name: a.name } },
           url: `/course/${a.courseId}/a/${a.id}`,
           courseId: a.courseId,
           contextId: a.id,

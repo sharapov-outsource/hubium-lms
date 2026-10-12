@@ -1,0 +1,466 @@
+import { type Db, type EmailMode, type Prisma, uuidv7 } from '@hubium/db';
+import { createTranslator, isLocale, type Locale } from '@hubium/i18n';
+import { z } from 'zod';
+import { sign, verifySignature } from '../crypto.ts';
+import { getEnv } from '../env.ts';
+import { enqueue } from '../jobs/jobs.ts';
+import { deliverMail, renderActionEmail, renderDigestEmail } from '../mail/mail.ts';
+import { provideModuleServices } from '../modules/module-ctx.ts';
+import { getModule } from '../modules/registry.ts';
+import { defineOperation } from '../operation.ts';
+import { publishRealtime } from '../realtime.ts';
+import { getAllSettings } from '../settings/settings.ts';
+
+// Notifications: one row per recipient, rendered in the recipient's language. The in-app
+// centre reads the rows; email goes out immediately (job) or in a daily digest (cron).
+// Each type has default channels that users can override per type.
+
+type Tx = Prisma.TransactionClient;
+
+export interface NotificationTypeDef {
+  email: EmailMode;
+  inApp?: boolean;
+}
+
+const coreTypes = new Map<string, NotificationTypeDef>([
+  ['enrol.enrolled', { email: 'IMMEDIATE' }],
+  ['announcement.course', { email: 'IMMEDIATE' }],
+  ['announcement.site', { email: 'IMMEDIATE' }],
+  ['message.new', { email: 'DIGEST', inApp: false }],
+  ['calendar.reminder', { email: 'OFF' }],
+]);
+
+export function registerNotificationType(type: string, def: NotificationTypeDef): void {
+  coreTypes.set(type, def);
+}
+
+/** Core types by name; module types as `<moduleKey>.<name>` from `ActivityModule.notifications`. */
+export function getNotificationType(type: string): NotificationTypeDef | undefined {
+  const core = coreTypes.get(type);
+  if (core) return core;
+  const dot = type.indexOf('.');
+  if (dot < 0) return undefined;
+  return getModule(type.slice(0, dot))?.notifications?.[type.slice(dot + 1)];
+}
+
+export function listNotificationTypes(
+  moduleKeys: string[],
+): { type: string; def: NotificationTypeDef }[] {
+  const out = [...coreTypes].map(([type, def]) => ({ type, def }));
+  for (const key of moduleKeys) {
+    for (const [name, def] of Object.entries(getModule(key)?.notifications ?? {})) {
+      out.push({ type: `${key}.${name}`, def });
+    }
+  }
+  return out;
+}
+
+/** i18n key of a type's label: `notifications.types.<a_b>` or `mod.<module>.notify.<name>`. */
+export function notificationTypeLabelKey(type: string): string {
+  if (coreTypes.has(type)) return `notifications.types.${type.replace('.', '_')}`;
+  const dot = type.indexOf('.');
+  return `mod.${type.slice(0, dot)}.notify.${type.slice(dot + 1)}`;
+}
+
+export type Text = string | { key: string; values?: Record<string, string | number> };
+
+export interface NotifyInput {
+  type: string;
+  title: Text;
+  body?: Text;
+  url?: string;
+  courseId?: string | null;
+  contextId?: string | null;
+  actorId?: string | null;
+  data?: Record<string, unknown>;
+}
+
+const render = (t: ReturnType<typeof createTranslator>, x: Text | undefined) =>
+  x === undefined ? '' : typeof x === 'string' ? x : t(x.key, x.values);
+
+/** Recipients per fan-out job for large audiences. */
+export const FANOUT_CHUNK = 500;
+
+/**
+ * Notifies users inside the caller's transaction. Rows, realtime events and email jobs
+ * become visible on commit. Large audiences are split into `notification.fanout` jobs.
+ */
+export async function notifyUsers(tx: Tx, userIds: string[], n: NotifyInput): Promise<number> {
+  const ids = [...new Set(userIds)].filter((id) => id !== n.actorId);
+  if (!ids.length) return 0;
+  if (!getNotificationType(n.type)) throw new Error(`Unknown notification type ${n.type}`);
+  if (ids.length > FANOUT_CHUNK) {
+    for (let i = 0; i < ids.length; i += FANOUT_CHUNK) {
+      await enqueue('notification.fanout', { userIds: ids.slice(i, i + FANOUT_CHUNK), n }, { tx });
+    }
+    return ids.length;
+  }
+  return deliverNotifications(tx, ids, n);
+}
+
+export async function deliverNotifications(
+  tx: Tx,
+  userIds: string[],
+  n: NotifyInput,
+): Promise<number> {
+  const def = getNotificationType(n.type);
+  if (!def) throw new Error(`Unknown notification type ${n.type}`);
+  const [users, prefs, settings] = await Promise.all([
+    tx.user.findMany({
+      where: { id: { in: userIds }, status: 'ACTIVE', kind: 'PERSON' },
+      select: { id: true, locale: true, emailPlaceholder: true },
+    }),
+    tx.notificationPreference.findMany({ where: { userId: { in: userIds }, type: n.type } }),
+    getAllSettings(tx as unknown as Db),
+  ]);
+  const prefOf = new Map(prefs.map((p) => [p.userId, p]));
+  const translators = new Map<Locale, ReturnType<typeof createTranslator>>();
+  const rows: Prisma.NotificationCreateManyInput[] = [];
+  for (const u of users) {
+    const p = prefOf.get(u.id);
+    const inApp = p?.inApp ?? def.inApp ?? true;
+    const email: EmailMode = u.emailPlaceholder ? 'OFF' : (p?.email ?? def.email);
+    if (!inApp && email === 'OFF') continue;
+    const locale = isLocale(u.locale) ? u.locale : settings['site.defaultLocale'];
+    let t = translators.get(locale);
+    if (!t) translators.set(locale, (t = createTranslator(locale)));
+    rows.push({
+      id: uuidv7(),
+      userId: u.id,
+      type: n.type,
+      actorId: n.actorId ?? null,
+      courseId: n.courseId ?? null,
+      contextId: n.contextId ?? null,
+      title: render(t, n.title).slice(0, 500),
+      body: render(t, n.body).slice(0, 5000),
+      url: n.url ?? null,
+      data: (n.data ?? {}) as Prisma.InputJsonValue,
+      inApp,
+      emailState: email === 'IMMEDIATE' ? 'PENDING' : email === 'DIGEST' ? 'DIGEST' : 'NONE',
+    });
+  }
+  if (!rows.length) return 0;
+  await tx.notification.createMany({ data: rows });
+  const live = rows.filter((r) => r.inApp).map((r) => r.userId);
+  if (live.length) await publishRealtime(tx, live, 'notification.new', { type: n.type });
+  const pending = rows.filter((r) => r.emailState === 'PENDING').map((r) => r.id!);
+  if (pending.length) await enqueue('notification.email', { ids: pending }, { tx });
+  return rows.length;
+}
+
+provideModuleServices({
+  notify: (ctx, tx) => async (userIds, n) => {
+    await notifyUsers(tx, userIds, {
+      ...n,
+      actorId: ctx.actor.kind === 'user' ? ctx.actor.userId : null,
+    });
+  },
+});
+
+// ── in-app centre ─────────────────────────────────────────────────────────────
+
+export async function unreadNotificationCount(db: Db, userId: string): Promise<number> {
+  return db.notification.count({ where: { userId, inApp: true, readAt: null } });
+}
+
+export async function listNotifications(
+  db: Db,
+  userId: string,
+  opts: { unreadOnly?: boolean; before?: string; limit?: number } = {},
+) {
+  const limit = Math.min(opts.limit ?? 30, 100);
+  const rows = await db.notification.findMany({
+    where: {
+      userId,
+      inApp: true,
+      ...(opts.unreadOnly ? { readAt: null } : {}),
+      ...(opts.before ? { id: { lt: opts.before } } : {}),
+    },
+    orderBy: { id: 'desc' },
+    take: limit + 1,
+    include: { actor: { select: { id: true, name: true, image: true } } },
+  });
+  return { items: rows.slice(0, limit), hasMore: rows.length > limit };
+}
+
+export const markNotificationsRead = defineOperation({
+  name: 'notification.read',
+  mutation: true,
+  input: z.object({
+    ids: z.array(z.string().uuid()).max(500).optional(),
+    all: z.boolean().optional(),
+  }),
+  authorize: (ctx) => {
+    if (!ctx.perm.userId) throw new Error('Sign in required');
+  },
+  async handler(ctx, input) {
+    const userId = ctx.perm.userId!;
+    const r = await ctx.tx.notification.updateMany({
+      where: { userId, readAt: null, ...(input.all ? {} : { id: { in: input.ids ?? [] } }) },
+      data: { readAt: ctx.now },
+    });
+    if (r.count) await publishRealtime(ctx.tx, [userId], 'notification.read');
+    return { count: r.count };
+  },
+});
+
+// ── preferences ───────────────────────────────────────────────────────────────
+
+export async function getNotificationPreferences(db: Db, userId: string, moduleKeys: string[]) {
+  const [prefs, user] = await Promise.all([
+    db.notificationPreference.findMany({ where: { userId } }),
+    db.user.findUniqueOrThrow({ where: { id: userId }, select: { digestHour: true } }),
+  ]);
+  const byType = new Map(prefs.map((p) => [p.type, p]));
+  return {
+    digestHour: user.digestHour,
+    types: listNotificationTypes(moduleKeys).map(({ type, def }) => ({
+      type,
+      labelKey: notificationTypeLabelKey(type),
+      inApp: byType.get(type)?.inApp ?? def.inApp ?? true,
+      email: byType.get(type)?.email ?? def.email,
+    })),
+  };
+}
+
+export const updateNotificationPreferences = defineOperation({
+  name: 'notification.preferences.update',
+  mutation: true,
+  input: z.object({
+    digestHour: z.coerce.number().int().min(0).max(23),
+    prefs: z
+      .array(
+        z.object({
+          type: z.string().min(1).max(100),
+          inApp: z.boolean(),
+          email: z.enum(['OFF', 'IMMEDIATE', 'DIGEST']),
+        }),
+      )
+      .max(200),
+  }),
+  authorize: (ctx) => {
+    if (!ctx.perm.userId) throw new Error('Sign in required');
+  },
+  async handler(ctx, input) {
+    const userId = ctx.perm.userId!;
+    await ctx.tx.user.update({ where: { id: userId }, data: { digestHour: input.digestHour } });
+    for (const p of input.prefs) {
+      if (!getNotificationType(p.type)) continue;
+      await ctx.tx.notificationPreference.upsert({
+        where: { userId_type: { userId, type: p.type } },
+        create: { userId, type: p.type, inApp: p.inApp, email: p.email },
+        update: { inApp: p.inApp, email: p.email },
+      });
+    }
+    return { ok: true };
+  },
+});
+
+// ── one-click unsubscribe ─────────────────────────────────────────────────────
+
+const UNSUB = 'unsubscribe';
+
+/** `type` is a notification type, or `*` for every email. */
+export function unsubscribeToken(userId: string, type: string): string {
+  const value = Buffer.from(`${userId}:${type}`).toString('base64url');
+  return `${value}.${sign(value, getEnv().APP_SECRET, UNSUB)}`;
+}
+
+export function unsubscribeUrl(userId: string, type: string): string {
+  return `${getEnv().APP_URL}/unsubscribe/${unsubscribeToken(userId, type)}`;
+}
+
+/** One-click endpoint for the List-Unsubscribe header (RFC 8058). */
+export function unsubscribeHeaderUrl(userId: string, type: string): string {
+  return `${getEnv().APP_URL}/api/unsubscribe/${unsubscribeToken(userId, type)}`;
+}
+
+export function parseUnsubscribeToken(token: string): { userId: string; type: string } | null {
+  const [value, sig] = token.split('.');
+  if (!value || !sig || !verifySignature(value, sig, getEnv().APP_SECRET, UNSUB)) return null;
+  const decoded = Buffer.from(value, 'base64url').toString('utf8');
+  const i = decoded.indexOf(':');
+  if (i < 0) return null;
+  return { userId: decoded.slice(0, i), type: decoded.slice(i + 1) };
+}
+
+/** Turns email off for the token's type (or all types). Works without signing in. */
+export async function applyUnsubscribe(
+  db: Db,
+  token: string,
+  moduleKeys: string[],
+): Promise<{ type: string } | null> {
+  const parsed = parseUnsubscribeToken(token);
+  if (!parsed) return null;
+  const user = await db.user.findUnique({ where: { id: parsed.userId }, select: { id: true } });
+  if (!user) return null;
+  const types =
+    parsed.type === '*'
+      ? listNotificationTypes(moduleKeys).map((x) => x.type)
+      : getNotificationType(parsed.type)
+        ? [parsed.type]
+        : [];
+  for (const type of types) {
+    await db.notificationPreference.upsert({
+      where: { userId_type: { userId: user.id, type } },
+      create: { userId: user.id, type, email: 'OFF' },
+      update: { email: 'OFF' },
+    });
+  }
+  return { type: parsed.type };
+}
+
+// ── email delivery (worker) ───────────────────────────────────────────────────
+
+function absolute(url: string): string {
+  return /^https?:\/\//.test(url) ? url : `${getEnv().APP_URL}${url}`;
+}
+
+/** Sends the immediate emails for the given notification ids (job `notification.email`). */
+export async function sendNotificationEmails(db: Db, ids: string[]): Promise<number> {
+  const rows = await db.notification.findMany({
+    where: { id: { in: ids }, emailState: 'PENDING' },
+    include: { user: { select: { email: true, locale: true, emailPlaceholder: true } } },
+  });
+  const settings = await getAllSettings(db);
+  let sent = 0;
+  for (const n of rows) {
+    if (n.user.emailPlaceholder) {
+      await db.notification.update({ where: { id: n.id }, data: { emailState: 'NONE' } });
+      continue;
+    }
+    const locale = isLocale(n.user.locale) ? n.user.locale : settings['site.defaultLocale'];
+    const t = createTranslator(locale);
+    const unsub = unsubscribeUrl(n.userId, n.type);
+    const header = unsubscribeHeaderUrl(n.userId, n.type);
+    const { html, text } = renderActionEmail({
+      siteName: settings['site.name'],
+      heading: n.title,
+      intro: n.body || n.title,
+      action: n.url ? { label: t('notifications.email.open'), url: absolute(n.url) } : undefined,
+      footer: t('notifications.email.footer'),
+      unsubscribe: { label: t('notifications.email.unsubscribe'), url: unsub },
+    });
+    try {
+      await deliverMail({
+        to: n.user.email,
+        subject: n.title,
+        html,
+        text,
+        headers: {
+          'List-Unsubscribe': `<${header}>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        },
+      });
+      await db.notification.update({ where: { id: n.id }, data: { emailState: 'SENT' } });
+      sent++;
+    } catch (e) {
+      console.error('[notifications] email failed', e);
+      await db.notification.update({ where: { id: n.id }, data: { emailState: 'FAILED' } });
+    }
+  }
+  return sent;
+}
+
+/** Hour (0-23) in a time zone; falls back to UTC for unknown zones. */
+export function localHour(now: Date, timeZone: string): number {
+  try {
+    const h = new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone })
+      .formatToParts(now)
+      .find((p) => p.type === 'hour')?.value;
+    return Number(h);
+  } catch {
+    return now.getUTCHours();
+  }
+}
+
+/**
+ * Daily digests (cron hourly): users whose local hour equals their `digestHour` get one
+ * email listing their queued notifications. `force` ignores the hour (tests, admin).
+ */
+export async function sendDigests(
+  db: Db,
+  now = new Date(),
+  opts: { force?: boolean } = {},
+): Promise<number> {
+  const settings = await getAllSettings(db);
+  const pending = await db.notification.groupBy({
+    by: ['userId'],
+    where: { emailState: 'DIGEST' },
+  });
+  let sent = 0;
+  for (const { userId } of pending) {
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: {
+        email: true,
+        locale: true,
+        timezone: true,
+        digestHour: true,
+        emailPlaceholder: true,
+        status: true,
+      },
+    });
+    if (!user) continue;
+    const tz = user.timezone || settings['site.defaultTimezone'];
+    if (!opts.force && localHour(now, tz) !== user.digestHour) continue;
+    const items = await db.notification.findMany({
+      where: { userId, emailState: 'DIGEST' },
+      orderBy: { id: 'asc' },
+      take: 100,
+    });
+    if (user.status !== 'ACTIVE' || user.emailPlaceholder) {
+      await db.notification.updateMany({
+        where: { id: { in: items.map((i) => i.id) } },
+        data: { emailState: 'NONE' },
+      });
+      continue;
+    }
+    const locale = isLocale(user.locale) ? user.locale : settings['site.defaultLocale'];
+    const t = createTranslator(locale);
+    const unsub = unsubscribeUrl(userId, '*');
+    const header = unsubscribeHeaderUrl(userId, '*');
+    const { html, text } = renderDigestEmail({
+      siteName: settings['site.name'],
+      heading: t('notifications.digest.heading', { n: items.length }),
+      items: items.map((i) => ({
+        title: i.title,
+        body: i.body,
+        url: i.url ? absolute(i.url) : undefined,
+      })),
+      footer: t('notifications.email.footer'),
+      unsubscribe: { label: t('notifications.email.unsubscribeAll'), url: unsub },
+    });
+    try {
+      await deliverMail({
+        to: user.email,
+        subject: t('notifications.digest.subject', { site: settings['site.name'] }),
+        html,
+        text,
+        headers: {
+          'List-Unsubscribe': `<${header}>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        },
+      });
+      await db.notification.updateMany({
+        where: { id: { in: items.map((i) => i.id) } },
+        data: { emailState: 'SENT' },
+      });
+      sent++;
+    } catch (e) {
+      console.error('[notifications] digest failed', e);
+    }
+  }
+  return sent;
+}
+
+/** Removes read notifications older than `days` (cron daily). */
+export async function pruneNotifications(db: Db, now = new Date(), days = 180): Promise<number> {
+  const r = await db.notification.deleteMany({
+    where: {
+      createdAt: { lt: new Date(now.getTime() - days * 86_400_000) },
+      emailState: { notIn: ['PENDING', 'DIGEST'] },
+    },
+  });
+  return r.count;
+}

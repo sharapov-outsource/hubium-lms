@@ -1,10 +1,12 @@
 import type { Db, Prisma } from '@hubium/db';
 import pg from 'pg';
 import { invalidatePermissionCaches } from './access/permissions.ts';
+import { dispatchRealtime, RT_CHANNEL } from './realtime.ts';
 import { invalidateSettingsCache } from './settings/settings.ts';
 
 // Cross-process cache invalidation over Postgres LISTEN/NOTIFY. Every web and worker
 // instance listens on `hubium_cache`; NOTIFY inside a transaction is delivered on commit.
+// The same connection listens on `hubium_rt` for realtime events (see realtime.ts).
 
 export type CacheTopic = 'settings' | 'roles' | 'contexts';
 export const CACHE_CHANNEL = 'hubium_cache';
@@ -33,7 +35,9 @@ export async function startCacheListener(
   const client = new pg.Client({ connectionString });
   listener = client;
   client.on('notification', (msg) => {
-    if (msg.channel === CACHE_CHANNEL && msg.payload) applyLocal(msg.payload);
+    if (!msg.payload) return;
+    if (msg.channel === CACHE_CHANNEL) applyLocal(msg.payload);
+    else if (msg.channel === RT_CHANNEL) dispatchRealtime(msg.payload);
   });
   client.on('error', (e) => {
     console.error('[cache-bus] connection error', e.message);
@@ -47,6 +51,7 @@ export async function startCacheListener(
   try {
     await client.connect();
     await client.query(`LISTEN ${CACHE_CHANNEL}`);
+    await client.query(`LISTEN ${RT_CHANNEL}`);
   } catch (e) {
     listener = undefined;
     console.error('[cache-bus] failed to listen', e);

@@ -1,4 +1,10 @@
-import { listMyCourses, listUserEvents, upcomingRange } from '@hubium/core';
+import {
+  listMyCourses,
+  listSiteAnnouncements,
+  listUserEvents,
+  recentCourseAnnouncements,
+  upcomingRange,
+} from '@hubium/core';
 import {
   Alert,
   Button,
@@ -13,6 +19,7 @@ import {
 import { ArrowRight, BookOpen, CalendarDays } from 'lucide-react';
 import Link from 'next/link';
 import { getFormatter, getTranslations } from 'next-intl/server';
+import { AnnouncementList } from '@/components/comms/announcement-list';
 import { CourseCard } from '@/components/course-card';
 import { db } from '@/server/db';
 import { requireUser } from '@/server/session';
@@ -25,16 +32,25 @@ export async function generateMetadata() {
 
 export default async function DashboardPage() {
   const user = await requireUser();
-  const [t, tc, tcal, format] = await Promise.all([
+  const [t, tc, tcal, ta, format] = await Promise.all([
     getTranslations('dashboard'),
     getTranslations('course'),
     getTranslations('calendar'),
+    getTranslations('announcements'),
     getFormatter(),
   ]);
   const [courses, events, todo] = await Promise.all([
     listMyCourses(db, user.id),
     listUserEvents(db, user.id, upcomingRange(14)),
     getTodo(user.id),
+  ]);
+  const [siteNews, courseNews] = await Promise.all([
+    listSiteAnnouncements(db, new Date(), 3),
+    recentCourseAnnouncements(
+      db,
+      user.id,
+      courses.map((c) => c.id),
+    ),
   ]);
   const last = courses.find((c) => c.lastAccessAt);
   const lastActivity = last
@@ -55,6 +71,11 @@ export default async function DashboardPage() {
       ) : null}
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <div className="grid content-start gap-6">
+          {siteNews.length ? (
+            <section aria-label={ta('site')}>
+              <AnnouncementList items={siteNews} canManage={false} compact />
+            </section>
+          ) : null}
           {last ? (
             <Card className="border-accent/30 bg-accent-soft/40">
               <CardContent className="flex flex-wrap items-center gap-4 pt-5">
@@ -113,6 +134,14 @@ export default async function DashboardPage() {
               </div>
             )}
           </section>
+          {courseNews.length ? (
+            <section aria-labelledby="news-h">
+              <h2 id="news-h" className="mb-3 text-lg font-semibold">
+                {ta('recent')}
+              </h2>
+              <AnnouncementList items={courseNews} canManage={false} compact />
+            </section>
+          ) : null}
         </div>
         <div className="grid content-start gap-6">
           <Card>

@@ -18,10 +18,7 @@ export interface ModuleServices {
   notify: ModuleCtx['notify']['send'];
 }
 
-const services: Partial<Record<keyof ModuleServices, unknown>> = {
-  // Until a notification service is registered, notifications are dropped silently.
-  notify: () => async () => {},
-};
+const services: Partial<Record<keyof ModuleServices, unknown>> = {};
 
 export function provideModuleServices(
   s: Partial<{
@@ -162,7 +159,9 @@ export function buildModuleCtx(
       recompute: (activityId, userId) =>
         service('recomputeCompletion', ctx, tx)(activityId, userId),
     },
-    notify: { send: (userIds, n) => service('notify', ctx, tx)(userIds, n) },
+    notify: {
+      send: (userIds, n) => service('notify', ctx, tx)(userIds, n),
+    },
     async log(event, data) {
       await logEvent(tx, {
         name: event,

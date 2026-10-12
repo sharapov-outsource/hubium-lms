@@ -73,6 +73,14 @@
     "outOf": "из {max}",
     "filterAll": "Все",
     "filterNeedsGrading": "Ждут проверки",
-    "filterNotSubmitted": "Не сдали"
+    "filterNotSubmitted": "Не сдали",
+    "notify": {
+      "submitted": "Работа отправлена на проверку",
+      "graded": "Работа оценена",
+      "due": "Скоро срок сдачи задания",
+      "submittedTitle": "{user} отправил(а) работу: {name}",
+      "gradedTitle": "Ваша работа оценена: {name}",
+      "dueTitle": "Завтра срок сдачи: {name}"
+    }
   }
 }

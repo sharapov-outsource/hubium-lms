@@ -11,6 +11,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     { href: '/my-courses', label: 'nav.myCourses', icon: 'courses', mobile: true },
     { href: '/catalog', label: 'nav.catalog', icon: 'catalog' },
     { href: '/calendar', label: 'nav.calendar', icon: 'calendar', mobile: true },
+    {
+      href: '/messages',
+      label: 'nav.messages',
+      icon: 'messages',
+      mobile: true,
+      liveBadge: 'messages',
+    },
   ];
   if (
     user.isSiteAdmin ||

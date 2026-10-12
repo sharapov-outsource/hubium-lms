@@ -165,7 +165,9 @@
     "revokeOthers": "Sign out all others",
     "lastActive": "Last active",
     "unknownDevice": "Unknown device",
-    "emailPlaceholderHint": "You have no real email address. Add one to receive notifications and reset your password."
+    "emailPlaceholderHint": "You have no real email address. Add one to receive notifications and reset your password.",
+    "notifications": "Notifications",
+    "messages": "Messages"
   },
   "admin": {
     "title": "Administration",
@@ -308,7 +310,8 @@
     "loginAs": "Log in as",
     "loginAsConfirm": "Log in as {name}? You stay in their account until you return.",
     "impersonating": "You are logged in as {name}",
-    "stopImpersonating": "Return to my account"
+    "stopImpersonating": "Return to my account",
+    "announcements": "Announcements"
   },
   "email": {
     "footer": "You received this email because you have an account on this site.",
@@ -427,7 +430,8 @@
       "reports": "Reports",
       "settings": "Settings",
       "enrolment": "Enrolment",
-      "questionBank": "Question bank"
+      "questionBank": "Question bank",
+      "stream": "Stream"
     },
     "editMode": "Edit mode",
     "editOn": "Edit",
@@ -826,5 +830,131 @@
       "m50": "−50%",
       "m100": "−100%"
     }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "bell": "Notifications",
+    "bellUnread": "Notifications: {n} unread",
+    "empty": "No notifications yet",
+    "unreadOnly": "Unread only",
+    "all": "All",
+    "markAllRead": "Mark all as read",
+    "markRead": "Mark read",
+    "viewAll": "All notifications",
+    "loadMore": "Load more",
+    "types": {
+      "enrol_enrolled": "Course enrolment",
+      "announcement_course": "Course announcements",
+      "announcement_site": "Site announcements",
+      "message_new": "New direct messages",
+      "calendar_reminder": "Calendar reminders"
+    },
+    "text": {
+      "enrolled": "You were enrolled in “{course}”",
+      "announcementCourse": "{course}: {title}",
+      "messageNew": "New message from {name}",
+      "calendarReminder": "Tomorrow: {title}"
+    },
+    "email": {
+      "open": "Open",
+      "footer": "You received this email because notifications are on.",
+      "unsubscribe": "Unsubscribe from these emails",
+      "unsubscribeAll": "Unsubscribe from all emails"
+    },
+    "digest": {
+      "subject": "Daily digest — {site}",
+      "heading": "{n, plural, one {# new notification} other {# new notifications}}"
+    },
+    "prefs": {
+      "title": "Notifications",
+      "description": "Choose what to be told about and how.",
+      "type": "Event",
+      "inApp": "On site",
+      "email": "Email",
+      "emailModes": {
+        "OFF": "Off",
+        "IMMEDIATE": "Immediately",
+        "DIGEST": "Daily digest"
+      },
+      "digestHour": "Daily digest time",
+      "saved": "Notification settings saved"
+    },
+    "unsubscribe": {
+      "title": "Unsubscribe",
+      "done": "Done: you will no longer receive emails of this type.",
+      "doneAll": "Done: you will no longer receive notification emails.",
+      "invalid": "This link is invalid or has expired.",
+      "manage": "Manage notifications"
+    }
+  },
+  "messages": {
+    "title": "Messages",
+    "search": "Find people",
+    "searchPlaceholder": "Name or email",
+    "newGroup": "New group chat",
+    "groupName": "Chat name",
+    "create": "Create",
+    "members": "Members",
+    "empty": "No messages yet",
+    "noConversations": "No conversations. Find someone with the search.",
+    "selectConversation": "Select a conversation",
+    "write": "Write a message…",
+    "send": "Send",
+    "attach": "Attach files",
+    "typing": "{name} is typing…",
+    "loadOlder": "Load earlier messages",
+    "deleted": "Message deleted",
+    "delete": "Delete",
+    "you": "You",
+    "unread": "{n} unread",
+    "block": "Block",
+    "unblock": "Unblock",
+    "blocked": "Messaging is unavailable: one of you has blocked the other.",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "archive": "Archive",
+    "leave": "Leave chat",
+    "back": "All conversations",
+    "groupChat": "Group chat",
+    "self": "Notes to self",
+    "privacy": "Who can message me",
+    "privacyOptions": {
+      "ANYONE": "Anyone on the site",
+      "COURSEMATES": "People in my courses",
+      "NOBODY": "Nobody (except administrators)"
+    },
+    "blockedUsers": "Blocked users",
+    "noBlocked": "You have not blocked anyone",
+    "saved": "Saved",
+    "messageUser": "Message",
+    "cannotMessage": "You cannot message this user",
+    "live": "Live updates connected",
+    "reconnecting": "Reconnecting…"
+  },
+  "announcements": {
+    "title": "Announcements",
+    "stream": "Stream",
+    "new": "New announcement",
+    "subject": "Title",
+    "content": "Text",
+    "publishAt": "Publish at",
+    "publishAtHint": "Leave empty to publish now",
+    "notify": "Notify participants",
+    "pinned": "Pinned",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "scheduled": "Scheduled for {date}",
+    "group": "Only for group",
+    "allGroups": "All participants",
+    "empty": "No announcements yet",
+    "posted": "Announcement published",
+    "scheduledOk": "Announcement scheduled",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this announcement?",
+    "edit": "Edit",
+    "save": "Save",
+    "site": "Site announcements",
+    "siteHint": "Shown on the dashboard to every user",
+    "recent": "New in your courses"
   }
 }

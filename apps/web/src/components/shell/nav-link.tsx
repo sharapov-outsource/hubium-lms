@@ -4,6 +4,7 @@ import { cn } from '@hubium/ui/cn';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { type CommsCounts, useLiveCounts } from '@/components/comms/live-counts';
 
 export function NavLink({
   href,
@@ -11,7 +12,8 @@ export function NavLink({
   label,
   exact,
   variant = 'sidebar',
-  badge,
+  badge: staticBadge,
+  liveBadge,
 }: {
   href: string;
   icon: ReactNode;
@@ -19,8 +21,11 @@ export function NavLink({
   exact?: boolean;
   variant?: 'sidebar' | 'bottom';
   badge?: number;
+  liveBadge?: keyof CommsCounts;
 }) {
   const pathname = usePathname();
+  const { counts } = useLiveCounts();
+  const badge = liveBadge ? counts[liveBadge] : staticBadge;
   const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
   if (variant === 'bottom') {
     return (

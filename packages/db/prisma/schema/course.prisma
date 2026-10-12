@@ -82,6 +82,9 @@ model Course {
   calendarEvents    CalendarEvent[]
   gradeCategories   GradeCategory[]
   gradeItems        GradeItem[]
+  notifications     Notification[]
+  conversations     Conversation[]
+  announcements     Announcement[]
 
   @@index([categoryId])
   @@index([deletedAt])
@@ -128,17 +131,19 @@ model Activity {
   createdAt            DateTime           @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime           @updatedAt @db.Timestamptz(3)
 
-  course            Course               @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  section           CourseSection        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  context           Context              @relation("ActivityContext", fields: [id], references: [id], onDelete: Cascade)
-  completions       ActivityCompletion[]
-  gradeItems        GradeItem[]
-  assignSubmissions AssignSubmission[]
-  assignGrades      AssignGrade[]
-  assignOverrides   AssignOverride[]
-  quizSlots         QuizSlot[]
-  quizAttempts      QuizAttempt[]
-  quizOverrides     QuizOverride[]
+  course             Course               @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  section            CourseSection        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  context            Context              @relation("ActivityContext", fields: [id], references: [id], onDelete: Cascade)
+  completions        ActivityCompletion[]
+  gradeItems         GradeItem[]
+  assignSubmissions  AssignSubmission[]
+  assignGrades       AssignGrade[]
+  assignOverrides    AssignOverride[]
+  quizSlots          QuizSlot[]
+  quizAttempts       QuizAttempt[]
+  quizOverrides      QuizOverride[]
+  forumDiscussions   ForumDiscussion[]
+  forumSubscriptions ForumSubscription[]
 
   @@index([courseId, sectionId, rank])
   @@index([moduleKey])

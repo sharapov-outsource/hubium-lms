@@ -114,6 +114,12 @@
     "average": "Средняя оценка",
     "finishedCount": "Завершено попыток",
     "facility": "Доля верных",
-    "saveNow": "Сохранить ответы"
+    "saveNow": "Сохранить ответы",
+    "notify": {
+      "needsGrading": "Тест ждёт ручной проверки",
+      "graded": "Тест проверен",
+      "needsGradingTitle": "Нужна ручная проверка: {name}",
+      "gradedTitle": "Ваш тест проверен: {name}"
+    }
   }
 }

@@ -1,5 +1,14 @@
+import { publishDueAnnouncements } from '@hubium/core/announcements/announcements';
+import { sendCalendarReminders } from '@hubium/core/calendar/calendar';
 import { garbageCollectBlobs } from '@hubium/core/files/files';
 import { deliverMail } from '@hubium/core/mail/mail';
+import {
+  deliverNotifications,
+  type NotifyInput,
+  pruneNotifications,
+  sendDigests,
+  sendNotificationEmails,
+} from '@hubium/core/notifications/notifications';
 import type { Db } from '@hubium/db';
 
 export interface JobHandlerDef {
@@ -19,6 +28,55 @@ export const coreHandlers: JobHandlerDef[] = [
       if (data.to.endsWith('.invalid')) return { skipped: 'placeholder address' };
       const info = await deliverMail(data);
       return { messageId: info.messageId };
+    },
+  },
+  {
+    name: 'notification.email',
+    batchSize: 5,
+    async handler(data: { ids: string[] }, { db }) {
+      return { sent: await sendNotificationEmails(db, data.ids) };
+    },
+  },
+  {
+    // One chunk of a large audience (see notifyUsers).
+    name: 'notification.fanout',
+    async handler(data: { userIds: string[]; n: NotifyInput }, { db }) {
+      const created = await db.$transaction(
+        (tx) => deliverNotifications(tx, data.userIds, data.n),
+        {
+          timeout: 120_000,
+        },
+      );
+      return { created };
+    },
+  },
+  {
+    // Users get their digest at their own local hour; the job runs every hour.
+    name: 'email.digest',
+    cron: '0 * * * *',
+    async handler(_data: never, { db }) {
+      return { sent: await sendDigests(db) };
+    },
+  },
+  {
+    name: 'announcements.publish',
+    cron: '* * * * *',
+    async handler(_data: never, { db }) {
+      return { published: await publishDueAnnouncements(db) };
+    },
+  },
+  {
+    name: 'calendar.reminders',
+    cron: '10 * * * *',
+    async handler(_data: never, { db }) {
+      return { notified: await sendCalendarReminders(db) };
+    },
+  },
+  {
+    name: 'notifications.prune',
+    cron: '41 4 * * *',
+    async handler(_data: never, { db }) {
+      return { deleted: await pruneNotifications(db) };
     },
   },
   {
