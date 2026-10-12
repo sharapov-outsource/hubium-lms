@@ -43,7 +43,28 @@ export async function publishRealtime(
 }
 
 type Listener = (e: RealtimeEvent) => void;
-const listeners = new Map<string, Set<Listener>>();
+
+// Kept on globalThis: bundlers may load this module more than once per process (and each
+// copy may run its own LISTEN client), so subscribers are shared and events deduplicated.
+const hub: Hub = ((globalThis as { __hubiumRealtime?: Hub }).__hubiumRealtime ??= {
+  listeners: new Map<string, Set<Listener>>(),
+  seen: new Set<string>(),
+  order: [],
+});
+interface Hub {
+  listeners: Map<string, Set<Listener>>;
+  seen: Set<string>;
+  order: string[];
+}
+const listeners = hub.listeners;
+
+function firstTime(id: string): boolean {
+  if (hub.seen.has(id)) return false;
+  hub.seen.add(id);
+  hub.order.push(id);
+  if (hub.order.length > 2000) hub.seen.delete(hub.order.shift()!);
+  return true;
+}
 
 /** Subscribes an SSE connection to a user's events. Returns the unsubscribe function. */
 export function subscribeRealtime(userId: string, fn: Listener): () => void {
@@ -71,6 +92,8 @@ export function dispatchRealtime(payload: string): void {
     return;
   }
   const { u, ...event } = wire;
+  // Chunked events share an id but address different users.
+  if (!firstTime(`${event.id}:${u[0]}`)) return;
   for (const userId of u) {
     for (const fn of listeners.get(userId) ?? []) {
       try {

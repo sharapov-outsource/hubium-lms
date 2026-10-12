@@ -165,7 +165,9 @@
     "revokeOthers": "Sign out all others",
     "lastActive": "Last active",
     "unknownDevice": "Unknown device",
-    "emailPlaceholderHint": "You have no real email address. Add one to receive notifications and reset your password."
+    "emailPlaceholderHint": "You have no real email address. Add one to receive notifications and reset your password.",
+    "notifications": "Notifications",
+    "messages": "Messages"
   },
   "admin": {
     "title": "Administration",
@@ -308,7 +310,8 @@
     "loginAs": "Log in as",
     "loginAsConfirm": "Log in as {name}? You stay in their account until you return.",
     "impersonating": "You are logged in as {name}",
-    "stopImpersonating": "Return to my account"
+    "stopImpersonating": "Return to my account",
+    "announcements": "Announcements"
   },
   "email": {
     "footer": "You received this email because you have an account on this site.",
@@ -427,7 +430,8 @@
       "reports": "Reports",
       "settings": "Settings",
       "enrolment": "Enrolment",
-      "questionBank": "Question bank"
+      "questionBank": "Question bank",
+      "stream": "Stream"
     },
     "editMode": "Edit mode",
     "editOn": "Edit",

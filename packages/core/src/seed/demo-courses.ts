@@ -24,6 +24,7 @@ export async function seedDemoCourses(db: Db, users: Record<string, string>) {
   const existing = await db.course.findUnique({ where: { shortName: 'DEMO-PY' } });
   if (existing) {
     await seedDemoAssessment(db, existing.id);
+    await seedDemoComms(db, existing.id);
     return { created: false };
   }
   const ctx = systemCtx(db);
@@ -185,6 +186,7 @@ export async function seedDemoCourses(db: Db, users: Record<string, string>) {
     allDay: true,
   });
   await seedDemoAssessment(db, py);
+  await seedDemoComms(db, py);
   return { created: true, courses: [py, hist] };
 }
 
@@ -247,4 +249,73 @@ export async function seedDemoAssessment(db: Db, courseId: string) {
     orderBy: { createdAt: 'asc' },
   });
   await runModuleAction(ctx, quizId, 'addQuestions', { questionIds: questions.map((q) => q.id) });
+}
+
+/** Demo forum with a discussion and a course announcement (idempotent). */
+export async function seedDemoComms(db: Db, courseId: string) {
+  if (await db.activity.findFirst({ where: { courseId, moduleKey: 'forum' } })) return;
+  const ctx = systemCtx(db);
+  const people = Object.fromEntries(
+    (
+      await db.user.findMany({
+        where: { username: { in: ['teacher', 'student1', 'student2'] } },
+        select: { id: true, username: true },
+      })
+    ).map((u) => [u.username, u.id]),
+  );
+  const section = await db.courseSection.findFirstOrThrow({
+    where: { courseId },
+    orderBy: { rank: 'asc' },
+  });
+  const { id: forumId } = await createActivity.run(ctx, {
+    courseId,
+    sectionId: section.id,
+    moduleKey: 'forum',
+    name: 'Форум курса',
+    intro: '<p>Задавайте вопросы и помогайте друг другу.</p>',
+    showIntro: true,
+    settings: { subscription: 'auto' },
+  });
+  // Written directly: module actions need a signed-in author, and seeding stays quiet.
+  const now = Date.now();
+  const d = await db.forumDiscussion.create({
+    data: {
+      activityId: forumId,
+      authorId: people.student1 ?? null,
+      title: 'Как установить Python на Windows?',
+      postCount: 2,
+      lastPostAt: new Date(now - 3600_000),
+    },
+  });
+  const root = await db.forumPost.create({
+    data: {
+      discussionId: d.id,
+      authorId: people.student1 ?? null,
+      contentHtml:
+        '<p>Скачал установщик, но команда <code>python</code> не находится. Что делать?</p>',
+      createdAt: new Date(now - 2 * 3600_000),
+    },
+  });
+  await db.forumPost.create({
+    data: {
+      discussionId: d.id,
+      parentId: root.id,
+      authorId: people.teacher ?? null,
+      contentHtml:
+        '<p>Переустановите и отметьте галочку <strong>Add python.exe to PATH</strong>, затем откройте новый терминал.</p>',
+      createdAt: new Date(now - 3600_000),
+    },
+  });
+  await db.announcement.create({
+    data: {
+      courseId,
+      authorId: people.teacher ?? null,
+      title: 'Добро пожаловать на курс!',
+      contentHtml:
+        '<p>Первое занятие — в понедельник. Пройдите тест по основам, чтобы проверить себя.</p>',
+      pinned: true,
+      notify: false,
+      notifiedAt: new Date(),
+    },
+  });
 }

@@ -270,6 +270,11 @@ export function unsubscribeUrl(userId: string, type: string): string {
   return `${getEnv().APP_URL}/unsubscribe/${unsubscribeToken(userId, type)}`;
 }
 
+/** One-click endpoint for the List-Unsubscribe header (RFC 8058). */
+export function unsubscribeHeaderUrl(userId: string, type: string): string {
+  return `${getEnv().APP_URL}/api/unsubscribe/${unsubscribeToken(userId, type)}`;
+}
+
 export function parseUnsubscribeToken(token: string): { userId: string; type: string } | null {
   const [value, sig] = token.split('.');
   if (!value || !sig || !verifySignature(value, sig, getEnv().APP_SECRET, UNSUB)) return null;
@@ -327,6 +332,7 @@ export async function sendNotificationEmails(db: Db, ids: string[]): Promise<num
     const locale = isLocale(n.user.locale) ? n.user.locale : settings['site.defaultLocale'];
     const t = createTranslator(locale);
     const unsub = unsubscribeUrl(n.userId, n.type);
+    const header = unsubscribeHeaderUrl(n.userId, n.type);
     const { html, text } = renderActionEmail({
       siteName: settings['site.name'],
       heading: n.title,
@@ -342,7 +348,7 @@ export async function sendNotificationEmails(db: Db, ids: string[]): Promise<num
         html,
         text,
         headers: {
-          'List-Unsubscribe': `<${unsub}>`,
+          'List-Unsubscribe': `<${header}>`,
           'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
         },
       });
@@ -413,6 +419,7 @@ export async function sendDigests(
     const locale = isLocale(user.locale) ? user.locale : settings['site.defaultLocale'];
     const t = createTranslator(locale);
     const unsub = unsubscribeUrl(userId, '*');
+    const header = unsubscribeHeaderUrl(userId, '*');
     const { html, text } = renderDigestEmail({
       siteName: settings['site.name'],
       heading: t('notifications.digest.heading', { n: items.length }),
@@ -431,7 +438,7 @@ export async function sendDigests(
         html,
         text,
         headers: {
-          'List-Unsubscribe': `<${unsub}>`,
+          'List-Unsubscribe': `<${header}>`,
           'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
         },
       });
