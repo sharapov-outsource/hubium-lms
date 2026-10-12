@@ -270,6 +270,19 @@ export interface ActivityModule<S = Record<string, unknown>> {
     path: string[],
   ): Promise<Response>;
   actions?: Record<string, ModuleAction>;
+  /**
+   * AI integration. Text from `extract` (plain text with Markdown-style headings, or
+   * sanitised HTML, which core converts) is indexed
+   * for the course tutor and quiz generation; the activity intro is indexed by core.
+   * `tutorPolicy`: 'exclude' keeps the activity out of retrieval; 'exclude-while-open'
+   * also lets `blocksTutor` switch the tutor off while the user is mid-activity
+   * (an open quiz attempt).
+   */
+  ai?: {
+    extract?(ctx: ModuleCtx, a: ActivityRef<S>): Promise<{ title?: string; text: string }[]>;
+    tutorPolicy?: 'include' | 'exclude' | 'exclude-while-open';
+    blocksTutor?(ctx: ModuleCtx, a: ActivityRef<S>, userId: string): Promise<boolean>;
+  };
   /** Notification types; labels come from `mod.<key>.notify.<name>` messages. */
   notifications?: Record<string, NotificationTypeDef>;
   /** Who may read files in each file area (besides users who can manage the course). */

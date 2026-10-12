@@ -17,6 +17,7 @@ export const page = defineModule({
     defaults: () => ({ content: '' }),
   },
   extractText: (a) => extractText(a.settings.content),
+  ai: { extract: async (_ctx, a) => [{ text: a.settings.content }] },
 });
 
 export const url = defineModule({
@@ -52,6 +53,7 @@ export const label = defineModule({
     defaults: () => ({ content: '' }),
   },
   extractText: (a) => extractText(a.settings.content),
+  ai: { extract: async (_ctx, a) => [{ text: a.settings.content }] },
 });
 
 export const file = defineModule({

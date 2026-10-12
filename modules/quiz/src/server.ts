@@ -306,6 +306,16 @@ export const quiz = defineModule<QuizSettingsT>({
   archetype: 'activity',
   icon: 'ListChecks',
   supports: { grading: true, groups: true, viewCompletion: true, backup: true },
+  ai: {
+    // Questions never reach the tutor, and the tutor is off while an attempt is open.
+    tutorPolicy: 'exclude-while-open',
+    async blocksTutor(ctx, a, userId) {
+      const open = await ctx.db.quizAttempt.count({
+        where: { activityId: a.id, userId, state: 'IN_PROGRESS' },
+      });
+      return open > 0;
+    },
+  },
   backup: {
     async export(ctx, a) {
       const slots = await ctx.db.quizSlot.findMany({
