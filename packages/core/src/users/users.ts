@@ -4,8 +4,8 @@ import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
-import { erasePersonalData } from '../privacy/privacy.ts';
 import { defineOperation } from '../operation.ts';
+import { erasePersonalData } from '../privacy/privacy.ts';
 
 type Tx = Prisma.TransactionClient | Db;
 

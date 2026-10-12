@@ -21,7 +21,10 @@ describe('privacy', () => {
     const forum = await f.addActivity('forum', 'Обсуждение', { type: 'general' });
     const assign = await f.addActivity('assign', 'Эссе', { gradeMax: 10, onlineText: true });
     const s1 = await ctxFor(t.db, f.users.student1!);
-    await runModuleAction(s1, forum.id, 'startDiscussion', { title: 'Привет', message: '<p>Мой пост</p>' });
+    await runModuleAction(s1, forum.id, 'startDiscussion', {
+      title: 'Привет',
+      message: '<p>Мой пост</p>',
+    });
     await runModuleAction(s1, assign.id, 'saveSubmission', { text: '<p>Моё эссе</p>' });
     const conv = await openDirectConversation.run(s1, { userId: f.users.student2! });
     await sendMessage.run(s1, { conversationId: conv.id, body: 'Секретное сообщение' });
@@ -45,7 +48,10 @@ describe('privacy', () => {
     const assign = await f.addActivity('assign', 'Работа', { gradeMax: 10, onlineText: true });
     const victim = f.users.student3!;
     const s3 = await ctxFor(t.db, victim);
-    await runModuleAction(s3, forum.id, 'startDiscussion', { title: 'Тема', message: '<p>Личное</p>' });
+    await runModuleAction(s3, forum.id, 'startDiscussion', {
+      title: 'Тема',
+      message: '<p>Личное</p>',
+    });
     await runModuleAction(s3, assign.id, 'saveSubmission', { text: '<p>Текст работы</p>' });
     const conv = await openDirectConversation.run(s3, { userId: f.users.student1! });
     await sendMessage.run(s3, { conversationId: conv.id, body: 'Удалите меня' });
@@ -78,14 +84,25 @@ describe('privacy', () => {
     expect(pending.map((p) => p.content.ru)).toEqual(['Версия 1']);
     const ctx = await ctxFor(t.db, teacher.id);
     await expect(acceptPolicies(ctx, [])).rejects.toThrow();
-    await acceptPolicies(ctx, pending.map((p) => p.versionId));
+    await acceptPolicies(
+      ctx,
+      pending.map((p) => p.versionId),
+    );
     expect(await pendingPolicies(t.db, teacher.id)).toEqual([]);
     // a new version asks again; optional ones never block
     await publishPolicyVersion.run(admin, { policyId: id, content: { ru: 'Версия 2', en: 'v2' } });
-    expect((await pendingPolicies(t.db, teacher.id)).map((p) => p.content.ru)).toEqual(['Версия 2']);
-    await publishPolicyVersion.run(admin, { policyId: id, content: { ru: 'Версия 3', en: '' }, mandatory: false });
+    expect((await pendingPolicies(t.db, teacher.id)).map((p) => p.content.ru)).toEqual([
+      'Версия 2',
+    ]);
+    await publishPolicyVersion.run(admin, {
+      policyId: id,
+      content: { ru: 'Версия 3', en: '' },
+      mandatory: false,
+    });
     expect(await pendingPolicies(t.db, teacher.id)).toEqual([]);
     const teacherCtx = await ctxFor(t.db, teacher.id);
-    await expect(savePolicy.run(teacherCtx, { key: 'x', name: { ru: 'x', en: '' } })).rejects.toThrow();
+    await expect(
+      savePolicy.run(teacherCtx, { key: 'x', name: { ru: 'x', en: '' } }),
+    ).rejects.toThrow();
   });
 });

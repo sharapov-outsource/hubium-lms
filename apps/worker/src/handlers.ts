@@ -3,8 +3,10 @@ import {
   INDEX_JOB,
   indexActivity,
   indexCourse,
+  PUSH_JOB,
   QUIZGEN_JOB,
   runQuizGeneration,
+  sendPushNotifications,
 } from '@hubium/core';
 import { publishDueAnnouncements } from '@hubium/core/announcements/announcements';
 import { sendCalendarReminders } from '@hubium/core/calendar/calendar';
@@ -45,6 +47,13 @@ export const coreHandlers: JobHandlerDef[] = [
     batchSize: 5,
     async handler(data: { ids: string[] }, { db }) {
       return { sent: await sendNotificationEmails(db, data.ids) };
+    },
+  },
+  {
+    name: PUSH_JOB,
+    batchSize: 5,
+    async handler(data: { ids: string[] }, { db }) {
+      return sendPushNotifications(db, data.ids);
     },
   },
   {

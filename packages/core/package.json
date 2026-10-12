@@ -29,6 +29,7 @@
     "nodemailer": "10.1.0",
     "pg": "8.23.1",
     "pg-boss": "12.37.1",
+    "web-push": "3.6.7",
     "zod": "4.6.6"
   },
   "devDependencies": {
@@ -44,6 +45,7 @@
     "@types/node": "^24",
     "@types/nodemailer": "8.0.2",
     "@types/pg": "8.23.1",
+    "@types/web-push": "3.6.4",
     "dotenv": "18.0.7",
     "fflate": "0.8.2",
     "jose": "6.2.12",

@@ -885,7 +885,16 @@
         "DIGEST": "Daily digest"
       },
       "digestHour": "Daily digest time",
-      "saved": "Notification settings saved"
+      "saved": "Notification settings saved",
+      "push": "Push",
+      "pushTitle": "Push notifications on this device",
+      "pushHint": "Get notifications even when Hubium is closed.",
+      "pushEnable": "Enable",
+      "pushDisable": "Disable",
+      "pushOn": "Push notifications enabled",
+      "pushOff": "Push notifications disabled",
+      "pushDenied": "The browser blocked notifications — allow them in the site settings.",
+      "pushUnsupported": "This browser does not support push notifications."
     },
     "unsubscribe": {
       "title": "Unsubscribe",
@@ -1198,5 +1207,10 @@
     "mandatory": "Must be accepted",
     "publish": "Publish a new version",
     "publishedOk": "New version published"
+  },
+  "offline": {
+    "title": "You are offline",
+    "text": "Check your connection — the page will reload when you are back online.",
+    "retry": "Retry"
   }
 }

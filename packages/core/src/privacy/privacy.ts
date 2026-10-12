@@ -63,7 +63,11 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
     }),
     db.grade.findMany({
       where: { userId },
-      select: { item: { select: { name: true, courseId: true } }, finalGrade: true, feedback: true },
+      select: {
+        item: { select: { name: true, courseId: true } },
+        finalGrade: true,
+        feedback: true,
+      },
     }),
     db.activityCompletion.findMany({
       where: { userId },
@@ -85,7 +89,14 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
     db.notificationPreference.findMany({ where: { userId } }),
     db.file.findMany({
       where: { uploadedById: userId },
-      select: { name: true, mimeType: true, size: true, createdAt: true, component: true, area: true },
+      select: {
+        name: true,
+        mimeType: true,
+        size: true,
+        createdAt: true,
+        component: true,
+        area: true,
+      },
     }),
     db.tutorConversation.findMany({
       where: { userId },
@@ -147,7 +158,11 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
  * Removes personal content when an account is deleted. Identity fields are anonymised by
  * `deleteUser`; grades, attempts and completion records stay for course statistics.
  */
-export async function erasePersonalData(ctx: RequestContext, tx: Prisma.TransactionClient, userId: string) {
+export async function erasePersonalData(
+  ctx: RequestContext,
+  tx: Prisma.TransactionClient,
+  userId: string,
+) {
   await tx.apiToken.deleteMany({ where: { userId } });
   await tx.aiConsent.deleteMany({ where: { userId } });
   await tx.tutorConversation.deleteMany({ where: { userId } });
@@ -172,7 +187,10 @@ export const savePolicy = defineOperation({
   mutation: true,
   input: z.object({
     id: z.string().uuid().optional(),
-    key: z.string().trim().regex(/^[a-z][a-z0-9-]{1,40}$/, 'Lowercase letters, digits and dashes'),
+    key: z
+      .string()
+      .trim()
+      .regex(/^[a-z][a-z0-9-]{1,40}$/, 'Lowercase letters, digits and dashes'),
     name: Localized,
   }),
   authorize: (ctx) => ctx.perm.require('site:config'),
@@ -195,7 +213,12 @@ export const publishPolicyVersion = defineOperation({
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, i) {
     const v = await ctx.tx.policyVersion.create({
-      data: { policyId: i.policyId, content: i.content, mandatory: i.mandatory, publishedAt: ctx.now },
+      data: {
+        policyId: i.policyId,
+        content: i.content,
+        mandatory: i.mandatory,
+        publishedAt: ctx.now,
+      },
     });
     await logEvent(ctx.tx, {
       name: 'policy.published',
@@ -226,7 +249,9 @@ export async function listPolicies(db: Db) {
 /** Latest published mandatory versions the user has not accepted yet. */
 export async function pendingPolicies(db: Db, userId: string) {
   const policies = await listPolicies(db);
-  const current = policies.flatMap((p) => (p.current?.mandatory ? [{ policy: p, version: p.current }] : []));
+  const current = policies.flatMap((p) =>
+    p.current?.mandatory ? [{ policy: p, version: p.current }] : [],
+  );
   if (!current.length) return [];
   const accepted = new Set(
     (
@@ -253,7 +278,8 @@ export async function acceptPolicies(ctx: RequestContext, versionIds: string[]) 
   const pending = await pendingPolicies(ctx.db, userId);
   const ids = new Set(pending.map((p) => p.versionId));
   const missing = [...ids].filter((id) => !versionIds.includes(id));
-  if (missing.length) throw new ValidationError({ versionIds: ['Accept every policy to continue'] });
+  if (missing.length)
+    throw new ValidationError({ versionIds: ['Accept every policy to continue'] });
   await ctx.db.policyAcceptance.createMany({
     data: [...ids].map((versionId) => ({ userId, versionId })),
     skipDuplicates: true,

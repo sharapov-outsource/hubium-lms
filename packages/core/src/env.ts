@@ -17,6 +17,10 @@ const EnvSchema = z.object({
   S3_SECRET_KEY: z.string().optional(),
   SMTP_URL: z.string().default('smtp://localhost:1025'),
   MAIL_FROM: z.string().default('Hubium <no-reply@hubium.local>'),
+  /** Web Push (VAPID). Generate with `npx web-push generate-vapid-keys`. */
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

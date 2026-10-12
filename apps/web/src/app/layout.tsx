@@ -6,6 +6,7 @@ import { headers } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale } from 'next-intl/server';
 import type { ReactNode } from 'react';
+import { ServiceWorker } from '@/components/service-worker';
 import { db } from '@/server/db';
 import { getCurrentUser } from '@/server/session';
 import './globals.css';
@@ -15,6 +16,8 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: { default: settings['site.name'], template: `%s — ${settings['site.name']}` },
     description: 'Hubium LMS',
+    icons: { apple: '/icons/apple-touch-icon.png' },
+    appleWebApp: { capable: true, title: settings['site.name'], statusBarStyle: 'default' },
   };
 }
 
@@ -47,6 +50,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <NextIntlClientProvider>
             {children}
             <Toaster />
+            <ServiceWorker />
           </NextIntlClientProvider>
         </ThemeProvider>
       </body>

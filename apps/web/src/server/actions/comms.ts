@@ -71,6 +71,7 @@ export async function saveNotificationPrefsAction(fd: FormData) {
       type,
       inApp: fd.get(`inApp:${type}`) === 'on',
       email: String(fd.get(`email:${type}`) ?? 'IMMEDIATE') as 'OFF' | 'IMMEDIATE' | 'DIGEST',
+      push: fd.get(`push:${type}`) === 'on',
     }));
     await updateNotificationPreferences.run(await getContext(), {
       digestHour: fd.get('digestHour'),
