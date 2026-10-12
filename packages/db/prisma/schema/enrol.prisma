@@ -1,0 +1,141 @@
+// Enrolment methods, enrolments, groups and cohorts.
+
+enum EnrolmentMethodType {
+  MANUAL
+  SELF
+  COHORT
+  GUEST
+}
+
+enum EnrolmentStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model EnrolmentMethod {
+  id           String              @id @default(uuid(7)) @db.Uuid
+  courseId     String              @db.Uuid
+  type         EnrolmentMethodType
+  enabled      Boolean             @default(true)
+  name         String              @default("")
+  roleId       String              @db.Uuid
+  key          String?
+  useGroupKeys Boolean             @default(false)
+  startsAt     DateTime?           @db.Timestamptz(3)
+  endsAt       DateTime?           @db.Timestamptz(3)
+  durationDays Int?
+  maxEnrolled  Int?
+  cohortId     String?             @db.Uuid
+  groupId      String?             @db.Uuid
+  welcome      String              @default("")
+  sortOrder    Int                 @default(0)
+  createdAt    DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime            @updatedAt @db.Timestamptz(3)
+
+  course     Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  role       Role        @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  cohort     Cohort?     @relation(fields: [cohortId], references: [id], onDelete: SetNull)
+  enrolments Enrolment[]
+
+  @@index([courseId])
+}
+
+model Enrolment {
+  id          String          @id @default(uuid(7)) @db.Uuid
+  methodId    String          @db.Uuid
+  courseId    String          @db.Uuid
+  userId      String          @db.Uuid
+  status      EnrolmentStatus @default(ACTIVE)
+  startsAt    DateTime?       @db.Timestamptz(3)
+  endsAt      DateTime?       @db.Timestamptz(3)
+  createdById String?         @db.Uuid
+  createdAt   DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime        @updatedAt @db.Timestamptz(3)
+
+  method EnrolmentMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)
+  course Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([methodId, userId])
+  @@index([courseId, userId])
+  @@index([userId])
+}
+
+model Group {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  courseId     String   @db.Uuid
+  name         String
+  idNumber     String?
+  description  String   @default("")
+  enrolmentKey String?
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  course    Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  members   GroupMember[]
+  groupings GroupingGroup[]
+
+  @@unique([courseId, name])
+}
+
+model GroupMember {
+  groupId   String   @db.Uuid
+  userId    String   @db.Uuid
+  component String   @default("")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@index([userId])
+}
+
+model Grouping {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  courseId    String   @db.Uuid
+  name        String
+  description String   @default("")
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  course Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  groups GroupingGroup[]
+
+  @@unique([courseId, name])
+}
+
+model GroupingGroup {
+  groupingId String @db.Uuid
+  groupId    String @db.Uuid
+
+  grouping Grouping @relation(fields: [groupingId], references: [id], onDelete: Cascade)
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([groupingId, groupId])
+}
+
+model Cohort {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  contextId   String   @db.Uuid
+  name        String
+  idNumber    String?  @unique
+  description String   @default("")
+  visible     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  members          CohortMember[]
+  enrolmentMethods EnrolmentMethod[]
+}
+
+model CohortMember {
+  cohortId  String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([cohortId, userId])
+  @@index([userId])
+}

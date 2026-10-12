@@ -1,0 +1,12 @@
+// Hubium database schema. Split by domain; see docs/architecture.md §4.
+// Conventions: UUIDv7 ids, Timestamptz(3), explicit soft-delete filters in repositories.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}

@@ -1,0 +1,92 @@
+// Activity and course completion, calendar.
+
+enum CompletionState {
+  INCOMPLETE
+  COMPLETE
+  COMPLETE_PASS
+  COMPLETE_FAIL
+}
+
+enum CalendarScope {
+  SITE
+  COURSE
+  GROUP
+  USER
+}
+
+enum CalendarEventKind {
+  OPEN
+  CLOSE
+  DUE
+  CUTOFF
+  SESSION
+  CUSTOM
+}
+
+model ActivityCompletion {
+  activityId     String          @db.Uuid
+  userId         String          @db.Uuid
+  state          CompletionState @default(INCOMPLETE)
+  viewedAt       DateTime?       @db.Timestamptz(3)
+  overriddenById String?         @db.Uuid
+  completedAt    DateTime?       @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt @db.Timestamptz(3)
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, userId])
+  @@index([userId])
+}
+
+model CourseCompletion {
+  courseId        String    @db.Uuid
+  userId          String    @db.Uuid
+  progressPercent Int       @default(0)
+  startedAt       DateTime? @db.Timestamptz(3)
+  completedAt     DateTime? @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, userId])
+  @@index([userId])
+}
+
+model CalendarEvent {
+  id          String            @id @default(uuid(7)) @db.Uuid
+  scope       CalendarScope
+  courseId    String?           @db.Uuid
+  groupId     String?           @db.Uuid
+  userId      String?           @db.Uuid
+  activityId  String?           @db.Uuid
+  moduleKey   String?
+  kind        CalendarEventKind @default(CUSTOM)
+  title       String
+  description String            @default("")
+  startsAt    DateTime          @db.Timestamptz(3)
+  endsAt      DateTime?         @db.Timestamptz(3)
+  allDay      Boolean           @default(false)
+  visible     Boolean           @default(true)
+  createdById String?           @db.Uuid
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
+
+  course Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, kind])
+  @@index([startsAt])
+  @@index([courseId, startsAt])
+  @@index([userId, startsAt])
+}
+
+model CalendarFeedToken {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @unique @db.Uuid
+  tokenHash String   @unique
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

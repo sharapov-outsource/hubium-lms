@@ -1,0 +1,4 @@
+{
+  "extends": "@hubium/tooling/tsconfig/react-library.json",
+  "include": ["src"]
+}

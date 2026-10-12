@@ -1,0 +1,61 @@
+import type { Db, Prisma } from '@hubium/db';
+import pg from 'pg';
+import { invalidatePermissionCaches } from './access/permissions.ts';
+import { invalidateSettingsCache } from './settings/settings.ts';
+
+// Cross-process cache invalidation over Postgres LISTEN/NOTIFY. Every web and worker
+// instance listens on `hubium_cache`; NOTIFY inside a transaction is delivered on commit.
+
+export type CacheTopic = 'settings' | 'roles' | 'contexts';
+export const CACHE_CHANNEL = 'hubium_cache';
+
+function applyLocal(topic: string): void {
+  if (topic === 'settings') invalidateSettingsCache();
+  else if (topic === 'roles') invalidatePermissionCaches('roles');
+  else if (topic === 'contexts') invalidatePermissionCaches('contexts');
+}
+
+export async function publishInvalidation(
+  db: Db | Prisma.TransactionClient,
+  topic: CacheTopic,
+): Promise<void> {
+  applyLocal(topic);
+  await db.$executeRaw`SELECT pg_notify(${CACHE_CHANNEL}, ${topic})`;
+}
+
+let listener: pg.Client | undefined;
+
+/** Starts one dedicated LISTEN connection per process; reconnects on failure. */
+export async function startCacheListener(
+  connectionString = process.env.DATABASE_URL,
+): Promise<void> {
+  if (listener || !connectionString) return;
+  const client = new pg.Client({ connectionString });
+  listener = client;
+  client.on('notification', (msg) => {
+    if (msg.channel === CACHE_CHANNEL && msg.payload) applyLocal(msg.payload);
+  });
+  client.on('error', (e) => {
+    console.error('[cache-bus] connection error', e.message);
+    listener = undefined;
+    client.end().catch(() => {});
+    // Anything may have changed while disconnected.
+    invalidateSettingsCache();
+    invalidatePermissionCaches();
+    setTimeout(() => void startCacheListener(connectionString), 2000);
+  });
+  try {
+    await client.connect();
+    await client.query(`LISTEN ${CACHE_CHANNEL}`);
+  } catch (e) {
+    listener = undefined;
+    console.error('[cache-bus] failed to listen', e);
+    setTimeout(() => void startCacheListener(connectionString), 5000);
+  }
+}
+
+export async function stopCacheListener(): Promise<void> {
+  const c = listener;
+  listener = undefined;
+  await c?.end().catch(() => {});
+}
