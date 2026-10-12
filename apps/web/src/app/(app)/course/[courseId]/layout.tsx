@@ -45,6 +45,7 @@ export default async function CourseLayout({
   const tabs = access.canView
     ? [
         { key: 'course', href: base, label: t('tabs.course'), show: true },
+        { key: 'stream', href: `${base}/stream`, label: t('tabs.stream'), show: true },
         {
           key: 'participants',
           href: `${base}/participants`,

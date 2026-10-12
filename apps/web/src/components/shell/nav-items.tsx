@@ -29,6 +29,8 @@ export interface NavItem {
   /** Also shown in the mobile bottom bar. */
   mobile?: boolean;
   badge?: number;
+  /** Live unread counter shown as the badge. */
+  liveBadge?: 'messages' | 'notifications';
 }
 
 export function navIcon(name: NavIconName) {

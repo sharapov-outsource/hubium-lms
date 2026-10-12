@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
+import { GroupChatButton } from '@/components/comms/message-buttons';
 import { CommandButton } from '@/components/confirm-button';
 import { deleteGroupAction, groupMembersAction, saveGroupAction } from '@/server/actions/courses';
 
@@ -69,14 +70,17 @@ export function GroupCard({
             ) : null}
           </p>
         </div>
-        <CommandButton
-          variant="ghost"
-          size="sm"
-          confirm={t('deleteConfirm', { name: group.name })}
-          run={() => deleteGroupAction(courseId, group.id)}
-        >
-          {tc('delete')}
-        </CommandButton>
+        <div className="flex gap-1">
+          <GroupChatButton groupId={group.id} />
+          <CommandButton
+            variant="ghost"
+            size="sm"
+            confirm={t('deleteConfirm', { name: group.name })}
+            run={() => deleteGroupAction(courseId, group.id)}
+          >
+            {tc('delete')}
+          </CommandButton>
+        </div>
       </CardHeader>
       <CardContent className="grid gap-3">
         <ul className="flex flex-wrap gap-2">

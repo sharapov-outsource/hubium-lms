@@ -2,6 +2,7 @@ import { Avatar, Button, Card, CardContent } from '@hubium/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
+import { MessageUserButton } from '@/components/comms/message-buttons';
 import { db } from '@/server/db';
 import { getContext, requireUser } from '@/server/session';
 
@@ -33,6 +34,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userId
               <Link href="/settings/account">{t('nav.settings')}</Link>
             </Button>
           ) : null}
+          {!isMe && user.status === 'ACTIVE' ? <MessageUserButton userId={user.id} /> : null}
           {canAdmin && !isMe ? (
             <Button asChild variant="secondary">
               <Link href={`/admin/users/${user.id}`}>{t('common.edit')}</Link>

@@ -8,6 +8,7 @@ const PUBLIC = [
   '/reset-password',
   '/two-factor',
   '/verify-email',
+  '/unsubscribe',
   '/api',
   '/_next',
   '/favicon',

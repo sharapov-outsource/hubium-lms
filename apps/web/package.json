@@ -17,6 +17,7 @@
     "@hubium/editor": "workspace:*",
     "@hubium/i18n": "workspace:*",
     "@hubium/mod-assign": "workspace:*",
+    "@hubium/mod-forum": "workspace:*",
     "@hubium/mod-content": "workspace:*",
     "@hubium/mod-quiz": "workspace:*",
     "@hubium/module-sdk": "workspace:*",

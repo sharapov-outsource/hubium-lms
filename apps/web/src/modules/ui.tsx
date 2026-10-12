@@ -1,10 +1,11 @@
 import { assignUI } from '@hubium/mod-assign/ui';
 import { contentModuleUIs } from '@hubium/mod-content/ui';
+import { forumUI } from '@hubium/mod-forum/ui';
 import { quizUI } from '@hubium/mod-quiz/ui';
 import type { ActivityModuleUI } from '@hubium/module-sdk/ui';
 
 const uis = new Map<string, ActivityModuleUI<never>>();
-for (const ui of [...contentModuleUIs, assignUI, quizUI])
+for (const ui of [...contentModuleUIs, assignUI, quizUI, forumUI])
   uis.set(ui.key, ui as unknown as ActivityModuleUI<never>);
 
 export function getModuleUI(key: string): ActivityModuleUI<never> | undefined {
