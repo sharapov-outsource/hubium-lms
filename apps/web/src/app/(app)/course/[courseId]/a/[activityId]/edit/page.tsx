@@ -3,6 +3,7 @@ import { fileUrl } from '@hubium/core/files/files';
 import { PageHeader } from '@hubium/ui';
 import { forbidden, notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
+import { safePath } from '@/lib/safe-path';
 import { getModuleUI } from '@/modules/ui';
 import { updateActivityAction } from '@/server/actions/courses';
 import { db } from '@/server/db';
@@ -48,7 +49,7 @@ export default async function EditActivityPage({
   const rules = (a.completionRules ?? {}) as { view?: boolean; module?: Record<string, unknown> };
   const Settings = ui.SettingsFields;
   const Completion = ui.CompletionRulesFields;
-  const returnTo = sp.returnTo?.startsWith('/') ? sp.returnTo : `/course/${courseId}/a/${a.id}`;
+  const returnTo = safePath(sp.returnTo, `/course/${courseId}/a/${a.id}`);
   return (
     <>
       <PageHeader title={t('edit', { name: a.name })} />

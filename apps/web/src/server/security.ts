@@ -98,8 +98,9 @@ export function isCrossSiteWrite(req: {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return false;
   if (!req.pathname.startsWith('/api/') || !req.hasSession) return false;
   if (CROSS_SITE_OK.some((p) => req.pathname.startsWith(p))) return false;
+  // "same-site" is not enough: the content origin (SCORM) is usually a sibling subdomain.
   const site = req.headers.get('sec-fetch-site');
-  if (site) return site === 'cross-site';
+  if (site) return site !== 'same-origin' && site !== 'none';
   // Older browsers: fall back to Origin vs Host.
   const o = req.headers.get('origin');
   if (!o || o === 'null') return !!o;
@@ -109,4 +110,19 @@ export function isCrossSiteWrite(req: {
   } catch {
     return true;
   }
+}
+
+/**
+ * The content origin serves only /c/ (untrusted packages). Anything else requested there
+ * would put LMS pages on a host whose scripts are untrusted.
+ */
+export function isContentHostMisuse(
+  req: { pathname: string; headers: Headers },
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  const content = origin(env.CONTENT_HOST);
+  const app = origin(env.APP_URL);
+  if (!content || content === app) return false;
+  const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host');
+  return host === new URL(content).host && !req.pathname.startsWith('/c/');
 }

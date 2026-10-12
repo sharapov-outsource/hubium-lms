@@ -2,6 +2,7 @@
 
 import { adminClient, twoFactorClient, usernameClient } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
+import { safePath } from './safe-path';
 
 export const authClient = createAuthClient({
   plugins: [
@@ -18,6 +19,5 @@ export const authClient = createAuthClient({
 
 /** Only allow same-site relative redirects. */
 export function safeNext(next: string | null | undefined, fallback = '/dashboard'): string {
-  if (!next?.startsWith('/') || next.startsWith('//')) return fallback;
-  return next;
+  return safePath(next, fallback);
 }

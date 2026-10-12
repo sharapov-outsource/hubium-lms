@@ -72,17 +72,28 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       channel?.postMessage({ status: s });
     };
 
+    // EventSource retries dropped connections itself, but gives up for good after an
+    // HTTP error (a 502 during a deploy, an expired session): then we retry with backoff.
+    let failed = false;
+    let retries = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const connect = () => {
-      let failed = false;
+      if (stopped) return;
       source = new EventSource('/api/realtime');
       source.onopen = () => {
         announce('open');
         if (failed) relay('reconnect', {});
         failed = false;
+        retries = 0;
       };
       source.onerror = () => {
         failed = true;
         announce('error');
+        if (source?.readyState === EventSource.CLOSED) {
+          source.close();
+          const delay = Math.min(60_000, 2000 * 2 ** retries++) * (0.5 + Math.random() / 2);
+          timer = setTimeout(connect, delay);
+        }
       };
       for (const type of TYPES) {
         source.addEventListener(type, (e) => {
@@ -119,6 +130,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
 
     return () => {
       stopped = true;
+      clearTimeout(timer);
       source?.close();
       release?.();
       channel?.close();

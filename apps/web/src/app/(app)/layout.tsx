@@ -1,4 +1,5 @@
-import { pendingPolicies } from '@hubium/core';
+import { getSetting, pendingPolicies } from '@hubium/core';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
@@ -10,6 +11,18 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await requireUser();
   // New mandatory policy versions must be accepted before anything else.
   if ((await pendingPolicies(db, user.id)).length) redirect('/policies');
+  // A password set by an administrator must be replaced, and admins may be required to
+  // use two-factor sign-in: until then only the security settings are reachable.
+  const path = (await headers()).get('x-hubium-path') ?? '';
+  if (path !== '/settings/security') {
+    if (user.mustChangePassword) redirect('/settings/security?required=password');
+    if (
+      user.isSiteAdmin &&
+      !user.twoFactorEnabled &&
+      (await getSetting(db, 'auth.require2faForAdmins'))
+    )
+      redirect('/settings/security?required=2fa');
+  }
   const ctx = await getContext();
   const items: NavItem[] = [
     { href: '/dashboard', label: 'nav.dashboard', icon: 'home', mobile: true },

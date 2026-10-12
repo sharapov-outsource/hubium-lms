@@ -11,7 +11,7 @@ import {
 } from '@hubium/ui/dropdown';
 import { Bell, CheckCheck } from 'lucide-react';
 import Link from 'next/link';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { useRealtime } from '@/components/realtime';
 import { markNotificationsReadAction, recentNotificationsAction } from '@/server/actions/comms';
@@ -22,6 +22,7 @@ type Item = Awaited<ReturnType<typeof recentNotificationsAction>>['items'][numbe
 export function NotificationBell() {
   const t = useTranslations('notifications');
   const format = useFormatter();
+  const now = useNow({ updateInterval: 60_000 });
   const { counts, refresh } = useLiveCounts();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Item[] | null>(null);
@@ -112,7 +113,7 @@ export function NotificationBell() {
                       <span className="line-clamp-2 text-xs text-muted-foreground">{it.body}</span>
                     ) : null}
                     <span className="text-xs text-muted-foreground">
-                      {format.relativeTime(new Date(it.createdAt))}
+                      {format.relativeTime(new Date(it.createdAt), now)}
                     </span>
                   </span>
                 </Link>

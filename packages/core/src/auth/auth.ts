@@ -2,6 +2,7 @@ import { type Db, uuidv7 } from '@hubium/db';
 import { isLocale } from '@hubium/i18n';
 import { type BetterAuthOptions, type BetterAuthPlugin, betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
+import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { admin, twoFactor, username } from 'better-auth/plugins';
 import { genericOAuth, yandex } from 'better-auth/plugins/generic-oauth';
 import { sendAuthEmail } from '../mail/mail.ts';
@@ -116,6 +117,27 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
       },
     },
     socialProviders: social,
+    hooks: {
+      // Providers switched off in Admin → Settings stay off even when their keys are set.
+      before: createAuthMiddleware(async (c) => {
+        const body = (c.body ?? {}) as { provider?: string; providerId?: string };
+        const params = (c.params ?? {}) as { id?: string; providerId?: string };
+        const provider =
+          c.path === '/sign-in/social' || c.path === '/link-social'
+            ? body.provider
+            : c.path === '/sign-in/oauth2' || c.path === '/oauth2/link'
+              ? body.providerId
+              : c.path.startsWith('/callback/')
+                ? params.id
+                : c.path.startsWith('/oauth2/callback/')
+                  ? params.providerId
+                  : undefined;
+        if (provider !== 'google' && provider !== 'yandex' && provider !== 'vk') return;
+        const settings = await getAllSettings(db);
+        if (!settings[`auth.oauth.${provider}`])
+          throw new APIError('FORBIDDEN', { message: 'This sign-in method is disabled' });
+      }),
+    },
     databaseHooks: {
       user: {
         create: {

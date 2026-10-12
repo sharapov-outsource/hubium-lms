@@ -16,7 +16,8 @@ type AnyDb = Db | Tx;
 
 export const MESSAGE_COMPONENT = 'message';
 export const MESSAGE_MAX_FILES = 5;
-export const MESSAGE_MAX_FILE_BYTES = 20 * 1024 * 1024;
+/** Attachments travel in one server action request (10 MB body limit, see next.config). */
+export const MESSAGE_MAX_FILE_BYTES = 9 * 1024 * 1024;
 
 function me(ctx: RequestContext): string {
   const id = ctx.perm.userId;

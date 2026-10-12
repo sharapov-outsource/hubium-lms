@@ -3,7 +3,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, PageHeader } f
 import { cn } from '@hubium/ui/cn';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
-import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
+import { getFormatter, getLocale, getTimeZone, getTranslations } from 'next-intl/server';
 import { CommandButton } from '@/components/confirm-button';
 import { deleteEventAction } from '@/server/actions/calendar';
 import { db } from '@/server/db';
@@ -25,15 +25,24 @@ export default async function CalendarPage({
 }) {
   const user = await requireUser();
   const sp = await searchParams;
-  const [t, format, locale] = await Promise.all([
+  const [t, format, locale, timeZone] = await Promise.all([
     getTranslations('calendar'),
     getFormatter(),
     getLocale(),
+    getTimeZone(),
   ]);
+  // Grid cells are calendar dates (UTC midnights); events are placed by their date in
+  // the user's time zone, so an event at 01:00 Moscow time is not shown the day before.
+  const localDay = (d: Date) =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(d);
   const now = new Date();
-  const [y, m] = /^\d{4}-\d{2}$/.test(sp.m ?? '')
-    ? sp.m!.split('-').map(Number)
-    : [now.getUTCFullYear(), now.getUTCMonth() + 1];
+  const [ty, tm] = localDay(now).split('-').map(Number);
+  const [y, m] = /^\d{4}-\d{2}$/.test(sp.m ?? '') ? sp.m!.split('-').map(Number) : [ty, tm];
   const start = monthStart(y!, m! - 1);
   const end = monthStart(y!, m!);
   const view = sp.view === 'agenda' ? 'agenda' : 'month';
@@ -42,7 +51,8 @@ export default async function CalendarPage({
     user.id,
     view === 'agenda'
       ? { from: now, to: new Date(now.getTime() + 60 * 86_400_000) }
-      : { from: start, to: end },
+      : // a day of margin on both sides covers every time zone
+        { from: new Date(start.getTime() - 86_400_000), to: new Date(end.getTime() + 86_400_000) },
   );
   const prev = new Date(Date.UTC(y!, m! - 2, 1));
   const next = new Date(Date.UTC(y!, m!, 1));
@@ -68,9 +78,10 @@ export default async function CalendarPage({
   for (const c of courses)
     if (await ctx.perm.can('calendar:managecourse', c.id)) manageable.push(c);
   const canSite = await ctx.perm.can('calendar:managesite');
-  const sameDay = (a: Date, b: Date) =>
-    a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
-  const today = new Date();
+  const cellDay = (d: Date) => d.toISOString().slice(0, 10);
+  const today = localDay(now);
+  const listed =
+    view === 'month' ? events.filter((e) => localDay(e.startsAt).startsWith(key(start))) : events;
   return (
     <>
       <PageHeader
@@ -146,14 +157,14 @@ export default async function CalendarPage({
                               <span
                                 className={cn(
                                   'inline-flex size-6 items-center justify-center rounded-full',
-                                  sameDay(d, today) && 'bg-accent text-accent-foreground',
+                                  cellDay(d) === today && 'bg-accent text-accent-foreground',
                                 )}
                               >
                                 {d.getUTCDate()}
                               </span>
                               <ul className="mt-1 grid gap-1">
                                 {events
-                                  .filter((e) => sameDay(e.startsAt, d))
+                                  .filter((e) => localDay(e.startsAt) === cellDay(d))
                                   .map((e) => (
                                     <li
                                       key={e.id}
@@ -181,10 +192,10 @@ export default async function CalendarPage({
             </>
           ) : null}
           <ul className={cn('grid gap-2', view === 'month' && 'mt-4 md:hidden')}>
-            {events.length === 0 ? (
+            {listed.length === 0 ? (
               <li className="text-sm text-muted-foreground">{t('noEvents')}</li>
             ) : null}
-            {events.map((e) => (
+            {listed.map((e) => (
               <li key={e.id}>
                 <Card>
                   <CardContent className="flex items-start justify-between gap-3 pt-4">

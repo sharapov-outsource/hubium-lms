@@ -53,7 +53,10 @@
     "visible": "Visible",
     "hidden": "Hidden",
     "enabled": "Enabled",
-    "disabled": "Disabled"
+    "disabled": "Disabled",
+    "errorText": "Please try again. If it keeps happening, give the administrator the code below.",
+    "errorCode": "Error code",
+    "retry": "Try again"
   },
   "nav": {
     "main": "Main navigation",
@@ -170,7 +173,9 @@
     "notifications": "Notifications",
     "messages": "Messages",
     "apiTokens": "API tokens",
-    "privacy": "Privacy"
+    "privacy": "Privacy",
+    "requiredPassword": "An administrator set a temporary password for you. Choose a new one to continue.",
+    "required2fa": "Site administrators must turn on two-factor authentication to continue."
   },
   "admin": {
     "title": "Administration",
@@ -966,7 +971,8 @@
     "messageUser": "Message",
     "cannotMessage": "You cannot message this user",
     "live": "Live updates connected",
-    "reconnecting": "Reconnecting…"
+    "reconnecting": "Reconnecting…",
+    "attachmentsTooLarge": "Attachments are larger than 9 MB: send them in parts or as a link."
   },
   "announcements": {
     "title": "Announcements",

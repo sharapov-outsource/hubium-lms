@@ -1,4 +1,12 @@
-import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@hubium/ui';
+import {
+  Alert,
+  Badge,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@hubium/ui';
 import { headers } from 'next/headers';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
@@ -35,8 +43,13 @@ function deviceLabel(ua: string | null | undefined, unknown: string): string {
   return os ? `${browser} · ${os}` : browser;
 }
 
-export default async function SecuritySettings() {
+export default async function SecuritySettings({
+  searchParams,
+}: {
+  searchParams: Promise<{ required?: string }>;
+}) {
   const user = await requireUser();
+  const { required } = await searchParams;
   const [t, ta, tc, format, session] = await Promise.all([
     getTranslations('settings'),
     getTranslations('auth'),
@@ -47,6 +60,12 @@ export default async function SecuritySettings() {
   const sessions = await auth.api.listSessions({ headers: await headers() });
   return (
     <div className="grid gap-6">
+      {required === 'password' && user.mustChangePassword ? (
+        <Alert variant="warning">{t('requiredPassword')}</Alert>
+      ) : null}
+      {required === '2fa' && !user.twoFactorEnabled ? (
+        <Alert variant="warning">{t('required2fa')}</Alert>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle>{t('changePassword')}</CardTitle>
