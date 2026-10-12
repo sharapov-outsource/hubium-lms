@@ -31,6 +31,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: pnpm }
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm depcruise
@@ -64,10 +65,11 @@ jobs:
       - run: pnpm db:seed --profile demo
       - run: pnpm --filter @hubium/web build && pnpm --filter @hubium/worker build
       - run: pnpm --filter @hubium/e2e exec playwright install --with-deps chromium
+      - run: sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Start app
         run: |
           (cd apps/web && pnpm start &) 
-          (cd apps/worker && pnpm start &)
+          (cd apps/worker && WORKER_QUEUES=default,media pnpm start &)
           npx wait-on -t 120000 http://localhost:3000/api/health http://localhost:3001/healthz
       - run: pnpm --filter @hubium/e2e e2e
       - uses: actions/upload-artifact@v4
