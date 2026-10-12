@@ -88,6 +88,8 @@ model User {
   forumPosts          ForumPost[]              @relation("ForumPostAuthor")
   forumSubscriptions  ForumSubscription[]
   forumReadStates     ForumReadState[]
+  videoProgress       VideoProgress[]
+  liveAttendance      LiveAttendance[]
 
   @@index([status])
   @@index([lastName, firstName])

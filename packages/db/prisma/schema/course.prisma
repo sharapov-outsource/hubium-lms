@@ -144,6 +144,11 @@ model Activity {
   quizOverrides      QuizOverride[]
   forumDiscussions   ForumDiscussion[]
   forumSubscriptions ForumSubscription[]
+  videoAsset         VideoAsset?
+  videoProgress      VideoProgress[]
+  liveMeeting        LiveMeeting?
+  liveAttendance     LiveAttendance[]
+  liveRecordings     LiveRecording[]
 
   @@index([courseId, sectionId, rank])
   @@index([moduleKey])
