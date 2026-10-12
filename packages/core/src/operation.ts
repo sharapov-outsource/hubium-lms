@@ -72,6 +72,10 @@ export function toActionError(e: unknown): Extract<ActionResult<never>, { ok: fa
   if (e instanceof AppError) {
     return { ok: false, code: e.code, message: e.message, fieldErrors: e.fieldErrors };
   }
+  // Unique constraint races (two requests creating the same thing) surface as a conflict.
+  if (e && typeof e === 'object' && 'code' in e && (e as { code: unknown }).code === 'P2002') {
+    return { ok: false, code: 'CONFLICT', message: 'This value is already in use' };
+  }
   if (e instanceof z.ZodError) {
     return {
       ok: false,

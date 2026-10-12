@@ -13,6 +13,9 @@
   },
   "dependencies": {
     "@hubium/core": "workspace:*",
+    "@hubium/editor": "workspace:*",
+    "@hubium/mod-content": "workspace:*",
+    "@hubium/module-sdk": "workspace:*",
     "@hubium/db": "workspace:*",
     "@hubium/i18n": "workspace:*",
     "@hubium/ui": "workspace:*",

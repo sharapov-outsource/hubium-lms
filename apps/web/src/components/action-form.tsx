@@ -1,6 +1,7 @@
 'use client';
 
 import type { ActionResult } from '@hubium/core/operation';
+import { FieldErrorsContext } from '@hubium/module-sdk/form';
 import { Button, type ButtonProps, Field, Input } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { useTranslations } from 'next-intl';
@@ -77,9 +78,11 @@ export function ActionForm<T>({
 
   return (
     <FormState.Provider value={{ result, pending }}>
-      <form ref={ref} onSubmit={onSubmit} className={className} id={id} noValidate>
-        {children}
-      </form>
+      <FieldErrorsContext.Provider value={result && !result.ok ? result.fieldErrors : undefined}>
+        <form ref={ref} onSubmit={onSubmit} className={className} id={id} noValidate>
+          {children}
+        </form>
+      </FieldErrorsContext.Provider>
     </FormState.Provider>
   );
 }

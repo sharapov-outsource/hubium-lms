@@ -1,0 +1,25 @@
+{
+  "name": "@hubium/module-sdk",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ui": "./src/ui.ts",
+    "./form": "./src/form.tsx"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hubium/db": "workspace:*",
+    "zod": "4.6.6"
+  },
+  "devDependencies": {
+    "@hubium/tooling": "workspace:*",
+    "@types/react": "19.3.0",
+    "react": "19.3.0",
+    "typescript": "~5.9.3"
+  }
+}

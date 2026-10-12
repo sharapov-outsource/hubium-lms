@@ -9,6 +9,8 @@ export interface SeedOptions {
   profile: 'minimal' | 'demo';
   adminEmail: string;
   adminPassword: string;
+  /** Demo courses (needs content modules registered). Default true for the demo profile. */
+  courses?: boolean;
 }
 
 export const DEMO_PASSWORD = 'Demo12345!';
@@ -109,5 +111,10 @@ export async function seed(db: Db, opts: SeedOptions) {
       update: {},
     });
   }
-  return { adminCreated, demoUsers: Object.keys(users).length };
+  let demoCourses = false;
+  if (opts.profile === 'demo' && opts.courses !== false) {
+    const { seedDemoCourses } = await import('./demo-courses.ts');
+    demoCourses = (await seedDemoCourses(db, users)).created;
+  }
+  return { adminCreated, demoUsers: Object.keys(users).length, demoCourses };
 }

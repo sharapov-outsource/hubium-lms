@@ -1,0 +1,136 @@
+import { expect, test } from '@playwright/test';
+import { sql } from './db';
+import { DEMO_PASSWORD, expectAccessible, login } from './helpers';
+
+const stamp = `${Date.now().toString(36).slice(-5)}${Math.random().toString(36).slice(2, 5)}`;
+const shortName = `E2E-${stamp}`;
+
+test.describe
+  .serial('teacher builds a course, student completes it', () => {
+    let courseUrl = '';
+
+    test('teacher (course creator) creates a course with a page and self-enrolment key', async ({
+      page,
+    }) => {
+      // teacher needs course:create somewhere: give the coursecreator role at site level
+      await sql(
+        `INSERT INTO "RoleAssignment"(id, "userId", "roleId", "contextId", component, "createdAt")
+       SELECT gen_random_uuid(), u.id, r.id, '00000000-0000-7000-8000-000000000001', 'MANUAL', now()
+         FROM "User" u, "Role" r WHERE u.username='teacher' AND r."shortName"='coursecreator'
+       ON CONFLICT DO NOTHING`,
+      );
+      await login(page, 'teacher', DEMO_PASSWORD);
+      await page.goto('/course/new');
+      await page.locator('#f-fullName').fill(`E2E курс ${stamp}`);
+      await page.locator('#f-shortName').fill(shortName);
+      await page.locator('#f-sections').fill('2');
+      await page.getByRole('button', { name: /Создать|Create/ }).click();
+      await page.waitForURL(/\/course\/[0-9a-f-]{36}\?edit=1/);
+      courseUrl = new URL(page.url()).pathname;
+      await expectAccessible(page);
+
+      // add a page to section 1
+      await page
+        .getByRole('button', { name: /Добавить элемент|Add activity/ })
+        .nth(1)
+        .click();
+      await page
+        .getByRole('link', { name: /Страница|Page/ })
+        .first()
+        .click();
+      await page.waitForURL(/\/a\/new\?module=page/);
+      await page.locator('#f-name').fill('Первый урок');
+      await page
+        .locator('#f-settings-content .ProseMirror, [id="f-settings-content"]')
+        .first()
+        .click();
+      await page.keyboard.type('Привет, это первый урок.');
+      await page.locator('#f-completionMode').selectOption('MANUAL');
+      await page.getByRole('button', { name: /^Создать$|^Create$/ }).click();
+      await page.waitForURL(/\?edit=1/);
+      await expect(page.getByRole('link', { name: 'Первый урок' })).toBeVisible();
+
+      // self-enrolment with a key
+      await page.goto(`${courseUrl}/enrolment`);
+      await page.locator('#self-enabled').check();
+      await page.locator('#f-key').fill('secret-key');
+      await page
+        .getByRole('button', { name: /Сохранить|Save/ })
+        .first()
+        .click();
+      await expect(page.getByText(/Сохранено|Saved/).first()).toBeVisible();
+
+      // course event for the calendar
+      await page.goto('/calendar');
+      await page.locator('#f-title').fill(`Вебинар ${stamp}`);
+      const when = new Date(Date.now() + 2 * 86_400_000);
+      const local = new Date(when.getTime() - when.getTimezoneOffset() * 60_000)
+        .toISOString()
+        .slice(0, 16);
+      await page.locator('#f-startsAt').fill(local);
+      await page.locator('#f-scope').selectOption('COURSE');
+      await page.locator('#f-courseId').selectOption({ label: `E2E курс ${stamp}` });
+      await page.getByRole('button', { name: /^Создать$|^Create$/ }).click();
+      await expect(page.getByText(`Вебинар ${stamp}`).first()).toBeVisible();
+    });
+
+    test('student finds the course, enrols with the key, completes it', async ({ page }) => {
+      await login(page, 'student2', DEMO_PASSWORD);
+      await page.goto(`/catalog?q=${encodeURIComponent(stamp)}`);
+      await page.getByRole('link', { name: new RegExp(`E2E курс ${stamp}`) }).click();
+      await page.locator('#f-key').fill('wrong');
+      await page.getByRole('button', { name: /Записаться|Enrol/ }).click();
+      await expect(page.locator('#f-key')).toHaveAttribute('aria-invalid', 'true');
+      await page.locator('#f-key').fill('secret-key');
+      await page.getByRole('button', { name: /Записаться|Enrol/ }).click();
+      await expect(page.getByRole('link', { name: 'Первый урок' })).toBeVisible();
+
+      await page.getByRole('link', { name: 'Первый урок' }).click();
+      await expect(page.getByText('Привет, это первый урок.')).toBeVisible();
+      await page.getByRole('button', { name: /Отметить выполненным|Mark as done/ }).click();
+      await expect(page.getByRole('button', { name: /Выполнено|Done/ })).toBeVisible();
+
+      await page.goto(courseUrl);
+      await expect(page.getByText(/Выполнено 100%|100% complete/)).toBeVisible();
+      await page.goto('/dashboard');
+      await expect(page.getByText(`Вебинар ${stamp}`)).toBeVisible();
+      await expectAccessible(page);
+    });
+
+    test('teacher sees completion in the report and the participant list', async ({ page }) => {
+      await login(page, 'teacher', DEMO_PASSWORD);
+      await page.goto(`${courseUrl}/completion`);
+      await expect(page.getByRole('row', { name: /Мария/ }).getByText('100%')).toBeVisible();
+      await page.goto(`${courseUrl}/participants`);
+      await expect(page.getByRole('link', { name: 'Мария Сидорова' })).toBeVisible();
+      await expectAccessible(page);
+    });
+  });
+
+test('restricted activity shows its condition and unlocks after completion', async ({ page }) => {
+  await sql(
+    `DELETE FROM "ActivityCompletion" WHERE "userId"=(SELECT id FROM "User" WHERE username='student3')`,
+  );
+  await login(page, 'student3', DEMO_PASSWORD);
+  const [c] = await sql<{ id: string }>(`SELECT id FROM "Course" WHERE "shortName"='DEMO-PY'`);
+  await page.goto(`/course/${c!.id}`);
+  await expect(page.getByText(/Доступно, если|Available when/).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Условия: if, elif, else' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Что такое Python' }).click();
+  await page.waitForURL(/\/a\//);
+  await expect(page.getByRole('heading', { name: 'Почему Python' })).toBeVisible();
+  await page.goto(`/course/${c!.id}`);
+  await expect(page.getByRole('link', { name: 'Условия: if, elif, else' })).toBeVisible();
+});
+
+test('view as student hides teacher controls', async ({ page }) => {
+  await login(page, 'teacher', DEMO_PASSWORD);
+  const [c] = await sql<{ id: string }>(`SELECT id FROM "Course" WHERE "shortName"='DEMO-PY'`);
+  await page.goto(`/course/${c!.id}`);
+  await page.getByRole('button', { name: /Посмотреть как|View as/ }).click();
+  await page.getByRole('menuitem', { name: /Студент|Student/ }).click();
+  await expect(page.getByText(/Вы смотрите курс как|You are viewing the course as/)).toBeVisible();
+  await expect(page.getByRole('link', { name: /Редактировать|^Edit$/ })).toHaveCount(0);
+  await page.getByRole('button', { name: /Вернуться к своей роли|Return to my role/ }).click();
+  await expect(page.getByRole('link', { name: /Редактировать|^Edit$/ })).toBeVisible();
+});

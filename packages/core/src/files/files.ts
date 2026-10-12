@@ -11,16 +11,25 @@ type Tx = Prisma.TransactionClient | Db;
 
 export type FileAccessCheck = (ctx: RequestContext, file: File) => Promise<boolean>;
 const areaAccess = new Map<string, FileAccessCheck>();
+const prefixAccess: [string, FileAccessCheck][] = [];
 
 /** Registers who may read files of a component/area. Unregistered areas are denied. */
 export function registerFileArea(component: string, area: string, check: FileAccessCheck): void {
   areaAccess.set(`${component}/${area}`, check);
 }
 
+/** Fallback check for every component starting with `prefix` (e.g. "mod."). */
+export function registerFileComponentPrefix(prefix: string, check: FileAccessCheck): void {
+  prefixAccess.push([prefix, check]);
+}
+
 export async function canReadFile(ctx: RequestContext, file: File): Promise<boolean> {
   if (file.status !== 'READY') return false;
-  const check = areaAccess.get(`${file.component}/${file.area}`);
-  if (!check) return ctx.perm.isSiteAdmin;
+  if (ctx.perm.isSiteAdmin) return true;
+  const check =
+    areaAccess.get(`${file.component}/${file.area}`) ??
+    prefixAccess.find(([p]) => file.component.startsWith(p))?.[1];
+  if (!check) return false;
   return check(ctx, file);
 }
 

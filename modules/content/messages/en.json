@@ -1,0 +1,33 @@
+{
+  "page": {
+    "name": "Page",
+    "description": "Formatted text with images, tables and video",
+    "content": "Content"
+  },
+  "url": {
+    "name": "Link",
+    "description": "A link to an external site or an embedded video",
+    "url": "URL",
+    "display": "Open in",
+    "displayLink": "Same window",
+    "displayNewtab": "New tab",
+    "displayEmbed": "Embed in the page (YouTube, RuTube, VK Video)",
+    "open": "Open link"
+  },
+  "label": {
+    "name": "Text block",
+    "description": "Text shown directly on the course page",
+    "content": "Text"
+  },
+  "file": {
+    "name": "Files",
+    "description": "A single file or a folder of materials",
+    "files": "Files",
+    "addFiles": "Add files",
+    "remove": "Remove",
+    "display": "Display",
+    "displayList": "File list",
+    "displayDownload": "Download the single file directly",
+    "empty": "No files uploaded yet"
+  }
+}

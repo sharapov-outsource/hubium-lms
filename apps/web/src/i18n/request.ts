@@ -2,6 +2,7 @@ import { getAllSettings } from '@hubium/core';
 import { LOCALE_COOKIE, messages, resolveLocale } from '@hubium/i18n';
 import { cookies, headers } from 'next/headers';
 import { getRequestConfig } from 'next-intl/server';
+import { moduleMessages } from '@/modules/messages';
 import { db } from '@/server/db';
 import { getCurrentUser } from '@/server/session';
 
@@ -22,7 +23,7 @@ export default getRequestConfig(async () => {
   });
   return {
     locale,
-    messages: messages[locale],
+    messages: { ...messages[locale], mod: moduleMessages[locale] },
     timeZone: user?.timezone ?? settings['site.defaultTimezone'],
   };
 });

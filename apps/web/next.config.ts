@@ -10,7 +10,15 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 const config: NextConfig = {
   output: 'standalone',
   outputFileTracingRoot: path.resolve(import.meta.dirname, '../..'),
-  transpilePackages: ['@hubium/core', '@hubium/db', '@hubium/i18n', '@hubium/ui'],
+  transpilePackages: [
+    '@hubium/core',
+    '@hubium/db',
+    '@hubium/editor',
+    '@hubium/i18n',
+    '@hubium/module-sdk',
+    '@hubium/ui',
+    '@hubium/mod-content',
+  ],
   serverExternalPackages: ['pg', 'pg-boss', '@prisma/client', '@prisma/adapter-pg', 'nodemailer'],
   typedRoutes: false,
   poweredByHeader: false,
