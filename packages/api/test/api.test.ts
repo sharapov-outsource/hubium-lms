@@ -183,7 +183,10 @@ describe('REST API v1', () => {
   });
 
   it('publishes a valid OpenAPI 3.1 document and docs page', async () => {
-    const spec = await (await api.request('/api/v1/openapi.json')).json();
+    const spec = (await (await api.request('/api/v1/openapi.json')).json()) as Record<
+      string,
+      unknown
+    >;
     const r = await validate(spec);
     expect(r.errors ?? []).toEqual([]);
     expect(r.valid).toBe(true);
