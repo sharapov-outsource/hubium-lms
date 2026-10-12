@@ -2,3 +2,4 @@
 // (web and worker) after registering modules.
 import './completion/completion.ts';
 import './courses/file-access.ts';
+import './grades/gradebook.ts';

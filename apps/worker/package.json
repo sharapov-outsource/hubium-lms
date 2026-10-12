@@ -14,7 +14,10 @@
   "dependencies": {
     "@hubium/core": "workspace:*",
     "@hubium/db": "workspace:*",
-    "@hubium/i18n": "workspace:*"
+    "@hubium/i18n": "workspace:*",
+    "@hubium/mod-assign": "workspace:*",
+    "@hubium/mod-content": "workspace:*",
+    "@hubium/mod-quiz": "workspace:*"
   },
   "devDependencies": {
     "@hubium/tooling": "workspace:*",

@@ -1,0 +1,145 @@
+// Gradebook. Every graded activity owns GradeItems (itemNumber 0..n); each course has a
+// root GradeCategory and a COURSE item holding the course total.
+
+enum GradeAggregation {
+  NATURAL
+  MEAN
+  WEIGHTED_MEAN
+  HIGHEST
+  LOWEST
+  MEDIAN
+}
+
+enum GradeItemKind {
+  MODULE
+  MANUAL
+  CATEGORY
+  COURSE
+}
+
+enum GradeType {
+  VALUE
+  SCALE
+  TEXT
+  NONE
+}
+
+enum GradeDisplay {
+  REAL
+  PERCENT
+  LETTER
+}
+
+model Scale {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  courseId  String?  @db.Uuid
+  name      String
+  items     String[]
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  gradeItems GradeItem[]
+}
+
+model GradeLetter {
+  id         String  @id @default(uuid(7)) @db.Uuid
+  contextId  String  @db.Uuid
+  lowerBound Decimal @db.Decimal(6, 2)
+  letter     String
+
+  @@unique([contextId, lowerBound])
+}
+
+model GradeCategory {
+  id                  String           @id @default(uuid(7)) @db.Uuid
+  courseId            String           @db.Uuid
+  parentId            String?          @db.Uuid
+  name                String
+  aggregation         GradeAggregation @default(NATURAL)
+  dropLowest          Int              @default(0)
+  keepHighest         Int              @default(0)
+  aggregateOnlyGraded Boolean          @default(true)
+  hidden              Boolean          @default(false)
+  sortOrder           Int              @default(0)
+  createdAt           DateTime         @default(now()) @db.Timestamptz(3)
+
+  course   Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  parent   GradeCategory?  @relation("GradeCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children GradeCategory[] @relation("GradeCategoryTree")
+  items    GradeItem[]
+
+  @@index([courseId])
+}
+
+model GradeItem {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  courseId    String        @db.Uuid
+  categoryId  String?       @db.Uuid
+  kind        GradeItemKind
+  activityId  String?       @db.Uuid
+  moduleKey   String?
+  itemNumber  Int           @default(0)
+  name        String
+  idNumber    String?
+  gradeType   GradeType     @default(VALUE)
+  gradeMin    Decimal       @default(0) @db.Decimal(12, 5)
+  gradeMax    Decimal       @default(100) @db.Decimal(12, 5)
+  gradePass   Decimal?      @db.Decimal(12, 5)
+  scaleId     String?       @db.Uuid
+  weight      Decimal       @default(1) @db.Decimal(12, 5)
+  decimals    Int           @default(2)
+  display     GradeDisplay  @default(REAL)
+  hidden      Boolean       @default(false)
+  hiddenUntil DateTime?     @db.Timestamptz(3)
+  locked      Boolean       @default(false)
+  sortOrder   Int           @default(0)
+  needsUpdate Boolean       @default(false)
+  createdAt   DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(3)
+
+  course   Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  category GradeCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  scale    Scale?         @relation(fields: [scaleId], references: [id], onDelete: SetNull)
+  activity Activity?      @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  grades   Grade[]
+
+  @@unique([activityId, itemNumber])
+  @@index([courseId, sortOrder])
+}
+
+model Grade {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  gradeItemId String    @db.Uuid
+  userId      String    @db.Uuid
+  rawGrade    Decimal?  @db.Decimal(12, 5)
+  finalGrade  Decimal?  @db.Decimal(12, 5)
+  feedback    String?
+  overridden  Boolean   @default(false)
+  excluded    Boolean   @default(false)
+  hidden      Boolean   @default(false)
+  locked      Boolean   @default(false)
+  gradedById  String?   @db.Uuid
+  gradedAt    DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  item    GradeItem      @relation(fields: [gradeItemId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  history GradeHistory[]
+
+  @@unique([gradeItemId, userId])
+  @@index([userId])
+}
+
+model GradeHistory {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  gradeId     String   @db.Uuid
+  finalGrade  Decimal? @db.Decimal(12, 5)
+  feedback    String?
+  source      String
+  changedById String?  @db.Uuid
+  changedAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  grade Grade @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+
+  @@index([gradeId, changedAt])
+}

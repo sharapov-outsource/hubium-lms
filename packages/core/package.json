@@ -19,6 +19,7 @@
     "@hubium/db": "workspace:*",
     "@hubium/i18n": "workspace:*",
     "@hubium/module-sdk": "workspace:*",
+    "@hubium/questions": "workspace:*",
     "@hubium/editor": "workspace:*",
     "better-auth": "1.7.7",
     "nodemailer": "10.1.0",
@@ -27,7 +28,9 @@
     "zod": "4.6.6"
   },
   "devDependencies": {
+    "@hubium/mod-assign": "workspace:*",
     "@hubium/mod-content": "workspace:*",
+    "@hubium/mod-quiz": "workspace:*",
     "@hubium/tooling": "workspace:*",
     "@types/node": "^24",
     "@types/nodemailer": "8.0.2",

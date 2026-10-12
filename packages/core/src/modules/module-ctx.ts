@@ -18,7 +18,10 @@ export interface ModuleServices {
   notify: ModuleCtx['notify']['send'];
 }
 
-const services: Partial<Record<keyof ModuleServices, unknown>> = {};
+const services: Partial<Record<keyof ModuleServices, unknown>> = {
+  // Until a notification service is registered, notifications are dropped silently.
+  notify: () => async () => {},
+};
 
 export function provideModuleServices(
   s: Partial<{

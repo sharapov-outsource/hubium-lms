@@ -35,18 +35,30 @@ importers:
       '@hubium/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@hubium/mod-assign':
+        specifier: workspace:*
+        version: link:../../modules/assign
       '@hubium/mod-content':
         specifier: workspace:*
         version: link:../../modules/content
+      '@hubium/mod-quiz':
+        specifier: workspace:*
+        version: link:../../modules/quiz
       '@hubium/module-sdk':
         specifier: workspace:*
         version: link:../../packages/module-sdk
+      '@hubium/questions':
+        specifier: workspace:*
+        version: link:../../packages/questions
       '@hubium/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       better-auth:
         specifier: 1.7.7
         version: 1.7.7(@opentelemetry/api@1.9.1)(@prisma/client@7.10.0(prisma@7.10.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@5.9.3))(typescript@5.9.3))(mysql2@3.15.3)(next@16.4.0(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@24.19.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(pg@8.23.1)(prisma@7.10.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@5.9.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.4(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)))
+      fflate:
+        specifier: 0.8.2
+        version: 0.8.2
       lucide-react:
         specifier: 1.55.0
         version: 1.55.0(@types/react@19.3.0)(react@19.3.0)
@@ -111,6 +123,15 @@ importers:
       '@hubium/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@hubium/mod-assign':
+        specifier: workspace:*
+        version: link:../../modules/assign
+      '@hubium/mod-content':
+        specifier: workspace:*
+        version: link:../../modules/content
+      '@hubium/mod-quiz':
+        specifier: workspace:*
+        version: link:../../modules/quiz
     devDependencies:
       '@hubium/tooling':
         specifier: workspace:*
@@ -152,6 +173,52 @@ importers:
         specifier: 8.23.1
         version: 8.23.1
 
+  modules/assign:
+    dependencies:
+      '@hubium/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@hubium/editor':
+        specifier: workspace:*
+        version: link:../../packages/editor
+      '@hubium/module-sdk':
+        specifier: workspace:*
+        version: link:../../packages/module-sdk
+      '@hubium/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      lucide-react:
+        specifier: 1.55.0
+        version: 1.55.0(@types/react@19.3.0)(react@19.3.0)
+      next-intl:
+        specifier: 4.14.9
+        version: 4.14.9(@swc/helpers@0.5.23)(@types/react@19.3.0)(next@16.4.0(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@24.19.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
+      zod:
+        specifier: 4.6.6
+        version: 4.6.6
+    devDependencies:
+      '@hubium/tooling':
+        specifier: workspace:*
+        version: link:../../packages/tooling
+      '@types/node':
+        specifier: ^24
+        version: 24.19.2
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+      next:
+        specifier: 16.4.0
+        version: 16.4.0(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@24.19.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.0.4
+        version: 5.0.4(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
+
   modules/content:
     dependencies:
       '@hubium/editor':
@@ -160,6 +227,55 @@ importers:
       '@hubium/module-sdk':
         specifier: workspace:*
         version: link:../../packages/module-sdk
+      '@hubium/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      lucide-react:
+        specifier: 1.55.0
+        version: 1.55.0(@types/react@19.3.0)(react@19.3.0)
+      next-intl:
+        specifier: 4.14.9
+        version: 4.14.9(@swc/helpers@0.5.23)(@types/react@19.3.0)(next@16.4.0(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@24.19.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
+      zod:
+        specifier: 4.6.6
+        version: 4.6.6
+    devDependencies:
+      '@hubium/tooling':
+        specifier: workspace:*
+        version: link:../../packages/tooling
+      '@types/node':
+        specifier: ^24
+        version: 24.19.2
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+      next:
+        specifier: 16.4.0
+        version: 16.4.0(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@24.19.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.0.4
+        version: 5.0.4(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
+
+  modules/quiz:
+    dependencies:
+      '@hubium/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@hubium/editor':
+        specifier: workspace:*
+        version: link:../../packages/editor
+      '@hubium/module-sdk':
+        specifier: workspace:*
+        version: link:../../packages/module-sdk
+      '@hubium/questions':
+        specifier: workspace:*
+        version: link:../../packages/questions
       '@hubium/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -215,6 +331,9 @@ importers:
       '@hubium/module-sdk':
         specifier: workspace:*
         version: link:../module-sdk
+      '@hubium/questions':
+        specifier: workspace:*
+        version: link:../questions
       better-auth:
         specifier: 1.7.7
         version: 1.7.7(@opentelemetry/api@1.9.1)(@prisma/client@7.10.0(prisma@7.10.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@5.9.3))(typescript@5.9.3))(mysql2@3.15.3)(next@16.4.0(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@24.19.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(pg@8.23.1)(prisma@7.10.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@5.9.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.4(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)))
@@ -231,9 +350,15 @@ importers:
         specifier: 4.6.6
         version: 4.6.6
     devDependencies:
+      '@hubium/mod-assign':
+        specifier: workspace:*
+        version: link:../../modules/assign
       '@hubium/mod-content':
         specifier: workspace:*
         version: link:../../modules/content
+      '@hubium/mod-quiz':
+        specifier: workspace:*
+        version: link:../../modules/quiz
       '@hubium/tooling':
         specifier: workspace:*
         version: link:../tooling
@@ -390,6 +515,25 @@ importers:
       typescript:
         specifier: ~5.9.3
         version: 5.9.3
+
+  packages/questions:
+    dependencies:
+      zod:
+        specifier: 4.6.6
+        version: 4.6.6
+    devDependencies:
+      '@hubium/tooling':
+        specifier: workspace:*
+        version: link:../tooling
+      '@types/node':
+        specifier: ^24
+        version: 24.19.2
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.0.4
+        version: 5.0.4(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
 
   packages/tooling: {}
 
@@ -3091,6 +3235,9 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  fflate@0.8.2:
+    resolution: {integrity: sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==}
 
   find-my-way@9.7.0:
     resolution: {integrity: sha512-f2JHn75x2JlwUwLenZypgczR7YWMb/uO9BvUXtus+JMgkbIkLADd38cI4EiV+OQqrGo1Zlq6V8wnqMJ8e62wUQ==}
@@ -6717,6 +6864,8 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.7):
     optionalDependencies:
       picomatch: 4.0.7
+
+  fflate@0.8.2: {}
 
   find-my-way@9.7.0:
     dependencies:

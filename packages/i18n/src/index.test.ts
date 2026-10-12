@@ -13,6 +13,18 @@ describe('messages', () => {
     expect([...ru].filter((k) => !en.has(k))).toEqual([]);
     expect([...en].filter((k) => !ru.has(k))).toEqual([]);
   });
+  it('keys never contain dots (next-intl uses them for nesting)', () => {
+    const bad: string[] = [];
+    const walk = (o: unknown, path: string) => {
+      if (typeof o !== 'object' || o === null) return;
+      for (const [k, v] of Object.entries(o)) {
+        if (k.includes('.')) bad.push(`${path}${k}`);
+        walk(v, `${path}${k}/`);
+      }
+    };
+    walk(messages.ru, '');
+    expect(bad).toEqual([]);
+  });
   it('no empty strings', () => {
     for (const l of ['ru', 'en'] as const) {
       const empty = keys(messages[l]).filter((k) => {

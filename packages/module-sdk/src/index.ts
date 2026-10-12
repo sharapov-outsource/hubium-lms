@@ -161,6 +161,8 @@ export interface ActivityModule<S = Record<string, unknown>> {
     onUserUnenrolled?(ctx: ModuleCtx, courseId: string, userId: string): Promise<void>;
   };
   todo?(ctx: ModuleCtx, userId: string, courseIds: string[]): Promise<TodoItem[]>;
+  /** Scheduled jobs run by the worker with a system ModuleCtx. Schedule is cron (UTC). */
+  cron?: { name: string; schedule: string; handler(ctx: ModuleCtx): Promise<unknown> }[];
   actions?: Record<string, ModuleAction>;
   /** Who may read files in each file area (besides users who can manage the course). */
   files?: Record<
@@ -195,4 +197,9 @@ export function parseSettings<S>(m: ActivityModule<S>, raw: unknown): S {
   };
   const r2 = m.settings.schema.safeParse(merged);
   return r2.success ? r2.data : m.settings.defaults();
+}
+
+/** Typed helper so action handlers infer their input from the zod schema. */
+export function defineAction<I extends z.ZodType, O>(a: ModuleAction<I, O>): ModuleAction {
+  return a as unknown as ModuleAction;
 }

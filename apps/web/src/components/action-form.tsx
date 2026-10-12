@@ -24,6 +24,12 @@ const KNOWN = [
   'RATE_LIMITED',
 ];
 
+/** Every field error of the surrounding form (for composite inputs). */
+export function useFormErrors(): Record<string, string[]> {
+  const { result } = useContext(FormState);
+  return result && !result.ok ? (result.fieldErrors ?? {}) : {};
+}
+
 export function useFieldError(name: string): string[] | undefined {
   const { result } = useContext(FormState);
   return result && !result.ok ? result.fieldErrors?.[name] : undefined;

@@ -155,6 +155,7 @@ export function RichTextEditor({
   id,
   minHeight = 160,
   ariaLabel,
+  onChangeHtml,
 }: {
   name: string;
   defaultValue?: string;
@@ -165,6 +166,8 @@ export function RichTextEditor({
   id?: string;
   minHeight?: number;
   ariaLabel?: string;
+  /** Called with the current HTML on every change. */
+  onChangeHtml?: (html: string) => void;
 }) {
   const [html, setHtml] = useState(defaultValue);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -194,7 +197,11 @@ export function RichTextEditor({
         role: 'textbox',
       },
     },
-    onUpdate: ({ editor: e }) => setHtml(e.isEmpty ? '' : e.getHTML()),
+    onUpdate: ({ editor: e }) => {
+      const value = e.isEmpty ? '' : e.getHTML();
+      setHtml(value);
+      onChangeHtml?.(value);
+    },
   });
 
   const state = useEditorState({

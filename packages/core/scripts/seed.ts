@@ -6,8 +6,10 @@ loadEnv({ path: path.resolve(import.meta.dirname, '../../../.env'), quiet: true 
 const { createDb } = await import('@hubium/db');
 const { registerModules } = await import('../src/modules/registry.ts');
 const { contentModules } = await import('@hubium/mod-content/server');
+const { assignModules } = await import('@hubium/mod-assign/server');
+const { quizModules } = await import('@hubium/mod-quiz/server');
 await import('../src/bootstrap.ts');
-registerModules(contentModules as never);
+registerModules([...contentModules, ...assignModules, ...quizModules] as never);
 const { seed } = await import('../src/seed/seed.ts');
 
 const profile = process.argv.includes('--profile')

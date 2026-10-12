@@ -1,0 +1,66 @@
+// Question bank (owned by packages/questions). Question.data is validated per type.
+
+enum QuestionType {
+  MULTICHOICE
+  TRUEFALSE
+  SHORTANSWER
+  NUMERICAL
+  MATCH
+  ESSAY
+  DESCRIPTION
+}
+
+enum QuestionStatus {
+  DRAFT
+  READY
+  HIDDEN
+}
+
+enum QuestionSource {
+  MANUAL
+  IMPORT
+  AI
+}
+
+model QuestionCategory {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  contextId String   @db.Uuid
+  parentId  String?  @db.Uuid
+  name      String
+  info      String   @default("")
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  parent    QuestionCategory?  @relation("QuestionCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  QuestionCategory[] @relation("QuestionCategoryTree")
+  questions Question[]
+  slots     QuizSlot[]
+
+  @@index([contextId])
+}
+
+model Question {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  categoryId      String         @db.Uuid
+  type            QuestionType
+  name            String
+  text            String
+  generalFeedback String         @default("")
+  defaultMark     Decimal        @default(1) @db.Decimal(12, 5)
+  penalty         Decimal        @default(0) @db.Decimal(6, 5)
+  data            Json
+  status          QuestionStatus @default(READY)
+  source          QuestionSource @default(MANUAL)
+  tags            String[]
+  version         Int            @default(1)
+  idNumber        String?
+  createdById     String?        @db.Uuid
+  createdAt       DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime       @updatedAt @db.Timestamptz(3)
+
+  category QuestionCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  slots    QuizSlot[]
+  attempts QuestionAttempt[]
+
+  @@index([categoryId, status])
+}
