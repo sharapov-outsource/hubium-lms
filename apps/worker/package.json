@@ -20,6 +20,7 @@
     "@hubium/mod-livesession": "workspace:*",
     "@hubium/mod-content": "workspace:*",
     "@hubium/mod-quiz": "workspace:*",
+    "@hubium/mod-scorm": "workspace:*",
     "@hubium/mod-video": "workspace:*"
   },
   "devDependencies": {

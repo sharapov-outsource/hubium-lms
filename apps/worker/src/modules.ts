@@ -16,6 +16,9 @@ import { livesessionModules } from '@hubium/mod-livesession/server';
 import quizEn from '@hubium/mod-quiz/messages/en.json' with { type: 'json' };
 import quizRu from '@hubium/mod-quiz/messages/ru.json' with { type: 'json' };
 import { quizModules } from '@hubium/mod-quiz/server';
+import scormEn from '@hubium/mod-scorm/messages/en.json' with { type: 'json' };
+import scormRu from '@hubium/mod-scorm/messages/ru.json' with { type: 'json' };
+import { scormModules } from '@hubium/mod-scorm/server';
 import videoEn from '@hubium/mod-video/messages/en.json' with { type: 'json' };
 import videoRu from '@hubium/mod-video/messages/ru.json' with { type: 'json' };
 import { videoModules } from '@hubium/mod-video/server';
@@ -28,10 +31,11 @@ export const serverModules = [
   ...forumModules,
   ...videoModules,
   ...livesessionModules,
+  ...scormModules,
 ];
 registerModules(serverModules as never);
 // Notifications created by cron jobs are rendered with module messages.
 registerModuleMessages({
-  ru: { ...contentRu, ...assignRu, ...quizRu, ...forumRu, ...videoRu, ...liveRu },
-  en: { ...contentEn, ...assignEn, ...quizEn, ...forumEn, ...videoEn, ...liveEn },
+  ru: { ...contentRu, ...assignRu, ...quizRu, ...forumRu, ...videoRu, ...liveRu, ...scormRu },
+  en: { ...contentEn, ...assignEn, ...quizEn, ...forumEn, ...videoEn, ...liveEn, ...scormEn },
 });
