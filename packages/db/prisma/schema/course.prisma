@@ -86,6 +86,11 @@ model Course {
   conversations     Conversation[]
   announcements     Announcement[]
 
+  aiCourseFeatures   AiCourseFeature[]
+  contentChunks      ContentChunk[]
+  aiGenerations      AiGeneration[]
+  tutorConversations TutorConversation[]
+
   @@index([categoryId])
   @@index([deletedAt])
 }
@@ -151,6 +156,9 @@ model Activity {
   liveRecordings     LiveRecording[]
   scormPackage       ScormPackage?
   scormAttempts      ScormAttempt[]
+
+  contentChunks      ContentChunk[]
+  gradingSuggestions GradingSuggestion[]
 
   @@index([courseId, sectionId, rank])
   @@index([moduleKey])

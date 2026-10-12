@@ -92,6 +92,9 @@ model User {
   liveAttendance      LiveAttendance[]
   scormAttempts       ScormAttempt[]
 
+  aiConsents         AiConsent[]
+  tutorConversations TutorConversation[]
+
   @@index([status])
   @@index([lastName, firstName])
 }
