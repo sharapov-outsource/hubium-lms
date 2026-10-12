@@ -25,6 +25,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     { key: 'roles', href: '/admin/roles', label: t('roles'), show: roles },
     { key: 'permissions', href: '/admin/permissions', label: t('permissionCheck'), show: roles },
     { key: 'lti', href: '/admin/lti', label: t('lti'), show: config },
+    { key: 'ai', href: '/admin/ai', label: t('ai'), show: config },
     { key: 'announcements', href: '/admin/announcements', label: t('announcements'), show: config },
     { key: 'settings', href: '/admin/settings/general', label: t('siteSettings'), show: config },
     { key: 'environment', href: '/admin/environment', label: t('environment'), show: config },

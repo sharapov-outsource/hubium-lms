@@ -1,4 +1,4 @@
-import { categoryPath, getCourseAccess } from '@hubium/core';
+import { aiFeaturesFor, categoryPath, getCourseAccess } from '@hubium/core';
 import { Alert, Badge } from '@hubium/ui';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
@@ -42,10 +42,12 @@ export default async function CourseLayout({
   const roleName = (r: { name: unknown; shortName: string }) =>
     (r.name as Record<string, string>)[locale] ?? r.shortName;
   const base = `/course/${courseId}`;
+  const ai = access.canView ? await aiFeaturesFor(ctx, courseId) : null;
   const tabs = access.canView
     ? [
         { key: 'course', href: base, label: t('tabs.course'), show: true },
         { key: 'stream', href: `${base}/stream`, label: t('tabs.stream'), show: true },
+        { key: 'tutor', href: `${base}/tutor`, label: t('tabs.tutor'), show: !!ai?.TUTOR },
         {
           key: 'participants',
           href: `${base}/participants`,

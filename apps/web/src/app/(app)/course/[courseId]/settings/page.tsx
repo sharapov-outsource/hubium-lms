@@ -1,4 +1,4 @@
-import { categoriesWhereCan, getCourseAccess } from '@hubium/core';
+import { AI_FEATURES, categoriesWhereCan, getCourseAccess, resolveFeature } from '@hubium/core';
 import { Card, CardContent } from '@hubium/ui';
 import { forbidden } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
@@ -6,6 +6,7 @@ import { CommandButton } from '@/components/confirm-button';
 import { deleteCourseAction, updateCourseAction } from '@/server/actions/courses';
 import { getContext } from '@/server/session';
 import { CourseForm } from '../../course-form';
+import { CourseAiCard } from './ai-card';
 import { BackupCard } from './backup-card';
 
 const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : undefined);
@@ -30,6 +31,13 @@ export default async function CourseSettingsPage({
   const canBackup = await ctx.perm.can('backup:create', courseId);
   const restoreCats = canBackup ? await categoriesWhereCan(ctx, 'restore:course') : [];
   const dupCats = restoreCats.filter((x) => cats.some((y) => y.id === x.id));
+  // AI features enabled site-wide can be switched off per course.
+  const siteAi: (typeof AI_FEATURES)[number][] = [];
+  for (const feature of AI_FEATURES)
+    if (await resolveFeature(ctx.db, feature)) siteAi.push(feature);
+  const courseAi = siteAi.length
+    ? await ctx.db.aiCourseFeature.findMany({ where: { courseId } })
+    : [];
   return (
     <div className="grid gap-6">
       <CourseForm
@@ -54,6 +62,15 @@ export default async function CourseSettingsPage({
           hasImage: !!c.imageFileId,
         }}
       />
+      {siteAi.length ? (
+        <CourseAiCard
+          courseId={courseId}
+          features={siteAi.map((feature) => ({
+            feature,
+            enabled: courseAi.find((x) => x.feature === feature)?.enabled ?? true,
+          }))}
+        />
+      ) : null}
       {canBackup ? (
         <BackupCard
           courseId={c.id}

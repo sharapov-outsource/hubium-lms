@@ -1,4 +1,4 @@
-import { listQuestionCategories, listQuestions } from '@hubium/core';
+import { aiFeaturesFor, listQuestionCategories, listQuestions } from '@hubium/core';
 import { questionTypes } from '@hubium/questions';
 import {
   Badge,
@@ -16,7 +16,7 @@ import {
   Tr,
 } from '@hubium/ui';
 import { cn } from '@hubium/ui/cn';
-import { Download, Plus } from 'lucide-react';
+import { Download, Plus, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { forbidden } from 'next/navigation';
 import { getFormatter, getTranslations } from 'next-intl/server';
@@ -43,6 +43,7 @@ export default async function QuestionBankPage({
     includeHidden: true,
   });
   const base = `/course/${courseId}/question-bank`;
+  const ai = await aiFeaturesFor(ctx, courseId);
   return (
     <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
       <div className="grid content-start gap-4">
@@ -73,6 +74,14 @@ export default async function QuestionBankPage({
       <div className="grid content-start gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="mr-auto text-lg font-semibold">{current.name || t('defaultCategory')}</h2>
+          {ai.QUIZGEN ? (
+            <Button asChild size="sm">
+              <Link href={`${base}/ai?category=${current.id}`}>
+                <Sparkles />
+                {t('aiGenerate')}
+              </Link>
+            </Button>
+          ) : null}
           <Button asChild variant="outline" size="sm">
             <a href={`${base}/export?category=${current.id}`}>
               <Download />
