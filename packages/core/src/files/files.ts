@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
+import { open, stat } from 'node:fs/promises';
 import { type Db, type File, type Prisma, SYSTEM_CONTEXT_ID, uuidv7 } from '@hubium/db';
 import type { RequestContext } from '../context.ts';
 import { ValidationError } from '../errors.ts';
@@ -140,6 +142,56 @@ export async function storeFile(db: Tx, input: StoreFileInput): Promise<File> {
       size: input.data.length,
       uploadedById: input.uploadedById ?? null,
     },
+  });
+}
+
+/**
+ * Stores a file from a local path without loading it into memory (large uploads):
+ * hashes it while streaming, deduplicates by content and streams it to storage.
+ */
+export async function storeFileFromPath(
+  db: Tx,
+  input: Omit<StoreFileInput, 'data'> & { filePath: string },
+): Promise<File> {
+  const name = sanitizeFilename(input.name);
+  const { size } = await stat(input.filePath);
+  if (input.maxBytes && size > input.maxBytes) {
+    throw new ValidationError({
+      file: [`File is larger than ${Math.round(input.maxBytes / 1024)} KB`],
+    });
+  }
+  const fh = await open(input.filePath, 'r');
+  const head = Buffer.alloc(Math.min(size, 4100));
+  try {
+    await fh.read(head, 0, head.length, 0);
+  } finally {
+    await fh.close();
+  }
+  const mimeType = sniffMimeType(head, input.mimeType ?? '', name);
+  if (input.allowedTypes && !input.allowedTypes.test(mimeType)) {
+    throw new ValidationError({ file: [`File type ${mimeType} is not allowed`] });
+  }
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(input.filePath)) hash.update(chunk as Buffer);
+  const sha256 = hash.digest('hex');
+  let blob = await db.fileBlob.findFirst({ where: { sha256, size } });
+  if (!blob) {
+    const id = uuidv7();
+    const storageKey = `blobs/${id.slice(-2)}/${id}`;
+    await getStorage().put(storageKey, createReadStream(input.filePath), mimeType);
+    blob = await db.fileBlob.create({ data: { id, storageKey, size, mimeType, sha256 } });
+  }
+  const where = {
+    contextId: input.contextId,
+    component: input.component,
+    area: input.area,
+    itemId: input.itemId ?? '',
+    path: input.path ?? '/',
+    name,
+  };
+  if (input.replace) await db.file.deleteMany({ where });
+  return db.file.create({
+    data: { ...where, blobId: blob.id, mimeType, size, uploadedById: input.uploadedById ?? null },
   });
 }
 

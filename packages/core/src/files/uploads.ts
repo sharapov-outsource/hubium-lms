@@ -1,0 +1,119 @@
+import { appendFile, mkdir, rm, stat } from 'node:fs/promises';
+import path from 'node:path';
+import type { Db, Prisma } from '@hubium/db';
+import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
+import { fsStorageRoot } from './storage.ts';
+
+// Resumable uploads (tus-like): the client creates a session, appends chunks at the
+// current offset and resumes from `received` after a network failure. Chunks are kept
+// on local disk until a module consumes the upload into a File.
+
+type Tx = Prisma.TransactionClient | Db;
+
+export const UPLOAD_CHUNK_BYTES = 5 * 1024 * 1024;
+export const UPLOAD_MAX_BYTES = 4 * 1024 * 1024 * 1024;
+const TTL_MS = 24 * 3600_000;
+
+export function uploadTempDir(): string {
+  return path.join(fsStorageRoot(), 'tmp', 'uploads');
+}
+
+function tempPath(id: string): string {
+  if (!/^[0-9a-f-]{36}$/.test(id)) throw new ValidationError({ id: ['Invalid upload id'] });
+  return path.join(uploadTempDir(), id);
+}
+
+export async function createUpload(
+  db: Tx,
+  userId: string,
+  input: { name: string; size: number; mimeType?: string },
+) {
+  if (!Number.isInteger(input.size) || input.size <= 0 || input.size > UPLOAD_MAX_BYTES) {
+    throw new ValidationError({ size: ['Invalid file size'] });
+  }
+  const s = await db.uploadSession.create({
+    data: {
+      userId,
+      name: input.name.slice(0, 255),
+      size: BigInt(input.size),
+      mimeType: input.mimeType || 'application/octet-stream',
+      storageKey: `uploads/${crypto.randomUUID()}`,
+      expiresAt: new Date(Date.now() + TTL_MS),
+    },
+  });
+  await mkdir(uploadTempDir(), { recursive: true });
+  await appendFile(tempPath(s.id), Buffer.alloc(0));
+  return { id: s.id, chunkSize: UPLOAD_CHUNK_BYTES, received: 0 };
+}
+
+async function own(db: Tx, userId: string, id: string) {
+  const s = await db.uploadSession.findUnique({ where: { id } });
+  if (!s || s.expiresAt < new Date()) throw new NotFoundError('Upload');
+  if (s.userId !== userId) throw new ForbiddenError();
+  return s;
+}
+
+export async function getUpload(db: Tx, userId: string, id: string) {
+  const s = await own(db, userId, id);
+  return { id: s.id, size: Number(s.size), received: Number(s.received), done: !!s.completedAt };
+}
+
+/** Appends a chunk at `offset`. A mismatched offset returns the server's position. */
+export async function appendUploadChunk(
+  db: Tx,
+  userId: string,
+  id: string,
+  offset: number,
+  chunk: Buffer,
+): Promise<{ received: number; conflict?: boolean }> {
+  const s = await own(db, userId, id);
+  if (s.completedAt) throw new ValidationError({ id: ['Upload already completed'] });
+  const received = Number(s.received);
+  if (offset !== received) return { received, conflict: true };
+  if (chunk.length > UPLOAD_CHUNK_BYTES * 2 || received + chunk.length > Number(s.size)) {
+    throw new ValidationError({ chunk: ['Chunk exceeds the declared size'] });
+  }
+  // Disk is the source of truth if a previous request died after writing.
+  const onDisk = await stat(tempPath(id)).then(
+    (x) => x.size,
+    () => 0,
+  );
+  if (onDisk !== received) return { received: onDisk, conflict: true };
+  await appendFile(tempPath(id), chunk);
+  const next = received + chunk.length;
+  await db.uploadSession.update({ where: { id }, data: { received: BigInt(next) } });
+  return { received: next };
+}
+
+/** Hands a finished upload to a consumer; the temp file is removed afterwards. */
+export async function consumeUpload<T>(
+  db: Tx,
+  userId: string,
+  id: string,
+  use: (file: { path: string; name: string; mimeType: string; size: number }) => Promise<T>,
+): Promise<T> {
+  const s = await own(db, userId, id);
+  if (s.completedAt) throw new ValidationError({ id: ['Upload already used'] });
+  if (s.received !== s.size) throw new ValidationError({ id: ['Upload is incomplete'] });
+  const out = await use({
+    path: tempPath(id),
+    name: s.name,
+    mimeType: s.mimeType,
+    size: Number(s.size),
+  });
+  await db.uploadSession.update({ where: { id }, data: { completedAt: new Date() } });
+  await rm(tempPath(id), { force: true });
+  return out;
+}
+
+/** Cron: drops expired sessions and their temp files. */
+export async function cleanupUploads(db: Db, now = new Date()): Promise<number> {
+  const old = await db.uploadSession.findMany({
+    where: { OR: [{ expiresAt: { lt: now } }, { completedAt: { not: null } }] },
+    select: { id: true },
+    take: 500,
+  });
+  for (const u of old) await rm(tempPath(u.id), { force: true });
+  await db.uploadSession.deleteMany({ where: { id: { in: old.map((u) => u.id) } } });
+  return old.length;
+}
