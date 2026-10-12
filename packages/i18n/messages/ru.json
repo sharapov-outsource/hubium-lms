@@ -311,7 +311,8 @@
     "loginAsConfirm": "Войти как {name}? Вы выйдете из своей учётной записи до завершения.",
     "impersonating": "Вы вошли как {name}",
     "stopImpersonating": "Вернуться в свою учётную запись",
-    "announcements": "Объявления"
+    "announcements": "Объявления",
+    "lti": "LTI"
   },
   "email": {
     "footer": "Вы получили это письмо, потому что у вас есть учётная запись на сайте.",
@@ -790,9 +791,9 @@
       "HIDDEN": "Скрыт"
     },
     "empty": "В этой категории нет вопросов",
-    "import": "Импорт GIFT",
-    "importHint": "Вставьте вопросы в формате GIFT (как в Moodle) или выберите файл .txt",
-    "importFile": "Файл GIFT",
+    "import": "Импорт вопросов",
+    "importHint": "Вставьте вопросы в формате GIFT или выберите файл GIFT (.txt) либо Moodle XML (.xml)",
+    "importFile": "Файл GIFT или Moodle XML",
     "importResult": "Импортировано вопросов: {created}. Ошибок: {errors}.",
     "export": "Экспорт GIFT",
     "answers": "Варианты ответов",
@@ -829,7 +830,8 @@
       "p0": "0%",
       "m50": "−50%",
       "m100": "−100%"
-    }
+    },
+    "exportXml": "Экспорт Moodle XML"
   },
   "notifications": {
     "title": "Уведомления",
@@ -956,5 +958,62 @@
     "site": "Объявления сайта",
     "siteHint": "Показываются на главной всем пользователям",
     "recent": "Новое в курсах"
+  },
+  "adminLti": {
+    "title": "Инструменты LTI 1.3",
+    "description": "Внешние сервисы, которые преподаватели могут добавлять в курсы",
+    "platform": "Данные платформы для настройки инструмента",
+    "issuer": "Issuer",
+    "authUrl": "OIDC auth URL",
+    "tokenUrl": "Access token URL",
+    "jwksUrl": "JWKS URL (платформы)",
+    "rotate": "Сменить ключ",
+    "rotateConfirm": "Сгенерировать новый ключ подписи? Старый останется в JWKS ещё неделю.",
+    "rotated": "Ключ обновлён",
+    "disabled": "Отключён",
+    "edit": "Изменить",
+    "delete": "Удалить",
+    "deleteConfirm": "Удалить инструмент «{name}»? Элементы курсов с ним перестанут открываться.",
+    "clientId": "Client ID",
+    "deploymentId": "Deployment ID",
+    "loginUrl": "OIDC login URL инструмента",
+    "targetLinkUri": "Target link URI",
+    "deepLinkingUrl": "Deep Linking URL",
+    "editTool": "Изменить «{name}»",
+    "newTool": "Новый инструмент",
+    "saved": "Инструмент сохранён",
+    "name": "Название",
+    "redirectUris": "Redirect URIs",
+    "redirectUrisHint": "По одному на строку",
+    "toolJwksUrl": "JWKS URL инструмента",
+    "keyHint": "Укажите JWKS URL или публичный ключ",
+    "publicKey": "Публичный ключ инструмента (PEM)",
+    "customParams": "Параметры по умолчанию (ключ=значение)",
+    "sendName": "Передавать имя",
+    "sendEmail": "Передавать e-mail",
+    "enabled": "Включён",
+    "save": "Сохранить"
+  },
+  "backup": {
+    "title": "Резервная копия и копирование",
+    "downloadHint": "Архив .hubium содержит структуру курса, настройки элементов, банк вопросов и файлы (без данных студентов).",
+    "download": "Скачать резервную копию",
+    "duplicate": "Создать копию курса",
+    "duplicateSubmit": "Создать копию",
+    "fullName": "Полное название",
+    "shortName": "Краткое название",
+    "category": "Категория",
+    "copyOf": "{name} (копия)",
+    "importTitle": "Импорт курса",
+    "importHint": "Восстановление из резервной копии Hubium (.hubium) или импорт курса из Moodle (.mbz).",
+    "file": "Файл архива",
+    "fileHint": ".hubium или .mbz (резервная копия Moodle 3.x–4.x без данных пользователей)",
+    "notAllowed": "Нет прав на этот тип импорта в выбранной категории",
+    "importSubmit": "Импортировать",
+    "uploading": "Загрузка файла…",
+    "processing": "Обработка архива…",
+    "failed": "Импорт не удался: {error}",
+    "done": "Готово: разделов {sections}, элементов {activities}, вопросов {questions}, файлов {files}.",
+    "openCourse": "Открыть курс"
   }
 }

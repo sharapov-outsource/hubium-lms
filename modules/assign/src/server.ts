@@ -103,6 +103,7 @@ export const assign = defineModule<AssignSettingsT>({
   archetype: 'activity',
   icon: 'ClipboardCheck',
   supports: { grading: true, groups: true, viewCompletion: true, backup: true },
+  backup: { userFileAreas: ['submission', 'feedback'] },
   notifications: {
     submitted: { email: 'DIGEST' },
     graded: { email: 'IMMEDIATE' },

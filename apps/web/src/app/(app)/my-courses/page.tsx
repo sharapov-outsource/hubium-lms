@@ -1,6 +1,6 @@
 import { categoriesWhereCan, listMyCourses } from '@hubium/core';
 import { Button, EmptyState, PageHeader } from '@hubium/ui';
-import { BookOpen, Plus } from 'lucide-react';
+import { BookOpen, Plus, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 import { CourseCard } from '@/components/course-card';
@@ -13,10 +13,11 @@ export async function generateMetadata() {
 
 export default async function MyCoursesPage() {
   const user = await requireUser();
-  const [t, td, tc] = await Promise.all([
+  const [t, td, tc, tb] = await Promise.all([
     getTranslations('nav'),
     getTranslations('dashboard'),
     getTranslations('course'),
+    getTranslations('backup'),
   ]);
   const courses = await listMyCourses(db, user.id);
   const canCreate = (await categoriesWhereCan(await getContext(), 'course:create')).length > 0;
@@ -26,12 +27,20 @@ export default async function MyCoursesPage() {
         title={t('myCourses')}
         actions={
           canCreate ? (
-            <Button asChild>
-              <Link href="/course/new">
-                <Plus />
-                {tc('new')}
-              </Link>
-            </Button>
+            <>
+              <Button asChild variant="outline">
+                <Link href="/course/import">
+                  <Upload />
+                  {tb('importTitle')}
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href="/course/new">
+                  <Plus />
+                  {tc('new')}
+                </Link>
+              </Button>
+            </>
           ) : null
         }
       />

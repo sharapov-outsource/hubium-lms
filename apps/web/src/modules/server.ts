@@ -5,7 +5,9 @@ import { assignModules } from '@hubium/mod-assign/server';
 import { contentModules } from '@hubium/mod-content/server';
 import { forumModules } from '@hubium/mod-forum/server';
 import { livesessionModules } from '@hubium/mod-livesession/server';
+import { ltiModules } from '@hubium/mod-lti/server';
 import { quizModules } from '@hubium/mod-quiz/server';
+import { scormModules } from '@hubium/mod-scorm/server';
 import { videoModules } from '@hubium/mod-video/server';
 import { moduleMessages } from './messages';
 
@@ -17,6 +19,8 @@ export const serverModules = [
   ...forumModules,
   ...videoModules,
   ...livesessionModules,
+  ...scormModules,
+  ...ltiModules,
 ];
 registerModules(serverModules as never);
 registerModuleMessages(moduleMessages);

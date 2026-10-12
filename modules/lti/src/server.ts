@@ -1,0 +1,741 @@
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import type { Prisma } from '@hubium/db';
+import { defineModule, type ModuleCtx } from '@hubium/module-sdk';
+import { bool, optionalNumber } from '@hubium/module-sdk/fields';
+import { decodeJwt } from 'jose';
+import { z } from 'zod';
+import {
+  appUrl,
+  autoPostForm,
+  claimNonce,
+  endpoint,
+  issuer,
+  jwks,
+  LTI,
+  parseCustom,
+  readHint,
+  signHint,
+  signPlatformJwt,
+  verifyToolJwt,
+} from './protocol.ts';
+
+export * from './protocol.ts';
+
+// mod-lti: LTI 1.3 platform. Tools are registered by administrators; activities launch
+// them through OIDC third-party login, receive grades over AGS, read rosters via NRPS and
+// pick content with Deep Linking.
+
+const LineItem = z.object({
+  n: z.number().int().min(1),
+  label: z.string().max(255),
+  scoreMaximum: z.number().positive(),
+  resourceId: z.string().max(255).default(''),
+  tag: z.string().max(255).default(''),
+});
+
+export const LtiSettings = z.object({
+  toolId: z.string().uuid({ message: 'Choose a tool' }),
+  customParams: z.string().max(5000).default(''),
+  container: z.enum(['iframe', 'window']).default('iframe'),
+  height: z.coerce.number().int().min(300).max(3000).default(700),
+  sendGrades: bool(true),
+  gradeMax: z.coerce.number().min(1).max(10_000).default(100),
+  gradePass: optionalNumber(0, 10_000),
+  /** Set by Deep Linking: the launch URL of the chosen content. */
+  contentUrl: z.string().max(2000).default(''),
+  contentTitle: z.string().max(255).default(''),
+  lineItems: z.array(LineItem).default([]),
+});
+
+export type LtiSettingsT = z.output<typeof LtiSettings>;
+type Db = Prisma.TransactionClient;
+
+// ── tool registry (admin) ────────────────────────────────────────────────────
+
+export const ToolInput = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().trim().min(1).max(255),
+  oidcLoginUrl: z.string().url(),
+  targetLinkUri: z.string().url(),
+  redirectUris: z
+    .string()
+    .transform((s) => s.split(/\s+/).filter(Boolean))
+    .pipe(z.array(z.string().url()).min(1, 'Add at least one redirect URI')),
+  jwksUrl: z
+    .string()
+    .trim()
+    .transform((v) => v || null)
+    .pipe(z.string().url().nullable()),
+  publicKeyPem: z
+    .string()
+    .trim()
+    .transform((v) => v || null)
+    .refine((v) => v === null || v.includes('BEGIN PUBLIC KEY'), 'Paste a PEM public key'),
+  deepLinkingUrl: z
+    .string()
+    .trim()
+    .transform((v) => v || null)
+    .pipe(z.string().url().nullable()),
+  customParams: z.string().max(5000).default(''),
+  sendName: bool(true),
+  sendEmail: bool(false),
+  enabled: bool(true),
+});
+
+export async function saveTool(db: Db, raw: unknown) {
+  const input = ToolInput.parse(raw);
+  if (!input.jwksUrl && !input.publicKeyPem) throw new Error('Provide a JWKS URL or a public key');
+  const data = {
+    name: input.name,
+    oidcLoginUrl: input.oidcLoginUrl,
+    targetLinkUri: input.targetLinkUri,
+    redirectUris: input.redirectUris,
+    jwksUrl: input.jwksUrl,
+    publicKeyPem: input.publicKeyPem,
+    deepLinkingUrl: input.deepLinkingUrl,
+    customParams: parseCustom(input.customParams) as Prisma.InputJsonValue,
+    sendName: input.sendName,
+    sendEmail: input.sendEmail,
+    enabled: input.enabled,
+  };
+  if (input.id) return db.ltiTool.update({ where: { id: input.id }, data });
+  return db.ltiTool.create({
+    data: { ...data, clientId: randomBytes(12).toString('hex'), deploymentId: randomUUID() },
+  });
+}
+
+/** What an administrator copies into the tool's configuration. */
+export function platformInfo(tool?: { clientId: string; deploymentId: string }) {
+  return {
+    issuer: issuer(),
+    clientId: tool?.clientId,
+    deploymentId: tool?.deploymentId,
+    authUrl: endpoint('auth'),
+    tokenUrl: endpoint('token'),
+    jwksUrl: endpoint('jwks'),
+  };
+}
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+const html = (body: string, status = 200) =>
+  new Response(body, {
+    status,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
+const json = (body: unknown, status = 200, type = 'application/json') =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': type, 'Cache-Control': 'no-store' },
+  });
+const fail = (status: number, message: string) => json({ error: message }, status);
+
+async function params(req: Request): Promise<URLSearchParams> {
+  const url = new URL(req.url);
+  if (req.method !== 'POST') return url.searchParams;
+  const body = await req.text();
+  return new URLSearchParams(body);
+}
+
+async function loadLti(db: Db, activityId: string) {
+  const act = await db.activity.findUnique({ where: { id: activityId } });
+  if (act?.moduleKey !== 'lti' || act.deletedAt) return null;
+  const s = LtiSettings.safeParse(act.settings);
+  if (!s.success) return null;
+  const tool = await db.ltiTool.findUnique({ where: { id: s.data.toolId } });
+  return tool ? { act, settings: s.data, tool } : null;
+}
+
+/** LIS roles of a user in the course: instructor-like roles by role short name. */
+async function lisRoles(db: Db, userId: string, courseId: string): Promise<string[]> {
+  const [user, assignments] = await Promise.all([
+    db.user.findUnique({ where: { id: userId }, select: { isSiteAdmin: true } }),
+    db.roleAssignment.findMany({
+      where: { userId, contextId: courseId },
+      include: { role: { select: { shortName: true } } },
+    }),
+  ]);
+  const short = assignments.map((a) => a.role.shortName);
+  const roles: string[] = short.some((s) => ['manager', 'editingteacher', 'teacher'].includes(s))
+    ? [LTI.roles.instructor]
+    : [LTI.roles.learner];
+  if (user?.isSiteAdmin) roles.push(LTI.roles.admin);
+  return roles;
+}
+
+const lineItemsUrl = (activityId: string) => endpoint(`ags/${activityId}/lineitems`);
+const lineItemUrl = (activityId: string, n: number) => `${lineItemsUrl(activityId)}/${n}`;
+
+function lineItemsOf(act: { id: string; name: string }, s: LtiSettingsT) {
+  const base = s.sendGrades
+    ? [{ n: 0, label: act.name, scoreMaximum: s.gradeMax, resourceId: '', tag: '' }]
+    : [];
+  return [...base, ...s.lineItems];
+}
+
+const lineItemJson = (
+  act: { id: string },
+  li:
+    | z.output<typeof LineItem>
+    | { n: number; label: string; scoreMaximum: number; resourceId: string; tag: string },
+) => ({
+  id: lineItemUrl(act.id, li.n),
+  label: li.label,
+  scoreMaximum: li.scoreMaximum,
+  resourceLinkId: act.id,
+  ...(li.resourceId ? { resourceId: li.resourceId } : {}),
+  ...(li.tag ? { tag: li.tag } : {}),
+});
+
+const sha = (s: string) => createHash('sha256').update(s).digest('hex');
+
+/** Resolves a bearer token to its tool if it carries one of the scopes. */
+async function bearer(db: Db, req: Request, scopes: string[]) {
+  const m = (req.headers.get('authorization') ?? '').match(/^Bearer\s+(.+)$/i);
+  if (!m) return null;
+  const t = await db.ltiAccessToken.findUnique({
+    where: { tokenHash: sha(m[1]!) },
+    include: { tool: true },
+  });
+  if (!t || t.expiresAt < new Date() || !t.tool.enabled) return null;
+  return t.scopes.some((s) => scopes.includes(s)) ? t.tool : null;
+}
+
+// ── launch messages ──────────────────────────────────────────────────────────
+
+async function idTokenClaims(ctx: ModuleCtx, hint: NonNullable<ReturnType<typeof readHint>>) {
+  const found = await loadLti(ctx.db, hint.a);
+  if (!found) throw new Error('Unknown activity');
+  const { act, settings: s, tool } = found;
+  const [course, user, roles] = await Promise.all([
+    ctx.db.course.findUniqueOrThrow({
+      where: { id: act.courseId },
+      select: { id: true, shortName: true, fullName: true },
+    }),
+    ctx.db.user.findUniqueOrThrow({
+      where: { id: hint.u },
+      select: {
+        id: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        emailPlaceholder: true,
+        locale: true,
+      },
+    }),
+    lisRoles(ctx.db, hint.u, act.courseId),
+  ]);
+  const returnUrl = `${appUrl()}/course/${course.id}/a/${act.id}`;
+  const custom = {
+    ...(tool.customParams as Record<string, string>),
+    ...parseCustom(s.customParams),
+  };
+  const claims: Record<string, unknown> = {
+    sub: user.id,
+    [LTI.claim('message_type')]: hint.m,
+    [LTI.claim('version')]: LTI.version,
+    [LTI.claim('deployment_id')]: tool.deploymentId,
+    [LTI.claim('roles')]: roles,
+    [LTI.claim('context')]: {
+      id: course.id,
+      label: course.shortName,
+      title: course.fullName,
+      type: ['http://purl.imsglobal.org/vocab/lis/v2/course#CourseOffering'],
+    },
+    [LTI.claim('tool_platform')]: {
+      guid: sha(appUrl()).slice(0, 32),
+      name: 'Hubium',
+      product_family_code: 'hubium',
+      url: appUrl(),
+    },
+    [LTI.claim('launch_presentation')]: {
+      document_target: s.container,
+      return_url: returnUrl,
+      locale: user.locale ?? 'ru',
+    },
+    ...(Object.keys(custom).length ? { [LTI.claim('custom')]: custom } : {}),
+    ...(tool.sendName
+      ? { name: user.name, given_name: user.firstName, family_name: user.lastName }
+      : {}),
+    ...(tool.sendEmail && !user.emailPlaceholder ? { email: user.email } : {}),
+  };
+  if (hint.m === 'LtiResourceLinkRequest') {
+    claims[LTI.claim('target_link_uri')] = s.contentUrl || tool.targetLinkUri;
+    claims[LTI.claim('resource_link')] = { id: act.id, title: act.name };
+    claims[LTI.ags] = {
+      scope: [LTI.scopes.lineitem, LTI.scopes.lineitemRead, LTI.scopes.result, LTI.scopes.score],
+      lineitems: lineItemsUrl(act.id),
+      ...(s.sendGrades ? { lineitem: lineItemUrl(act.id, 0) } : {}),
+    };
+    claims[LTI.nrps] = {
+      context_memberships_url: endpoint(`nrps/${act.id}/memberships`),
+      service_versions: ['2.0'],
+    };
+  } else {
+    claims[LTI.claim('target_link_uri')] = tool.deepLinkingUrl ?? tool.targetLinkUri;
+    claims[LTI.dl('deep_linking_settings')] = {
+      deep_link_return_url: endpoint(`deeplink/${act.id}`),
+      accept_types: ['ltiResourceLink'],
+      accept_presentation_document_targets: ['iframe', 'window'],
+      accept_multiple: false,
+      auto_create: true,
+      title: act.name,
+      data: signHint({ a: act.id, u: user.id, t: tool.id, m: 'LtiDeepLinkingRequest' }, 3600),
+    };
+  }
+  return { claims, tool };
+}
+
+async function handleLaunch(ctx: ModuleCtx, activityId: string, deepLink: boolean) {
+  if (ctx.actor.kind !== 'user') return fail(401, 'Sign in');
+  const access = await ctx.activities.get(activityId);
+  const found = await loadLti(ctx.db, activityId);
+  if (!access?.canOpen || !found) return fail(404, 'Not found');
+  if (!found.tool.enabled) return fail(409, 'This tool is disabled');
+  if (deepLink) {
+    if (!(await ctx.perm.can('mod.lti:manage', found.act.courseId))) return fail(403, 'Forbidden');
+    if (!found.tool.deepLinkingUrl) return fail(409, 'The tool does not support content selection');
+  } else if (!(await ctx.perm.can('mod.lti:launch', activityId))) {
+    return fail(403, 'Forbidden');
+  }
+  const hint = signHint({
+    a: activityId,
+    u: ctx.actor.userId,
+    t: found.tool.id,
+    m: deepLink ? 'LtiDeepLinkingRequest' : 'LtiResourceLinkRequest',
+  });
+  const login = new URL(found.tool.oidcLoginUrl);
+  login.searchParams.set('iss', issuer());
+  login.searchParams.set('login_hint', ctx.actor.userId);
+  login.searchParams.set(
+    'target_link_uri',
+    deepLink
+      ? (found.tool.deepLinkingUrl ?? found.tool.targetLinkUri)
+      : found.settings.contentUrl || found.tool.targetLinkUri,
+  );
+  login.searchParams.set('lti_message_hint', hint);
+  login.searchParams.set('client_id', found.tool.clientId);
+  login.searchParams.set('lti_deployment_id', found.tool.deploymentId);
+  await ctx.log('lti.launch', { activityId, deepLink });
+  return new Response(null, {
+    status: 302,
+    headers: { Location: login.toString(), 'Cache-Control': 'no-store' },
+  });
+}
+
+async function handleAuth(ctx: ModuleCtx, req: Request) {
+  const p = await params(req);
+  const clientId = p.get('client_id') ?? '';
+  const redirectUri = p.get('redirect_uri') ?? '';
+  const tool = clientId ? await ctx.db.ltiTool.findUnique({ where: { clientId } }) : null;
+  if (!tool?.enabled) return fail(400, 'Unknown client_id');
+  // Errors may only be sent back to a registered redirect URI.
+  if (!tool.redirectUris.includes(redirectUri)) return fail(400, 'redirect_uri is not registered');
+  const state = p.get('state') ?? '';
+  const back = (error: string, description: string) =>
+    html(autoPostForm(redirectUri, { error, error_description: description, state }));
+  if (p.get('response_type') !== 'id_token')
+    return back('unsupported_response_type', 'id_token only');
+  if (!(p.get('scope') ?? '').split(' ').includes('openid'))
+    return back('invalid_scope', 'openid required');
+  const nonce = p.get('nonce');
+  if (!nonce) return back('invalid_request', 'nonce required');
+  const hint = readHint(p.get('lti_message_hint'));
+  if (!hint || hint.t !== tool.id || hint.u !== p.get('login_hint')) {
+    return back('invalid_request', 'Invalid or expired launch');
+  }
+  // When a session is present it must belong to the launching user.
+  if (ctx.actor.kind === 'user' && ctx.actor.userId !== hint.u)
+    return back('login_required', 'User mismatch');
+  if (!(await claimNonce(ctx.db, `auth:${nonce}`))) return back('invalid_request', 'nonce reused');
+  const { claims } = await idTokenClaims(ctx, hint);
+  const idToken = await signPlatformJwt(
+    ctx.db,
+    { ...claims, nonce, azp: tool.clientId },
+    tool.clientId,
+  );
+  return html(autoPostForm(redirectUri, { id_token: idToken, state }));
+}
+
+const ALL_SCOPES = Object.values(LTI.scopes) as string[];
+
+async function handleToken(ctx: ModuleCtx, req: Request) {
+  const p = await params(req);
+  if (p.get('grant_type') !== 'client_credentials')
+    return json({ error: 'unsupported_grant_type' }, 400);
+  if (p.get('client_assertion_type') !== 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer') {
+    return json({ error: 'invalid_client' }, 401);
+  }
+  const assertion = p.get('client_assertion') ?? '';
+  let clientId = '';
+  try {
+    clientId = String(decodeJwt(assertion).sub ?? '');
+  } catch {
+    return json({ error: 'invalid_client' }, 401);
+  }
+  const tool = clientId ? await ctx.db.ltiTool.findUnique({ where: { clientId } }) : null;
+  if (!tool?.enabled) return json({ error: 'invalid_client' }, 401);
+  try {
+    const { payload } = await verifyToolJwt(tool, assertion, {
+      audience: endpoint('token'),
+      issuer: clientId,
+      subject: clientId,
+    });
+    if (!payload.jti || !(await claimNonce(ctx.db, `jti:${payload.jti}`, 3600))) {
+      return json({ error: 'invalid_client', error_description: 'jti reused' }, 401);
+    }
+  } catch (e) {
+    return json(
+      { error: 'invalid_client', error_description: e instanceof Error ? e.message : '' },
+      401,
+    );
+  }
+  const scopes = (p.get('scope') ?? '').split(' ').filter((s) => ALL_SCOPES.includes(s));
+  if (!scopes.length) return json({ error: 'invalid_scope' }, 400);
+  const token = randomBytes(32).toString('base64url');
+  await ctx.db.ltiAccessToken.create({
+    data: {
+      toolId: tool.id,
+      tokenHash: sha(token),
+      scopes,
+      expiresAt: new Date(Date.now() + 3600_000),
+    },
+  });
+  return json({
+    access_token: token,
+    token_type: 'Bearer',
+    expires_in: 3600,
+    scope: scopes.join(' '),
+  });
+}
+
+async function handleAgs(ctx: ModuleCtx, req: Request, activityId: string, rest: string[]) {
+  const found = await loadLti(ctx.db, activityId);
+  if (!found) return fail(404, 'Not found');
+  const { act, settings: s } = found;
+  const needs =
+    rest[1] === 'scores'
+      ? [LTI.scopes.score]
+      : rest[1] === 'results'
+        ? [LTI.scopes.result]
+        : req.method === 'GET'
+          ? [LTI.scopes.lineitem, LTI.scopes.lineitemRead]
+          : [LTI.scopes.lineitem];
+  const tool = await bearer(ctx.db, req, needs);
+  if (!tool || tool.id !== found.tool.id) return fail(401, 'Invalid token');
+  const items = lineItemsOf(act, s);
+  const saveSettings = async (next: LtiSettingsT) => {
+    await ctx.db.activity.update({
+      where: { id: act.id },
+      data: { settings: next as unknown as Prisma.InputJsonValue },
+    });
+    await ctx.grades.syncItems(act.id);
+  };
+
+  if (!rest.length) {
+    if (req.method === 'GET') {
+      const resourceId = new URL(req.url).searchParams.get('resource_id');
+      const tag = new URL(req.url).searchParams.get('tag');
+      const list = items.filter(
+        (i) => (!resourceId || i.resourceId === resourceId) && (!tag || i.tag === tag),
+      );
+      return json(
+        list.map((i) => lineItemJson(act, i)),
+        200,
+        'application/vnd.ims.lis.v2.lineitemcontainer+json',
+      );
+    }
+    if (req.method === 'POST') {
+      const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+      const scoreMaximum = Number(body.scoreMaximum);
+      if (!(scoreMaximum > 0) || typeof body.label !== 'string')
+        return fail(400, 'label and scoreMaximum are required');
+      const n = Math.max(0, ...s.lineItems.map((i) => i.n)) + 1;
+      const li = {
+        n,
+        label: body.label.slice(0, 255),
+        scoreMaximum,
+        resourceId: String(body.resourceId ?? ''),
+        tag: String(body.tag ?? ''),
+      };
+      await saveSettings({ ...s, lineItems: [...s.lineItems, li] });
+      return json(lineItemJson(act, li), 201, 'application/vnd.ims.lis.v2.lineitem+json');
+    }
+    return fail(405, 'Method not allowed');
+  }
+
+  const n = Number(rest[0]);
+  const li = items.find((i) => i.n === n);
+  if (!li) return fail(404, 'No such line item');
+
+  if (rest.length === 1) {
+    if (req.method === 'GET')
+      return json(lineItemJson(act, li), 200, 'application/vnd.ims.lis.v2.lineitem+json');
+    if (req.method === 'PUT') {
+      const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+      if (n === 0) {
+        const max = Number(body.scoreMaximum);
+        await saveSettings({ ...s, gradeMax: max > 0 ? max : s.gradeMax });
+      } else {
+        await saveSettings({
+          ...s,
+          lineItems: s.lineItems.map((x) =>
+            x.n === n
+              ? {
+                  ...x,
+                  label: typeof body.label === 'string' ? body.label.slice(0, 255) : x.label,
+                  scoreMaximum:
+                    Number(body.scoreMaximum) > 0 ? Number(body.scoreMaximum) : x.scoreMaximum,
+                }
+              : x,
+          ),
+        });
+      }
+      const fresh = lineItemsOf(act, (await loadLti(ctx.db, act.id))!.settings).find(
+        (x) => x.n === n,
+      )!;
+      return json(lineItemJson(act, fresh), 200, 'application/vnd.ims.lis.v2.lineitem+json');
+    }
+    if (req.method === 'DELETE') {
+      if (n === 0) return fail(400, 'The default line item cannot be deleted');
+      await saveSettings({ ...s, lineItems: s.lineItems.filter((x) => x.n !== n) });
+      return new Response(null, { status: 204 });
+    }
+    return fail(405, 'Method not allowed');
+  }
+
+  const item = await ctx.db.gradeItem.findFirst({ where: { activityId: act.id, itemNumber: n } });
+  if (rest[1] === 'scores' && req.method === 'POST') {
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    const userId = String(body.userId ?? '');
+    const enrolled = await ctx.db.enrolment.findFirst({
+      where: { courseId: act.courseId, userId, status: 'ACTIVE' },
+    });
+    if (!enrolled) return fail(400, 'Unknown userId');
+    if (!item) return fail(409, 'Grades are not enabled for this activity');
+    const given =
+      body.scoreGiven === undefined || body.scoreGiven === null ? null : Number(body.scoreGiven);
+    const max = Number(body.scoreMaximum ?? li.scoreMaximum);
+    if (given !== null && (!(max > 0) || given < 0 || Number.isNaN(given)))
+      return fail(400, 'Invalid score');
+    const raw = given === null ? null : (given / max) * Number(item.gradeMax);
+    await ctx.grades.setGrades(act.id, [
+      {
+        userId,
+        rawGrade: raw === null ? null : Math.min(Number(item.gradeMax), raw),
+        feedback: typeof body.comment === 'string' ? body.comment.slice(0, 10_000) : undefined,
+        itemNumber: n,
+      },
+    ]);
+    if (n === 0) await ctx.completion.recompute(act.id, userId);
+    await ctx.log('lti.score', { activityId: act.id, userId, n });
+    return new Response(null, { status: 200 });
+  }
+  if (rest[1] === 'results' && req.method === 'GET') {
+    const userFilter = new URL(req.url).searchParams.get('user_id');
+    const grades = item
+      ? await ctx.db.grade.findMany({
+          where: { gradeItemId: item.id, ...(userFilter ? { userId: userFilter } : {}) },
+        })
+      : [];
+    return json(
+      grades.map((g) => ({
+        id: `${lineItemUrl(act.id, n)}/results/${g.userId}`,
+        scoreOf: lineItemUrl(act.id, n),
+        userId: g.userId,
+        resultScore:
+          g.finalGrade === null
+            ? null
+            : (Number(g.finalGrade) / Number(item!.gradeMax)) * li.scoreMaximum,
+        resultMaximum: li.scoreMaximum,
+        ...(g.feedback ? { comment: g.feedback } : {}),
+      })),
+      200,
+      'application/vnd.ims.lis.v2.resultcontainer+json',
+    );
+  }
+  return fail(405, 'Method not allowed');
+}
+
+async function handleNrps(ctx: ModuleCtx, req: Request, activityId: string) {
+  const found = await loadLti(ctx.db, activityId);
+  if (!found) return fail(404, 'Not found');
+  const tool = await bearer(ctx.db, req, [LTI.scopes.nrps]);
+  if (!tool || tool.id !== found.tool.id) return fail(401, 'Invalid token');
+  const course = await ctx.db.course.findUniqueOrThrow({
+    where: { id: found.act.courseId },
+    select: { id: true, shortName: true, fullName: true },
+  });
+  const enrolments = await ctx.db.enrolment.findMany({
+    where: { courseId: course.id, status: 'ACTIVE', user: { status: 'ACTIVE' } },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          emailPlaceholder: true,
+        },
+      },
+    },
+    distinct: ['userId'],
+  });
+  const members = await Promise.all(
+    enrolments.map(async (e) => ({
+      status: 'Active',
+      user_id: e.user.id,
+      roles: await lisRoles(ctx.db, e.user.id, course.id),
+      ...(found.tool.sendName
+        ? { name: e.user.name, given_name: e.user.firstName, family_name: e.user.lastName }
+        : {}),
+      ...(found.tool.sendEmail && !e.user.emailPlaceholder ? { email: e.user.email } : {}),
+    })),
+  );
+  return json(
+    {
+      id: endpoint(`nrps/${activityId}/memberships`),
+      context: { id: course.id, label: course.shortName, title: course.fullName },
+      members,
+    },
+    200,
+    'application/vnd.ims.lti-nrps.v2.membershipcontainer+json',
+  );
+}
+
+async function handleDeepLink(ctx: ModuleCtx, req: Request, activityId: string) {
+  const found = await loadLti(ctx.db, activityId);
+  if (!found) return fail(404, 'Not found');
+  const p = await params(req);
+  const jwt = p.get('JWT') ?? '';
+  let payload: Record<string, unknown>;
+  try {
+    payload = (
+      await verifyToolJwt(found.tool, jwt, { audience: issuer(), issuer: found.tool.clientId })
+    ).payload as Record<string, unknown>;
+  } catch (e) {
+    return fail(400, `Invalid deep linking response: ${e instanceof Error ? e.message : ''}`);
+  }
+  if (payload[LTI.claim('message_type')] !== 'LtiDeepLinkingResponse')
+    return fail(400, 'Wrong message type');
+  if (payload[LTI.claim('deployment_id')] !== found.tool.deploymentId)
+    return fail(400, 'Wrong deployment');
+  const data = readHint(String(payload[LTI.dl('data')] ?? ''));
+  if (!data || data.a !== activityId || data.t !== found.tool.id) return fail(400, 'Invalid data');
+  const items = (payload[LTI.dl('content_items')] as Record<string, unknown>[] | undefined) ?? [];
+  const link = items.find((i) => i.type === 'ltiResourceLink');
+  if (link) {
+    const custom = (link.custom ?? {}) as Record<string, string>;
+    const lineItem = link.lineItem as { scoreMaximum?: number } | undefined;
+    const next: LtiSettingsT = {
+      ...found.settings,
+      contentUrl: typeof link.url === 'string' ? link.url : found.settings.contentUrl,
+      contentTitle:
+        typeof link.title === 'string' ? link.title.slice(0, 255) : found.settings.contentTitle,
+      customParams: [
+        found.settings.customParams,
+        ...Object.entries(custom).map(([k, v]) => `${k}=${v}`),
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      ...(lineItem?.scoreMaximum
+        ? { sendGrades: true, gradeMax: Number(lineItem.scoreMaximum) }
+        : {}),
+    };
+    await ctx.db.activity.update({
+      where: { id: activityId },
+      data: { settings: next as unknown as Prisma.InputJsonValue },
+    });
+    if (lineItem?.scoreMaximum) await ctx.grades.syncItems(activityId);
+  }
+  const back = `${appUrl()}/course/${found.act.courseId}/a/${activityId}`;
+  return html(`<!doctype html><html><head><meta charset="utf-8"><title>OK</title></head><body>
+<p>${link ? 'Content selected.' : 'Nothing selected.'} <a href="${back}" target="_top">Back to the course</a></p>
+<script>try{window.top.location.href=${JSON.stringify(back)}}catch(e){}</script></body></html>`);
+}
+
+export const lti = defineModule<LtiSettingsT>({
+  key: 'lti',
+  archetype: 'activity',
+  icon: 'Plug',
+  supports: { grading: true, viewCompletion: true, backup: true },
+  settings: {
+    schema: LtiSettings as unknown as z.ZodType<LtiSettingsT>,
+    defaults: () => LtiSettings.parse({ toolId: '00000000-0000-0000-0000-000000000000' }),
+  },
+  grading: {
+    items: (a) =>
+      a.settings.sendGrades
+        ? [
+            {
+              itemNumber: 0,
+              name: '',
+              gradeMax: a.settings.gradeMax,
+              gradePass: a.settings.gradePass,
+            },
+            ...a.settings.lineItems.map((li) => ({
+              itemNumber: li.n,
+              name: li.label,
+              gradeMax: li.scoreMaximum,
+            })),
+          ]
+        : [],
+  },
+  cron: [
+    {
+      name: 'lti.cleanup',
+      schedule: '37 * * * *',
+      async handler(ctx) {
+        const now = new Date();
+        const [n, t] = await Promise.all([
+          ctx.db.ltiNonce.deleteMany({ where: { expiresAt: { lt: now } } }),
+          ctx.db.ltiAccessToken.deleteMany({ where: { expiresAt: { lt: now } } }),
+        ]);
+        return { nonces: n.count, tokens: t.count };
+      },
+    },
+  ],
+  async http(ctx, req, p) {
+    const [kind, id, ...rest] = p;
+    switch (kind) {
+      case 'jwks':
+        return json(await jwks(ctx.db));
+      case 'tools': {
+        // tool picker for the activity form
+        if (ctx.actor.kind !== 'user') return fail(401, 'Sign in');
+        const tools = await ctx.db.ltiTool.findMany({
+          where: { enabled: true },
+          select: { id: true, name: true, deepLinkingUrl: true },
+          orderBy: { name: 'asc' },
+        });
+        return json(
+          tools.map((t) => ({ id: t.id, name: t.name, deepLinking: !!t.deepLinkingUrl })),
+        );
+      }
+      case 'launch':
+        return id
+          ? handleLaunch(ctx, id, new URL(req.url).searchParams.get('dl') === '1')
+          : fail(404, 'Not found');
+      case 'auth':
+        return handleAuth(ctx, req);
+      case 'token':
+        return req.method === 'POST' ? handleToken(ctx, req) : fail(405, 'POST only');
+      case 'ags':
+        return id && rest[0] === 'lineitems'
+          ? handleAgs(ctx, req, id, rest.slice(1))
+          : fail(404, 'Not found');
+      case 'nrps':
+        return id && rest[0] === 'memberships' && req.method === 'GET'
+          ? handleNrps(ctx, req, id)
+          : fail(404, 'Not found');
+      case 'deeplink':
+        return id && req.method === 'POST' ? handleDeepLink(ctx, req, id) : fail(404, 'Not found');
+      default:
+        return fail(404, 'Not found');
+    }
+  },
+});
+
+export const ltiModules = [lti];

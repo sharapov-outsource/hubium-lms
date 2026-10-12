@@ -67,7 +67,12 @@ export function GiftImportForm({ courseId, categoryId }: { courseId: string; cat
             placeholder="::Q1:: 2 + 2 = ? {=4 ~3 ~5}"
           />
         </FormField>
-        <FormField name="file" type="file" accept=".txt,.gift,text/plain" label={t('importFile')} />
+        <FormField
+          name="file"
+          type="file"
+          accept=".txt,.gift,.xml,text/plain,text/xml,application/xml"
+          label={t('importFile')}
+        />
         <SubmitButton className="w-fit">{tc('upload')}</SubmitButton>
       </ActionForm>
       {result ? (

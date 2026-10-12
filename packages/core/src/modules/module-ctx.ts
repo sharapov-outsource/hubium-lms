@@ -3,6 +3,7 @@ import type { ActivityRef, ModuleCtx, ModuleFile } from '@hubium/module-sdk';
 import { parseSettings } from '@hubium/module-sdk';
 import type { Capability } from '../access/capabilities.ts';
 import { usersWithCap } from '../access/permissions.ts';
+import { contentUrl } from '../content.ts';
 import type { RequestContext } from '../context.ts';
 import { logEvent } from '../events/log.ts';
 import { deleteFiles, fileUrl, listFiles, storeFile, storeFileFromPath } from '../files/files.ts';
@@ -224,6 +225,13 @@ export function buildModuleCtx(
     },
     activities: {
       get: (activityId) => service('activityAccess', ctx, tx)(activityId),
+    },
+    content: {
+      url(activityId, path, opts) {
+        const userId = opts?.userId ?? (ctx.actor.kind === 'user' ? ctx.actor.userId : '');
+        return contentUrl({ a: activityId, u: userId, d: opts?.data }, path, opts?.ttlSec);
+      },
+      appOrigin: () => (process.env.APP_URL ?? 'http://localhost:3000').replace(/\/+$/, ''),
     },
     async log(event, data) {
       await logEvent(tx, {

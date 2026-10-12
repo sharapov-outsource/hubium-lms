@@ -12,6 +12,7 @@ concurrency:
 env:
   DATABASE_URL: postgresql://hubium:hubium@localhost:5432/hubium
   APP_URL: http://localhost:3000
+  CONTENT_HOST: http://127.0.0.1:3000
   APP_SECRET: ci-secret-ci-secret-ci-secret-ci-secret-0000
   SMTP_URL: smtp://localhost:1025
   NEXT_TELEMETRY_DISABLED: 1

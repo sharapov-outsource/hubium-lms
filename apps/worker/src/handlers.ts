@@ -11,6 +11,7 @@ import {
   sendNotificationEmails,
 } from '@hubium/core/notifications/notifications';
 import type { Db } from '@hubium/db';
+import { IMPORT_JOB, runImportTask } from '@hubium/interchange';
 
 export interface JobHandlerDef {
   name: string;
@@ -78,6 +79,13 @@ export const coreHandlers: JobHandlerDef[] = [
     cron: '41 4 * * *',
     async handler(_data: never, { db }) {
       return { deleted: await pruneNotifications(db) };
+    },
+  },
+  {
+    name: IMPORT_JOB,
+    async handler(data: { taskId: string }, { db }) {
+      const report = await runImportTask(db, data.taskId);
+      return { ok: report !== null };
     },
   },
   {

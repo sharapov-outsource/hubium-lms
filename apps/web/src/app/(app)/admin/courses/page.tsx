@@ -1,5 +1,5 @@
 import { Badge, Button, Input, PageHeader, Table, TBody, Td, THead, Th, Tr } from '@hubium/ui';
-import { Plus } from 'lucide-react';
+import { Plus, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { CommandButton } from '@/components/confirm-button';
@@ -14,11 +14,12 @@ export default async function AdminCoursesPage({
 }) {
   await requireCapability('category:manage');
   const sp = await searchParams;
-  const [t, tc, tco, format] = await Promise.all([
+  const [t, tc, tco, format, tb] = await Promise.all([
     getTranslations('adminCourses'),
     getTranslations('common'),
     getTranslations('course'),
     getFormatter(),
+    getTranslations('backup'),
   ]);
   const bin = sp.bin === '1';
   const courses = await db.course.findMany({
@@ -46,6 +47,12 @@ export default async function AdminCoursesPage({
             <Button asChild variant="ghost">
               <Link href={bin ? '/admin/courses' : '/admin/courses?bin=1'}>
                 {bin ? t('title') : t('bin')}
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/course/import">
+                <Upload />
+                {tb('importTitle')}
               </Link>
             </Button>
             <Button asChild>

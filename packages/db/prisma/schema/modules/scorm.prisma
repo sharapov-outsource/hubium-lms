@@ -1,0 +1,103 @@
+// mod-scorm: SCORM 1.2 / 2004 packages, SCOs, attempts and per-SCO CMI tracking.
+
+enum ScormVersion {
+  SCORM_12
+  SCORM_2004
+}
+
+enum ScormPackageStatus {
+  PROCESSING
+  READY
+  FAILED
+}
+
+model ScormPackage {
+  id         String             @id @default(uuid(7)) @db.Uuid
+  activityId String             @unique @db.Uuid
+  fileId     String?            @db.Uuid
+  version    ScormVersion       @default(SCORM_12)
+  title      String             @default("")
+  status     ScormPackageStatus @default(PROCESSING)
+  error      String?
+  /**
+   * Storage keys of the extracted files, relative to mod/scorm/<id>/.
+   */
+  files      Json               @default("[]")
+  totalBytes BigInt             @default(0)
+  createdAt  DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime           @updatedAt @db.Timestamptz(3)
+
+  activity Activity   @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  scos     ScormSco[]
+}
+
+model ScormSco {
+  id           String @id @default(uuid(7)) @db.Uuid
+  packageId    String @db.Uuid
+  identifier   String
+  title        String
+  /**
+   * Launch path inside the package, with item parameters.
+   */
+  href         String
+  sortOrder    Int
+  masteryScore Float?
+
+  package ScormPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  tracks  ScormTrack[]
+
+  @@unique([packageId, identifier])
+}
+
+model ScormAttempt {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  activityId    String    @db.Uuid
+  userId        String    @db.Uuid
+  attemptNumber Int
+  startedAt     DateTime  @default(now()) @db.Timestamptz(3)
+  lastAccessAt  DateTime  @default(now()) @db.Timestamptz(3)
+  finishedAt    DateTime? @db.Timestamptz(3)
+  /**
+   * Attempt score in percent (all SCOs averaged).
+   */
+  score         Float?
+
+  activity Activity     @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tracks   ScormTrack[]
+
+  @@unique([activityId, userId, attemptNumber])
+}
+
+model ScormTrack {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  attemptId        String   @db.Uuid
+  scoId            String   @db.Uuid
+  cmi              Json     @default("{}")
+  location         String   @default("")
+  suspendData      String   @default("")
+  exit             String   @default("")
+  /**
+   * 1.2 lesson_status, or 2004 completion_status.
+   */
+  completionStatus String   @default("not attempted")
+  /**
+   * 1.2 passed/failed, or 2004 success_status.
+   */
+  successStatus    String   @default("unknown")
+  scoreRaw         Float?
+  scoreMin         Float?
+  scoreMax         Float?
+  scoreScaled      Float?
+  totalTimeSec     Int      @default(0)
+  /**
+   * Total time before the current session; session_time is added on each commit.
+   */
+  sessionBaseSec   Int      @default(0)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+
+  attempt ScormAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  sco     ScormSco     @relation(fields: [scoId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, scoId])
+}

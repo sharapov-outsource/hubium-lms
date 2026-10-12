@@ -79,6 +79,12 @@ export default async function QuestionBankPage({
               {t('export')}
             </a>
           </Button>
+          <Button asChild variant="outline" size="sm">
+            <a href={`${base}/export?category=${current.id}&format=xml`}>
+              <Download />
+              {t('exportXml')}
+            </a>
+          </Button>
         </div>
         <Card>
           <CardContent className="flex flex-wrap gap-2 pt-5">

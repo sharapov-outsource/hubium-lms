@@ -90,6 +90,7 @@ model User {
   forumReadStates     ForumReadState[]
   videoProgress       VideoProgress[]
   liveAttendance      LiveAttendance[]
+  scormAttempts       ScormAttempt[]
 
   @@index([status])
   @@index([lastName, firstName])

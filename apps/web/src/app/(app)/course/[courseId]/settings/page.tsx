@@ -6,6 +6,7 @@ import { CommandButton } from '@/components/confirm-button';
 import { deleteCourseAction, updateCourseAction } from '@/server/actions/courses';
 import { getContext } from '@/server/session';
 import { CourseForm } from '../../course-form';
+import { BackupCard } from './backup-card';
 
 const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : undefined);
 
@@ -26,6 +27,9 @@ export default async function CourseSettingsPage({
   }
   const t = await getTranslations('course');
   const canDelete = await ctx.perm.can('course:delete', courseId);
+  const canBackup = await ctx.perm.can('backup:create', courseId);
+  const restoreCats = canBackup ? await categoriesWhereCan(ctx, 'restore:course') : [];
+  const dupCats = restoreCats.filter((x) => cats.some((y) => y.id === x.id));
   return (
     <div className="grid gap-6">
       <CourseForm
@@ -50,6 +54,16 @@ export default async function CourseSettingsPage({
           hasImage: !!c.imageFileId,
         }}
       />
+      {canBackup ? (
+        <BackupCard
+          courseId={c.id}
+          fullName={c.fullName}
+          shortName={c.shortName}
+          categoryId={c.categoryId}
+          categories={dupCats.map((x) => ({ id: x.id, name: x.name, depth: x.depth }))}
+          canDuplicate={dupCats.length > 0}
+        />
+      ) : null}
       {canDelete ? (
         <Card className="max-w-3xl border-destructive/40">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-5">
