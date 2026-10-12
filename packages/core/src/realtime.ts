@@ -13,7 +13,8 @@ export type RealtimeType =
   | 'message.new'
   | 'message.read'
   | 'typing'
-  | 'task.progress';
+  | 'task.progress'
+  | 'video.status';
 
 export interface RealtimeEvent {
   id: string;

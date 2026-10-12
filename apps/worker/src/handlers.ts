@@ -1,6 +1,7 @@
 import { publishDueAnnouncements } from '@hubium/core/announcements/announcements';
 import { sendCalendarReminders } from '@hubium/core/calendar/calendar';
 import { garbageCollectBlobs } from '@hubium/core/files/files';
+import { cleanupUploads } from '@hubium/core/files/uploads';
 import { deliverMail } from '@hubium/core/mail/mail';
 import {
   deliverNotifications,
@@ -83,7 +84,7 @@ export const coreHandlers: JobHandlerDef[] = [
     name: 'files.gc',
     cron: '17 3 * * *',
     async handler(_data: never, { db }) {
-      return { deleted: await garbageCollectBlobs(db) };
+      return { deleted: await garbageCollectBlobs(db), uploads: await cleanupUploads(db) };
     },
   },
   {

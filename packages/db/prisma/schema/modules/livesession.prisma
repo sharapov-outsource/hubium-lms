@@ -1,0 +1,56 @@
+// mod-livesession: webinars on BigBlueButton or Jitsi with attendance and recordings.
+
+enum LiveStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+}
+
+model LiveMeeting {
+  id         String     @id @default(uuid(7)) @db.Uuid
+  activityId String     @unique @db.Uuid
+  /**
+   * Provider meeting id (BBB meetingID / Jitsi room name).
+   */
+  meetingId  String     @unique
+  status     LiveStatus @default(SCHEDULED)
+  startedAt  DateTime?  @db.Timestamptz(3)
+  endedAt    DateTime?  @db.Timestamptz(3)
+  createdAt  DateTime   @default(now()) @db.Timestamptz(3)
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+}
+
+model LiveAttendance {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  activityId  String   @db.Uuid
+  userId      String   @db.Uuid
+  moderator   Boolean  @default(false)
+  firstJoinAt DateTime @db.Timestamptz(3)
+  lastSeenAt  DateTime @db.Timestamptz(3)
+  joins       Int      @default(1)
+  /**
+   * Approximate time in the room, from polling.
+   */
+  durationSec Int      @default(0)
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, userId])
+}
+
+model LiveRecording {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  activityId  String    @db.Uuid
+  recordId    String    @unique
+  url         String
+  startedAt   DateTime? @db.Timestamptz(3)
+  durationSec Int?
+  published   Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([activityId])
+}

@@ -1,5 +1,5 @@
 import { registerFileArea, registerFileComponentPrefix } from '../files/files.ts';
-import { buildModuleCtx, toActivityRef } from '../modules/module-ctx.ts';
+import { buildModuleCtx, provideModuleServices, toActivityRef } from '../modules/module-ctx.ts';
 import { getModule } from '../modules/registry.ts';
 import { getActivityAccess } from './activities.ts';
 import { getCourseAccess } from './courses.ts';
@@ -37,4 +37,17 @@ registerFileComponentPrefix('mod.', async (ctx, file) => {
     itemId: file.itemId,
     uploadedById: file.uploadedById,
   });
+});
+
+// Activity access for module HTTP routes and actions (late-bound to avoid an import cycle).
+provideModuleServices({
+  activityAccess: (ctx) => async (activityId) => {
+    const r = await getActivityAccess(ctx, activityId).catch(() => null);
+    if (!r) return null;
+    return {
+      activity: toActivityRef(r.activity),
+      canOpen: r.canOpen,
+      canManage: r.access.canManageActivities,
+    };
+  },
 });

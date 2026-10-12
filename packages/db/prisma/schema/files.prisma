@@ -67,6 +67,11 @@ model UploadSession {
   storageKey        String    @unique
   multipartUploadId String?
   size              BigInt
+  /**
+   * Bytes received so far (chunks are appended in order).
+   */
+  received          BigInt    @default(0)
+  name              String    @default("")
   mimeType          String
   expiresAt         DateTime  @db.Timestamptz(3)
   completedAt       DateTime? @db.Timestamptz(3)

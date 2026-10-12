@@ -1,0 +1,41 @@
+{
+  "livesession": {
+    "name": "Вебинар",
+    "description": "Онлайн-занятие в BigBlueButton или Jitsi с посещаемостью и записями",
+    "provider": "Платформа",
+    "startsAt": "Начало",
+    "durationMin": "Длительность, минут",
+    "joinEarlyMin": "Вход открывается за, минут",
+    "welcome": "Приветствие в комнате",
+    "record": "Разрешить запись (BigBlueButton)",
+    "completionAttended": "Студент подключился к вебинару",
+    "status": {
+      "SCHEDULED": "Запланирован",
+      "LIVE": "Идёт",
+      "ENDED": "Завершён"
+    },
+    "notConfigured": "Сервер BigBlueButton не настроен администратором.",
+    "join": "Подключиться",
+    "startOrJoin": "Начать / подключиться",
+    "waitingTeacher": "Вход откроется, когда преподаватель начнёт вебинар.",
+    "opensAt": "Вход откроется {time}",
+    "over": "Вебинар завершён.",
+    "end": "Завершить вебинар",
+    "ended": "Вебинар завершён",
+    "syncRecordings": "Обновить записи",
+    "synced": "Записи обновлены",
+    "recordings": "Записи",
+    "min": "мин",
+    "attendance": "Посещаемость",
+    "participant": "Участник",
+    "firstJoin": "Подключился",
+    "joins": "Входов",
+    "minutes": "Минут",
+    "moderator": "ведущий",
+    "noAttendance": "Пока никто не подключался",
+    "notify": {
+      "starting": "Скоро начнётся вебинар",
+      "startingTitle": "Через 15 минут начнётся вебинар «{name}»"
+    }
+  }
+}

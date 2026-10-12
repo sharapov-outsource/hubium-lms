@@ -17,8 +17,10 @@
     "@hubium/i18n": "workspace:*",
     "@hubium/mod-assign": "workspace:*",
     "@hubium/mod-forum": "workspace:*",
+    "@hubium/mod-livesession": "workspace:*",
     "@hubium/mod-content": "workspace:*",
-    "@hubium/mod-quiz": "workspace:*"
+    "@hubium/mod-quiz": "workspace:*",
+    "@hubium/mod-video": "workspace:*"
   },
   "devDependencies": {
     "@hubium/tooling": "workspace:*",

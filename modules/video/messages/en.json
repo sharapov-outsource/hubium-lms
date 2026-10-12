@@ -1,0 +1,47 @@
+{
+  "video": {
+    "name": "Video",
+    "description": "Uploaded video with adaptive quality, or a YouTube, RuTube or VK Video embed",
+    "source": "Source",
+    "sources": {
+      "upload": "Upload a file",
+      "embed": "YouTube / RuTube / VK Video link"
+    },
+    "embedUrl": "Video link",
+    "embedHint": "For example, https://youtu.be/… or https://rutube.ru/video/…",
+    "uploadAfterSave": "Upload the file on the video page after saving.",
+    "deleteSource": "Delete the source file after transcoding",
+    "noSeekAhead": "Prevent seeking past the watched part",
+    "minPercent": "Watched at least, %",
+    "minPercentHint": "For example, 90",
+    "watched": "Watched {percent}%",
+    "processing": "The video is being processed and will be available soon.",
+    "notReady": "No video uploaded yet.",
+    "manage": "Video management",
+    "status": {
+      "UPLOADED": "Queued",
+      "PROCESSING": "Processing",
+      "READY": "Ready",
+      "FAILED": "Failed"
+    },
+    "retranscode": "Transcode again",
+    "uploadVideo": "Upload video",
+    "replaceVideo": "Replace video",
+    "uploadHint": "Uploads resume after a lost connection. Up to 4 GB.",
+    "uploading": "Uploaded {percent}%",
+    "uploaded": "Video uploaded and queued for processing",
+    "cancel": "Cancel",
+    "captions": "Captions",
+    "captionLang": "Language",
+    "captionLabel": "Label",
+    "captionFile": "VTT or SRT file",
+    "addCaption": "Add",
+    "captionAdded": "Captions added",
+    "remove": "Remove",
+    "report": "Views",
+    "student": "Student",
+    "progress": "Watched",
+    "lastWatched": "Last watched",
+    "noStudents": "No students"
+  }
+}

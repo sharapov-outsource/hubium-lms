@@ -5,7 +5,11 @@ import type { Capability } from '../access/capabilities.ts';
 import { usersWithCap } from '../access/permissions.ts';
 import type { RequestContext } from '../context.ts';
 import { logEvent } from '../events/log.ts';
-import { deleteFiles, fileUrl, listFiles, storeFile } from '../files/files.ts';
+import { deleteFiles, fileUrl, listFiles, storeFile, storeFileFromPath } from '../files/files.ts';
+import { getStorage } from '../files/storage.ts';
+import { consumeUpload } from '../files/uploads.ts';
+import { enqueue } from '../jobs/jobs.ts';
+import { publishRealtime } from '../realtime.ts';
 import { requireModule } from './registry.ts';
 
 // Late-bound services implemented in later layers (grades, notifications, completion)
@@ -16,6 +20,7 @@ export interface ModuleServices {
   markViewed: ModuleCtx['completion']['markViewed'];
   recomputeCompletion: ModuleCtx['completion']['recompute'];
   notify: ModuleCtx['notify']['send'];
+  activityAccess: ModuleCtx['activities']['get'];
 }
 
 const services: Partial<Record<keyof ModuleServices, unknown>> = {};
@@ -83,6 +88,13 @@ function toModuleFile(f: {
   };
 }
 
+function moduleKey(key: string): string {
+  if (!/^mod\/[a-z][a-z0-9_-]*\/[\w./-]+$/.test(key) || key.includes('..')) {
+    throw new Error(`Invalid module storage key: ${key}`);
+  }
+  return key;
+}
+
 export function buildModuleCtx(
   ctx: RequestContext,
   tx: Prisma.TransactionClient = ctx.db,
@@ -141,6 +153,38 @@ export function buildModuleCtx(
         });
         return toModuleFile(f);
       },
+      async storeUpload(activityId, area, uploadId, opts) {
+        if (ctx.actor.kind !== 'user') throw new Error('Sign in required');
+        const component = await activityKey(activityId);
+        const f = await consumeUpload(tx, ctx.actor.userId, uploadId, (u) =>
+          storeFileFromPath(tx, {
+            contextId: activityId,
+            component,
+            area,
+            itemId: opts?.itemId,
+            name: u.name,
+            mimeType: u.mimeType,
+            filePath: u.path,
+            uploadedById: ctx.actor.kind === 'user' ? ctx.actor.userId : null,
+            maxBytes: opts?.maxBytes,
+            allowedTypes: opts?.allowedTypes,
+            replace: opts?.replace,
+          }),
+        );
+        return toModuleFile(f);
+      },
+      async open(fileId) {
+        const f = await tx.file.findUniqueOrThrow({
+          where: { id: fileId },
+          include: { blob: true },
+        });
+        return {
+          stream: await getStorage().getStream(f.blob.storageKey),
+          name: f.name,
+          mimeType: f.mimeType,
+          size: Number(f.size),
+        };
+      },
       async remove(activityId, area, ids) {
         await deleteFiles(tx, {
           contextId: activityId,
@@ -161,6 +205,25 @@ export function buildModuleCtx(
     },
     notify: {
       send: (userIds, n) => service('notify', ctx, tx)(userIds, n),
+    },
+    storage: {
+      put: (key, body, type) => getStorage().put(moduleKey(key), body, type),
+      get: (key) => getStorage().getStream(moduleKey(key)),
+      head: (key) => getStorage().head(moduleKey(key)),
+      async delete(keys) {
+        for (const k of keys) await getStorage().delete(moduleKey(k));
+      },
+    },
+    jobs: {
+      async enqueue(name, data, opts) {
+        await enqueue(name, data, { tx, ...opts });
+      },
+    },
+    realtime: {
+      publish: (userIds, type, data) => publishRealtime(tx, userIds, type, data),
+    },
+    activities: {
+      get: (activityId) => service('activityAccess', ctx, tx)(activityId),
     },
     async log(event, data) {
       await logEvent(tx, {

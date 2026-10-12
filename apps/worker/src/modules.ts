@@ -10,15 +10,28 @@ import { contentModules } from '@hubium/mod-content/server';
 import forumEn from '@hubium/mod-forum/messages/en.json' with { type: 'json' };
 import forumRu from '@hubium/mod-forum/messages/ru.json' with { type: 'json' };
 import { forumModules } from '@hubium/mod-forum/server';
+import liveEn from '@hubium/mod-livesession/messages/en.json' with { type: 'json' };
+import liveRu from '@hubium/mod-livesession/messages/ru.json' with { type: 'json' };
+import { livesessionModules } from '@hubium/mod-livesession/server';
 import quizEn from '@hubium/mod-quiz/messages/en.json' with { type: 'json' };
 import quizRu from '@hubium/mod-quiz/messages/ru.json' with { type: 'json' };
 import { quizModules } from '@hubium/mod-quiz/server';
+import videoEn from '@hubium/mod-video/messages/en.json' with { type: 'json' };
+import videoRu from '@hubium/mod-video/messages/ru.json' with { type: 'json' };
+import { videoModules } from '@hubium/mod-video/server';
 
 // Same server registry as apps/web/src/modules/server.ts.
-export const serverModules = [...contentModules, ...assignModules, ...quizModules, ...forumModules];
+export const serverModules = [
+  ...contentModules,
+  ...assignModules,
+  ...quizModules,
+  ...forumModules,
+  ...videoModules,
+  ...livesessionModules,
+];
 registerModules(serverModules as never);
 // Notifications created by cron jobs are rendered with module messages.
 registerModuleMessages({
-  ru: { ...contentRu, ...assignRu, ...quizRu, ...forumRu },
-  en: { ...contentEn, ...assignEn, ...quizEn, ...forumEn },
+  ru: { ...contentRu, ...assignRu, ...quizRu, ...forumRu, ...videoRu, ...liveRu },
+  en: { ...contentEn, ...assignEn, ...quizEn, ...forumEn, ...videoEn, ...liveEn },
 });

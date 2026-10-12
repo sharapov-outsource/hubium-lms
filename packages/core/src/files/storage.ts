@@ -1,4 +1,4 @@
-import { createReadStream, createWriteStream } from 'node:fs';
+import { createReadStream, createWriteStream, existsSync } from 'node:fs';
 import { copyFile, mkdir, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
@@ -198,10 +198,25 @@ export function getStorage(): StorageDriver {
       secretAccessKey: env.S3_SECRET_KEY,
     });
   } else {
-    const root = path.resolve(env.STORAGE_FS_ROOT ?? path.resolve(process.cwd(), '.storage'));
+    const root = fsStorageRoot();
     storage = new FsStorage(root, env.APP_SECRET ?? 'dev-secret', '');
   }
   return storage;
+}
+
+/**
+ * Local storage root: STORAGE_FS_ROOT, or `.storage` at the workspace root, so the web
+ * app and the worker (started from different directories) share the same files.
+ */
+export function fsStorageRoot(env = process.env): string {
+  if (env.STORAGE_FS_ROOT) return path.resolve(env.STORAGE_FS_ROOT);
+  let dir = process.cwd();
+  for (;;) {
+    if (existsSync(path.join(dir, 'pnpm-workspace.yaml'))) return path.join(dir, '.storage');
+    const up = path.dirname(dir);
+    if (up === dir) return path.resolve('.storage');
+    dir = up;
+  }
 }
 
 export function setStorage(s: StorageDriver | undefined): void {

@@ -1,3 +1,4 @@
+import type { Readable } from 'node:stream';
 import type { Prisma } from '@hubium/db';
 import type { z } from 'zod';
 
@@ -39,6 +40,52 @@ export interface ModuleFiles {
     opts?: { maxBytes?: number; replace?: boolean },
   ): Promise<ModuleFile>;
   remove(activityId: string, area: string, ids: string[]): Promise<void>;
+  /** Moves a finished resumable upload (see /api/uploads) into a file area. */
+  storeUpload(
+    activityId: string,
+    area: string,
+    uploadId: string,
+    opts?: { itemId?: string; maxBytes?: number; allowedTypes?: RegExp; replace?: boolean },
+  ): Promise<ModuleFile>;
+  /** Reads a stored file's bytes (worker jobs such as transcoding). */
+  open(fileId: string): Promise<{ stream: Readable; name: string; mimeType: string; size: number }>;
+}
+
+/**
+ * Raw object storage for generated assets (e.g. HLS segments). Keys must start with
+ * `mod/<moduleKey>/`; modules track and delete their own keys.
+ */
+export interface ModuleStorage {
+  put(key: string, body: Buffer | Readable, contentType: string): Promise<void>;
+  get(key: string): Promise<Readable>;
+  head(key: string): Promise<{ size: number } | null>;
+  delete(keys: string[]): Promise<void>;
+}
+
+export interface ModuleJobs {
+  /** Enqueues `<moduleKey>.<name>` declared in `ActivityModule.jobs`, after commit. */
+  enqueue(
+    name: string,
+    data: object,
+    opts?: { startAfter?: Date; singletonKey?: string },
+  ): Promise<void>;
+}
+
+export interface ModuleRealtime {
+  publish(
+    userIds: string[],
+    type: 'task.progress' | 'video.status',
+    data?: Record<string, unknown>,
+  ): Promise<void>;
+}
+
+export interface ModuleActivities {
+  /** Loads an activity with the viewer's access (for module HTTP routes). */
+  get(activityId: string): Promise<{
+    activity: ActivityRef;
+    canOpen: boolean;
+    canManage: boolean;
+  } | null>;
 }
 
 export interface ModuleGrades {
@@ -100,6 +147,10 @@ export interface ModuleCtx {
   grades: ModuleGrades;
   completion: ModuleCompletion;
   notify: ModuleNotify;
+  storage: ModuleStorage;
+  jobs: ModuleJobs;
+  realtime: ModuleRealtime;
+  activities: ModuleActivities;
   log(event: string, data?: Record<string, unknown>): Promise<void>;
 }
 
@@ -177,6 +228,20 @@ export interface ActivityModule<S = Record<string, unknown>> {
   todo?(ctx: ModuleCtx, userId: string, courseIds: string[]): Promise<TodoItem[]>;
   /** Scheduled jobs run by the worker with a system ModuleCtx. Schedule is cron (UTC). */
   cron?: { name: string; schedule: string; handler(ctx: ModuleCtx): Promise<unknown> }[];
+  /**
+   * Background jobs, run by the worker with a system ModuleCtx (no transaction). The
+   * `media` queue runs in the separate worker-media container.
+   */
+  jobs?: {
+    name: string;
+    queue?: 'default' | 'media';
+    handler(ctx: ModuleCtx, data: never): Promise<unknown>;
+  }[];
+  /**
+   * HTTP endpoints under /api/mod/<key>/<...path> (streaming media, provider callbacks).
+   * The ModuleCtx carries the caller's session; anonymous callers are allowed.
+   */
+  http?(ctx: ModuleCtx, req: Request, path: string[]): Promise<Response>;
   actions?: Record<string, ModuleAction>;
   /** Notification types; labels come from `mod.<key>.notify.<name>` messages. */
   notifications?: Record<string, NotificationTypeDef>;

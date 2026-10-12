@@ -14,6 +14,7 @@ export * from './enrol/participants.ts';
 export * from './env.ts';
 export * from './errors.ts';
 export * from './events/log.ts';
+export * from './files/uploads.ts';
 export * from './grades/aggregate.ts';
 export * from './grades/gradebook.ts';
 export * from './groups/groups.ts';

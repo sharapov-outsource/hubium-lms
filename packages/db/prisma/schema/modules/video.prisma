@@ -1,0 +1,60 @@
+// mod-video: uploaded videos transcoded to HLS, captions and per-user watch progress.
+
+enum VideoStatus {
+  UPLOADED
+  PROCESSING
+  READY
+  FAILED
+}
+
+model VideoAsset {
+  id           String      @id @default(uuid(7)) @db.Uuid
+  activityId   String      @unique @db.Uuid
+  sourceFileId String?     @db.Uuid
+  status       VideoStatus @default(UPLOADED)
+  progress     Int         @default(0)
+  error        String?
+  durationSec  Float?
+  width        Int?
+  height       Int?
+  /**
+   * { master, renditions: [{ height, bandwidth }], poster, sprite, files: [storage keys] }
+   */
+  outputs      Json        @default("{}")
+  createdAt    DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime    @updatedAt @db.Timestamptz(3)
+
+  activity Activity       @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  captions VideoCaption[]
+}
+
+model VideoCaption {
+  id      String @id @default(uuid(7)) @db.Uuid
+  assetId String @db.Uuid
+  lang    String
+  label   String
+  fileId  String @db.Uuid
+
+  asset VideoAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, lang])
+}
+
+model VideoProgress {
+  activityId  String   @db.Uuid
+  userId      String   @db.Uuid
+  /**
+   * Merged watched intervals in seconds: [[start, end], ...].
+   */
+  intervals   Json     @default("[]")
+  watchedSec  Float    @default(0)
+  durationSec Float    @default(0)
+  percent     Float    @default(0)
+  position    Float    @default(0)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, userId])
+}
