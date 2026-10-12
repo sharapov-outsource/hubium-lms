@@ -2,6 +2,7 @@ import { getAllSettings } from '@hubium/core';
 import { generateAccentPalette, paletteCss } from '@hubium/ui/palette';
 import { ThemeProvider, Toaster } from '@hubium/ui/theme';
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale } from 'next-intl/server';
 import type { ReactNode } from 'react';
@@ -27,11 +28,13 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const [locale, settings, user] = await Promise.all([
+  const [locale, settings, user, h] = await Promise.all([
     getLocale(),
     getAllSettings(db),
     getCurrentUser(),
+    headers(),
   ]);
+  const nonce = h.get('x-nonce') ?? undefined;
   const palette = generateAccentPalette(settings['branding.accent']);
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -40,7 +43,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <style id="hubium-brand" dangerouslySetInnerHTML={{ __html: paletteCss(palette) }} />
       </head>
       <body className="min-h-dvh">
-        <ThemeProvider defaultTheme={user?.theme ?? 'system'}>
+        <ThemeProvider defaultTheme={user?.theme ?? 'system'} nonce={nonce}>
           <NextIntlClientProvider>
             {children}
             <Toaster />

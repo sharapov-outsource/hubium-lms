@@ -26,6 +26,8 @@ export interface AnthropicOptions {
    */
   serverFallback?: boolean;
   timeoutMs?: number;
+  /** Custom fetch (core passes an SSRF-guarded one). */
+  fetch?: typeof fetch;
 }
 
 type BetaMessage = Anthropic.Beta.BetaMessage;
@@ -56,6 +58,7 @@ export class AnthropicProvider implements LlmProvider {
       baseURL: opts.baseUrl || undefined,
       timeout: opts.timeoutMs ?? 120_000,
       maxRetries: 2,
+      ...(opts.fetch ? { fetch: opts.fetch } : {}),
     });
     this.fallback = (opts.serverFallback ?? true) && !opts.baseUrl;
   }

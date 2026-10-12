@@ -8,6 +8,7 @@ import {
   OpenAiCompatProvider,
 } from '@hubium/ai';
 import type { AiFeature, AiFeatureConfig, AiProvider, Db } from '@hubium/db';
+import { checkUrlShape, safeFetch } from '@hubium/module-sdk/net';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { decryptSecret, encryptSecret } from '../crypto.ts';
@@ -56,6 +57,19 @@ const unseal = (s: string) => decryptSecret(s, getEnv().APP_SECRET);
 
 // ── provider instances ───────────────────────────────────────────────────────
 
+// Provider endpoints are admin-supplied: refuse internal addresses unless allowlisted.
+const guardedFetch = ((input: string | URL | Request, init?: RequestInit) =>
+  safeFetch(input instanceof Request ? input : String(input), init)) as typeof fetch;
+
+function checkEndpoint(field: string, url: string | undefined) {
+  if (!url) return;
+  try {
+    checkUrlShape(url);
+  } catch (e) {
+    throw new ValidationError({ [field]: [e instanceof Error ? e.message : String(e)] });
+  }
+}
+
 const instances = new Map<string, { stamp: number; p: LlmProvider }>();
 
 export function providerInstance(row: AiProvider): LlmProvider {
@@ -66,10 +80,15 @@ export function providerInstance(row: AiProvider): LlmProvider {
   let p: LlmProvider;
   if (row.kind === 'ANTHROPIC') {
     if (!apiKey) throw new ValidationError({ apiKey: ['An API key is required'] });
-    p = new AnthropicProvider({ apiKey, baseUrl: row.baseUrl });
+    p = new AnthropicProvider({ apiKey, baseUrl: row.baseUrl, fetch: guardedFetch });
   } else if (row.kind === 'OPENAI_COMPAT') {
     if (!row.baseUrl) throw new ValidationError({ baseUrl: ['A base URL is required'] });
-    p = new OpenAiCompatProvider({ baseUrl: row.baseUrl, apiKey, capabilities: caps });
+    p = new OpenAiCompatProvider({
+      baseUrl: row.baseUrl,
+      apiKey,
+      capabilities: caps,
+      fetch: guardedFetch,
+    });
   } else {
     p = new MockProvider(mockFixtures);
   }
@@ -88,7 +107,11 @@ export async function embeddingProvider(db: Db): Promise<EmbeddingProvider | nul
   if (row?.kind === 'MOCK') e = new MockEmbeddings(row.dims);
   else if (row?.kind === 'OPENAI_COMPAT' && row.baseUrl)
     e = new OpenAiCompatEmbeddings(
-      { baseUrl: row.baseUrl, apiKey: row.apiKeyEnc ? unseal(row.apiKeyEnc) : null },
+      {
+        baseUrl: row.baseUrl,
+        apiKey: row.apiKeyEnc ? unseal(row.apiKeyEnc) : null,
+        fetch: guardedFetch,
+      },
       row.model,
       row.dims,
     );
@@ -189,6 +212,7 @@ export const saveAiProvider = defineOperation({
   async handler(ctx, i) {
     if (i.kind === 'OPENAI_COMPAT' && !i.baseUrl)
       throw new ValidationError({ baseUrl: ['A base URL is required'] });
+    if (i.kind !== 'MOCK') checkEndpoint('baseUrl', i.baseUrl);
     const prev = i.id ? await ctx.tx.aiProvider.findUnique({ where: { id: i.id } }) : null;
     if (i.id && !prev) throw new NotFoundError('AI provider');
     if (i.kind === 'ANTHROPIC' && !i.apiKey && !prev?.apiKeyEnc)
@@ -304,6 +328,7 @@ export const saveEmbeddingConfig = defineOperation({
     }
     if (i.kind === 'OPENAI_COMPAT' && (!i.baseUrl || !i.model))
       throw new ValidationError({ baseUrl: ['Base URL and model are required'] });
+    if (i.kind === 'OPENAI_COMPAT') checkEndpoint('baseUrl', i.baseUrl);
     const prev = await ctx.tx.aiEmbeddingConfig.findUnique({ where: { id: 'default' } });
     const model = i.kind === 'MOCK' ? 'mock-hash' : i.model;
     const data = {

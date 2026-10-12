@@ -7,12 +7,16 @@ import { Toaster as Sonner } from 'sonner';
 export function ThemeProvider({
   children,
   defaultTheme = 'system',
+  nonce,
 }: {
   children: ReactNode;
   defaultTheme?: string;
+  /** CSP nonce for the inline theme script. */
+  nonce?: string;
 }) {
   return (
     <NextThemes
+      nonce={nonce}
       attribute="class"
       defaultTheme={defaultTheme}
       enableSystem

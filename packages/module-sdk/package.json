@@ -8,10 +8,12 @@
     ".": "./src/index.ts",
     "./ui": "./src/ui.ts",
     "./form": "./src/form.tsx",
-    "./fields": "./src/fields.ts"
+    "./fields": "./src/fields.ts",
+    "./net": "./src/net.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
   },
   "dependencies": {
     "@hubium/db": "workspace:*",
@@ -21,6 +23,7 @@
     "@hubium/tooling": "workspace:*",
     "@types/react": "19.3.0",
     "react": "19.3.0",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "vitest": "5.0.4"
   }
 }
