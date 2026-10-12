@@ -17,42 +17,47 @@ enum UserRelationKind {
 }
 
 model User {
-  id                 String     @id @default(uuid(7)) @db.Uuid
-  email              String     @unique @db.Citext
-  emailVerified      Boolean    @default(false)
-  emailPlaceholder   Boolean    @default(false)
-  username           String?    @unique @db.Citext
+  id                 String         @id @default(uuid(7)) @db.Uuid
+  email              String         @unique @db.Citext
+  emailVerified      Boolean        @default(false)
+  emailPlaceholder   Boolean        @default(false)
+  username           String?        @unique @db.Citext
   displayUsername    String?
   name               String
-  firstName          String     @default("")
-  lastName           String     @default("")
+  firstName          String         @default("")
+  lastName           String         @default("")
   image              String?
   locale             String?
   timezone           String?
   theme              String?
-  status             UserStatus @default(ACTIVE)
-  kind               UserKind   @default(PERSON)
-  isSiteAdmin        Boolean    @default(false)
-  mustChangePassword Boolean    @default(false)
-  twoFactorEnabled   Boolean    @default(false)
-  avatarFileId       String?    @db.Uuid
-  customFields       Json       @default("{}")
-  lastLoginAt        DateTime?  @db.Timestamptz(3)
-  lastAccessAt       DateTime?  @db.Timestamptz(3)
-  deletedAt          DateTime?  @db.Timestamptz(3)
+  status             UserStatus     @default(ACTIVE)
+  kind               UserKind       @default(PERSON)
+  isSiteAdmin        Boolean        @default(false)
+  mustChangePassword Boolean        @default(false)
+  twoFactorEnabled   Boolean        @default(false)
+  messagePrivacy     MessagePrivacy @default(COURSEMATES)
+  /**
+   * Local hour (0-23) when the daily email digest is sent.
+   */
+  digestHour         Int            @default(18)
+  avatarFileId       String?        @db.Uuid
+  customFields       Json           @default("{}")
+  lastLoginAt        DateTime?      @db.Timestamptz(3)
+  lastAccessAt       DateTime?      @db.Timestamptz(3)
+  deletedAt          DateTime?      @db.Timestamptz(3)
   // Better Auth `admin` plugin primitives (ban/impersonation only; authorization is ours).
   role               String?
-  banned             Boolean?   @default(false)
+  banned             Boolean?       @default(false)
   banReason          String?
-  banExpires         DateTime?  @db.Timestamptz(3)
-  createdAt          DateTime   @default(now()) @db.Timestamptz(3)
-  updatedAt          DateTime   @updatedAt @db.Timestamptz(3)
+  banExpires         DateTime?      @db.Timestamptz(3)
+  createdAt          DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime       @updatedAt @db.Timestamptz(3)
 
   sessions            Session[]
   accounts            Account[]
   twoFactors          TwoFactor[]
-  mentees             UserRelation[]       @relation("mentor")
-  mentors             UserRelation[]       @relation("mentee")
+  mentees             UserRelation[]           @relation("mentor")
+  mentors             UserRelation[]           @relation("mentee")
   apiTokens           ApiToken[]
   policyAcceptances   PolicyAcceptance[]
   roleAssignments     RoleAssignment[]
@@ -69,8 +74,20 @@ model User {
   calendarFeedToken   CalendarFeedToken?
   grades              Grade[]
   assignSubmissions   AssignSubmission[]
-  assignGrades        AssignGrade[]        @relation("AssignGradeUser")
+  assignGrades        AssignGrade[]            @relation("AssignGradeUser")
   quizAttempts        QuizAttempt[]
+  notifications       Notification[]           @relation("NotificationUser")
+  notificationsActed  Notification[]           @relation("NotificationActor")
+  notificationPrefs   NotificationPreference[]
+  conversationMembers ConversationMember[]
+  messages            Message[]
+  blocks              UserBlock[]              @relation("Blocker")
+  blockedBy           UserBlock[]              @relation("Blocked")
+  announcements       Announcement[]
+  forumDiscussions    ForumDiscussion[]
+  forumPosts          ForumPost[]              @relation("ForumPostAuthor")
+  forumSubscriptions  ForumSubscription[]
+  forumReadStates     ForumReadState[]
 
   @@index([status])
   @@index([lastName, firstName])

@@ -1,0 +1,78 @@
+// mod-forum: discussions, threaded posts, subscriptions and read tracking.
+
+model ForumDiscussion {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  activityId String   @db.Uuid
+  groupId    String?  @db.Uuid
+  authorId   String?  @db.Uuid
+  title      String
+  pinned     Boolean  @default(false)
+  locked     Boolean  @default(false)
+  lastPostAt DateTime @default(now()) @db.Timestamptz(3)
+  postCount  Int      @default(0)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  activity      Activity            @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  group         Group?              @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  author        User?               @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  posts         ForumPost[]
+  subscriptions ForumSubscription[]
+  readStates    ForumReadState[]
+
+  @@index([activityId, pinned, lastPostAt(sort: Desc)])
+}
+
+model ForumPost {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  discussionId    String    @db.Uuid
+  parentId        String?   @db.Uuid
+  authorId        String?   @db.Uuid
+  contentHtml     String
+  /**
+   * Private reply: visible only to this user, the author and moderators.
+   */
+  privateToUserId String?   @db.Uuid
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  editedAt        DateTime? @db.Timestamptz(3)
+  deletedAt       DateTime? @db.Timestamptz(3)
+
+  discussion ForumDiscussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  parent     ForumPost?      @relation("ForumThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies    ForumPost[]     @relation("ForumThread")
+  author     User?           @relation("ForumPostAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([discussionId, createdAt])
+  @@index([authorId])
+}
+
+model ForumSubscription {
+  id           String  @id @default(uuid(7)) @db.Uuid
+  activityId   String  @db.Uuid
+  userId       String  @db.Uuid
+  /**
+   * Null: whole forum.
+   */
+  discussionId String? @db.Uuid
+  /**
+   * False records an explicit opt-out (for auto-subscribe forums).
+   */
+  subscribed   Boolean @default(true)
+
+  activity   Activity         @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  discussion ForumDiscussion? @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, userId, discussionId])
+  @@index([userId])
+}
+
+model ForumReadState {
+  userId       String   @db.Uuid
+  discussionId String   @db.Uuid
+  lastReadAt   DateTime @db.Timestamptz(3)
+
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  discussion ForumDiscussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, discussionId])
+}
