@@ -1,0 +1,416 @@
+import type { Prisma } from '@hubium/db';
+import { sanitizeRichText } from '@hubium/editor/server';
+import { type ActivityRef, defineAction, defineModule, type ModuleCtx } from '@hubium/module-sdk';
+import { bool, isoDate, optionalNumber } from '@hubium/module-sdk/fields';
+import { z } from 'zod';
+
+// mod-assign: text and/or file submissions, grading with feedback, extensions, reopening.
+
+export const AssignSettings = z
+  .object({
+    allowText: bool(true),
+    allowFiles: bool(true),
+    maxFiles: z.coerce.number().int().min(1).max(20).default(5),
+    maxFileMB: z.coerce.number().int().min(1).max(500).default(20),
+    wordLimit: z.coerce.number().int().min(0).max(100_000).default(0),
+    openAt: isoDate,
+    dueAt: isoDate,
+    cutoffAt: isoDate,
+    gradeMax: z.coerce.number().min(1).max(10_000).default(100),
+    gradePass: optionalNumber(0, 10_000),
+    submitButton: bool(true),
+    reopen: z.enum(['none', 'manual', 'untilpass']).default('none'),
+    maxAttempts: z.coerce.number().int().min(0).max(100).default(0),
+  })
+  .refine((s) => s.allowText || s.allowFiles, {
+    message: 'Allow text or files',
+    path: ['allowText'],
+  })
+  .refine((s) => !s.dueAt || !s.openAt || s.dueAt > s.openAt, {
+    message: 'Due date must be after the opening date',
+    path: ['dueAt'],
+  })
+  .refine((s) => !s.cutoffAt || !s.dueAt || s.cutoffAt >= s.dueAt, {
+    message: 'Cut-off must not be before the due date',
+    path: ['cutoffAt'],
+  })
+  .refine((s) => s.gradePass === undefined || s.gradePass <= s.gradeMax, {
+    message: 'Pass grade exceeds maximum',
+    path: ['gradePass'],
+  });
+
+export type AssignSettingsT = z.output<typeof AssignSettings>;
+
+export interface EffectiveDates {
+  openAt: Date | null;
+  dueAt: Date | null;
+  cutoffAt: Date | null;
+  extended: boolean;
+}
+
+/** Activity dates with a per-user extension applied. */
+export async function effectiveDates(
+  db: Prisma.TransactionClient,
+  a: ActivityRef<AssignSettingsT>,
+  userId: string,
+): Promise<EffectiveDates> {
+  const o = await db.assignOverride.findUnique({
+    where: { activityId_userId: { activityId: a.id, userId } },
+  });
+  const d = (v: string | null | undefined) => (v ? new Date(v) : null);
+  return {
+    openAt: o?.allowSubmissionsFrom ?? d(a.settings.openAt),
+    dueAt: o?.dueAt ?? d(a.settings.dueAt),
+    cutoffAt: o?.cutoffAt ?? d(a.settings.cutoffAt),
+    extended: !!o,
+  };
+}
+
+export function canSubmitNow(
+  dates: EffectiveDates,
+  now: Date,
+): { ok: boolean; reason?: 'notOpen' | 'closed' } {
+  if (dates.openAt && now < dates.openAt) return { ok: false, reason: 'notOpen' };
+  if (dates.cutoffAt && now >= dates.cutoffAt) return { ok: false, reason: 'closed' };
+  return { ok: true };
+}
+
+export function countWords(html: string): number {
+  return html
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&[a-z#0-9]+;/gi, ' ')
+    .split(/\s+/)
+    .filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+}
+
+async function latestSubmission(db: Prisma.TransactionClient, activityId: string, userId: string) {
+  return db.assignSubmission.findFirst({ where: { activityId, userId, latest: true } });
+}
+
+const FileInput = z.object({
+  name: z.string().min(1).max(255),
+  mimeType: z.string().default('application/octet-stream'),
+  data: z.instanceof(Buffer),
+});
+
+function userId(ctx: ModuleCtx): string {
+  if (ctx.actor.kind !== 'user') throw new Error('Sign in required');
+  return ctx.actor.userId;
+}
+
+export const assign = defineModule<AssignSettingsT>({
+  key: 'assign',
+  archetype: 'activity',
+  icon: 'ClipboardCheck',
+  supports: { grading: true, groups: true, viewCompletion: true, backup: true },
+  settings: {
+    schema: AssignSettings as unknown as z.ZodType<AssignSettingsT>,
+    defaults: () => AssignSettings.parse({}),
+  },
+  grading: {
+    items: (a) => [
+      { itemNumber: 0, name: '', gradeMax: a.settings.gradeMax, gradePass: a.settings.gradePass },
+    ],
+  },
+  calendar: {
+    events: (a) => [
+      ...(a.settings.openAt
+        ? [{ kind: 'OPEN' as const, title: a.name, startsAt: new Date(a.settings.openAt) }]
+        : []),
+      ...(a.settings.dueAt
+        ? [{ kind: 'DUE' as const, title: a.name, startsAt: new Date(a.settings.dueAt) }]
+        : []),
+      ...(a.settings.cutoffAt
+        ? [{ kind: 'CUTOFF' as const, title: a.name, startsAt: new Date(a.settings.cutoffAt) }]
+        : []),
+    ],
+  },
+  completion: {
+    schema: z.object({ submit: bool(false), grade: bool(false), pass: bool(false) }),
+    async evaluate(ctx, a, uid, rules) {
+      const sub = await latestSubmission(ctx.db, a.id, uid);
+      if (rules.submit && sub?.status !== 'SUBMITTED') return 'incomplete';
+      if (rules.grade || rules.pass) {
+        const item = await ctx.db.gradeItem.findFirst({
+          where: { activityId: a.id, itemNumber: 0 },
+        });
+        const g = item
+          ? await ctx.db.grade.findUnique({
+              where: { gradeItemId_userId: { gradeItemId: item.id, userId: uid } },
+            })
+          : null;
+        if (!g?.finalGrade) return 'incomplete';
+        if (rules.pass && item?.gradePass !== null && item?.gradePass !== undefined) {
+          return Number(g.finalGrade) >= Number(item.gradePass) ? 'pass' : 'fail';
+        }
+      }
+      return 'complete';
+    },
+  },
+  files: {
+    // Submissions and feedback: the owner (graders always pass the course-manager check).
+    submission: {
+      canRead: async (ctx, _a, f) =>
+        ctx.actor.kind === 'user' && f.uploadedById === ctx.actor.userId,
+    },
+    feedback: {
+      canRead: async (ctx, _a, f) => ctx.actor.kind === 'user' && f.itemId === ctx.actor.userId,
+    },
+  },
+  actions: {
+    saveSubmission: defineAction({
+      capability: 'mod.assign:submit',
+      input: z.object({
+        text: z.string().max(500_000).default(''),
+        files: z.array(FileInput).max(20).default([]),
+        removeFiles: z.array(z.string()).default([]),
+        submit: z.boolean().default(false),
+      }),
+      async handler(ctx, a, input) {
+        const uid = userId(ctx);
+        const s = a.settings as AssignSettingsT;
+        const dates = await effectiveDates(ctx.db, a as ActivityRef<AssignSettingsT>, uid);
+        const window = canSubmitNow(dates, ctx.now);
+        if (!window.ok)
+          throw new Error(
+            window.reason === 'notOpen' ? 'Submissions are not open yet' : 'Submissions are closed',
+          );
+        let sub = await latestSubmission(ctx.db, a.id, uid);
+        if (sub?.status === 'SUBMITTED') throw new Error('Already submitted');
+        const text = s.allowText ? sanitizeRichText(input.text) : '';
+        if (s.wordLimit && countWords(text) > s.wordLimit)
+          throw new Error(`Word limit is ${s.wordLimit}`);
+        sub ??= await ctx.db.assignSubmission.create({
+          data: { activityId: a.id, userId: uid, attemptNumber: 0, status: 'NEW' },
+        });
+        if (s.allowFiles) {
+          if (input.removeFiles.length)
+            await ctx.files.remove(a.id, 'submission', input.removeFiles);
+          const existing = await ctx.files.list(a.id, 'submission', sub.id);
+          if (existing.length + input.files.length > s.maxFiles)
+            throw new Error(`At most ${s.maxFiles} files`);
+          for (const f of input.files) {
+            await ctx.files.store(
+              a.id,
+              'submission',
+              { ...f, itemId: sub.id },
+              { maxBytes: s.maxFileMB * 1024 * 1024 },
+            );
+          }
+        }
+        const files = s.allowFiles ? await ctx.files.list(a.id, 'submission', sub.id) : [];
+        const submitting = input.submit || !s.submitButton;
+        if (submitting && !text.replace(/<[^>]*>/g, '').trim() && files.length === 0)
+          throw new Error('The submission is empty');
+        sub = await ctx.db.assignSubmission.update({
+          where: { id: sub.id },
+          data: {
+            onlineText: text,
+            status: submitting ? 'SUBMITTED' : 'DRAFT',
+            submittedAt: submitting ? ctx.now : null,
+          },
+        });
+        await ctx.log('assign.submission.saved', { activityId: a.id, status: sub.status });
+        if (submitting) {
+          await ctx.completion.recompute(a.id, uid);
+          const graders = await ctx.perm.usersWithCap('mod.assign:grade', a.id);
+          await ctx.notify.send(graders, {
+            type: 'assign.submitted',
+            title: a.name,
+            url: `/course/${a.courseId}/a/${a.id}?grade=${uid}`,
+            courseId: a.courseId,
+            contextId: a.id,
+          });
+        }
+        return { status: sub.status };
+      },
+    }),
+    revertToDraft: defineAction({
+      capability: 'mod.assign:submit',
+      input: z.object({}),
+      async handler(ctx, a) {
+        const uid = userId(ctx);
+        const sub = await latestSubmission(ctx.db, a.id, uid);
+        if (sub?.status !== 'SUBMITTED') throw new Error('Nothing to withdraw');
+        const graded = await ctx.db.assignGrade.findUnique({
+          where: {
+            activityId_userId_attemptNumber: {
+              activityId: a.id,
+              userId: uid,
+              attemptNumber: sub.attemptNumber,
+            },
+          },
+        });
+        if (graded) throw new Error('Already graded');
+        const dates = await effectiveDates(ctx.db, a as ActivityRef<AssignSettingsT>, uid);
+        if (!canSubmitNow(dates, ctx.now).ok) throw new Error('Submissions are closed');
+        await ctx.db.assignSubmission.update({
+          where: { id: sub.id },
+          data: { status: 'DRAFT', submittedAt: null },
+        });
+        await ctx.completion.recompute(a.id, uid);
+        return { ok: true };
+      },
+    }),
+    grade: defineAction({
+      capability: 'mod.assign:grade',
+      input: z.object({
+        userId: z.string().uuid(),
+        grade: z.union([z.number(), z.null()]),
+        feedback: z.string().max(200_000).default(''),
+        files: z.array(FileInput).max(20).default([]),
+        reopen: z.boolean().default(false),
+      }),
+      async handler(ctx, a, input) {
+        const s = a.settings as AssignSettingsT;
+        if (input.grade !== null && (input.grade < 0 || input.grade > s.gradeMax))
+          throw new Error(`Grade must be between 0 and ${s.gradeMax}`);
+        const enrolled = await ctx.db.enrolment.findFirst({
+          where: { courseId: a.courseId, userId: input.userId },
+        });
+        if (!enrolled) throw new Error('User is not enrolled');
+        const sub = await latestSubmission(ctx.db, a.id, input.userId);
+        const attemptNumber = sub?.attemptNumber ?? 0;
+        const feedback = sanitizeRichText(input.feedback);
+        const graderId = ctx.actor.kind === 'user' ? ctx.actor.userId : null;
+        await ctx.db.assignGrade.upsert({
+          where: {
+            activityId_userId_attemptNumber: {
+              activityId: a.id,
+              userId: input.userId,
+              attemptNumber,
+            },
+          },
+          create: {
+            activityId: a.id,
+            userId: input.userId,
+            attemptNumber,
+            grade: input.grade,
+            feedback,
+            graderId,
+          },
+          update: { grade: input.grade, feedback, graderId, gradedAt: ctx.now },
+        });
+        for (const f of input.files) {
+          await ctx.files.store(
+            a.id,
+            'feedback',
+            { ...f, itemId: input.userId, path: `/${attemptNumber}/` },
+            { maxBytes: 50 * 1024 * 1024 },
+          );
+        }
+        await ctx.grades.setGrades(a.id, [
+          { userId: input.userId, rawGrade: input.grade, feedback, gradedById: graderId },
+        ]);
+        await ctx.completion.recompute(a.id, input.userId);
+        const failed =
+          s.gradePass !== undefined && input.grade !== null && input.grade < s.gradePass;
+        const allowMore = !s.maxAttempts || attemptNumber + 1 < s.maxAttempts;
+        if (sub && allowMore && (input.reopen || (s.reopen === 'untilpass' && failed))) {
+          await ctx.db.assignSubmission.update({ where: { id: sub.id }, data: { latest: false } });
+          await ctx.db.assignSubmission.create({
+            data: {
+              activityId: a.id,
+              userId: input.userId,
+              attemptNumber: attemptNumber + 1,
+              status: 'REOPENED',
+              onlineText: sub.onlineText,
+            },
+          });
+        }
+        await ctx.notify.send([input.userId], {
+          type: 'assign.graded',
+          title: a.name,
+          url: `/course/${a.courseId}/a/${a.id}`,
+          courseId: a.courseId,
+          contextId: a.id,
+        });
+        await ctx.log('assign.graded', {
+          activityId: a.id,
+          userId: input.userId,
+          grade: input.grade,
+        });
+        return { ok: true };
+      },
+    }),
+    extend: defineAction({
+      capability: 'mod.assign:grantextension',
+      input: z.object({
+        userId: z.string().uuid(),
+        dueAt: z.string().nullable(),
+        cutoffAt: z.string().nullable().optional(),
+      }),
+      async handler(ctx, a, input) {
+        if (!input.dueAt) {
+          await ctx.db.assignOverride.deleteMany({
+            where: { activityId: a.id, userId: input.userId },
+          });
+          return { ok: true };
+        }
+        const dueAt = new Date(input.dueAt);
+        const cutoffAt = input.cutoffAt ? new Date(input.cutoffAt) : dueAt;
+        await ctx.db.assignOverride.upsert({
+          where: { activityId_userId: { activityId: a.id, userId: input.userId } },
+          create: { activityId: a.id, userId: input.userId, dueAt, cutoffAt },
+          update: { dueAt, cutoffAt },
+        });
+        await ctx.log('assign.extension', {
+          activityId: a.id,
+          userId: input.userId,
+          dueAt: input.dueAt,
+        });
+        return { ok: true };
+      },
+    }),
+  },
+  async todo(ctx, uid, courseIds) {
+    const acts = await ctx.db.activity.findMany({
+      where: {
+        moduleKey: 'assign',
+        courseId: { in: courseIds },
+        deletedAt: null,
+        visibility: 'SHOWN',
+      },
+    });
+    const out = [];
+    for (const a of acts) {
+      const settings = AssignSettings.safeParse(a.settings);
+      if (!settings.success) continue;
+      const canGrade = await ctx.perm.can('mod.assign:grade', a.id);
+      if (canGrade) {
+        const pending = await ctx.db.assignSubmission.count({
+          where: {
+            activityId: a.id,
+            latest: true,
+            status: 'SUBMITTED',
+            user: { assignGrades: { none: { activityId: a.id } } },
+          },
+        });
+        if (pending)
+          out.push({
+            activityId: a.id,
+            courseId: a.courseId,
+            title: a.name,
+            kind: 'grade' as const,
+            count: pending,
+          });
+        continue;
+      }
+      if (!(await ctx.perm.can('mod.assign:submit', a.id))) continue;
+      const sub = await latestSubmission(ctx.db, a.id, uid);
+      if (sub?.status === 'SUBMITTED') continue;
+      const due = settings.data.dueAt ? new Date(settings.data.dueAt) : null;
+      if (due && due.getTime() < ctx.now.getTime() - 7 * 86_400_000) continue;
+      out.push({
+        activityId: a.id,
+        courseId: a.courseId,
+        title: a.name,
+        kind: 'submit' as const,
+        dueAt: due,
+      });
+    }
+    return out;
+  },
+});
+
+export const assignModules = [assign];
