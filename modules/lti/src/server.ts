@@ -650,12 +650,7 @@ async function handleDeepLink(ctx: ModuleCtx, req: Request, activityId: string) 
   // `data` must be the one we put in a deep linking request (not, say, a learner's launch
   // hint the tool has also seen), and its user must still be allowed to pick content.
   const data = readHint(String(payload[LTI.dl('data')] ?? ''));
-  if (
-    !data ||
-    data.m !== 'LtiDeepLinkingRequest' ||
-    data.a !== activityId ||
-    data.t !== found.tool.id
-  )
+  if (data?.m !== 'LtiDeepLinkingRequest' || data.a !== activityId || data.t !== found.tool.id)
     return fail(400, 'Invalid data');
   const picker = await ctx.db.user.findUnique({
     where: { id: data.u },
