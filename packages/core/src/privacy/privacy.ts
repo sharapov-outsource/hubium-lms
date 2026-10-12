@@ -52,6 +52,8 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
     policies,
     tokens,
     log,
+    suggestions,
+    devices,
   ] = await Promise.all([
     db.enrolment.findMany({
       where: { userId },
@@ -121,6 +123,21 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
       orderBy: { createdAt: 'desc' },
       take: 1000,
     }),
+    // AI grading drafts written about the user's submissions
+    db.gradingSuggestion.findMany({
+      where: { userId },
+      select: {
+        activityId: true,
+        suggestedGrade: true,
+        feedbackDraft: true,
+        status: true,
+        createdAt: true,
+      },
+    }),
+    db.pushSubscription.findMany({
+      where: { userId },
+      select: { userAgent: true, createdAt: true, lastUsedAt: true },
+    }),
   ]);
   const modules: Record<string, unknown> = {};
   const mctx = buildModuleCtx(ctx);
@@ -145,7 +162,8 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
       notifications,
       notificationPreferences: preferences,
       files: files.map((f) => ({ ...f, size: Number(f.size) })),
-      ai: { tutorConversations: tutor, consents: aiConsents },
+      ai: { tutorConversations: tutor, consents: aiConsents, gradingSuggestions: suggestions },
+      pushDevices: devices,
       policies,
       apiTokens: tokens,
       activityLog: log,
@@ -166,6 +184,8 @@ export async function erasePersonalData(
   await tx.apiToken.deleteMany({ where: { userId } });
   await tx.aiConsent.deleteMany({ where: { userId } });
   await tx.tutorConversation.deleteMany({ where: { userId } });
+  await tx.gradingSuggestion.deleteMany({ where: { userId } });
+  await tx.pushSubscription.deleteMany({ where: { userId } });
   await tx.notification.deleteMany({ where: { userId } });
   await tx.notificationPreference.deleteMany({ where: { userId } });
   await tx.calendarEvent.deleteMany({ where: { userId, scope: 'USER' } });

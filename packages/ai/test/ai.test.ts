@@ -117,6 +117,25 @@ describe('AnthropicProvider', () => {
     );
   });
 
+  it('reports cut-off and refused structured output with its usage', async () => {
+    let reply = message('{"title": "Кор', 'max_tokens');
+    const s = await fakeServer((_b, _r, res) => json(res, 200, reply));
+    close = s.close;
+    const p = new AnthropicProvider({ apiKey: 'k', baseUrl: s.url });
+    const req = { ...base, messages: ask, schema: Schema };
+    await expect(p.generateObject(req)).rejects.toMatchObject({
+      message: expect.stringContaining('max_tokens'),
+      usage: { inputTokens: 10, outputTokens: 5 },
+    });
+    reply = message('', 'refusal');
+    await expect(p.generateObject(req)).rejects.toBeInstanceOf(AiRefusalError);
+    reply = message('{"title": "x", "score": "high"}');
+    await expect(p.generateObject(req)).rejects.toMatchObject({
+      message: 'Model output did not match the schema',
+      usage: { outputTokens: 5 },
+    });
+  });
+
   it('streams text deltas and reports usage', async () => {
     const s = await fakeServer((_b, _r, res) =>
       sse(res, [

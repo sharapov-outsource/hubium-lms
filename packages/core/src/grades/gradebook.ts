@@ -21,9 +21,18 @@ export async function ensureCourseGradebook(
   tx: Tx,
   courseId: string,
 ): Promise<{ root: GradeCategory; total: GradeItem }> {
-  let root = await tx.gradeCategory.findFirst({ where: { courseId, parentId: null } });
+  const find = () =>
+    Promise.all([
+      tx.gradeCategory.findFirst({ where: { courseId, parentId: null } }),
+      tx.gradeItem.findFirst({ where: { courseId, kind: 'COURSE' } }),
+    ]);
+  let [root, total] = await find();
+  if (root && total) return { root, total };
+  // First grades of a course can arrive in parallel (two quiz attempts finishing): only
+  // one transaction may create the root category and the total.
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`gradebook:${courseId}`}))`;
+  [root, total] = await find();
   root ??= await tx.gradeCategory.create({ data: { courseId, name: '', aggregation: 'NATURAL' } });
-  let total = await tx.gradeItem.findFirst({ where: { courseId, kind: 'COURSE' } });
   total ??= await tx.gradeItem.create({
     data: {
       courseId,
@@ -47,6 +56,8 @@ export async function syncGradeItemsFor(tx: Tx, activityId: string): Promise<voi
   const specs = m.grading.items(toActivityRef(a));
   const existing = await tx.gradeItem.findMany({ where: { activityId } });
   const count = await tx.gradeItem.count({ where: { courseId: a.courseId } });
+  // Totals depend on maxima and on which items count (deleted activities do not).
+  let totalsChanged = false;
   for (const [i, spec] of specs.entries()) {
     const cur = existing.find((x) => x.itemNumber === spec.itemNumber);
     const data = {
@@ -55,6 +66,8 @@ export async function syncGradeItemsFor(tx: Tx, activityId: string): Promise<voi
       gradePass: spec.gradePass ?? null,
       hidden: a.visibility === 'HIDDEN' || !!a.deletedAt,
     };
+    if (cur && (num(cur.gradeMax) !== spec.gradeMax || cur.hidden !== data.hidden))
+      totalsChanged = true;
     if (cur) await tx.gradeItem.update({ where: { id: cur.id }, data });
     else
       await tx.gradeItem.create({
@@ -73,6 +86,21 @@ export async function syncGradeItemsFor(tx: Tx, activityId: string): Promise<voi
   const keep = new Set(specs.map((s) => s.itemNumber));
   const stale = existing.filter((x) => !keep.has(x.itemNumber)).map((x) => x.id);
   if (stale.length) await tx.gradeItem.deleteMany({ where: { id: { in: stale } } });
+  if (totalsChanged || stale.length) await recomputeAllTotals(tx, a.courseId);
+}
+
+/** Course totals of everyone enrolled (after a change to the gradebook structure). */
+export async function recomputeAllTotals(tx: Tx, courseId: string): Promise<void> {
+  const users = await tx.enrolment.findMany({
+    where: { courseId },
+    select: { userId: true },
+    distinct: ['userId'],
+  });
+  await recomputeCourseTotals(
+    tx,
+    courseId,
+    users.map((u) => u.userId),
+  );
 }
 
 async function writeGrade(
@@ -139,10 +167,19 @@ export async function recomputeCourseTotals(
         courseId,
         kind: { in: ['MODULE', 'MANUAL'] },
         gradeType: { in: ['VALUE', 'SCALE'] },
+        // activities in the recycle bin do not count
+        OR: [{ activityId: null }, { activity: { deletedAt: null } }],
       },
     }),
     tx.grade.findMany({
-      where: { userId: { in: userIds }, item: { courseId, kind: { in: ['MODULE', 'MANUAL'] } } },
+      where: {
+        userId: { in: userIds },
+        item: {
+          courseId,
+          kind: { in: ['MODULE', 'MANUAL'] },
+          OR: [{ activityId: null }, { activity: { deletedAt: null } }],
+        },
+      },
     }),
   ]);
   for (const userId of userIds) {
@@ -227,6 +264,9 @@ export async function setActivityGrades(
   for (const g of grades) {
     const item = items.find((i) => i.itemNumber === (g.itemNumber ?? 0));
     if (!item) continue;
+    // Feedback is rendered as HTML in the gradebook: never trust a module (or the
+    // external tool behind it) to have sanitised it.
+    if (g.feedback) g.feedback = sanitizeRichText(g.feedback);
     await writeGrade(
       tx,
       item,
@@ -335,12 +375,20 @@ export const ManualItemInput = z.object({
   idNumber: optionalText(100),
 });
 
+/** Grade categories are addressed by id from forms: they must belong to the same course. */
+async function requireGradeCategory(tx: Tx, courseId: string, categoryId: string) {
+  const c = await tx.gradeCategory.findFirst({ where: { id: categoryId, courseId } });
+  if (!c) throw new NotFoundError('Grade category');
+  return c;
+}
+
 export const createManualItem = defineOperation({
   name: 'grade.item.create',
   input: ManualItemInput,
   authorize: (ctx, i) => ctx.perm.require('grade:manage', i.courseId),
   async handler(ctx, input) {
     const { root } = await ensureCourseGradebook(ctx.tx, input.courseId);
+    if (input.categoryId) await requireGradeCategory(ctx.tx, input.courseId, input.categoryId);
     const count = await ctx.tx.gradeItem.count({ where: { courseId: input.courseId } });
     const item = await ctx.tx.gradeItem.create({
       data: {
@@ -380,6 +428,7 @@ export const updateGradeItem = defineOperation({
   async handler(ctx, { id, ...data }) {
     const item = await ctx.tx.gradeItem.findUniqueOrThrow({ where: { id } });
     if (item.kind === 'MODULE') delete data.name; // module items follow the activity name
+    if (data.categoryId) await requireGradeCategory(ctx.tx, item.courseId, data.categoryId);
     await ctx.tx.gradeItem.update({ where: { id }, data });
     const users = await ctx.tx.enrolment.findMany({
       where: { courseId: item.courseId },
@@ -430,6 +479,7 @@ export const saveGradeCategory = defineOperation({
       dropLowest: input.dropLowest,
       aggregateOnlyGraded: input.aggregateOnlyGraded,
     };
+    if (input.id) await requireGradeCategory(ctx.tx, input.courseId, input.id);
     const cat = input.id
       ? await ctx.tx.gradeCategory.update({ where: { id: input.id }, data })
       : await ctx.tx.gradeCategory.create({
@@ -530,7 +580,9 @@ export async function userReport(ctx: RequestContext, courseId: string, userId: 
 }
 
 export function csvEscape(v: string): string {
-  return /[",;\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  // Spreadsheets run cells starting with = + - @ as formulas, and names are user input.
+  const s = /^[=+@\t\r]/.test(v) || (v.startsWith('-') && !/^-\d+(\.\d+)?$/.test(v)) ? `'${v}` : v;
+  return /[",;\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 export async function exportGradesCsv(ctx: RequestContext, courseId: string): Promise<string> {

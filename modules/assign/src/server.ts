@@ -58,10 +58,14 @@ export async function effectiveDates(
     where: { activityId_userId: { activityId: a.id, userId } },
   });
   const d = (v: string | null | undefined) => (v ? new Date(v) : null);
+  const dueAt = o?.dueAt ?? d(a.settings.dueAt);
+  let cutoffAt = o?.cutoffAt ?? d(a.settings.cutoffAt);
+  // An extension past the course-wide cut-off moves the cut-off with it.
+  if (o?.dueAt && !o.cutoffAt && cutoffAt && cutoffAt < o.dueAt) cutoffAt = o.dueAt;
   return {
     openAt: o?.allowSubmissionsFrom ?? d(a.settings.openAt),
-    dueAt: o?.dueAt ?? d(a.settings.dueAt),
-    cutoffAt: o?.cutoffAt ?? d(a.settings.cutoffAt),
+    dueAt,
+    cutoffAt,
     extended: !!o,
   };
 }
@@ -197,13 +201,16 @@ export const assign = defineModule<AssignSettingsT>({
     },
   },
   files: {
-    // Submissions and feedback: the owner (graders always pass the course-manager check).
+    // Submissions and feedback: the owner and anyone who grades (non-editing teachers too).
     submission: {
-      canRead: async (ctx, _a, f) =>
-        ctx.actor.kind === 'user' && f.uploadedById === ctx.actor.userId,
+      canRead: async (ctx, a, f) =>
+        ctx.actor.kind === 'user' &&
+        (f.uploadedById === ctx.actor.userId || (await ctx.perm.can('mod.assign:grade', a.id))),
     },
     feedback: {
-      canRead: async (ctx, _a, f) => ctx.actor.kind === 'user' && f.itemId === ctx.actor.userId,
+      canRead: async (ctx, a, f) =>
+        ctx.actor.kind === 'user' &&
+        (f.itemId === ctx.actor.userId || (await ctx.perm.can('mod.assign:grade', a.id))),
     },
   },
   cron: [
@@ -278,7 +285,7 @@ export const assign = defineModule<AssignSettingsT>({
         });
         if (s.allowFiles) {
           if (input.removeFiles.length)
-            await ctx.files.remove(a.id, 'submission', input.removeFiles);
+            await ctx.files.remove(a.id, 'submission', input.removeFiles, sub.id);
           const existing = await ctx.files.list(a.id, 'submission', sub.id);
           if (existing.length + input.files.length > s.maxFiles)
             throw new Error(`At most ${s.maxFiles} files`);

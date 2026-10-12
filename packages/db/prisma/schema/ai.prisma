@@ -18,6 +18,8 @@ enum AiUsageStatus {
   ERROR
   REFUSED
   LIMITED
+  /// Reserved by the quota check; replaced by the outcome when the call ends.
+  PENDING
 }
 
 enum AiJobStatus {

@@ -1,6 +1,11 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { ltiOrigins } from './server/lti-origins';
-import { buildCsp, isCrossSiteWrite, securityHeaders } from './server/security';
+import {
+  buildCsp,
+  isContentHostMisuse,
+  isCrossSiteWrite,
+  securityHeaders,
+} from './server/security';
 
 // Optimistic redirect only: real session checks happen in every page and action.
 const PUBLIC = [
@@ -24,6 +29,8 @@ const PUBLIC = [
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  if (isContentHostMisuse({ pathname, headers: req.headers }))
+    return new NextResponse('Not found', { status: 404 });
   // Untrusted content origin: its route sets its own sandboxing headers.
   if (pathname.startsWith('/c/')) return NextResponse.next();
   const hasSession = req.cookies.getAll().some((c) => c.name.includes('hubium.session_token'));
@@ -57,6 +64,8 @@ export async function proxy(req: NextRequest) {
     // Next reads the nonce from the request CSP header and applies it to its scripts.
     const headers = new Headers(req.headers);
     headers.set('x-nonce', nonce);
+    // Layouts cannot see the path; the app layout needs it to avoid redirect loops.
+    headers.set('x-hubium-path', pathname);
     headers.set('content-security-policy', csp);
     res = NextResponse.next({ request: { headers } });
     res.headers.set('Content-Security-Policy', csp);

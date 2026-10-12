@@ -48,7 +48,8 @@ const difficultyText = {
 
 export async function startQuizGeneration(ctx: RequestContext, raw: unknown) {
   const input = QuizGenInput.parse(raw);
-  await aiGate(ctx, { feature: 'QUIZGEN', courseId: input.courseId });
+  // The generation runs in the worker, which records its own usage.
+  await aiGate(ctx, { feature: 'QUIZGEN', courseId: input.courseId, reserve: false });
   await ctx.perm.require('question:manage', input.courseId);
   const cat = await ctx.db.questionCategory.findUnique({ where: { id: input.categoryId } });
   if (cat?.contextId !== input.courseId)

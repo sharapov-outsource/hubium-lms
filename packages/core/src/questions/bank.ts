@@ -42,6 +42,12 @@ export async function listQuestionCategories(ctx: RequestContext, courseId: stri
   });
 }
 
+/** Throws unless the category exists and belongs to `courseId`. */
+async function requireCategoryIn(db: Tx, categoryId: string, courseId: string) {
+  if ((await categoryCourse(db, categoryId)) !== courseId)
+    throw new ValidationError({ categoryId: ['Unknown category'] });
+}
+
 export const saveQuestionCategory = defineOperation({
   name: 'question.category.save',
   input: z.object({
@@ -56,10 +62,16 @@ export const saveQuestionCategory = defineOperation({
   }),
   authorize: (ctx, i) => ctx.perm.require('question:manage', i.courseId),
   async handler(ctx, input) {
+    if (input.parentId) await requireCategoryIn(ctx.tx, input.parentId, input.courseId);
     const parent =
       input.parentId ?? (await ensureDefaultQuestionCategory(ctx.tx, input.courseId)).id;
     if (input.id) {
-      await ctx.tx.questionCategory.update({ where: { id: input.id }, data: { name: input.name } });
+      // Only categories of the course the permission was checked for.
+      const r = await ctx.tx.questionCategory.updateMany({
+        where: { id: input.id, contextId: input.courseId },
+        data: { name: input.name },
+      });
+      if (!r.count) throw new NotFoundError('Question category');
       return { id: input.id };
     }
     const c = await ctx.tx.questionCategory.create({
@@ -115,7 +127,17 @@ export const saveQuestion = defineOperation({
   name: 'question.save',
   input: QuestionInput.extend({ id: z.string().uuid().optional() }),
   async authorize(ctx, i) {
-    await ctx.perm.require('question:manage', await categoryCourse(ctx.db, i.categoryId));
+    const courseId = await categoryCourse(ctx.db, i.categoryId);
+    await ctx.perm.require('question:manage', courseId);
+    if (i.id) {
+      // Editing: the question must already live in the same course's bank.
+      const q = await ctx.db.question.findUnique({
+        where: { id: i.id },
+        select: { categoryId: true },
+      });
+      if (!q || (await categoryCourse(ctx.db, q.categoryId)) !== courseId)
+        throw new NotFoundError('Question');
+    }
   },
   async handler(ctx, input) {
     if (!sanitizeRichText(input.text).trim() && input.type !== 'DESCRIPTION') {
@@ -209,6 +231,7 @@ export const importGift = defineOperation({
   }),
   authorize: (ctx, i) => ctx.perm.require('question:manage', i.courseId),
   async handler(ctx, { courseId, categoryId, gift }) {
+    if (categoryId) await requireCategoryIn(ctx.tx, categoryId, courseId);
     const parsed = parseGift(gift);
     const root = await ensureDefaultQuestionCategory(ctx.tx, courseId);
     const target = categoryId ?? root.id;

@@ -98,20 +98,24 @@ export class AnthropicProvider implements LlmProvider {
 
   async generateObject<T>(r: ObjectReq<T>) {
     try {
-      const m = await this.client.beta.messages.parse(
+      // create + our own parse (not messages.parse): a refusal or a cut-off answer must be
+      // reported as such, with its usage, rather than as a JSON error.
+      const format = betaZodOutputFormat(r.schema);
+      const m = await this.client.beta.messages.create(
         {
           ...this.common(r),
-          output_config: {
-            format: betaZodOutputFormat(r.schema),
-            ...(r.effort ? { effort: r.effort } : {}),
-          },
+          output_config: { format, ...(r.effort ? { effort: r.effort } : {}) },
         },
         { signal: r.signal },
       );
       this.check(m);
-      if (m.parsed_output == null)
+      let object: T;
+      try {
+        object = format.parse(textOf(m)) as T;
+      } catch {
         throw new AiProviderError('Model output did not match the schema', usageOf(m.usage));
-      return { object: m.parsed_output as T, usage: usageOf(m.usage), model: m.model };
+      }
+      return { object, usage: usageOf(m.usage), model: m.model };
     } catch (e) {
       this.wrap(e);
     }

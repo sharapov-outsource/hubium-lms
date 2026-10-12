@@ -46,6 +46,7 @@ export function UserMenu({
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onSelect={async () => {
+            await forgetPushDevice();
             await authClient.signOut();
             window.location.href = '/login';
           }}
@@ -56,4 +57,21 @@ export function UserMenu({
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+/** A shared computer must not keep receiving the previous user's notifications. */
+async function forgetPushDevice() {
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration();
+    const sub = await reg?.pushManager.getSubscription();
+    if (!sub) return;
+    await fetch('/api/push', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint: sub.endpoint }),
+    });
+    await sub.unsubscribe();
+  } catch {
+    // signing out must work even when push is unavailable
+  }
 }

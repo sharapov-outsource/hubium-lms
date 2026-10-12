@@ -19,11 +19,23 @@ async function main() {
   for (const def of allHandlers.filter((h) => roles.includes(h.queue ?? 'default'))) {
     if (!(await boss.getQueue(def.name))) await boss.createQueue(def.name);
     await boss.work(def.name, { batchSize: def.batchSize ?? 1 }, async (jobs) => {
-      const out = [];
-      for (const job of jobs) {
-        out.push(await def.handler(job.data as never, { db, jobId: job.id }));
+      if (jobs.length === 1) {
+        const [job] = jobs;
+        return def.handler(job!.data as never, { db, jobId: job!.id });
       }
-      return out;
+      // A batch is settled job by job: one failure must not retry (and so repeat, e.g.
+      // re-send) the jobs that already succeeded.
+      for (const job of jobs) {
+        try {
+          const out = await def.handler(job.data as never, { db, jobId: job.id });
+          await boss.complete(def.name, job.id, (out ?? null) as object | null);
+        } catch (e) {
+          console.error(`[worker] ${def.name} ${job.id} failed`, e);
+          await boss.fail(def.name, job.id, {
+            message: e instanceof Error ? e.message : String(e),
+          });
+        }
+      }
     });
     if (def.cron) await boss.schedule(def.name, def.cron, {}, { tz: 'UTC' });
     console.log(`[worker] ${def.name}${def.cron ? ` (cron ${def.cron})` : ''}`);

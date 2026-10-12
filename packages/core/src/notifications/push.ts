@@ -1,9 +1,10 @@
 import type { Db } from '@hubium/db';
+import { assertPublicUrl } from '@hubium/module-sdk/net';
 import webpush from 'web-push';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { getEnv } from '../env.ts';
-import { ForbiddenError } from '../errors.ts';
+import { ForbiddenError, ValidationError } from '../errors.ts';
 
 // Web Push (PWA notifications). Notifications shown in the app are also pushed to the
 // user's subscribed devices when VAPID keys are configured and the user has not turned
@@ -20,12 +21,14 @@ export function pushConfig(env = getEnv()) {
   };
 }
 
+// Endpoints come from the browser, i.e. from the user: the worker will POST to them, so
+// they must be HTTPS on a public address (push services always are).
 const Subscription = z.object({
   endpoint: z
     .string()
     .url()
     .max(2000)
-    .refine((u) => u.startsWith('https://') || u.startsWith('http://'), 'Invalid endpoint'),
+    .refine((u) => u.startsWith('https://'), 'Invalid endpoint'),
   keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(8).max(100) }),
 });
 
@@ -36,6 +39,9 @@ export async function savePushSubscription(
 ) {
   if (ctx.actor.kind !== 'user') throw new ForbiddenError();
   const s = Subscription.parse(raw);
+  await assertPublicUrl(s.endpoint).catch(() => {
+    throw new ValidationError({ endpoint: ['Invalid endpoint'] });
+  });
   const userId = ctx.actor.userId;
   await ctx.db.pushSubscription.upsert({
     where: { endpoint: s.endpoint },
@@ -86,6 +92,7 @@ export async function sendPushNotifications(
     });
     for (const s of subs.filter((x) => x.userId === n.userId)) {
       try {
+        await assertPublicUrl(s.endpoint);
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
           payload,

@@ -153,7 +153,8 @@ async function scheduleAiIndex(ctx: RequestContext, activityId: string) {
   await enqueue(
     'ai.index.activity',
     { activityId },
-    { singletonKey: activityId, singletonSeconds: 30, startAfter: 5 },
+    // An edit inside the 30 s window is queued for the next slot instead of being dropped.
+    { singletonKey: activityId, singletonSeconds: 30, singletonNextSlot: true, startAfter: 5 },
   );
 }
 
@@ -255,6 +256,17 @@ export const updateActivity = defineOperation({
     await m.lifecycle?.onUpdate?.(mctx, toActivityRef(a), parseSettings(m, prev.settings));
     if (m.grading) await mctx.grades.syncItems(a.id).catch(() => {});
     await syncCalendar(ctx.tx, a);
+    // New completion rules apply to everyone, not just to the next person who acts.
+    if (
+      a.completionMode === 'AUTO' &&
+      (prev.completionMode !== 'AUTO' ||
+        JSON.stringify(prev.completionRules ?? {}) !== JSON.stringify(completionRules))
+    )
+      await enqueue(
+        'completion.recompute',
+        { activityId: a.id },
+        { tx: ctx.tx, singletonKey: a.id, singletonSeconds: 60, singletonNextSlot: true },
+      );
     await logEvent(ctx.tx, {
       name: 'activity.updated',
       actorId: ctx.perm.userId,
@@ -338,6 +350,11 @@ export const moveActivityStep = defineOperation({
   },
 });
 
+/** Grade items follow the activity into and out of the recycle bin (and the totals with them). */
+async function syncGrades(ctx: RequestContext & { tx: Prisma.TransactionClient }, a: Activity) {
+  if (requireModule(a.moduleKey).grading) await buildModuleCtx(ctx, ctx.tx).grades.syncItems(a.id);
+}
+
 export const deleteActivity = defineOperation({
   name: 'activity.delete',
   input: z.object({ id: z.string().uuid() }),
@@ -345,6 +362,7 @@ export const deleteActivity = defineOperation({
   async handler(ctx, { id }) {
     const a = await ctx.tx.activity.update({ where: { id }, data: { deletedAt: ctx.now } });
     await syncCalendar(ctx.tx, a);
+    await syncGrades(ctx, a);
     await logEvent(ctx.tx, {
       name: 'activity.deleted',
       actorId: ctx.perm.userId,
@@ -364,6 +382,7 @@ export const restoreActivity = defineOperation({
   async handler(ctx, { id }) {
     const a = await ctx.tx.activity.update({ where: { id }, data: { deletedAt: null } });
     await syncCalendar(ctx.tx, a);
+    await syncGrades(ctx, a);
     await scheduleAiIndex(ctx, id);
     return { id };
   },
@@ -511,8 +530,12 @@ export async function loadAvailabilityFacts(
 export async function getCourseOutline(
   ctx: RequestContext,
   courseId: string,
+  opts: { includeUnlisted?: boolean } = {},
 ): Promise<OutlineSection[]> {
   const access = await getCourseAccess(ctx, courseId);
+  // Callers outside the course page (REST API, AI tutor) rely on this check.
+  if (!access.canView || (access.course.deletedAt && !ctx.perm.isSiteAdmin))
+    throw new NotFoundError('Course');
   const userId = ctx.perm.userId;
   const [sections, activities, facts] = await Promise.all([
     ctx.db.courseSection.findMany({ where: { courseId }, orderBy: { rank: 'asc' } }),
@@ -546,7 +569,7 @@ export async function getCourseOutline(
             a.completionMode === 'NONE' ? null : (completionMap.get(a.id) ?? 'INCOMPLETE'),
         };
       })
-      .filter((x) => x.listed);
+      .filter((x) => x.listed || opts.includeUnlisted);
     out.push({
       id: s.id,
       rank: s.rank,
@@ -567,19 +590,22 @@ export async function getActivityAccess(ctx: RequestContext, activityId: string)
   const a = await ctx.db.activity.findUnique({ where: { id: activityId } });
   if (!a) throw new NotFoundError('Activity');
   const access = await getCourseAccess(ctx, a.courseId);
-  const outline = access.canView ? await getCourseOutline(ctx, a.courseId) : [];
+  // Unlisted (stealth) activities still obey their section and restrictions when opened by link.
+  const outline = access.canView
+    ? await getCourseOutline(ctx, a.courseId, { includeUnlisted: true })
+    : [];
   const entry = outline.flatMap((s) => s.activities).find((x) => x.activity.id === a.id);
-  const stealthOk = a.visibility === 'STEALTH' && access.canView;
   const canOpen =
     !a.deletedAt &&
     access.canView &&
-    (access.canManageActivities || access.canViewHidden || (entry?.available ?? stealthOk)) &&
+    (access.canManageActivities || access.canViewHidden || (entry?.available ?? false)) &&
     ((await ctx.perm.can('activity:view', a.id)) || access.isGuest || access.canManageActivities);
   return {
     activity: a,
     course: access.course,
     access,
     canOpen,
-    missing: entry?.availabilityMissing ?? [],
+    // "Hide entirely" restrictions do not reveal their conditions.
+    missing: entry && (entry.listed || a.visibility === 'STEALTH') ? entry.availabilityMissing : [],
   };
 }

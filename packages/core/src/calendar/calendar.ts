@@ -163,7 +163,11 @@ function icsDate(d: Date, allDay = false): string {
 }
 
 function icsEscape(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/;/g, ';').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  return s
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r?\n/g, '\\n');
 }
 
 /** Folds lines at 75 octets as RFC 5545 requires. */
@@ -228,21 +232,24 @@ export async function requireOwnEvents(ctx: RequestContext) {
  * 24-25 hours. Activity dates (due dates) are reminded by their modules.
  */
 export async function sendCalendarReminders(db: Db, now = new Date()): Promise<number> {
-  const from = new Date(now.getTime() + 24 * 3600_000);
-  const to = new Date(from.getTime() + 3600_000);
+  // Two hours wide, so a late or skipped run still reminds; sent reminders are not repeated.
+  const from = new Date(now.getTime() + 23 * 3600_000);
+  const to = new Date(now.getTime() + 25 * 3600_000);
   const events = await db.calendarEvent.findMany({
     where: {
       activityId: null,
       visible: true,
       scope: { in: ['COURSE', 'GROUP', 'USER'] },
       startsAt: { gte: from, lt: to },
+      // learners cannot open hidden or deleted courses
+      OR: [{ courseId: null }, { course: { visible: true, deletedAt: null } }],
     },
     include: { course: { select: { fullName: true } } },
   });
   let n = 0;
   for (const e of events) {
     await db.$transaction(async (tx) => {
-      const users =
+      const candidates =
         e.scope === 'USER'
           ? e.userId
             ? [e.userId]
@@ -253,6 +260,20 @@ export async function sendCalendarReminders(db: Db, now = new Date()): Promise<n
                 now,
               })
             : [];
+      const done = new Set(
+        (
+          await tx.notification.findMany({
+            where: {
+              type: 'calendar.reminder',
+              userId: { in: candidates },
+              data: { path: ['eventId'], equals: e.id },
+            },
+            select: { userId: true },
+          })
+        ).map((r) => r.userId),
+      );
+      const users = candidates.filter((u) => !done.has(u));
+      if (!users.length) return;
       n += await notifyUsers(tx, users, {
         type: 'calendar.reminder',
         title: { key: 'notifications.text.calendarReminder', values: { title: e.title } },

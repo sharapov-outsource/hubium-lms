@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildCsp, isCrossSiteWrite, securityHeaders } from './security';
+import { buildCsp, isContentHostMisuse, isCrossSiteWrite, securityHeaders } from './security';
 
 const env = {
   NODE_ENV: 'production',
@@ -69,6 +69,9 @@ describe('cross-site write check', () => {
     expect(req({}, { 'sec-fetch-site': 'cross-site' })).toBe(true);
     expect(req({}, { origin: 'https://evil.example' })).toBe(true);
     expect(req({}, { origin: 'null' })).toBe(true);
+    // the content origin is a sibling subdomain: same-site, but untrusted
+    expect(req({}, { 'sec-fetch-site': 'same-site' })).toBe(true);
+    expect(req({}, { origin: 'https://content.example.org' })).toBe(true);
   });
 
   it('lets through same-origin, reads, anonymous and allowlisted callers', () => {
@@ -79,5 +82,25 @@ describe('cross-site write check', () => {
     expect(req({ hasSession: false }, { 'sec-fetch-site': 'cross-site' })).toBe(false);
     expect(req({ pathname: '/api/mod/lti/token' }, { 'sec-fetch-site': 'cross-site' })).toBe(false);
     expect(req({ pathname: '/api/v1/me' }, { 'sec-fetch-site': 'cross-site' })).toBe(false);
+  });
+});
+
+describe('content origin', () => {
+  const env = {
+    APP_URL: 'https://lms.example.org',
+    CONTENT_HOST: 'https://content.example.org',
+  } as unknown as NodeJS.ProcessEnv;
+  const misuse = (host: string, pathname: string, e = env) =>
+    isContentHostMisuse({ pathname, headers: new Headers({ host }) }, e);
+
+  it('serves only /c/ on the content host', () => {
+    expect(misuse('content.example.org', '/dashboard')).toBe(true);
+    expect(misuse('content.example.org', '/api/mod/action')).toBe(true);
+    expect(misuse('content.example.org', '/c/token/pkg/index.html')).toBe(false);
+    expect(misuse('lms.example.org', '/dashboard')).toBe(false);
+    // without a separate content domain there is nothing to protect
+    expect(
+      misuse('lms.example.org', '/dashboard', { APP_URL: 'https://lms.example.org' } as never),
+    ).toBe(false);
   });
 });

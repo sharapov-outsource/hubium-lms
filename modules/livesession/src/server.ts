@@ -244,8 +244,11 @@ export const livesession = defineModule<LiveSettingsT>({
     },
   ],
   actions: {
+    // Actions that call the meeting server run outside a transaction: a slow BBB must not
+    // hold database locks or run past the transaction timeout.
     join: defineAction({
       capability: 'mod.livesession:join',
+      mutation: false,
       input: z.object({}),
       async handler(ctx, ref) {
         const a = ref as Live;
@@ -255,11 +258,11 @@ export const livesession = defineModule<LiveSettingsT>({
         const when = canJoinAt(a.settings, ctx.now, moderator);
         if (when === 'early') throw new Error('The session has not opened yet');
         if (when === 'over') throw new Error('The session is over');
-        const meeting =
-          (await ctx.db.liveMeeting.findUnique({ where: { activityId: a.id } })) ??
-          (await ctx.db.liveMeeting.create({
-            data: { activityId: a.id, meetingId: meetingIdFor(a.id) },
-          }));
+        const meeting = await ctx.db.liveMeeting.upsert({
+          where: { activityId: a.id },
+          create: { activityId: a.id, meetingId: meetingIdFor(a.id) },
+          update: {},
+        });
         if (meeting.status === 'ENDED' && !moderator) throw new Error('The session is over');
         const provider = getProvider(a.settings.provider);
         const s = spec(a);
@@ -297,6 +300,7 @@ export const livesession = defineModule<LiveSettingsT>({
     }),
     end: defineAction({
       capability: 'mod.livesession:moderate',
+      mutation: false,
       input: z.object({}),
       async handler(ctx, ref) {
         const a = ref as Live;
@@ -309,6 +313,7 @@ export const livesession = defineModule<LiveSettingsT>({
     }),
     syncRecordings: defineAction({
       capability: 'mod.livesession:moderate',
+      mutation: false,
       input: z.object({}),
       async handler(ctx, ref) {
         return { count: await syncRecordings(ctx, ref as Live) };

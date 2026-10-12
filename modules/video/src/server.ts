@@ -9,11 +9,11 @@ import { type ActivityRef, defineAction, defineModule, type ModuleCtx } from '@h
 import { bool } from '@hubium/module-sdk/fields';
 import { z } from 'zod';
 import {
+  addWatched,
   hlsArgs,
   hlsContentType,
   type Interval,
   ladderFor,
-  mergeIntervals,
   parseEmbed,
   progressSeconds,
   type Rendition,
@@ -250,18 +250,26 @@ export async function transcodeAsset(ctx: ModuleCtx, assetId: string): Promise<V
 
 // ── progress ─────────────────────────────────────────────────────────────────
 
+/** Playback may run up to 2× and reports arrive every 15 s (see the player). */
+const MAX_RATE = 2;
+const SLACK_SEC = 30;
+
 export async function recordProgress(
   db: Prisma.TransactionClient,
   activityId: string,
   userId: string,
   input: { intervals: Interval[]; duration: number; position: number },
+  now = new Date(),
 ) {
   const prev = await db.videoProgress.findUnique({
     where: { activityId_userId: { activityId, userId } },
   });
   const duration = input.duration > 0 ? input.duration : (prev?.durationSec ?? 0);
-  const merged = mergeIntervals(
-    [...((prev?.intervals as Interval[] | undefined) ?? []), ...input.intervals],
+  const elapsed = prev ? Math.max(0, (now.getTime() - prev.updatedAt.getTime()) / 1000) : 0;
+  const merged = addWatched(
+    (prev?.intervals as Interval[] | undefined) ?? [],
+    input.intervals,
+    elapsed * MAX_RATE + SLACK_SEC,
     duration || undefined,
   );
   const percent = watchPercent(merged, duration);
@@ -464,11 +472,13 @@ export const video = defineModule<VideoSettingsT>({
             ? await ctx.db.videoAsset.findUnique({ where: { activityId: a.id } })
             : null;
         const duration = asset?.durationSec ?? input.duration;
-        const r = await recordProgress(ctx.db, a.id, me, {
-          intervals: input.intervals as Interval[],
-          duration,
-          position: input.position,
-        });
+        const r = await recordProgress(
+          ctx.db,
+          a.id,
+          me,
+          { intervals: input.intervals as Interval[], duration, position: input.position },
+          ctx.now,
+        );
         const min = Number(
           (a.completionRules as { module?: { minPercent?: number } }).module?.minPercent ?? 0,
         );

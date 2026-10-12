@@ -1,5 +1,5 @@
 import { AiProviderError, AiRefusalError, type Usage } from '@hubium/ai';
-import type { AiFeature, AiUsageStatus, Db } from '@hubium/db';
+import type { AiFeature, AiUsageStatus, Db, Prisma } from '@hubium/db';
 import type { RequestContext } from '../context.ts';
 import { AppError, ForbiddenError, NotFoundError } from '../errors.ts';
 import {
@@ -48,8 +48,10 @@ export class AiUnavailableError extends AppError {
 
 const tokens = (u: { inputTokens: number; outputTokens: number }) => u.inputTokens + u.outputTokens;
 
+type Tx = Db | Prisma.TransactionClient;
+
 export async function recordUsage(
-  db: Db,
+  db: Tx,
   r: {
     feature: AiFeature;
     userId: string | null;
@@ -60,27 +62,37 @@ export async function recordUsage(
     durationMs: number;
     status: AiUsageStatus;
     error?: string;
+    /** A PENDING reservation to complete instead of adding a row. */
+    reservationId?: string | null;
   },
 ) {
-  return db.aiUsage.create({
-    data: {
-      feature: r.feature,
-      userId: r.userId,
-      courseId: r.courseId,
-      providerId: r.providerId,
-      model: r.model,
-      inputTokens: r.usage?.inputTokens ?? 0,
-      outputTokens: r.usage?.outputTokens ?? 0,
-      cacheReadTokens: r.usage?.cacheReadTokens ?? 0,
-      cacheWriteTokens: r.usage?.cacheWriteTokens ?? 0,
-      durationMs: r.durationMs,
-      status: r.status,
-      error: r.error?.slice(0, 1000) ?? null,
-    },
-  });
+  const data = {
+    feature: r.feature,
+    userId: r.userId,
+    courseId: r.courseId,
+    providerId: r.providerId,
+    model: r.model,
+    inputTokens: r.usage?.inputTokens ?? 0,
+    outputTokens: r.usage?.outputTokens ?? 0,
+    cacheReadTokens: r.usage?.cacheReadTokens ?? 0,
+    cacheWriteTokens: r.usage?.cacheWriteTokens ?? 0,
+    durationMs: r.durationMs,
+    status: r.status,
+    error: r.error?.slice(0, 1000) ?? null,
+  };
+  return r.reservationId
+    ? db.aiUsage.update({ where: { id: r.reservationId }, data })
+    : db.aiUsage.create({ data });
 }
 
-async function sumTokens(db: Db, where: object): Promise<number> {
+/** Hands out the gate's reservation once; later calls on the same feature add rows. */
+export function takeReservation(f: ResolvedFeature): string | null {
+  const id = f.reservationId ?? null;
+  f.reservationId = null;
+  return id;
+}
+
+async function sumTokens(db: Tx, where: object): Promise<number> {
   const agg = await db.aiUsage.aggregate({
     where,
     _sum: { inputTokens: true, outputTokens: true },
@@ -88,51 +100,63 @@ async function sumTokens(db: Db, where: object): Promise<number> {
   return (agg._sum.inputTokens ?? 0) + (agg._sum.outputTokens ?? 0);
 }
 
-/** Throws AiLimitError (after logging LIMITED) when any quota is exhausted. */
+/**
+ * Throws AiLimitError (after logging LIMITED) when any quota is exhausted. Checks for one
+ * user and feature run one at a time and, with `reserve`, leave a PENDING row behind, so
+ * parallel requests cannot all slip under the per-minute limit.
+ */
 export async function checkLimits(
   db: Db,
   f: ResolvedFeature,
   userId: string | null,
   courseId: string | null,
   now = new Date(),
-) {
+  opts: { reserve?: boolean } = {},
+): Promise<string | null> {
   const { perMinute, userDailyTokens, courseMonthlyTokens } = f.limits;
-  let hit: AiLimitKind | null = null;
-  if (perMinute !== null && userId) {
-    const n = await db.aiUsage.count({
-      where: {
-        feature: f.feature,
-        userId,
-        status: { not: 'LIMITED' },
-        createdAt: { gte: new Date(now.getTime() - 60_000) },
-      },
-    });
-    if (n >= perMinute) hit = 'perMinute';
-  }
-  if (!hit && userDailyTokens !== null && userId) {
-    const day = new Date(now);
-    day.setUTCHours(0, 0, 0, 0);
-    if ((await sumTokens(db, { userId, createdAt: { gte: day } })) >= userDailyTokens)
-      hit = 'userDaily';
-  }
-  if (!hit && courseMonthlyTokens !== null && courseId) {
-    const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    if ((await sumTokens(db, { courseId, createdAt: { gte: month } })) >= courseMonthlyTokens)
-      hit = 'courseMonthly';
-  }
-  if (hit) {
-    await recordUsage(db, {
+  const r = await db.$transaction(async (tx) => {
+    if (userId)
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`ai:${f.feature}:${userId}`}))`;
+    let hit: AiLimitKind | null = null;
+    if (perMinute !== null && userId) {
+      const n = await tx.aiUsage.count({
+        where: {
+          feature: f.feature,
+          userId,
+          status: { not: 'LIMITED' },
+          createdAt: { gte: new Date(now.getTime() - 60_000) },
+        },
+      });
+      if (n >= perMinute) hit = 'perMinute';
+    }
+    if (!hit && userDailyTokens !== null && userId) {
+      const day = new Date(now);
+      day.setUTCHours(0, 0, 0, 0);
+      const used = await sumTokens(tx, { feature: f.feature, userId, createdAt: { gte: day } });
+      if (used >= userDailyTokens) hit = 'userDaily';
+    }
+    if (!hit && courseMonthlyTokens !== null && courseId) {
+      const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+      const used = await sumTokens(tx, { feature: f.feature, courseId, createdAt: { gte: month } });
+      if (used >= courseMonthlyTokens) hit = 'courseMonthly';
+    }
+    const base = {
       feature: f.feature,
       userId,
       courseId,
       providerId: f.provider.id,
       model: f.model(),
       durationMs: 0,
-      status: 'LIMITED',
-      error: hit,
-    });
-    throw new AiLimitError(hit);
-  }
+    };
+    if (hit) {
+      await recordUsage(tx, { ...base, status: 'LIMITED', error: hit });
+      return { hit, id: null };
+    }
+    if (!opts.reserve) return { hit: null, id: null };
+    return { hit: null, id: (await recordUsage(tx, { ...base, status: 'PENDING' })).id };
+  });
+  if (r.hit) throw new AiLimitError(r.hit);
+  return r.id;
 }
 
 // ── consent ──────────────────────────────────────────────────────────────────
@@ -166,6 +190,8 @@ export interface AiCall {
   courseId: string;
   /** Skip the per-user consent check (background work the user already consented to). */
   skipConsent?: boolean;
+  /** Hold a usage row for the call that follows (false when the work is queued). */
+  reserve?: boolean;
 }
 
 /** Feature/permission/consent/limit checks; returns the resolved feature. 404 when off. */
@@ -179,7 +205,9 @@ export async function aiGate(ctx: RequestContext, call: AiCall): Promise<Resolve
     const c = await consentStatus(ctx.db, userId, call.feature);
     if (!c.accepted) throw new AiConsentRequiredError(c.noticeVersion);
   }
-  await checkLimits(ctx.db, f, userId, call.courseId, ctx.now);
+  f.reservationId = await checkLimits(ctx.db, f, userId, call.courseId, ctx.now, {
+    reserve: call.reserve ?? true,
+  });
   return f;
 }
 
@@ -201,10 +229,12 @@ export async function runAi<T>(
     courseId: call.courseId,
     providerId: f.provider.id,
   };
+  const reservationId = takeReservation(f);
   try {
     const r = await fn();
     const row = await recordUsage(ctx.db, {
       ...base,
+      reservationId,
       model: r.model,
       usage: r.usage,
       durationMs: Date.now() - started,
@@ -215,6 +245,7 @@ export async function runAi<T>(
     const refused = e instanceof AiRefusalError;
     await recordUsage(ctx.db, {
       ...base,
+      reservationId,
       model: f.model(),
       usage: e instanceof AiRefusalError || e instanceof AiProviderError ? e.usage : undefined,
       durationMs: Date.now() - started,

@@ -187,11 +187,12 @@ export function buildModuleCtx(
           size: Number(f.size),
         };
       },
-      async remove(activityId, area, ids) {
+      async remove(activityId, area, ids, itemId) {
         await deleteFiles(tx, {
           contextId: activityId,
           component: await activityKey(activityId),
           area,
+          itemId,
           ids,
         });
       },

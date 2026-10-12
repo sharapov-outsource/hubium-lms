@@ -98,18 +98,9 @@ export async function seed(db: Db, opts: SeedOptions) {
       users[u.username] = user.id;
     }
     const manager = await db.role.findUniqueOrThrow({ where: { shortName: 'manager' } });
-    await db.roleAssignment.upsert({
-      where: {
-        userId_roleId_contextId_component: {
-          userId: users.manager!,
-          roleId: manager.id,
-          contextId: SYSTEM_CONTEXT_ID,
-          component: 'MANUAL',
-        },
-      },
-      create: { userId: users.manager!, roleId: manager.id, contextId: SYSTEM_CONTEXT_ID },
-      update: {},
-    });
+    const assignment = { userId: users.manager!, roleId: manager.id, contextId: SYSTEM_CONTEXT_ID };
+    if (!(await db.roleAssignment.findFirst({ where: assignment })))
+      await db.roleAssignment.create({ data: assignment });
   }
   let demoCourses = false;
   if (opts.profile === 'demo' && opts.courses !== false) {

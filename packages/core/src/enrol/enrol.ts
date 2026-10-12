@@ -5,6 +5,7 @@ import type { RequestContext } from '../context.ts';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { optionalText } from '../lib/zod.ts';
+import { leaveGroupChats } from '../messaging/messaging.ts';
 import { buildModuleCtx } from '../modules/module-ctx.ts';
 import { listModules } from '../modules/registry.ts';
 import { notifyUsers } from '../notifications/notifications.ts';
@@ -40,8 +41,8 @@ export async function enrolUserRecord(
         where: { id: existing.id },
         data: {
           status: 'ACTIVE',
-          startsAt: opts.startsAt ?? existing.startsAt,
-          endsAt: opts.endsAt ?? existing.endsAt,
+          startsAt: opts.startsAt !== undefined ? opts.startsAt : existing.startsAt,
+          endsAt: opts.endsAt !== undefined ? opts.endsAt : existing.endsAt,
         },
       })
     : await tx.enrolment.create({
@@ -91,10 +92,7 @@ export const enrolUsers = defineOperation({
   }),
   authorize: (ctx, i) => ctx.perm.require('enrol:manage', i.courseId),
   async handler(ctx, input) {
-    const role = await ctx.tx.role.findUnique({ where: { id: input.roleId } });
-    if (!role?.assignableLevels.includes('COURSE'))
-      throw new ValidationError({ roleId: ['Role cannot be assigned in a course'] });
-    await assertCanAssignRole(ctx, input.courseId, role.id);
+    const role = await assertCourseRole(ctx, input.courseId, input.roleId);
     const method = await manualMethod(ctx.tx, input.courseId);
     for (const userId of input.userIds) {
       await enrolUserRecord(ctx.tx, {
@@ -132,8 +130,8 @@ export const enrolUsers = defineOperation({
   },
 });
 
-/** Site admins and managers may assign any course role; others follow RoleAssignRule. */
-async function assertCanAssignRole(ctx: RequestContext, courseId: string, roleId: string) {
+/** Site admins may assign any role; others follow RoleAssignRule for roles they hold here. */
+export async function assertCanAssignRole(ctx: RequestContext, contextId: string, roleId: string) {
   if (ctx.actor.kind === 'system' || ctx.perm.isSiteAdmin) return;
   const userId = ctx.perm.userId;
   if (!userId) throw new ForbiddenError();
@@ -142,8 +140,8 @@ async function assertCanAssignRole(ctx: RequestContext, courseId: string, roleId
       userId,
       contextId: {
         in: [
-          ...(await ctx.db.context.findUniqueOrThrow({ where: { id: courseId } })).ancestorIds,
-          courseId,
+          ...(await ctx.db.context.findUniqueOrThrow({ where: { id: contextId } })).ancestorIds,
+          contextId,
         ],
       },
     },
@@ -153,6 +151,28 @@ async function assertCanAssignRole(ctx: RequestContext, courseId: string, roleId
     where: { roleId: { in: mine.map((m) => m.roleId) }, assignableRoleId: roleId },
   });
   if (!allowed) throw new ForbiddenError('You cannot assign this role');
+}
+
+/** The role exists, may be given in a course, and the caller may assign it there. */
+export async function assertCourseRole(ctx: RequestContext, courseId: string, roleId: string) {
+  const role = await ctx.db.role.findUnique({ where: { id: roleId } });
+  if (!role?.assignableLevels.includes('COURSE'))
+    throw new ValidationError({ roleId: ['Role cannot be assigned in a course'] });
+  await assertCanAssignRole(ctx, courseId, role.id);
+  return role;
+}
+
+/** Leaves groups and lets modules clean up once the user has no enrolment left in a course. */
+export async function removeCourseMembership(
+  ctx: RequestContext,
+  tx: Prisma.TransactionClient,
+  courseId: string,
+  userId: string,
+) {
+  await tx.groupMember.deleteMany({ where: { userId, group: { courseId } } });
+  await leaveGroupChats(tx, { courseId }, [userId]);
+  const mctx = buildModuleCtx(ctx, tx);
+  for (const m of listModules()) await m.lifecycle?.onUserUnenrolled?.(mctx, courseId, userId);
 }
 
 export const unenrolUser = defineOperation({
@@ -166,10 +186,8 @@ export const unenrolUser = defineOperation({
       where: { enrolmentId: { in: enrolments.map((e) => e.id) } },
     });
     await ctx.tx.roleAssignment.deleteMany({ where: { userId, contextId: courseId } });
-    await ctx.tx.groupMember.deleteMany({ where: { userId, group: { courseId } } });
     await ctx.tx.enrolment.deleteMany({ where: { courseId, userId } });
-    const mctx = buildModuleCtx(ctx, ctx.tx);
-    for (const m of listModules()) await m.lifecycle?.onUserUnenrolled?.(mctx, courseId, userId);
+    await removeCourseMembership(ctx, ctx.tx, courseId, userId);
     await logEvent(ctx.tx, {
       name: 'user.unenrolled',
       actorId: ctx.perm.userId,
@@ -204,7 +222,10 @@ export const setEnrolmentStatus = defineOperation({
   },
 });
 
-/** Replaces the user's course roles (keeps the enrolment). */
+/**
+ * Replaces the user's course roles (keeps the enrolment). Roles the caller cannot assign
+ * cannot be removed either; cohort-synced roles follow the cohort and are left alone.
+ */
 export const setCourseRoles = defineOperation({
   name: 'enrol.roles',
   input: z.object({
@@ -214,14 +235,24 @@ export const setCourseRoles = defineOperation({
   }),
   authorize: (ctx, i) => ctx.perm.require('role:assign', i.courseId),
   async handler(ctx, { courseId, userId, roleIds }) {
-    for (const r of roleIds) await assertCanAssignRole(ctx, courseId, r);
-    const enrolment = await ctx.tx.enrolment.findFirst({
+    for (const r of roleIds) await assertCourseRole(ctx, courseId, r);
+    // New roles follow the user's current enrolment, so they end when it does.
+    const enrolments = await ctx.tx.enrolment.findMany({
       where: { courseId, userId },
       orderBy: { createdAt: 'asc' },
     });
+    const enrolment =
+      enrolments.find((e) => e.status === 'ACTIVE' && !(e.endsAt && e.endsAt <= ctx.now)) ??
+      enrolments[0];
     if (!enrolment) throw new NotFoundError('Enrolment');
-    await ctx.tx.roleAssignment.deleteMany({ where: { userId, contextId: courseId } });
+    const held = await ctx.tx.roleAssignment.findMany({
+      where: { userId, contextId: courseId },
+    });
+    const remove = held.filter((a) => !roleIds.includes(a.roleId) && a.component !== 'COHORT');
+    for (const a of remove) await assertCanAssignRole(ctx, courseId, a.roleId);
+    await ctx.tx.roleAssignment.deleteMany({ where: { id: { in: remove.map((a) => a.id) } } });
     for (const roleId of roleIds) {
+      if (held.some((a) => a.roleId === roleId)) continue;
       await ctx.tx.roleAssignment.create({
         data: {
           userId,
@@ -322,11 +353,18 @@ export const selfEnrol = defineOperation({
       throw new ValidationError({ key: ['Enrolment has not opened yet'] });
     if (method.endsAt && method.endsAt <= ctx.now)
       throw new ValidationError({ key: ['Enrolment is closed'] });
-    if (await ctx.tx.enrolment.findFirst({ where: { courseId, userId, status: 'ACTIVE' } })) {
+    const mine = await ctx.tx.enrolment.findMany({ where: { courseId, userId } });
+    const expired = (e: (typeof mine)[number]) => !!e.endsAt && e.endsAt <= ctx.now;
+    // Suspended by a teacher (rather than run out): signing up again must not undo it.
+    if (mine.some((e) => e.status === 'SUSPENDED' && !expired(e)))
+      throw new ForbiddenError('Your enrolment in this course is suspended');
+    if (mine.some((e) => e.status === 'ACTIVE' && !expired(e))) {
       throw new ConflictError('You are already enrolled');
     }
     if (method.maxEnrolled) {
-      const n = await ctx.tx.enrolment.count({ where: { methodId: method.id } });
+      const n = await ctx.tx.enrolment.count({
+        where: { methodId: method.id, userId: { not: userId } },
+      });
       if (n >= method.maxEnrolled) throw new ValidationError({ key: ['The course is full'] });
     }
     let groupId: string | null = null;
@@ -390,6 +428,15 @@ export const unenrolSelf = defineOperation({
       where: { enrolmentId: { in: self.map((e) => e.id) } },
     });
     await ctx.tx.enrolment.deleteMany({ where: { id: { in: self.map((e) => e.id) } } });
+    if (!(await ctx.tx.enrolment.count({ where: { courseId, userId } })))
+      await removeCourseMembership(ctx, ctx.tx, courseId, userId);
+    await logEvent(ctx.tx, {
+      name: 'user.unenrolled',
+      actorId: userId,
+      courseId,
+      relatedUserId: userId,
+      origin: ctx.origin,
+    });
     return { courseId };
   },
 });
@@ -422,6 +469,10 @@ export async function listParticipants(
     });
     restrictGroups = mine.map((m) => m.groupId);
   }
+  // Contact details (and searching by them) only for people who manage the course roster.
+  const showContacts =
+    (await ctx.perm.can('enrol:manage', q.courseId)) ||
+    (await ctx.perm.can('user:viewdetails', q.courseId));
   const where: Prisma.UserWhereInput = {
     deletedAt: null,
     enrolments: { some: { courseId: q.courseId, ...(q.status ? { status: q.status } : {}) } },
@@ -435,8 +486,12 @@ export async function listParticipants(
       ? {
           OR: [
             { name: { contains: q.q, mode: 'insensitive' } },
-            { email: { contains: q.q, mode: 'insensitive' } },
-            { username: { contains: q.q, mode: 'insensitive' } },
+            ...(showContacts
+              ? [
+                  { email: { contains: q.q, mode: 'insensitive' as const } },
+                  { username: { contains: q.q, mode: 'insensitive' as const } },
+                ]
+              : []),
           ],
         }
       : {}),
@@ -468,7 +523,15 @@ export async function listParticipants(
       },
     }),
   ]);
-  return { total, page: q.page, pageSize: q.pageSize, users };
+  return {
+    total,
+    page: q.page,
+    pageSize: q.pageSize,
+    showContacts,
+    users: showContacts
+      ? users
+      : users.map((u) => ({ ...u, email: '', emailPlaceholder: true, username: null })),
+  };
 }
 
 /** Users not yet enrolled, for the "enrol users" picker. */

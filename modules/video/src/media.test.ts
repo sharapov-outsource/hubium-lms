@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addWatched,
   coveredSeconds,
   hlsArgs,
   ladderFor,
@@ -41,6 +42,30 @@ describe('watched intervals', () => {
     expect(watchPercent(m, 100)).toBe(90);
     expect(watchPercent(m, 0)).toBe(0);
     expect(watchPercent([[0, 500]], 100)).toBe(100);
+  });
+});
+
+describe('watch budget', () => {
+  it('accepts reports within the budget', () => {
+    expect(addWatched([[0, 10]], [[10, 20]], 30)).toEqual([[0, 20]]);
+    // re-watching costs nothing
+    expect(addWatched([[0, 100]], [[0, 100]], 0)).toEqual([[0, 100]]);
+  });
+
+  it('trims claims beyond the time that has passed', () => {
+    const out = addWatched([[0, 10]], [[10, 600]], 30);
+    expect(coveredSeconds(out)).toBeCloseTo(40, 3);
+    const split = addWatched(
+      [],
+      [
+        [0, 20],
+        [100, 200],
+      ],
+      30,
+      300,
+    );
+    expect(coveredSeconds(split)).toBeCloseTo(30, 3);
+    expect(split[0]).toEqual([0, 20]);
   });
 });
 

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createWriteStream, existsSync, readdirSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -44,7 +45,14 @@ type Scorm = ActivityRef<ScormSettingsT>;
 type Db = Prisma.TransactionClient;
 
 export const SCORM_MAX_BYTES = 1024 * 1024 * 1024;
-const key = (pkgId: string, file: string) => `mod/scorm/${pkgId}/${file}`;
+/**
+ * Storage key of a package file. Storage keys are plain ASCII, so names with spaces or
+ * other letters (common in exported courses: "Глава 1.html") are stored under a hash.
+ */
+export const key = (pkgId: string, file: string) =>
+  /^[\w./-]+$/.test(file) && !file.includes('..')
+    ? `mod/scorm/${pkgId}/${file}`
+    : `mod/scorm/${pkgId}/_hashed/${createHash('sha256').update(file).digest('hex')}`;
 
 // ── runtime (scorm-again) ────────────────────────────────────────────────────
 
@@ -421,6 +429,7 @@ export const scorm = defineModule<ScormSettingsT>({
       },
     }),
     newAttempt: defineAction({
+      capability: 'mod.scorm:launch',
       input: z.object({}),
       async handler(ctx, ref) {
         const a = ref as Scorm;
@@ -461,7 +470,16 @@ export const scorm = defineModule<ScormSettingsT>({
     }
 
     if (kind === 'pkg') {
-      const file = rest.join('/');
+      // Segments may arrive percent-encoded ("Глава%201.html").
+      const file = rest
+        .map((seg) => {
+          try {
+            return decodeURIComponent(seg);
+          } catch {
+            return seg;
+          }
+        })
+        .join('/');
       if (!((pkg.files as string[]) ?? []).includes(file))
         return new Response('Not found', { status: 404 });
       const stream = await ctx.storage.get(key(pkg.id, file));

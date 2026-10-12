@@ -36,6 +36,7 @@
     "noPackage": "No package uploaded yet.",
     "noPackageManager": "Upload a SCORM package below.",
     "processing": "Unpacking the package…",
+    "cannotLaunch": "You cannot launch this package.",
     "failed": "The package could not be processed: {error}",
     "package": "Package",
     "scoCount": "{n, plural, one {# unit} other {# units}}",

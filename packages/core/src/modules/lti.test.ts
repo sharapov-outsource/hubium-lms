@@ -184,7 +184,7 @@ describe('mod-lti (LTI 1.3 platform)', () => {
         activityProgress: 'Completed',
         gradingProgress: 'FullyGraded',
         timestamp: new Date().toISOString(),
-        comment: 'Отлично',
+        comment: 'Отлично <img src=x onerror=alert(1)>',
       }),
     });
     expect(score.status).toBe(200);
@@ -195,7 +195,8 @@ describe('mod-lti (LTI 1.3 platform)', () => {
       where: { gradeItemId_userId: { gradeItemId: item.id, userId: f.users.student1! } },
     });
     expect(Number(g.finalGrade)).toBe(80);
-    expect(g.feedback).toBe('Отлично');
+    // plain-text comment from the tool is stored escaped, never as markup
+    expect(g.feedback).toBe('<p>Отлично &lt;img src=x onerror=alert(1)&gt;</p>');
     const results = (await (
       await http('anon', 'GET', `ags/${ltiId}/lineitems/0/results`, { headers: auth })
     ).json()) as {
@@ -203,6 +204,7 @@ describe('mod-lti (LTI 1.3 platform)', () => {
     }[];
     expect(results[0]).toMatchObject({
       userId: f.users.student1,
+      comment: 'Отлично <img src=x onerror=alert(1)>',
       resultScore: 80,
       resultMaximum: 100,
     });
@@ -291,5 +293,35 @@ describe('mod-lti (LTI 1.3 platform)', () => {
     });
     const launchAfter = await verifyIdToken((await launch(f.users.student1!)).idToken!);
     expect(launchAfter[LTI.claim('target_link_uri')]).toBe('https://tool.test/item/42');
+
+    // the same response cannot be replayed
+    const replay = await http('anon', 'POST', `deeplink/${ltiId}`, {
+      body: new URLSearchParams({ JWT: response }).toString(),
+    });
+    expect(replay.status).toBe(400);
+  });
+
+  it('Deep Linking: a learner launch hint cannot be passed off as request data', async () => {
+    const { params } = await launch(f.users.student1!);
+    const forged = await new SignJWT({
+      [LTI.claim('message_type')]: 'LtiDeepLinkingResponse',
+      [LTI.claim('version')]: '1.3.0',
+      [LTI.claim('deployment_id')]: tool.deploymentId,
+      [LTI.dl('data')]: params.get('lti_message_hint'),
+      [LTI.dl('content_items')]: [{ type: 'ltiResourceLink', url: 'https://evil.test/' }],
+      nonce: 'dl-forged',
+    })
+      .setProtectedHeader({ alg: 'RS256' })
+      .setIssuer(tool.clientId)
+      .setAudience(issuer())
+      .setIssuedAt()
+      .setExpirationTime('5m')
+      .sign(toolKey);
+    const r = await http('anon', 'POST', `deeplink/${ltiId}`, {
+      body: new URLSearchParams({ JWT: forged }).toString(),
+    });
+    expect(r.status).toBe(400);
+    const act = await t.db.activity.findUniqueOrThrow({ where: { id: ltiId } });
+    expect(act.settings).toMatchObject({ contentUrl: 'https://tool.test/item/42' });
   });
 });

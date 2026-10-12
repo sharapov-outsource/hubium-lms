@@ -19,6 +19,40 @@ export function mergeIntervals(list: Interval[], duration = Number.POSITIVE_INFI
   return out;
 }
 
+/**
+ * Adds reported intervals to what was already watched, but no more new seconds than
+ * `budget`: a client cannot claim more watching than the time that has passed.
+ */
+export function addWatched(
+  base: Interval[],
+  incoming: Interval[],
+  budget: number,
+  duration?: number,
+): Interval[] {
+  let out = mergeIntervals(base, duration);
+  let left = Math.max(0, budget);
+  for (const [s, e] of mergeIntervals(incoming, duration)) {
+    const covered = coveredSeconds(out);
+    const gain = (end: number) =>
+      coveredSeconds(mergeIntervals([...out, [s, end]], duration)) - covered;
+    if (gain(e) <= left) {
+      left -= gain(e);
+      out = mergeIntervals([...out, [s, e]], duration);
+      continue;
+    }
+    let lo = s;
+    let hi = e;
+    for (let i = 0; i < 30; i++) {
+      const mid = (lo + hi) / 2;
+      if (gain(mid) <= left) lo = mid;
+      else hi = mid;
+    }
+    if (lo > s) out = mergeIntervals([...out, [s, lo]], duration);
+    break;
+  }
+  return out;
+}
+
 export function coveredSeconds(list: Interval[]): number {
   return list.reduce((s, [a, b]) => s + (b - a), 0);
 }

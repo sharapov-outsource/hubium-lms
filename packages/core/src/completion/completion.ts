@@ -1,5 +1,6 @@
 import type { CompletionState, Db, Prisma } from '@hubium/db';
 import { z } from 'zod';
+import { Permissions } from '../access/permissions.ts';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
@@ -107,6 +108,33 @@ export async function recomputeActivityCompletion(
     await writeState(tx, activityId, userId, state);
     await recomputeCourseProgress(tx, a.courseId, userId);
   }
+}
+
+export const COMPLETION_RECOMPUTE_JOB = 'completion.recompute';
+
+/**
+ * Worker job: re-evaluates an activity's completion for everyone enrolled, after its
+ * completion rules changed (a new pass mark, "must view" added…).
+ */
+export async function recomputeActivityForAll(db: Db, activityId: string): Promise<number> {
+  const a = await db.activity.findUnique({ where: { id: activityId } });
+  if (!a || a.deletedAt || a.completionMode !== 'AUTO') return 0;
+  const ctx: RequestContext = {
+    db,
+    actor: { kind: 'system' },
+    perm: new Permissions(db, { kind: 'system' }),
+    now: new Date(),
+    locale: 'ru',
+    origin: 'WORKER',
+  };
+  const users = await db.enrolment.findMany({
+    where: { courseId: a.courseId },
+    select: { userId: true },
+    distinct: ['userId'],
+  });
+  for (const { userId } of users)
+    await db.$transaction((tx) => recomputeActivityCompletion(ctx, tx, activityId, userId));
+  return users.length;
 }
 
 export async function markActivityViewed(

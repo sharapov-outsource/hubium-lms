@@ -46,7 +46,7 @@ describe('toICal', () => {
     expect(ics).toContain('DTSTART:20260501T090000Z');
     expect(ics).toContain('DTSTART;VALUE=DATE:20260509');
     expect(ics).toContain('SUMMARY:Эссе (История)');
-    expect(ics).toContain('DESCRIPTION:Line 1\\nLine\\, 2; done');
+    expect(ics).toContain('DESCRIPTION:Line 1\\nLine\\, 2\\; done');
     expect(ics).toContain('URL:https://lms.example/course/c1/a/a1');
     expect(ics.endsWith('END:VCALENDAR\r\n')).toBe(true);
   });

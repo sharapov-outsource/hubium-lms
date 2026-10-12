@@ -1,6 +1,6 @@
-import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { SharedArray } from 'k6/data';
+import http from 'k6/http';
 
 // 1000 concurrent quiz attempts through the module action API: start, answer, finish.
 const users = new SharedArray('users', () => JSON.parse(open('./users.json')));

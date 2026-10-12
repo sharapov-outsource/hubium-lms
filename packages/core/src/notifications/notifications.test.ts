@@ -76,6 +76,33 @@ describe('notifications', () => {
     expect((job!.data as { ids: string[] }).ids.sort()).toEqual(rows.map((r) => r.id).sort());
   });
 
+  it('keeps failed immediate emails pending so the job is retried', async () => {
+    const { setMailTransport } = await import('../mail/mail.ts');
+    const user = await t.db.user.findFirstOrThrow({ where: { username: 'student3' } });
+    const n = await t.db.notification.create({
+      data: { userId: user.id, type: 'enrol.enrolled', title: 'Повтор', emailState: 'PENDING' },
+    });
+    setMailTransport({
+      sendMail: async () => {
+        throw new Error('SMTP down');
+      },
+    } as never);
+    try {
+      await expect(sendNotificationEmails(t.db, [n.id])).rejects.toThrow(/could not be sent/);
+    } finally {
+      // back to the shared stub from the helpers
+      setMailTransport({
+        sendMail: async (m: (typeof sentMail)[number]) => {
+          sentMail.push(m);
+          return { messageId: `test-${sentMail.length}` };
+        },
+      } as never);
+    }
+    expect((await t.db.notification.findUniqueOrThrow({ where: { id: n.id } })).emailState).toBe(
+      'PENDING',
+    );
+  });
+
   it('sends immediate emails with one-click unsubscribe headers', async () => {
     const ids = (
       await t.db.notification.findMany({ where: { emailState: 'PENDING' }, select: { id: true } })

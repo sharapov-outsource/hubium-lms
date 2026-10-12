@@ -1,10 +1,11 @@
-import { SYSTEM_CONTEXT_ID } from '@hubium/db';
+import { type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
-import { enrolUserRecord } from '../enrol/enrol.ts';
-import { NotFoundError, ValidationError } from '../errors.ts';
+import { assertCourseRole, enrolUserRecord, removeCourseMembership } from '../enrol/enrol.ts';
+import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { optionalText } from '../lib/zod.ts';
+import { leaveGroupChats } from '../messaging/messaging.ts';
 import { defineOperation } from '../operation.ts';
 
 const GroupInput = z.object({
@@ -106,8 +107,10 @@ export const setGroupMembers = defineOperation({
         skipDuplicates: true,
       });
     }
-    if (remove.length)
+    if (remove.length) {
       await ctx.tx.groupMember.deleteMany({ where: { groupId, userId: { in: remove } } });
+      await leaveGroupChats(ctx.tx, { groupIds: [groupId] }, remove);
+    }
     return { groupId };
   },
 });
@@ -165,10 +168,51 @@ export const deleteCohort = defineOperation({
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('cohort:manage'),
   async handler(ctx, { id }) {
+    // Courses synced with the cohort lose those enrolments, as if each sync were removed.
+    const methods = await ctx.tx.enrolmentMethod.findMany({
+      where: { cohortId: id, type: 'COHORT' },
+    });
+    for (const m of methods) await deleteMethod(ctx, m.id);
     await ctx.tx.cohort.delete({ where: { id } });
     return { id };
   },
 });
+
+/** Removes an enrolment method with its enrolments and the roles they granted. */
+async function deleteMethod(
+  ctx: RequestContext & { tx: Prisma.TransactionClient },
+  methodId: string,
+) {
+  const method = await ctx.tx.enrolmentMethod.findUniqueOrThrow({ where: { id: methodId } });
+  const ens = await ctx.tx.enrolment.findMany({ where: { methodId } });
+  await ctx.tx.roleAssignment.deleteMany({
+    where: { enrolmentId: { in: ens.map((e) => e.id) } },
+  });
+  await ctx.tx.enrolmentMethod.delete({ where: { id: methodId } });
+  await leaveCourseIfUnenrolled(
+    ctx,
+    method.courseId,
+    ens.map((e) => e.userId),
+  );
+}
+
+async function leaveCourseIfUnenrolled(
+  ctx: RequestContext & { tx: Prisma.TransactionClient },
+  courseId: string,
+  userIds: string[],
+) {
+  if (!userIds.length) return;
+  const still = new Set(
+    (
+      await ctx.tx.enrolment.findMany({
+        where: { courseId, userId: { in: userIds } },
+        select: { userId: true },
+      })
+    ).map((e) => e.userId),
+  );
+  for (const u of userIds)
+    if (!still.has(u)) await removeCourseMembership(ctx, ctx.tx, courseId, u);
+}
 
 /** Adds/removes cohort members and keeps cohort-synced course enrolments in step. */
 export const setCohortMembers = defineOperation({
@@ -208,6 +252,11 @@ export const setCohortMembers = defineOperation({
           where: { enrolmentId: { in: ens.map((e) => e.id) } },
         });
         await ctx.tx.enrolment.deleteMany({ where: { id: { in: ens.map((e) => e.id) } } });
+        await leaveCourseIfUnenrolled(
+          ctx,
+          m.courseId,
+          ens.map((e) => e.userId),
+        );
       }
     }
     return { cohortId };
@@ -224,11 +273,14 @@ export const addCohortSync = defineOperation({
   }),
   authorize: (ctx, i) => ctx.perm.require('enrol:manage', i.courseId),
   async handler(ctx, { courseId, cohortId, roleId }) {
+    await assertCourseRole(ctx, courseId, roleId);
     const cohort = await ctx.tx.cohort.findUnique({
       where: { id: cohortId },
       include: { members: true },
     });
     if (!cohort) throw new NotFoundError('Cohort');
+    if (await ctx.tx.enrolmentMethod.findFirst({ where: { courseId, cohortId, type: 'COHORT' } }))
+      throw new ConflictError('This cohort is already synced with the course');
     const method = await ctx.tx.enrolmentMethod.create({
       data: { courseId, type: 'COHORT', cohortId, roleId, name: cohort.name, sortOrder: 5 },
     });
@@ -256,11 +308,7 @@ export const removeEnrolmentMethod = defineOperation({
       throw new ValidationError({ methodId: ['The manual method cannot be removed'] });
   },
   async handler(ctx, { methodId }) {
-    const ens = await ctx.tx.enrolment.findMany({ where: { methodId } });
-    await ctx.tx.roleAssignment.deleteMany({
-      where: { enrolmentId: { in: ens.map((e) => e.id) } },
-    });
-    await ctx.tx.enrolmentMethod.delete({ where: { id: methodId } });
+    await deleteMethod(ctx, methodId);
     return { methodId };
   },
 });

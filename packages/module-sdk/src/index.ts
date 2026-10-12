@@ -32,6 +32,7 @@ export interface ModuleFile {
 }
 
 export interface ModuleFiles {
+  /** Files of an area; without `itemId`, those of every item. */
   list(activityId: string, area: string, itemId?: string): Promise<ModuleFile[]>;
   store(
     activityId: string,
@@ -39,7 +40,8 @@ export interface ModuleFiles {
     file: { name: string; mimeType?: string; data: Buffer; itemId?: string; path?: string },
     opts?: { maxBytes?: number; replace?: boolean },
   ): Promise<ModuleFile>;
-  remove(activityId: string, area: string, ids: string[]): Promise<void>;
+  /** Deletes files by id; with `itemId`, only those of that item (e.g. the caller's submission). */
+  remove(activityId: string, area: string, ids: string[], itemId?: string): Promise<void>;
   /** Moves a finished resumable upload (see /api/uploads) into a file area. */
   storeUpload(
     activityId: string,

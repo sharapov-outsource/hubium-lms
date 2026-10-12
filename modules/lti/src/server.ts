@@ -20,6 +20,19 @@ import {
   verifyToolJwt,
 } from './protocol.ts';
 
+const textToHtml = (t: string) =>
+  t.trim()
+    ? `<p>${t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</p>`
+    : '';
+const htmlToText = (h: string) =>
+  h
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .trim();
+
 export * from './protocol.ts';
 
 // mod-lti: LTI 1.3 platform. Tools are registered by administrators; activities launch
@@ -526,7 +539,9 @@ async function handleAgs(ctx: ModuleCtx, req: Request, activityId: string, rest:
       {
         userId,
         rawGrade: raw === null ? null : Math.min(Number(item.gradeMax), raw),
-        feedback: typeof body.comment === 'string' ? body.comment.slice(0, 10_000) : undefined,
+        // AGS comments are plain text: escape them so the gradebook shows them literally.
+        feedback:
+          typeof body.comment === 'string' ? textToHtml(body.comment.slice(0, 10_000)) : undefined,
         itemNumber: n,
       },
     ]);
@@ -551,7 +566,7 @@ async function handleAgs(ctx: ModuleCtx, req: Request, activityId: string, rest:
             ? null
             : (Number(g.finalGrade) / Number(item!.gradeMax)) * li.scoreMaximum,
         resultMaximum: li.scoreMaximum,
-        ...(g.feedback ? { comment: g.feedback } : {}),
+        ...(g.feedback ? { comment: htmlToText(g.feedback) } : {}),
       })),
       200,
       'application/vnd.ims.lis.v2.resultcontainer+json',
@@ -607,6 +622,14 @@ async function handleNrps(ctx: ModuleCtx, req: Request, activityId: string) {
   );
 }
 
+const isHttpUrl = (u: string) => {
+  try {
+    return ['https:', 'http:'].includes(new URL(u).protocol);
+  } catch {
+    return false;
+  }
+};
+
 async function handleDeepLink(ctx: ModuleCtx, req: Request, activityId: string) {
   const found = await loadLti(ctx.db, activityId);
   if (!found) return fail(404, 'Not found');
@@ -624,14 +647,32 @@ async function handleDeepLink(ctx: ModuleCtx, req: Request, activityId: string) 
     return fail(400, 'Wrong message type');
   if (payload[LTI.claim('deployment_id')] !== found.tool.deploymentId)
     return fail(400, 'Wrong deployment');
+  // `data` must be the one we put in a deep linking request (not, say, a learner's launch
+  // hint the tool has also seen), and its user must still be allowed to pick content.
   const data = readHint(String(payload[LTI.dl('data')] ?? ''));
-  if (!data || data.a !== activityId || data.t !== found.tool.id) return fail(400, 'Invalid data');
+  if (data?.m !== 'LtiDeepLinkingRequest' || data.a !== activityId || data.t !== found.tool.id)
+    return fail(400, 'Invalid data');
+  const picker = await ctx.db.user.findUnique({
+    where: { id: data.u },
+    select: { isSiteAdmin: true },
+  });
+  if (
+    !picker ||
+    !(
+      picker.isSiteAdmin ||
+      (await ctx.perm.usersWithCap('mod.lti:manage', activityId)).includes(data.u)
+    )
+  )
+    return fail(403, 'Forbidden');
+  const once = String(payload.nonce ?? payload.jti ?? '');
+  if (!once || !(await claimNonce(ctx.db, `dl:${once}`, 3600)))
+    return fail(400, 'Deep linking response reused');
   const items = (payload[LTI.dl('content_items')] as Record<string, unknown>[] | undefined) ?? [];
   const link = items.find((i) => i.type === 'ltiResourceLink');
   if (link) {
     const custom = (link.custom ?? {}) as Record<string, string>;
     const lineItem = link.lineItem as { scoreMaximum?: number } | undefined;
-    const next: LtiSettingsT = {
+    const parsed = LtiSettings.safeParse({
       ...found.settings,
       contentUrl: typeof link.url === 'string' ? link.url : found.settings.contentUrl,
       contentTitle:
@@ -645,7 +686,10 @@ async function handleDeepLink(ctx: ModuleCtx, req: Request, activityId: string) 
       ...(lineItem?.scoreMaximum
         ? { sendGrades: true, gradeMax: Number(lineItem.scoreMaximum) }
         : {}),
-    };
+    });
+    if (!parsed.success || (parsed.data.contentUrl && !isHttpUrl(parsed.data.contentUrl)))
+      return fail(400, 'Invalid content item');
+    const next = parsed.data;
     await ctx.db.activity.update({
       where: { id: activityId },
       data: { settings: next as unknown as Prisma.InputJsonValue },

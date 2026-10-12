@@ -2,7 +2,7 @@ import { importGift, runModuleAction } from '@hubium/core';
 import { fileUrl, storeFile } from '@hubium/core/files/files';
 import { ctxFor, useTestDb } from '@hubium/core/testing';
 import { courseFixture } from '@hubium/core/testing/course-fixture';
-import { strFromU8, unzipSync } from 'fflate';
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
   duplicateCourse,
@@ -128,6 +128,68 @@ describe('.hubium backup and restore', () => {
     await expect(
       duplicateCourse(admin, f.courseId, { fullName: 'Ещё', shortName: 'BACKUP1-COPY' }),
     ).rejects.toThrow();
+  });
+
+  it('sanitises HTML and settings from a tampered archive', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const course = await t.db.course.findUniqueOrThrow({ where: { id: f.courseId } });
+    const entries = unzipSync(zip);
+    const body = JSON.parse(strFromU8(entries['course.json']!));
+    const evil = '<p>ok</p><script>alert(1)</script><img src="x" onerror="alert(2)">';
+    body.course.summary = evil;
+    body.sections[0].summary = evil;
+    const page = body.activities.find((a: { name: string }) => a.name === 'Введение');
+    page.intro = evil;
+    page.settings = { content: evil, junk: 'x' };
+    body.questions[0].text = evil;
+    body.questions.push({ ...body.questions[1], id: crypto.randomUUID(), type: 'EVAL' });
+    entries['course.json'] = strToU8(JSON.stringify(body));
+    const r = await restoreCourse(admin, zipSync(entries), { categoryId: course.categoryId });
+    expect(r.warnings).toHaveLength(1);
+
+    const copy = await t.db.course.findUniqueOrThrow({
+      where: { id: r.courseId },
+      include: { sections: { orderBy: { rank: 'asc' } } },
+    });
+    const act = await t.db.activity.findFirstOrThrow({
+      where: { courseId: r.courseId, name: 'Введение' },
+    });
+    const qs = await t.db.question.findMany({ where: { category: { contextId: r.courseId } } });
+    expect(qs).toHaveLength(2);
+    const html = [
+      copy.summary,
+      copy.sections[0]!.summary,
+      act.intro,
+      (act.settings as { content: string }).content,
+      ...qs.map((q) => q.text),
+    ];
+    for (const h of html) {
+      expect(h).not.toMatch(/<script|onerror/);
+    }
+    expect(act.settings).not.toHaveProperty('junk');
+  });
+
+  it('restores courses with more sections than a new course may have', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const course = await t.db.course.findUniqueOrThrow({ where: { id: f.courseId } });
+    const entries = unzipSync(zip);
+    const body = JSON.parse(strFromU8(entries['course.json']!));
+    const extra = Array.from({ length: 60 }, (_, i) => ({
+      id: crypto.randomUUID(),
+      title: `Неделя ${i + 1}`,
+      summary: '',
+      visible: true,
+      availability: null,
+    }));
+    body.sections.push(...extra);
+    entries['course.json'] = strToU8(JSON.stringify(body));
+    const r = await restoreCourse(admin, zipSync(entries), { categoryId: course.categoryId });
+    const sections = await t.db.courseSection.findMany({
+      where: { courseId: r.courseId },
+      orderBy: { rank: 'asc' },
+    });
+    expect(sections).toHaveLength(body.sections.length);
+    expect(sections.at(-1)!.title).toBe('Неделя 60');
   });
 
   it('rejects foreign archives', async () => {

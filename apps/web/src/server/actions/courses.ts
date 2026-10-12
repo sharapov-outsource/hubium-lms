@@ -17,6 +17,7 @@ import {
   deleteSection,
   duplicateActivity,
   enrolUsers,
+  isSwitchableRole,
   moveActivity,
   moveActivityStep,
   moveCategoryOrder,
@@ -50,6 +51,7 @@ import { storeFile } from '@hubium/core/files/files';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { safePath } from '@/lib/safe-path';
 import { formToObject, runAction } from '../action';
 import { db } from '../db';
 import { getContext, VIEW_AS_COOKIE } from '../session';
@@ -270,7 +272,7 @@ export async function updateActivityAction(fd: FormData) {
     await saveActivityFiles(r.id, fd);
     return r;
   });
-  if (res.ok && v.returnTo) redirect(v.returnTo.startsWith('/') ? v.returnTo : '/');
+  if (res.ok && v.returnTo) redirect(safePath(v.returnTo, '/'));
   return res;
 }
 
@@ -347,6 +349,14 @@ export async function overrideCompletionAction(
 
 export async function switchRoleAction(courseId: string, roleId: string | null) {
   const jar = await cookies();
+  if (roleId) {
+    const ctx = await getContext();
+    if (
+      !(await ctx.perm.can('course:switchrole', courseId)) ||
+      !(await isSwitchableRole(db, courseId, roleId))
+    )
+      return;
+  }
   if (roleId)
     jar.set(VIEW_AS_COOKIE, `${courseId}:${roleId}`, {
       path: '/',

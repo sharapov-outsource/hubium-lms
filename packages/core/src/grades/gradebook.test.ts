@@ -1,10 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
-import { ForbiddenError, ValidationError } from '../errors.ts';
+import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { runModuleAction } from '../modules/actions.ts';
 import {
   createManualItem,
+  csvEscape,
   exportGradesCsv,
   graderReport,
   importGradesCsv,
@@ -47,6 +48,57 @@ describe('gradebook', () => {
     await overrideGrade.run(teacher, { itemId: manualId, userId: f.users.student1!, value: 5 });
     // (40 + 5) / (50 + 10) = 75%
     expect(await total(t.db, f.courseId, f.users.student1!)).toBeCloseTo(75);
+  });
+
+  it('activities in the recycle bin stop counting towards the total', async () => {
+    const g = await courseFixture(t.db, 'GRADES3');
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const a1 = (await g.addActivity('assign', 'Первое', { gradeMax: 10 })).id;
+    const a2 = (await g.addActivity('assign', 'Второе', { gradeMax: 10 })).id;
+    await runModuleAction(admin, a1, 'grade', { userId: g.users.student1, grade: 10 });
+    await runModuleAction(admin, a2, 'grade', { userId: g.users.student1, grade: 0 });
+    expect(await total(t.db, g.courseId, g.users.student1!)).toBeCloseTo(50);
+    const { deleteActivity, restoreActivity } = await import('../courses/activities.ts');
+    await deleteActivity.run(admin, { id: a2 });
+    expect(await total(t.db, g.courseId, g.users.student1!)).toBeCloseTo(100);
+    await restoreActivity.run(admin, { id: a2 });
+    expect(await total(t.db, g.courseId, g.users.student1!)).toBeCloseTo(50);
+  });
+
+  it('neutralises spreadsheet formulas in CSV cells', () => {
+    expect(csvEscape('=HYPERLINK("http://evil","x")')).toBe(`"'=HYPERLINK(""http://evil"",""x"")"`);
+    expect(csvEscape('@SUM(A1)')).toBe("'@SUM(A1)");
+    expect(csvEscape('-cmd')).toBe("'-cmd");
+    expect(csvEscape('-2.5')).toBe('-2.5');
+    expect(csvEscape('Иванов, Пётр')).toBe('"Иванов, Пётр"');
+  });
+
+  it('grade categories of another course cannot be used or edited', async () => {
+    const other = await courseFixture(t.db, 'GRADES2');
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const { id: foreign } = await saveGradeCategory.run(admin, {
+      courseId: other.courseId,
+      name: 'Чужая',
+      aggregation: 'MEAN',
+    });
+    const teacher = await ctxFor(t.db, 'teacher@hubium.local');
+    await expect(
+      saveGradeCategory.run(teacher, {
+        courseId: f.courseId,
+        id: foreign,
+        name: 'Моя',
+        aggregation: 'HIGHEST',
+      }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    await expect(
+      createManualItem.run(teacher, { courseId: f.courseId, name: 'X', categoryId: foreign }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    await expect(
+      updateGradeItem.run(teacher, { id: manualId, categoryId: foreign }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    expect((await t.db.gradeCategory.findUniqueOrThrow({ where: { id: foreign } })).name).toBe(
+      'Чужая',
+    );
   });
 
   it('validates range and enrolment; students cannot edit', async () => {

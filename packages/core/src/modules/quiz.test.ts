@@ -228,4 +228,25 @@ describe('mod-quiz', () => {
     expect(at.state).toBe('FINISHED');
     expect(Number(at.sumGrades)).toBe(1);
   });
+
+  it('time limit: a late save submits the attempt instead of failing', async () => {
+    const { id } = await f.addActivity('quiz', 'На время 2', { attempts: 0, timeLimitMin: 1 });
+    const q = await t.db.question.findFirstOrThrow({
+      where: { category: { contextId: f.courseId }, type: 'TRUEFALSE' },
+    });
+    await runModuleAction(await ctxFor(t.db, 'teacher@hubium.local'), id, 'addQuestions', {
+      questionIds: [q.id],
+    });
+    const s3 = await ctxFor(t.db, 'student3@hubium.local');
+    const { attemptId } = (await runModuleAction(s3, id, 'start', {})) as { attemptId: string };
+    await t.db.quizAttempt.update({
+      where: { id: attemptId },
+      data: { dueAt: new Date(Date.now() - 5 * 60_000) },
+    });
+    expect(
+      await runModuleAction(s3, id, 'save', { attemptId, answers: { '1': { value: true } } }),
+    ).toMatchObject({ closed: true });
+    const at = await t.db.quizAttempt.findUniqueOrThrow({ where: { id: attemptId } });
+    expect(at.state).toBe('FINISHED');
+  });
 });

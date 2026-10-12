@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react';
 import { useLiveCounts } from '@/components/comms/live-counts';
 import { useRealtime } from '@/components/realtime';
@@ -41,6 +41,9 @@ import {
   searchPeopleAction,
   sendMessageAction,
 } from '@/server/actions/comms';
+
+/** Server actions accept 10 MB per request; leave room for the rest of the form. */
+const MAX_ATTACHMENTS_BYTES = 9 * 1024 * 1024;
 
 type Conversation = Awaited<ReturnType<typeof conversationsAction>>[number];
 type Info = {
@@ -129,6 +132,8 @@ function ConversationList({
 }) {
   const t = useTranslations('messages');
   const format = useFormatter();
+  // "5 minutes ago" must keep moving while the page stays open.
+  const now = useNow({ updateInterval: 60_000 });
   const router = useRouter();
   const [q, setQ] = useState('');
   const dq = useDebounced(q.trim(), 250);
@@ -225,7 +230,7 @@ function ConversationList({
                         </span>
                         {c.lastMessageAt ? (
                           <span className="shrink-0 text-xs text-muted-foreground">
-                            {format.relativeTime(new Date(c.lastMessageAt))}
+                            {format.relativeTime(new Date(c.lastMessageAt), now)}
                           </span>
                         ) : null}
                       </span>
@@ -360,6 +365,7 @@ function Thread({
   onActivity: () => void;
 }) {
   const t = useTranslations('messages');
+  const tc = useTranslations('common');
   const format = useFormatter();
   const router = useRouter();
   const [messages, setMessages] = useState(initial.items);
@@ -393,14 +399,23 @@ function Thread({
     if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
   }, [messages, typing]);
 
+  // Realtime handlers outlive renders: read the newest list through a ref.
+  const latest = useRef(messages);
+  latest.current = messages;
+  const merge = (cur: ClientMessage[], items: ClientMessage[], where: 'start' | 'end') => {
+    const known = new Set(cur.map((m) => m.id));
+    const add = items.filter((m) => !known.has(m.id));
+    return where === 'end' ? [...cur, ...add] : [...add, ...cur];
+  };
   const fetchNew = async () => {
-    const last = messages.at(-1)?.id;
-    const r = await messagesAction(info.id, last ? { after: last } : {});
-    if (r.items.length) {
-      setMessages((cur) => {
-        const known = new Set(cur.map((m) => m.id));
-        return [...cur, ...r.items.filter((m) => !known.has(m.id))];
-      });
+    // After a reconnect there may be more than one page of new messages.
+    for (let page = 0; page < 20; page++) {
+      const last = latest.current.at(-1)?.id;
+      const r = await messagesAction(info.id, last ? { after: last } : {});
+      if (!r.items.length) return;
+      latest.current = merge(latest.current, r.items, 'end');
+      setMessages((cur) => merge(cur, r.items, 'end'));
+      if (!r.hasMore || !last) return;
     }
   };
   const reloadRecent = async () => {
@@ -437,7 +452,7 @@ function Thread({
     const before = el ? el.scrollHeight - el.scrollTop : 0;
     const r = await messagesAction(info.id, { before: first });
     stickToBottom.current = false;
-    setMessages((cur) => [...r.items, ...cur]);
+    setMessages((cur) => merge(cur, r.items, 'start'));
     setHasMore(r.hasMore);
     requestAnimationFrame(() => {
       if (el) el.scrollTop = el.scrollHeight - before;
@@ -451,9 +466,12 @@ function Thread({
     fd.delete('files');
     for (const f of files) fd.append('files', f);
     if (!String(fd.get('body') ?? '').trim() && !files.length) return;
+    if (files.reduce((n, f) => n + f.size, 0) > MAX_ATTACHMENTS_BYTES)
+      return void toast.error(t('attachmentsTooLarge'));
     stickToBottom.current = true;
     start(async () => {
-      const r = await sendMessageAction(fd);
+      const r = await sendMessageAction(fd).catch(() => null);
+      if (!r) return void toast.error(tc('error'));
       if (!r.ok) return void toast.error(r.message);
       form.reset();
       setFiles([]);

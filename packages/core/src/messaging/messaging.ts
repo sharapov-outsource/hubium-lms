@@ -16,7 +16,8 @@ type AnyDb = Db | Tx;
 
 export const MESSAGE_COMPONENT = 'message';
 export const MESSAGE_MAX_FILES = 5;
-export const MESSAGE_MAX_FILE_BYTES = 20 * 1024 * 1024;
+/** Attachments travel in one server action request (10 MB body limit, see next.config). */
+export const MESSAGE_MAX_FILE_BYTES = 9 * 1024 * 1024;
 
 function me(ctx: RequestContext): string {
   const id = ctx.perm.userId;
@@ -203,6 +204,26 @@ export async function syncGroupChatMembers(
       skipDuplicates: true,
     });
   }
+}
+
+/** People who leave course groups also leave those groups' chats. */
+export async function leaveGroupChats(
+  tx: AnyDb,
+  where: { groupIds: string[] } | { courseId: string },
+  userIds: string[],
+): Promise<void> {
+  if (!userIds.length) return;
+  await tx.conversationMember.updateMany({
+    where: {
+      userId: { in: userIds },
+      leftAt: null,
+      conversation:
+        'groupIds' in where
+          ? { groupId: { in: where.groupIds } }
+          : { courseId: where.courseId, groupId: { not: null } },
+    },
+    data: { leftAt: new Date() },
+  });
 }
 
 export interface ConversationSummary {

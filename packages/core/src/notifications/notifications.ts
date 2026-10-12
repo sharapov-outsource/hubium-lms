@@ -344,6 +344,7 @@ export async function sendNotificationEmails(db: Db, ids: string[]): Promise<num
   });
   const settings = await getAllSettings(db);
   let sent = 0;
+  let failed = 0;
   for (const n of rows) {
     if (n.user.emailPlaceholder) {
       await db.notification.update({ where: { id: n.id }, data: { emailState: 'NONE' } });
@@ -375,10 +376,13 @@ export async function sendNotificationEmails(db: Db, ids: string[]): Promise<num
       await db.notification.update({ where: { id: n.id }, data: { emailState: 'SENT' } });
       sent++;
     } catch (e) {
+      // Left PENDING: the job fails below and pg-boss retries it with backoff; mails
+      // already sent are SENT and skipped on the retry.
       console.error('[notifications] email failed', e);
-      await db.notification.update({ where: { id: n.id }, data: { emailState: 'FAILED' } });
+      failed++;
     }
   }
+  if (failed) throw new Error(`${failed} notification email(s) could not be sent`);
   return sent;
 }
 

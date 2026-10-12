@@ -69,7 +69,6 @@ export async function suggestGrade(
   });
   if (!sub) throw new NotFoundError('Submission');
   const a = sub.activity;
-  const f = await aiGate(ctx, { feature: 'GRADING_ASSIST', courseId: a.courseId });
   await ctx.perm.require('mod.assign:grade', a.id);
   const settings = a.settings as { gradeMax?: number };
   const gradeMax = Number(settings.gradeMax ?? 100);
@@ -79,15 +78,27 @@ export async function suggestGrade(
     include: { blob: true },
     orderBy: { sortOrder: 'asc' },
   });
+  const u = sub.user;
+  const ids = [
+    u.name,
+    u.firstName,
+    u.lastName,
+    `${u.firstName} ${u.lastName}`,
+    `${u.lastName} ${u.firstName}`,
+    u.username,
+    u.displayUsername,
+    u.email,
+    u.email.split('@')[0],
+  ];
+  // File names often carry the author's name ("Ivanov_essay.txt") too.
   const notes: string[] = [];
   const fileTexts: string[] = [];
   for (const file of files) {
+    const name = pseudonymise(file.name, ids);
     if (TEXT_TYPES.test(file.mimeType)) {
-      fileTexts.push(`--- ${file.name} ---\n${await readTextFile(file.blob.storageKey)}`);
-    } else notes.push(file.name);
+      fileTexts.push(`--- ${name} ---\n${await readTextFile(file.blob.storageKey)}`);
+    } else notes.push(name);
   }
-  const u = sub.user;
-  const ids = [u.firstName, u.lastName, `${u.firstName} ${u.lastName}`, u.username, u.email];
   const submission = pseudonymise(
     [htmlToText(sub.onlineText), ...fileTexts].filter((s) => s.trim()).join('\n\n'),
     ids,
@@ -107,6 +118,7 @@ export async function suggestGrade(
     .filter(Boolean)
     .join('\n\n');
 
+  const f = await aiGate(ctx, { feature: 'GRADING_ASSIST', courseId: a.courseId });
   const r = await runAi(ctx, f, { courseId: a.courseId }, async () => {
     const res = await f.llm.generateObject({
       tag: 'grading',
