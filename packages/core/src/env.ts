@@ -4,6 +4,8 @@ const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   DATABASE_URL: z.string().url(),
   APP_URL: z.string().url().default('http://localhost:3000'),
+  /** Separate origin for untrusted content (SCORM); defaults to APP_URL in development. */
+  CONTENT_HOST: z.string().url().optional(),
   APP_SECRET: z.string().min(32, 'APP_SECRET must be at least 32 characters'),
   STORAGE_DRIVER: z.enum(['fs', 's3']).default('fs'),
   STORAGE_FS_ROOT: z.string().default('.storage'),

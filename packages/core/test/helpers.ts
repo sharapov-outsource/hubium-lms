@@ -17,6 +17,7 @@ import { livesessionModules } from '@hubium/mod-livesession/server';
 import quizEn from '@hubium/mod-quiz/messages/en.json' with { type: 'json' };
 import quizRu from '@hubium/mod-quiz/messages/ru.json' with { type: 'json' };
 import { quizModules } from '@hubium/mod-quiz/server';
+import { scormModules } from '@hubium/mod-scorm/server';
 import { videoModules } from '@hubium/mod-video/server';
 import { afterAll, beforeAll } from 'vitest';
 import {
@@ -36,6 +37,7 @@ registerModules([
   ...forumModules,
   ...videoModules,
   ...livesessionModules,
+  ...scormModules,
 ] as never);
 registerModuleMessages({
   ru: { ...assignRu, ...quizRu, ...forumRu },

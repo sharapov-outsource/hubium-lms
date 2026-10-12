@@ -79,6 +79,17 @@ export interface ModuleRealtime {
   ): Promise<void>;
 }
 
+export interface ModuleContent {
+  /** Absolute URL on the content origin for this module's `content` hook. */
+  url(
+    activityId: string,
+    path: string,
+    opts?: { data?: Record<string, string | number>; ttlSec?: number; userId?: string },
+  ): string;
+  /** Origin of the LMS (for frame-ancestors and postMessage targets). */
+  appOrigin(): string;
+}
+
 export interface ModuleActivities {
   /** Loads an activity with the viewer's access (for module HTTP routes). */
   get(activityId: string): Promise<{
@@ -151,6 +162,7 @@ export interface ModuleCtx {
   jobs: ModuleJobs;
   realtime: ModuleRealtime;
   activities: ModuleActivities;
+  content: ModuleContent;
   log(event: string, data?: Record<string, unknown>): Promise<void>;
 }
 
@@ -242,6 +254,21 @@ export interface ActivityModule<S = Record<string, unknown>> {
    * The ModuleCtx carries the caller's session; anonymous callers are allowed.
    */
   http?(ctx: ModuleCtx, req: Request, path: string[]): Promise<Response>;
+  /**
+   * Untrusted content served from CONTENT_HOST at /c/<token>/<...path>. The signed token
+   * identifies the activity, the user and module data; there is no session.
+   */
+  content?(
+    ctx: ModuleCtx,
+    grant: {
+      activityId: string;
+      userId: string;
+      data: Record<string, string | number>;
+      token: string;
+    },
+    req: Request,
+    path: string[],
+  ): Promise<Response>;
   actions?: Record<string, ModuleAction>;
   /** Notification types; labels come from `mod.<key>.notify.<name>` messages. */
   notifications?: Record<string, NotificationTypeDef>;

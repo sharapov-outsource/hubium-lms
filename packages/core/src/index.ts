@@ -3,6 +3,7 @@ export * from './announcements/announcements.ts';
 export * from './cache-bus.ts';
 export * from './calendar/calendar.ts';
 export * from './completion/completion.ts';
+export * from './content.ts';
 export * from './context.ts';
 export * from './courses/activities.ts';
 export * from './courses/availability.ts';

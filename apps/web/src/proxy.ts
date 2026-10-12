@@ -9,6 +9,7 @@ const PUBLIC = [
   '/two-factor',
   '/verify-email',
   '/unsubscribe',
+  '/c/',
   '/api',
   '/_next',
   '/favicon',
