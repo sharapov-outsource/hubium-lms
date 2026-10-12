@@ -1,0 +1,219 @@
+// Identity: Better Auth managed tables plus Hubium extensions.
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum UserKind {
+  PERSON
+  SERVICE
+}
+
+enum UserRelationKind {
+  PARENT
+  MENTOR
+}
+
+model User {
+  id                 String     @id @default(uuid(7)) @db.Uuid
+  email              String     @unique @db.Citext
+  emailVerified      Boolean    @default(false)
+  emailPlaceholder   Boolean    @default(false)
+  username           String?    @unique @db.Citext
+  displayUsername    String?
+  name               String
+  firstName          String     @default("")
+  lastName           String     @default("")
+  image              String?
+  locale             String?
+  timezone           String?
+  theme              String?
+  status             UserStatus @default(ACTIVE)
+  kind               UserKind   @default(PERSON)
+  isSiteAdmin        Boolean    @default(false)
+  mustChangePassword Boolean    @default(false)
+  twoFactorEnabled   Boolean    @default(false)
+  avatarFileId       String?    @db.Uuid
+  customFields       Json       @default("{}")
+  lastLoginAt        DateTime?  @db.Timestamptz(3)
+  lastAccessAt       DateTime?  @db.Timestamptz(3)
+  deletedAt          DateTime?  @db.Timestamptz(3)
+  // Better Auth `admin` plugin primitives (ban/impersonation only; authorization is ours).
+  role               String?
+  banned             Boolean?   @default(false)
+  banReason          String?
+  banExpires         DateTime?  @db.Timestamptz(3)
+  createdAt          DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime   @updatedAt @db.Timestamptz(3)
+
+  sessions            Session[]
+  accounts            Account[]
+  twoFactors          TwoFactor[]
+  mentees             UserRelation[]       @relation("mentor")
+  mentors             UserRelation[]       @relation("mentee")
+  apiTokens           ApiToken[]
+  policyAcceptances   PolicyAcceptance[]
+  roleAssignments     RoleAssignment[]
+  uploadedFiles       File[]
+  uploadSessions      UploadSession[]
+  settingsUpdated     SiteSetting[]
+  enrolments          Enrolment[]
+  groupMembers        GroupMember[]
+  cohortMembers       CohortMember[]
+  courseAccesses      CourseAccess[]
+  activityCompletions ActivityCompletion[]
+  courseCompletions   CourseCompletion[]
+  calendarEvents      CalendarEvent[]
+  calendarFeedToken   CalendarFeedToken?
+
+  @@index([status])
+  @@index([lastName, firstName])
+}
+
+model Session {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  token          String   @unique
+  userId         String   @db.Uuid
+  expiresAt      DateTime @db.Timestamptz(3)
+  ipAddress      String?
+  userAgent      String?
+  impersonatedBy String?  @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id @default(uuid(7)) @db.Uuid
+  userId                String    @db.Uuid
+  providerId            String
+  accountId             String
+  password              String?
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime? @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @db.Timestamptz(3)
+  scope                 String?
+  createdAt             DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([identifier])
+}
+
+model TwoFactor {
+  id          String @id @default(uuid(7)) @db.Uuid
+  userId      String @db.Uuid
+  secret      String
+  backupCodes String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model RateLimit {
+  id          String @id @default(uuid(7)) @db.Uuid
+  key         String @unique
+  count       Int
+  lastRequest BigInt
+}
+
+model UserRelation {
+  id        String           @id @default(uuid(7)) @db.Uuid
+  mentorId  String           @db.Uuid
+  menteeId  String           @db.Uuid
+  kind      UserRelationKind
+  createdAt DateTime         @default(now()) @db.Timestamptz(3)
+
+  mentor User @relation("mentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  mentee User @relation("mentee", fields: [menteeId], references: [id], onDelete: Cascade)
+
+  @@unique([mentorId, menteeId])
+  @@index([menteeId])
+}
+
+model UserProfileField {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  shortName       String   @unique
+  name            Json
+  type            String
+  options         Json     @default("{}")
+  required        Boolean  @default(false)
+  visibleToOthers Boolean  @default(false)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+}
+
+model ApiToken {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String    @db.Uuid
+  name       String
+  prefix     String
+  tokenHash  String    @unique
+  scopes     String[]
+  expiresAt  DateTime? @db.Timestamptz(3)
+  lastUsedAt DateTime? @db.Timestamptz(3)
+  lastUsedIp String?
+  revokedAt  DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Policy {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  key       String   @unique
+  name      Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  versions PolicyVersion[]
+}
+
+model PolicyVersion {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  policyId    String    @db.Uuid
+  content     Json
+  mandatory   Boolean   @default(true)
+  publishedAt DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  policy      Policy             @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  acceptances PolicyAcceptance[]
+
+  @@index([policyId])
+}
+
+model PolicyAcceptance {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  userId     String   @db.Uuid
+  versionId  String   @db.Uuid
+  acceptedAt DateTime @default(now()) @db.Timestamptz(3)
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  version PolicyVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, versionId])
+}

@@ -1,0 +1,148 @@
+// Categories, courses, sections and activities. Category, Course and Activity share
+// their primary key with Context (see access.prisma).
+
+enum CourseFormat {
+  TOPICS
+  WEEKS
+  SINGLE
+}
+
+enum GroupMode {
+  NONE
+  SEPARATE
+  VISIBLE
+}
+
+enum ActivityVisibility {
+  SHOWN
+  HIDDEN
+  STEALTH
+}
+
+enum CompletionMode {
+  NONE
+  MANUAL
+  AUTO
+}
+
+model Category {
+  id          String   @id @db.Uuid
+  parentId    String?  @db.Uuid
+  name        String
+  description String   @default("")
+  idNumber    String?  @unique
+  sortOrder   Int      @default(0)
+  visible     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[] @relation("CategoryTree")
+  courses  Course[]
+  context  Context    @relation("CategoryContext", fields: [id], references: [id], onDelete: Cascade)
+
+  @@index([parentId, sortOrder])
+}
+
+model Course {
+  id                 String       @id @db.Uuid
+  categoryId         String       @db.Uuid
+  fullName           String
+  shortName          String       @unique @db.Citext
+  idNumber           String?      @unique
+  summary            String       @default("")
+  imageFileId        String?      @db.Uuid
+  format             CourseFormat @default(TOPICS)
+  formatOptions      Json         @default("{}")
+  startDate          DateTime?    @db.Timestamptz(3)
+  endDate            DateTime?    @db.Timestamptz(3)
+  visible            Boolean      @default(true)
+  lang               String?
+  enableCompletion   Boolean      @default(true)
+  completionSettings Json         @default("{}")
+  groupMode          GroupMode    @default(NONE)
+  groupModeForced    Boolean      @default(false)
+  guestAccess        Boolean      @default(false)
+  settings           Json         @default("{}")
+  createdById        String?      @db.Uuid
+  deletedAt          DateTime?    @db.Timestamptz(3)
+  createdAt          DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime     @updatedAt @db.Timestamptz(3)
+
+  category          Category           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  context           Context            @relation("CourseContext", fields: [id], references: [id], onDelete: Cascade)
+  sections          CourseSection[]
+  activities        Activity[]
+  enrolmentMethods  EnrolmentMethod[]
+  enrolments        Enrolment[]
+  groups            Group[]
+  groupings         Grouping[]
+  accesses          CourseAccess[]
+  courseCompletions CourseCompletion[]
+  calendarEvents    CalendarEvent[]
+
+  @@index([categoryId])
+  @@index([deletedAt])
+}
+
+model CourseSection {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  courseId     String   @db.Uuid
+  rank         String
+  title        String   @default("")
+  summary      String   @default("")
+  visible      Boolean  @default(true)
+  availability Json?
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  activities Activity[]
+
+  @@index([courseId, rank])
+}
+
+model Activity {
+  id                   String             @id @db.Uuid
+  courseId             String             @db.Uuid
+  sectionId            String             @db.Uuid
+  moduleKey            String
+  rank                 String
+  name                 String
+  intro                String             @default("")
+  showIntro            Boolean            @default(false)
+  visibility           ActivityVisibility @default(SHOWN)
+  availability         Json?
+  completionMode       CompletionMode     @default(NONE)
+  completionRules      Json               @default("{}")
+  completionExpectedAt DateTime?          @db.Timestamptz(3)
+  groupMode            GroupMode          @default(NONE)
+  groupingId           String?            @db.Uuid
+  settings             Json               @default("{}")
+  idNumber             String?
+  version              Int                @default(1)
+  createdById          String?            @db.Uuid
+  deletedAt            DateTime?          @db.Timestamptz(3)
+  createdAt            DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime           @updatedAt @db.Timestamptz(3)
+
+  course      Course               @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  section     CourseSection        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  context     Context              @relation("ActivityContext", fields: [id], references: [id], onDelete: Cascade)
+  completions ActivityCompletion[]
+
+  @@index([courseId, sectionId, rank])
+  @@index([moduleKey])
+}
+
+model CourseAccess {
+  userId         String   @db.Uuid
+  courseId       String   @db.Uuid
+  lastAccessAt   DateTime @db.Timestamptz(3)
+  lastActivityId String?  @db.Uuid
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, courseId])
+}

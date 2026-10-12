@@ -1,0 +1,128 @@
+// Contexts and roles. See docs/architecture.md §3.
+// Context ids are shared with the entity they describe (Course.id == Context.id).
+
+enum ContextLevel {
+  SYSTEM
+  CATEGORY
+  COURSE
+  ACTIVITY
+}
+
+enum RolePermission {
+  ALLOW
+  PROHIBIT
+}
+
+enum OverridePermission {
+  ALLOW
+  DENY
+  PROHIBIT
+}
+
+enum RoleArchetype {
+  MANAGER
+  COURSECREATOR
+  EDITINGTEACHER
+  TEACHER
+  STUDENT
+  OBSERVER
+  GUEST
+  USER
+  NONE
+}
+
+enum RoleAssignmentComponent {
+  MANUAL
+  ENROL
+  COHORT
+}
+
+model Context {
+  id          String       @id @db.Uuid
+  level       ContextLevel
+  parentId    String?      @db.Uuid
+  ancestorIds String[]     @db.Uuid
+  depth       Int
+
+  parent      Context?         @relation("ContextTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Context[]        @relation("ContextTree")
+  overrides   RoleOverride[]
+  assignments RoleAssignment[]
+  files       File[]
+  category    Category?        @relation("CategoryContext")
+  course      Course?          @relation("CourseContext")
+  activity    Activity?        @relation("ActivityContext")
+
+  @@index([ancestorIds], type: Gin)
+  @@index([parentId])
+}
+
+model Role {
+  id               String         @id @default(uuid(7)) @db.Uuid
+  shortName        String         @unique
+  name             Json
+  description      Json           @default("{}")
+  archetype        RoleArchetype
+  assignableLevels ContextLevel[]
+  sortOrder        Int            @default(0)
+  isProtected      Boolean        @default(false)
+  createdAt        DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime       @updatedAt @db.Timestamptz(3)
+
+  capabilities RoleCapability[]
+  overrides    RoleOverride[]
+  assignments  RoleAssignment[]
+  assignRules  RoleAssignRule[]  @relation("assigner")
+  assignableBy RoleAssignRule[]  @relation("assignable")
+  enrolMethods EnrolmentMethod[]
+}
+
+model RoleCapability {
+  roleId     String         @db.Uuid
+  capability String
+  permission RolePermission
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, capability])
+}
+
+model RoleOverride {
+  contextId  String             @db.Uuid
+  roleId     String             @db.Uuid
+  capability String
+  permission OverridePermission
+
+  context Context @relation(fields: [contextId], references: [id], onDelete: Cascade)
+  role    Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([contextId, roleId, capability])
+  @@index([roleId])
+}
+
+model RoleAssignment {
+  id          String                  @id @default(uuid(7)) @db.Uuid
+  userId      String                  @db.Uuid
+  roleId      String                  @db.Uuid
+  contextId   String                  @db.Uuid
+  component   RoleAssignmentComponent @default(MANUAL)
+  enrolmentId String?                 @db.Uuid
+  createdAt   DateTime                @default(now()) @db.Timestamptz(3)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role    Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  context Context @relation(fields: [contextId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId, contextId, component])
+  @@index([contextId, roleId])
+}
+
+model RoleAssignRule {
+  roleId           String @db.Uuid
+  assignableRoleId String @db.Uuid
+
+  role           Role @relation("assigner", fields: [roleId], references: [id], onDelete: Cascade)
+  assignableRole Role @relation("assignable", fields: [assignableRoleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, assignableRoleId])
+}
