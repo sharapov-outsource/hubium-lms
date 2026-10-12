@@ -1,4 +1,5 @@
 export * from './access/index.ts';
+export * from './ai/index.ts';
 export * from './announcements/announcements.ts';
 export * from './cache-bus.ts';
 export * from './calendar/calendar.ts';

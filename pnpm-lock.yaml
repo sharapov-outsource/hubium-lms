@@ -637,6 +637,9 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: 3.1149.0
         version: 3.1149.0
+      '@hubium/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@hubium/db':
         specifier: workspace:*
         version: link:../db

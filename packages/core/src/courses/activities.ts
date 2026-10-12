@@ -6,11 +6,13 @@ import { createContext } from '../access/contexts.ts';
 import type { RequestContext } from '../context.ts';
 import { NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { enqueue } from '../jobs/jobs.ts';
 import { rankBetween } from '../lib/rank.ts';
 import { optionalText } from '../lib/zod.ts';
 import { buildModuleCtx, toActivityRef } from '../modules/module-ctx.ts';
 import { requireModule } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
+import { getSetting } from '../settings/settings.ts';
 import {
   type AvailabilityFacts,
   AvailabilityTreeSchema,
@@ -145,6 +147,16 @@ async function rankAtEnd(tx: Prisma.TransactionClient, sectionId: string): Promi
   return rankBetween(last?.rank ?? null, null);
 }
 
+/** Re-index the activity for AI retrieval (debounced; no-op while AI is off). */
+async function scheduleAiIndex(ctx: RequestContext, activityId: string) {
+  if (!(await getSetting(ctx.db, 'ai.enabled'))) return;
+  await enqueue(
+    'ai.index.activity',
+    { activityId },
+    { singletonKey: activityId, singletonSeconds: 30, startAfter: 5 },
+  );
+}
+
 export const createActivity = defineOperation({
   name: 'activity.create',
   input: ActivityInput,
@@ -197,6 +209,7 @@ export const createActivity = defineOperation({
       objectId: a.id,
       origin: ctx.origin,
     });
+    await scheduleAiIndex(ctx, id);
     return { id };
   },
 });
@@ -249,6 +262,7 @@ export const updateActivity = defineOperation({
       contextId: a.id,
       origin: ctx.origin,
     });
+    await scheduleAiIndex(ctx, a.id);
     return { id: a.id };
   },
 });
@@ -338,6 +352,7 @@ export const deleteActivity = defineOperation({
       objectId: id,
       origin: ctx.origin,
     });
+    await scheduleAiIndex(ctx, id);
     return { id };
   },
 });
@@ -349,6 +364,7 @@ export const restoreActivity = defineOperation({
   async handler(ctx, { id }) {
     const a = await ctx.tx.activity.update({ where: { id }, data: { deletedAt: null } });
     await syncCalendar(ctx.tx, a);
+    await scheduleAiIndex(ctx, id);
     return { id };
   },
 });
