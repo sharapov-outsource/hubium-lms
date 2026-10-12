@@ -36,6 +36,7 @@
     "noPackage": "Пакет ещё не загружен.",
     "noPackageManager": "Загрузите SCORM-пакет ниже.",
     "processing": "Пакет распаковывается…",
+    "cannotLaunch": "Запуск этого курса вам недоступен.",
     "failed": "Не удалось обработать пакет: {error}",
     "package": "Пакет",
     "scoCount": "{n, plural, one {# модуль} few {# модуля} many {# модулей} other {# модуля}}",

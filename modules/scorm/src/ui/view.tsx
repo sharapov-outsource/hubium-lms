@@ -30,7 +30,10 @@ export async function ScormView({ activity: a, ctx, canManage, searchParams }: P
     where: { activityId: a.id },
     include: { scos: { orderBy: { sortOrder: 'asc' } } },
   });
-  const canReport = await ctx.perm.can('mod.scorm:viewreports', a.id);
+  const [canReport, canLaunch] = await Promise.all([
+    ctx.perm.can('mod.scorm:viewreports', a.id),
+    ctx.perm.can('mod.scorm:launch', a.id),
+  ]);
 
   if (canManage && searchParams.cmi) {
     const track = await ctx.db.scormTrack.findUnique({
@@ -61,7 +64,7 @@ export async function ScormView({ activity: a, ctx, canManage, searchParams }: P
   const processing = pkg?.status === 'PROCESSING';
   let player: React.ReactNode = null;
   let summary: React.ReactNode = null;
-  if (pkg?.status === 'READY' && me && pkg.scos.length) {
+  if (pkg?.status === 'READY' && me && pkg.scos.length && canLaunch) {
     const attempt = await currentAttempt(ctx.db, a.id, me);
     const tracks = await ctx.db.scormTrack.findMany({ where: { attemptId: attempt!.id } });
     const attempts = await ctx.db.scormAttempt.count({ where: { activityId: a.id, userId: me } });
@@ -156,6 +159,7 @@ export async function ScormView({ activity: a, ctx, canManage, searchParams }: P
       <ScormWatcher processing={processing} />
       {!pkg ? <Alert>{canManage ? t('noPackageManager') : t('noPackage')}</Alert> : null}
       {processing ? <Alert>{t('processing')}</Alert> : null}
+      {pkg?.status === 'READY' && me && !canLaunch ? <Alert>{t('cannotLaunch')}</Alert> : null}
       {pkg?.status === 'FAILED' ? (
         <Alert variant="destructive">{t('failed', { error: pkg.error ?? '' })}</Alert>
       ) : null}

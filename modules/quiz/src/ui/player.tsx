@@ -178,6 +178,7 @@ export function AttemptPlayer({
   attemptId,
   questions,
   dueAt,
+  serverNow,
   backUrl,
   reviewUrl,
 }: {
@@ -185,6 +186,8 @@ export function AttemptPlayer({
   attemptId: string;
   questions: PublicQuestion[];
   dueAt: string | null;
+  /** Server time at render: the countdown follows the server clock, not the device's. */
+  serverNow: number;
   backUrl: string;
   reviewUrl: string;
 }) {
@@ -206,25 +209,38 @@ export function AttemptPlayer({
   const [confirm, setConfirm] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const finishing = useRef(false);
-  const due = dueAt ? new Date(dueAt).getTime() : null;
+  const skew = useRef(serverNow - Date.now());
+  const due = dueAt ? new Date(dueAt).getTime() - skew.current : null;
+  // The autosave timer must not restart on every keystroke, so it reads the latest state.
+  const latest = useRef({ answers, dirty, flags });
+  latest.current = { answers, dirty, flags };
 
   const save = useCallback(
     async (opts: { quiet?: boolean } = {}) => {
-      if (!dirty.size && opts.quiet) return true;
+      const { answers: current, dirty: keys, flags: currentFlags } = latest.current;
+      if (!keys.size && opts.quiet) return true;
       setSaving(true);
-      const payload = Object.fromEntries([...dirty].map((k) => [k, answers[k]]));
-      const r = await callModuleAction(activityId, 'save', { attemptId, answers: payload, flags });
+      const sent = Object.fromEntries([...keys].map((k) => [k, current[k]]));
+      const r = await callModuleAction<{ closed: boolean }>(activityId, 'save', {
+        attemptId,
+        answers: sent,
+        flags: currentFlags,
+      });
       setSaving(false);
-      if (!r.ok) {
-        toast.error(r.message ?? 'Error');
-        if (/Time is up|closed/i.test(r.message ?? '')) router.push(reviewUrl);
+      if (!r.ok || r.data?.closed) {
+        if (r.ok) toast.warning(t('timeUp'));
+        else toast.error(r.message ?? 'Error');
+        if (r.ok || /closed/i.test(r.message ?? '')) router.push(reviewUrl);
         return false;
       }
-      setDirty(new Set());
+      // Answers changed while the request was in flight stay unsaved.
+      setDirty(
+        (d) => new Set([...d].filter((k) => !(k in sent) || latest.current.answers[k] !== sent[k])),
+      );
       if (!opts.quiet) toast.success(t('saved'));
       return true;
     },
-    [activityId, attemptId, answers, dirty, flags, reviewUrl, router, t],
+    [activityId, attemptId, reviewUrl, router, t],
   );
 
   const finish = useCallback(async () => {

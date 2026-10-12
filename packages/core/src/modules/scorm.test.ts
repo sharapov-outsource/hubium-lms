@@ -196,4 +196,41 @@ describe('mod-scorm', () => {
       'FAILED',
     );
   });
+
+  it('serves files whose names have spaces and Cyrillic letters', async () => {
+    const { id } = await f.addActivity('scorm', 'Имена файлов', {});
+    const pkg = await upload(
+      id,
+      scormFixture('1.2', { 'sco/Глава 1.html': strToU8('<p>Глава первая</p>') }),
+    );
+    await extractPackage(buildModuleCtx(await ctxFor(t.db, 'system')), pkg);
+    const row = await t.db.scormPackage.findUniqueOrThrow({ where: { id: pkg } });
+    expect(row.status).toBe('READY');
+    expect(row.files).toContain('sco/Глава 1.html');
+    const r = await getModule('scorm')!.content!(
+      buildModuleCtx(await ctxFor(t.db, 'system')),
+      { activityId: id, token: 'x', userId: f.users.student1!, data: {} },
+      new Request('http://content.test/c/x/pkg/sco/x'),
+      ['pkg', 'sco', encodeURIComponent('Глава 1.html')],
+    );
+    expect(r.status).toBe(200);
+    expect(await r.text()).toContain('Глава первая');
+  });
+
+  it('a learner without the launch capability gets no attempt', async () => {
+    await t.db.roleCapability.update({
+      where: { roleId_capability: { roleId: f.roles.student!, capability: 'mod.scorm:launch' } },
+      data: { permission: 'PROHIBIT' },
+    });
+    try {
+      await expect(
+        runModuleAction(await ctxFor(t.db, f.users.student2!), scormId, 'newAttempt', {}),
+      ).rejects.toThrow();
+    } finally {
+      await t.db.roleCapability.update({
+        where: { roleId_capability: { roleId: f.roles.student!, capability: 'mod.scorm:launch' } },
+        data: { permission: 'ALLOW' },
+      });
+    }
+  });
 });

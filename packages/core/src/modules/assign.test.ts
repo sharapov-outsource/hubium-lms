@@ -140,6 +140,26 @@ describe('mod-assign through the module action runner', () => {
     expect(await canReadFile(await ctxFor(t.db, 'student1@hubium.local'), file)).toBe(true);
     expect(await canReadFile(await ctxFor(t.db, 'teacher@hubium.local'), file)).toBe(true);
     expect(await canReadFile(await ctxFor(t.db, 'student2@hubium.local'), file)).toBe(false);
+    // non-editing teachers grade, so they read submissions too
+    const { enrolUsers } = await import('../enrol/enrol.ts');
+    await enrolUsers.run(await ctxFor(t.db, 'system'), {
+      courseId: f.courseId,
+      userIds: [f.users.assistant!],
+      roleId: f.roles.teacher!,
+    });
+    expect(await canReadFile(await ctxFor(t.db, f.users.assistant!), file)).toBe(true);
+  });
+
+  it('a student cannot delete someone else’s submission files', async () => {
+    const file = await t.db.file.findFirstOrThrow({
+      where: { contextId: assignId, area: 'submission' },
+    });
+    const s2 = await ctxFor(t.db, 'student2@hubium.local');
+    await runModuleAction(s2, assignId, 'saveSubmission', {
+      text: '<p>моё</p>',
+      removeFiles: [file.id],
+    });
+    expect(await t.db.file.count({ where: { id: file.id } })).toBe(1);
   });
 
   it('teachers see "to grade" items; students see "to submit"', async () => {

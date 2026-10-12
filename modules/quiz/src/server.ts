@@ -574,11 +574,12 @@ export const quiz = defineModule<QuizSettingsT>({
         const at = await ownAttempt(ctx, a, input.attemptId);
         if (at.state !== 'IN_PROGRESS') throw new Error('This attempt is closed');
         if (at.dueAt && ctx.now.getTime() > at.dueAt.getTime() + GRACE_MS) {
+          // Returned, not thrown: an error would roll the submission back with the transaction.
           await finishAttempt(ctx, a as ActivityRef<QuizSettingsT>, at.id);
-          throw new Error('Time is up; the attempt was submitted');
+          return { savedAt: null, closed: true };
         }
         await saveResponses(ctx, at.id, input.answers, input.flags);
-        return { savedAt: ctx.now.toISOString() };
+        return { savedAt: ctx.now.toISOString(), closed: false };
       },
     }),
     finish: defineAction({

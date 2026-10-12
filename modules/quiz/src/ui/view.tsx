@@ -207,6 +207,7 @@ async function AttemptPage({ activity: a, ctx, attemptId }: Props & { attemptId:
       attemptId={at.id}
       questions={at.questions.map(toPublicQuestion)}
       dueAt={at.dueAt?.toISOString() ?? null}
+      serverNow={Date.now()}
       backUrl={base(a)}
       reviewUrl={`${base(a)}?review=${at.id}`}
     />

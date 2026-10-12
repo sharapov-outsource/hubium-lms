@@ -207,12 +207,18 @@ export async function storeFileFromPath(
   });
 }
 
+/** Files of an area; without `itemId`, those of every item (like deleteFiles). */
 export async function listFiles(
   db: Tx,
   q: { contextId: string; component: string; area: string; itemId?: string },
 ): Promise<File[]> {
   return db.file.findMany({
-    where: { contextId: q.contextId, component: q.component, area: q.area, itemId: q.itemId ?? '' },
+    where: {
+      contextId: q.contextId,
+      component: q.component,
+      area: q.area,
+      ...(q.itemId !== undefined ? { itemId: q.itemId } : {}),
+    },
     orderBy: [{ sortOrder: 'asc' }, { path: 'asc' }, { name: 'asc' }],
   });
 }
