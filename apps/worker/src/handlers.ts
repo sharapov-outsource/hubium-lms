@@ -1,3 +1,11 @@
+import {
+  INDEX_COURSE_JOB,
+  INDEX_JOB,
+  indexActivity,
+  indexCourse,
+  QUIZGEN_JOB,
+  runQuizGeneration,
+} from '@hubium/core';
 import { publishDueAnnouncements } from '@hubium/core/announcements/announcements';
 import { sendCalendarReminders } from '@hubium/core/calendar/calendar';
 import { garbageCollectBlobs } from '@hubium/core/files/files';
@@ -79,6 +87,25 @@ export const coreHandlers: JobHandlerDef[] = [
     cron: '41 4 * * *',
     async handler(_data: never, { db }) {
       return { deleted: await pruneNotifications(db) };
+    },
+  },
+  {
+    name: INDEX_JOB,
+    async handler(data: { activityId: string }, { db }) {
+      return indexActivity(db, data.activityId);
+    },
+  },
+  {
+    name: INDEX_COURSE_JOB,
+    async handler(data: { courseId: string }, { db }) {
+      return indexCourse(db, data.courseId);
+    },
+  },
+  {
+    name: QUIZGEN_JOB,
+    async handler(data: { generationId: string }, { db }) {
+      const r = await runQuizGeneration(db, data.generationId);
+      return { ok: r !== null };
     },
   },
   {
