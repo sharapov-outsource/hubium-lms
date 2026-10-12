@@ -68,6 +68,20 @@ describe('Web Push', () => {
     server.close();
     delete process.env.VAPID_PUBLIC_KEY;
     delete process.env.VAPID_PRIVATE_KEY;
+    delete process.env.SSRF_ALLOW_HOSTS;
+  });
+
+  it('refuses endpoints that are not public HTTPS addresses', async () => {
+    const student = await t.db.user.findFirstOrThrow({ where: { username: 'student1' } });
+    const ctx = await ctxFor(t.db, student.id);
+    for (const endpoint of [
+      `${base}/ok/1`,
+      'http://push.example.com/x',
+      'https://169.254.169.254/latest',
+    ])
+      await expect(savePushSubscription(ctx, { endpoint, keys })).rejects.toThrow();
+    // the stand-in push service below runs on 127.0.0.1
+    process.env.SSRF_ALLOW_HOSTS = '127.0.0.1';
   });
 
   it('pushes in-app notifications to subscribed devices and drops expired ones', async () => {

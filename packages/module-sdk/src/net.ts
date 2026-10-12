@@ -22,13 +22,44 @@ for (const [net, bits] of [
 ] as const)
   blocked.addSubnet(net, bits, 'ipv4');
 for (const [net, bits] of [
-  ['::', 128],
-  ['::1', 128],
+  ['::', 96], // unspecified, loopback and IPv4-compatible
+  ['100::', 64], // discard
+  ['2001::', 32], // Teredo (wraps an IPv4 address)
+  ['2001:db8::', 32],
   ['fc00::', 7],
   ['fe80::', 10],
   ['ff00::', 8],
 ] as const)
   blocked.addSubnet(net, bits, 'ipv6');
+
+/** The 8 16-bit groups of an IPv6 address (handles "::" and a dotted IPv4 tail). */
+function ipv6Groups(ip: string): number[] {
+  let s = ip.toLowerCase().split('%')[0]!;
+  const v4 = s.match(/(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (v4) {
+    const [a, b, c, d] = v4.slice(1).map(Number) as [number, number, number, number];
+    s = `${s.slice(0, v4.index)}${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`;
+  }
+  const [head, tail] = s.split('::') as [string, string | undefined];
+  const h = head ? head.split(':') : [];
+  const t = tail ? tail.split(':') : [];
+  const groups =
+    tail === undefined ? h : [...h, ...Array<string>(8 - h.length - t.length).fill('0'), ...t];
+  return groups.map((g) => Number.parseInt(g || '0', 16));
+}
+
+/** IPv4 address carried inside an IPv6 one (mapped, NAT64 or 6to4), if any. */
+function embeddedIPv4(ip: string): string | null {
+  const g = ipv6Groups(ip);
+  const v4 = (hi: number, lo: number) => `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+  // ::ffff:a.b.c.d
+  if (g.slice(0, 5).every((x) => x === 0) && g[5] === 0xffff) return v4(g[6]!, g[7]!);
+  // 64:ff9b::a.b.c.d (NAT64) and 64:ff9b:1::/48
+  if (g[0] === 0x64 && g[1] === 0xff9b) return v4(g[6]!, g[7]!);
+  // 2002:aabb:ccdd::/48 (6to4)
+  if (g[0] === 0x2002) return v4(g[1]!, g[2]!);
+  return null;
+}
 
 export class UnsafeUrlError extends Error {
   constructor(message: string) {
@@ -50,8 +81,8 @@ export function isInternalAddress(ip: string): boolean {
   const v = isIP(ip);
   if (v === 4) return blocked.check(ip, 'ipv4');
   if (v === 6) {
-    const mapped = ip.toLowerCase().match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (mapped) return blocked.check(mapped[1]!, 'ipv4');
+    const inner = embeddedIPv4(ip);
+    if (inner) return blocked.check(inner, 'ipv4');
     return blocked.check(ip, 'ipv6');
   }
   return true;
@@ -110,16 +141,27 @@ export async function safeFetch(
   init: RequestInit = {},
 ): Promise<Response> {
   let url = new URL(input instanceof Request ? input.url : input);
-  const base =
-    input instanceof Request
-      ? { method: input.method, headers: input.headers, body: input.body }
-      : {};
+  const req = input instanceof Request ? input : null;
+  let method = (init.method ?? req?.method ?? 'GET').toUpperCase();
+  let body = init.body ?? req?.body ?? null;
+  const headers = new Headers(init.headers ?? req?.headers);
   for (let hop = 0; hop <= 5; hop++) {
     await assertPublicUrl(url);
-    const res = await fetch(url, { ...base, ...init, redirect: 'manual' });
+    const res = await fetch(url, { ...init, method, body, headers, redirect: 'manual' });
     const loc = res.headers.get('location');
     if (res.status < 300 || res.status >= 400 || !loc) return res;
-    url = new URL(loc, url);
+    const next = new URL(loc, url);
+    // Like browsers: API keys never follow a redirect to another origin…
+    if (next.origin !== url.origin)
+      for (const h of ['authorization', 'cookie', 'proxy-authorization', 'x-api-key'])
+        headers.delete(h);
+    // …and 303 (or 301/302 after POST) continues as a GET without the body.
+    if (res.status === 303 || ((res.status === 301 || res.status === 302) && method === 'POST')) {
+      method = 'GET';
+      body = null;
+      headers.delete('content-type');
+    }
+    url = next;
   }
   throw new UnsafeUrlError('Too many redirects');
 }

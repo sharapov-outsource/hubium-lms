@@ -1,3 +1,4 @@
+import { symmetricDecrypt, symmetricEncrypt } from 'better-auth/crypto';
 import { describe, expect, it } from 'vitest';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { saveAiProvider } from '../ai/config.ts';
@@ -16,14 +17,25 @@ describe('APP_SECRET rotation', () => {
       apiKey: 'sk-ant-rotate-me',
       models: { generation: 'a', cheap: 'b', premium: 'c' },
     });
+    const student = await t.db.user.findFirstOrThrow({ where: { username: 'student1' } });
+    const tf = await t.db.twoFactor.create({
+      data: {
+        userId: student.id,
+        secret: await symmetricEncrypt({ key: getEnv().APP_SECRET, data: 'TOTPSECRET' }),
+        backupCodes: '[]',
+      },
+    });
     const next = 'n'.repeat(40);
     const r = await rotateAppSecret(t.db, getEnv().APP_SECRET, next);
     expect(r.reencrypted).toBeGreaterThanOrEqual(1);
     const row = await t.db.aiProvider.findUniqueOrThrow({ where: { id } });
     expect(decryptSecret(row.apiKeyEnc!, next)).toBe('sk-ant-rotate-me');
     expect(() => decryptSecret(row.apiKeyEnc!, getEnv().APP_SECRET)).toThrow();
+    const tf2 = await t.db.twoFactor.findUniqueOrThrow({ where: { id: tf.id } });
+    expect(await symmetricDecrypt({ key: next, data: tf2.secret })).toBe('TOTPSECRET');
     await expect(rotateAppSecret(t.db, next, 'short')).rejects.toThrow(/32/);
     // restore for other tests
     await rotateAppSecret(t.db, next, getEnv().APP_SECRET);
+    await t.db.twoFactor.delete({ where: { id: tf.id } });
   });
 });

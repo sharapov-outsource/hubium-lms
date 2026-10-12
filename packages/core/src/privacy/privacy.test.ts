@@ -56,9 +56,36 @@ describe('privacy', () => {
     const conv = await openDirectConversation.run(s3, { userId: f.users.student1! });
     await sendMessage.run(s3, { conversationId: conv.id, body: 'Удалите меня' });
     await createApiToken(s3, { name: 'x', scopes: ['read'] });
+    await t.db.pushSubscription.create({
+      data: {
+        userId: victim,
+        endpoint: 'https://push.test/v',
+        p256dh: 'k'.repeat(20),
+        auth: 'a'.repeat(10),
+      },
+    });
+    const sub = await t.db.assignSubmission.findFirstOrThrow({ where: { userId: victim } });
+    await t.db.gradingSuggestion.create({
+      data: {
+        activityId: assign.id,
+        submissionId: sub.id,
+        userId: victim,
+        requestedById: f.users.teacher!,
+        suggestedGrade: 5,
+        breakdown: [],
+        feedbackDraft: 'Черновик отзыва',
+        confidence: 0.5,
+        model: 'mock',
+      },
+    });
+    const exported = await exportUserData(s3, victim);
+    expect(exported.ai.gradingSuggestions[0]).toMatchObject({ feedbackDraft: 'Черновик отзыва' });
+    expect(exported.pushDevices).toHaveLength(1);
 
     const admin = await ctxFor(t.db, 'admin@test.local');
     await deleteUser.run(admin, { id: victim });
+    expect(await t.db.gradingSuggestion.count({ where: { userId: victim } })).toBe(0);
+    expect(await t.db.pushSubscription.count({ where: { userId: victim } })).toBe(0);
 
     const u = await t.db.user.findUniqueOrThrow({ where: { id: victim } });
     expect(u).toMatchObject({ status: 'DELETED', username: null });

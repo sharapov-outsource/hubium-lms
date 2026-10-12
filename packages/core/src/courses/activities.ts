@@ -153,7 +153,8 @@ async function scheduleAiIndex(ctx: RequestContext, activityId: string) {
   await enqueue(
     'ai.index.activity',
     { activityId },
-    { singletonKey: activityId, singletonSeconds: 30, startAfter: 5 },
+    // An edit inside the 30 s window is queued for the next slot instead of being dropped.
+    { singletonKey: activityId, singletonSeconds: 30, singletonNextSlot: true, startAfter: 5 },
   );
 }
 

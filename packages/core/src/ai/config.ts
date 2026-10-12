@@ -130,6 +130,8 @@ export interface ResolvedFeature {
   effort: 'low' | 'medium' | 'high';
   /** Model id for a role ('generation' | 'cheap' | 'premium') or the configured one. */
   model(role?: keyof ProviderModels): string;
+  /** PENDING usage row held by aiGate; the first recorded outcome replaces it. */
+  reservationId?: string | null;
 }
 
 /** Feature config if AI is on site-wide, the feature is enabled and has a provider. */
