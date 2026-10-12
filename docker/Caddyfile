@@ -1,0 +1,18 @@
+{$LMS_HOST} {
+	encode zstd gzip
+	reverse_proxy web:3000 {
+		flush_interval -1
+	}
+}
+
+# Untrusted content (SCORM, raw HTML) on its own origin; the app only answers /c/* here.
+{$CONTENT_HOST} {
+	reverse_proxy web:3000
+}
+
+# Presigned S3 URLs only; the bucket itself is private.
+{$FILES_HOST} {
+	reverse_proxy minio:9000 {
+		header_up Host {upstream_hostport}
+	}
+}

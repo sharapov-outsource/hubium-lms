@@ -2,6 +2,7 @@ packages:
   - apps/*
   - packages/*
   - modules/*
+  - e2e
 
 onlyBuiltDependencies:
   - "@prisma/engines"

@@ -19,3 +19,7 @@ packages/db/src/generated/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+e2e/test-results/
+e2e/playwright-report/
+apps/web/.next-build/
