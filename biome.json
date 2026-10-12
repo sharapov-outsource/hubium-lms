@@ -6,7 +6,14 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!**/generated", "!**/.next", "!**/dist", "!**/migrations/**/*.sql"]
+    "includes": [
+      "**",
+      "!**/generated",
+      "!**/.next",
+      "!**/dist",
+      "!**/migrations/**/*.sql",
+      "!**/*.tmp.*"
+    ]
   },
   "formatter": {
     "enabled": true,
