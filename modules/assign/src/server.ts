@@ -390,6 +390,35 @@ export const assign = defineModule<AssignSettingsT>({
         return { ok: true };
       },
     }),
+    // AI grading assistant: a suggestion only; the teacher copies it into the form.
+    aiConsent: defineAction({
+      capability: 'mod.assign:grade',
+      mutation: false,
+      input: z.object({}),
+      async handler(ctx) {
+        await ctx.ai.acceptConsent('GRADING_ASSIST');
+        return { ok: true };
+      },
+    }),
+    aiSuggest: defineAction({
+      capability: 'mod.assign:grade',
+      mutation: false,
+      input: z.object({ userId: z.string().uuid(), criteria: z.string().max(5000).default('') }),
+      async handler(ctx, a, input) {
+        const sub = await latestSubmission(ctx.db, a.id, input.userId);
+        if (!sub) throw new Error('No submission');
+        return ctx.ai.suggestGrade({ submissionId: sub.id, criteria: input.criteria });
+      },
+    }),
+    aiMark: defineAction({
+      capability: 'mod.assign:grade',
+      mutation: false,
+      input: z.object({ id: z.string().uuid(), status: z.enum(['APPLIED', 'DISCARDED']) }),
+      async handler(ctx, _a, input) {
+        await ctx.ai.markSuggestion(input.id, input.status);
+        return { ok: true };
+      },
+    }),
     extend: defineAction({
       capability: 'mod.assign:grantextension',
       input: z.object({

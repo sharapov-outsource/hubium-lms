@@ -1,5 +1,6 @@
 import type { Db } from '@hubium/db';
 import { Permissions } from '../access/permissions.ts';
+import { indexCourse } from '../ai/indexing.ts';
 import { createEvent } from '../calendar/calendar.ts';
 import type { RequestContext } from '../context.ts';
 import { createActivity } from '../courses/activities.ts';
@@ -7,6 +8,7 @@ import { createCategory } from '../courses/categories.ts';
 import { createCourse } from '../courses/courses.ts';
 import { enrolUsers, updateSelfEnrolment } from '../enrol/enrol.ts';
 import { createGroup, setGroupMembers } from '../groups/groups.ts';
+import { setSettings } from '../settings/settings.ts';
 
 function systemCtx(db: Db): RequestContext {
   return {
@@ -26,6 +28,7 @@ export async function seedDemoCourses(db: Db, users: Record<string, string>) {
     await seedDemoAssessment(db, existing.id);
     await seedDemoComms(db, existing.id);
     await seedDemoMedia(db, existing.id);
+    await seedDemoAi(db, existing.id);
     return { created: false };
   }
   const ctx = systemCtx(db);
@@ -189,6 +192,7 @@ export async function seedDemoCourses(db: Db, users: Record<string, string>) {
   await seedDemoAssessment(db, py);
   await seedDemoComms(db, py);
   await seedDemoMedia(db, py);
+  await seedDemoAi(db, py);
   return { created: true, courses: [py, hist] };
 }
 
@@ -356,4 +360,33 @@ export async function seedDemoMedia(db: Db, courseId: string) {
     completionRules: { module: { attended: true } },
     settings: { provider: 'jitsi', startsAt: start.toISOString(), durationMin: 60 },
   });
+}
+
+const DEMO_AI_NOTICE = `AI-функции Hubium в демо-режиме работают на встроенном тестовом провайдере: данные никуда не отправляются.
+
+В рабочей установке администратор выбирает провайдера (Claude API или OpenAI-совместимый сервер). Тексты курса и ваши вопросы передаются этому провайдеру только для ответа; при проверке работ имя и почта студента заменяются псевдонимом. Ответы AI могут содержать ошибки — проверяйте их.`;
+
+/** Demo AI setup: the offline mock provider for every feature, so AI works without a key. */
+export async function seedDemoAi(db: Db, courseId: string) {
+  if (await db.aiProvider.findFirst()) return;
+  const provider = await db.aiProvider.create({
+    data: {
+      kind: 'MOCK',
+      name: 'Демо-провайдер (без ключа)',
+      models: { generation: 'mock-generation', cheap: 'mock-cheap', premium: 'mock-premium' },
+    },
+  });
+  for (const feature of ['QUIZGEN', 'GRADING_ASSIST', 'TUTOR'] as const)
+    await db.aiFeatureConfig.upsert({
+      where: { feature },
+      create: { feature, enabled: true, providerId: provider.id, limits: { perMinute: 20 } },
+      update: {},
+    });
+  await db.aiEmbeddingConfig.upsert({
+    where: { id: 'default' },
+    create: { id: 'default', kind: 'MOCK', model: 'mock-hash', dims: 1024 },
+    update: {},
+  });
+  await setSettings(db, { 'ai.enabled': true, 'ai.notice': DEMO_AI_NOTICE });
+  await indexCourse(db, courseId);
 }

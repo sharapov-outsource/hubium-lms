@@ -408,6 +408,11 @@ async function GradingPanel({ activity: a, ctx, userId }: Props & { userId: stri
             feedback={current?.feedback ?? ''}
             canReopen={a.settings.reopen !== 'none' && !!sub}
             nextUrl={next ? `${base}?grade=${next.id}` : base}
+            ai={
+              sub && (sub.onlineText || files.length)
+                ? await ctx.ai.status('GRADING_ASSIST', a.courseId)
+                : undefined
+            }
           />
           {(await ctx.perm.can('mod.assign:grantextension', a.id)) ? (
             <ExtensionForm

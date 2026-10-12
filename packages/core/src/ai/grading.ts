@@ -3,7 +3,10 @@ import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { NotFoundError, ValidationError } from '../errors.ts';
 import { getStorage } from '../files/storage.ts';
-import { aiGate, runAi } from './usage.ts';
+import { provideModuleServices } from '../modules/module-ctx.ts';
+import { getSetting } from '../settings/settings.ts';
+import { featureEnabledForCourse } from './config.ts';
+import { acceptConsent, aiGate, consentStatus, runAi } from './usage.ts';
 
 // Grading assistant: suggests a grade, per-criterion notes and a feedback draft for one
 // assignment submission. The student is pseudonymised (no names, emails or usernames
@@ -154,3 +157,29 @@ export async function markSuggestion(
   await ctx.db.gradingSuggestion.update({ where: { id }, data: { status } });
   return { id, status };
 }
+
+provideModuleServices({
+  ai: (ctx) => ({
+    async status(feature, courseId) {
+      const available =
+        ctx.actor.kind === 'user' &&
+        (await featureEnabledForCourse(ctx.db, feature, courseId)) &&
+        (await ctx.perm.can('ai:gradingassist', courseId));
+      if (!available || ctx.actor.kind !== 'user')
+        return { available: false, consentRequired: false, notice: '' };
+      const c = await consentStatus(ctx.db, ctx.actor.userId, feature);
+      return {
+        available,
+        consentRequired: !c.accepted,
+        notice: c.accepted ? '' : await getSetting(ctx.db, 'ai.notice'),
+      };
+    },
+    async acceptConsent(feature) {
+      await acceptConsent(ctx, feature);
+    },
+    suggestGrade: (input) => suggestGrade(ctx, input),
+    async markSuggestion(id, status) {
+      await markSuggestion(ctx, id, status);
+    },
+  }),
+});

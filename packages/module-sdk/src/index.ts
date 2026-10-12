@@ -90,6 +90,28 @@ export interface ModuleContent {
   appOrigin(): string;
 }
 
+export interface AiGradeSuggestion {
+  id: string;
+  suggestedGrade: number;
+  gradeMax: number;
+  criteria: { name: string; score: number; comment: string }[];
+  feedbackDraft: string;
+  confidence: number;
+  /** Attachments the assistant could not read. */
+  unreadFiles: string[];
+}
+
+/** AI services for modules (grading assistant). Absent features report unavailable. */
+export interface ModuleAi {
+  status(
+    feature: 'GRADING_ASSIST',
+    courseId: string,
+  ): Promise<{ available: boolean; consentRequired: boolean; notice: string }>;
+  acceptConsent(feature: 'GRADING_ASSIST'): Promise<void>;
+  suggestGrade(input: { submissionId: string; criteria?: string }): Promise<AiGradeSuggestion>;
+  markSuggestion(id: string, status: 'APPLIED' | 'DISCARDED'): Promise<void>;
+}
+
 export interface ModuleActivities {
   /** Loads an activity with the viewer's access (for module HTTP routes). */
   get(activityId: string): Promise<{
@@ -162,6 +184,7 @@ export interface ModuleCtx {
   jobs: ModuleJobs;
   realtime: ModuleRealtime;
   activities: ModuleActivities;
+  ai: ModuleAi;
   content: ModuleContent;
   log(event: string, data?: Record<string, unknown>): Promise<void>;
 }

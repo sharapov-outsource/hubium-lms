@@ -81,6 +81,24 @@
       "submittedTitle": "{user} submitted: {name}",
       "gradedTitle": "Your submission was graded: {name}",
       "dueTitle": "Due tomorrow: {name}"
+    },
+    "ai": {
+      "title": "AI grading assistant",
+      "hint": "Suggests a grade and a feedback draft. The student’s name is not sent; the decision and saving are yours.",
+      "criteria": "Grading criteria (optional)",
+      "suggest": "Suggest a grade",
+      "suggesting": "Analysing the work…",
+      "suggested": "Suggestion: {grade} out of {max}",
+      "confidence": "Confidence: {value}%",
+      "feedbackDraft": "Feedback draft",
+      "apply": "Copy into the form",
+      "discard": "Discard",
+      "applied": "Copied into the form — review and save the grade",
+      "unreadFiles": "Attachments not analysed: {files}",
+      "consentAccept": "I accept",
+      "consentTitle": "Before you first use AI",
+      "limit": "AI request limit reached, try again later",
+      "refused": "The AI declined to process this submission"
     }
   }
 }
