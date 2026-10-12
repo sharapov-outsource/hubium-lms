@@ -1,0 +1,57 @@
+// mod-lti: LTI 1.3 platform — registered tools, platform signing keys, launch nonces,
+// service access tokens (AGS / NRPS).
+
+model LtiTool {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  name           String
+  /**
+   * client_id issued by this platform.
+   */
+  clientId       String   @unique
+  deploymentId   String   @unique
+  oidcLoginUrl   String
+  targetLinkUri  String
+  redirectUris   String[]
+  jwksUrl        String?
+  publicKeyPem   String?
+  deepLinkingUrl String?
+  customParams   Json     @default("{}")
+  sendName       Boolean  @default(true)
+  sendEmail      Boolean  @default(false)
+  enabled        Boolean  @default(true)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  tokens LtiAccessToken[]
+}
+
+model LtiPlatformKey {
+  kid           String    @id
+  publicJwk     Json
+  privateKeyEnc String
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  /**
+   * Set when replaced; the key stays in the JWKS for a while for verification.
+   */
+  retiredAt     DateTime? @db.Timestamptz(3)
+}
+
+model LtiNonce {
+  nonce     String   @id
+  expiresAt DateTime @db.Timestamptz(3)
+
+  @@index([expiresAt])
+}
+
+model LtiAccessToken {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  toolId    String   @db.Uuid
+  tokenHash String   @unique
+  scopes    String[]
+  expiresAt DateTime @db.Timestamptz(3)
+
+  tool LtiTool @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
