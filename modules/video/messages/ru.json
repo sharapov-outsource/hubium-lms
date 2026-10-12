@@ -1,0 +1,47 @@
+{
+  "video": {
+    "name": "Видео",
+    "description": "Загруженное видео с адаптивным качеством или ролик с YouTube, RuTube, VK Видео",
+    "source": "Источник",
+    "sources": {
+      "upload": "Загрузить файл",
+      "embed": "Ссылка на YouTube / RuTube / VK Видео"
+    },
+    "embedUrl": "Ссылка на видео",
+    "embedHint": "Например, https://youtu.be/… или https://rutube.ru/video/…",
+    "uploadAfterSave": "Файл загружается на странице видео после сохранения.",
+    "deleteSource": "Удалить исходный файл после перекодирования",
+    "noSeekAhead": "Запретить перемотку вперёд дальше просмотренного",
+    "minPercent": "Просмотрено не менее, %",
+    "minPercentHint": "Например, 90",
+    "watched": "Просмотрено {percent}%",
+    "processing": "Видео обрабатывается, скоро будет доступно.",
+    "notReady": "Видео ещё не загружено.",
+    "manage": "Управление видео",
+    "status": {
+      "UPLOADED": "В очереди",
+      "PROCESSING": "Обработка",
+      "READY": "Готово",
+      "FAILED": "Ошибка"
+    },
+    "retranscode": "Перекодировать заново",
+    "uploadVideo": "Загрузить видео",
+    "replaceVideo": "Заменить видео",
+    "uploadHint": "Загрузка продолжится после обрыва связи. До 4 ГБ.",
+    "uploading": "Загружено {percent}%",
+    "uploaded": "Видео загружено и отправлено на обработку",
+    "cancel": "Отмена",
+    "captions": "Субтитры",
+    "captionLang": "Язык",
+    "captionLabel": "Название",
+    "captionFile": "Файл VTT или SRT",
+    "addCaption": "Добавить",
+    "captionAdded": "Субтитры добавлены",
+    "remove": "Удалить",
+    "report": "Просмотры",
+    "student": "Студент",
+    "progress": "Просмотрено",
+    "lastWatched": "Последний просмотр",
+    "noStudents": "Нет студентов"
+  }
+}
