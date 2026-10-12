@@ -1,0 +1,27 @@
+{
+  "name": "@hubium/worker",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
+    "start": "node --env-file-if-exists=../../.env dist/main.mjs",
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@hubium/core": "workspace:*",
+    "@hubium/db": "workspace:*",
+    "@hubium/i18n": "workspace:*"
+  },
+  "devDependencies": {
+    "@hubium/tooling": "workspace:*",
+    "@types/node": "^24",
+    "tsdown": "0.23.1",
+    "tsx": "4.23.15",
+    "typescript": "~5.9.3",
+    "vitest": "5.0.4"
+  }
+}
