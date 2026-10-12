@@ -38,12 +38,14 @@ registerModules([
   ...videoModules,
   ...livesessionModules,
   ...scormModules,
+  ...ltiModules,
 ] as never);
 registerModuleMessages({
   ru: { ...assignRu, ...quizRu, ...forumRu },
   en: { ...assignEn, ...quizEn, ...forumEn },
 });
 
+import { ltiModules } from '@hubium/mod-lti/server';
 import { type CapturedJob, setJobSink } from '../src/jobs/jobs.ts';
 import { setMailTransport } from '../src/mail/mail.ts';
 import { invalidateSettingsCache } from '../src/settings/settings.ts';

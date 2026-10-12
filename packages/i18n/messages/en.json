@@ -311,7 +311,8 @@
     "loginAsConfirm": "Log in as {name}? You stay in their account until you return.",
     "impersonating": "You are logged in as {name}",
     "stopImpersonating": "Return to my account",
-    "announcements": "Announcements"
+    "announcements": "Announcements",
+    "lti": "LTI"
   },
   "email": {
     "footer": "You received this email because you have an account on this site.",
@@ -956,5 +957,40 @@
     "site": "Site announcements",
     "siteHint": "Shown on the dashboard to every user",
     "recent": "New in your courses"
+  },
+  "adminLti": {
+    "title": "LTI 1.3 tools",
+    "description": "External services teachers can add to courses",
+    "platform": "Platform details for the tool configuration",
+    "issuer": "Issuer",
+    "authUrl": "OIDC auth URL",
+    "tokenUrl": "Access token URL",
+    "jwksUrl": "JWKS URL (platform)",
+    "rotate": "Rotate key",
+    "rotateConfirm": "Generate a new signing key? The old one stays in the JWKS for a week.",
+    "rotated": "Key rotated",
+    "disabled": "Disabled",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete the tool “{name}”? Course activities using it will stop working.",
+    "clientId": "Client ID",
+    "deploymentId": "Deployment ID",
+    "loginUrl": "Tool OIDC login URL",
+    "targetLinkUri": "Target link URI",
+    "deepLinkingUrl": "Deep Linking URL",
+    "editTool": "Edit “{name}”",
+    "newTool": "New tool",
+    "saved": "Tool saved",
+    "name": "Name",
+    "redirectUris": "Redirect URIs",
+    "redirectUrisHint": "One per line",
+    "toolJwksUrl": "Tool JWKS URL",
+    "keyHint": "Provide a JWKS URL or a public key",
+    "publicKey": "Tool public key (PEM)",
+    "customParams": "Default parameters (key=value)",
+    "sendName": "Send name",
+    "sendEmail": "Send e-mail",
+    "enabled": "Enabled",
+    "save": "Save"
   }
 }

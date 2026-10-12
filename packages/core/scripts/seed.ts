@@ -12,6 +12,7 @@ const { forumModules } = await import('@hubium/mod-forum/server');
 const { videoModules } = await import('@hubium/mod-video/server');
 const { livesessionModules } = await import('@hubium/mod-livesession/server');
 const { scormModules } = await import('@hubium/mod-scorm/server');
+const { ltiModules } = await import('@hubium/mod-lti/server');
 await import('../src/bootstrap.ts');
 registerModules([
   ...contentModules,
@@ -21,6 +22,7 @@ registerModules([
   ...videoModules,
   ...livesessionModules,
   ...scormModules,
+  ...ltiModules,
 ] as never);
 const { seed } = await import('../src/seed/seed.ts');
 
