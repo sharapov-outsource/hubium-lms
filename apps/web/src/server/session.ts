@@ -3,6 +3,7 @@ import {
   type Actor,
   anonymousAccess,
   type Capability,
+  isSwitchableRole,
   loadUserAccess,
   Permissions,
   type RequestContext,
@@ -84,6 +85,8 @@ async function readSwitchedRole(
   if (!user) return undefined;
   const real = new Permissions(db, await loadUserAccess(db, user));
   if (!(await real.can('course:switchrole', contextId).catch(() => false))) return undefined;
+  // The cookie is client-held: only preview as a weaker role, never e.g. manager.
+  if (!(await isSwitchableRole(db, contextId, roleId))) return undefined;
   return { roleId, contextId };
 }
 

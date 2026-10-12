@@ -2,7 +2,7 @@ import { type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { hashPassword } from 'better-auth/crypto';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
-import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { defineOperation } from '../operation.ts';
 import { erasePersonalData } from '../privacy/privacy.ts';
@@ -192,6 +192,9 @@ export const updateUser = defineOperation({
   async handler(ctx, input) {
     const user = await ctx.tx.user.findUnique({ where: { id: input.id } });
     if (!user || user.deletedAt) throw new NotFoundError('User');
+    // Managers may edit users but never a site admin (email/password would be a takeover).
+    if (user.isSiteAdmin && !ctx.perm.isSiteAdmin)
+      throw new ForbiddenError('Only site admins can edit an admin account');
     if (input.isSiteAdmin !== undefined && input.isSiteAdmin !== user.isSiteAdmin) {
       if (!ctx.perm.isSiteAdmin) throw new ValidationError({ isSiteAdmin: ['Only site admins'] });
       if (user.id === ctx.perm.userId && !input.isSiteAdmin) {
@@ -218,6 +221,9 @@ export const updateUser = defineOperation({
     });
     if (input.password) {
       await setPassword(ctx.tx, user.id, input.password);
+      // A password set by someone else signs the user out everywhere.
+      if (user.id !== ctx.perm.userId)
+        await ctx.tx.session.deleteMany({ where: { userId: user.id } });
     }
     await logEvent(ctx.tx, {
       name: 'user.updated',

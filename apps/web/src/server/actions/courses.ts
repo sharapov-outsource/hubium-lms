@@ -17,6 +17,7 @@ import {
   deleteSection,
   duplicateActivity,
   enrolUsers,
+  isSwitchableRole,
   moveActivity,
   moveActivityStep,
   moveCategoryOrder,
@@ -347,6 +348,14 @@ export async function overrideCompletionAction(
 
 export async function switchRoleAction(courseId: string, roleId: string | null) {
   const jar = await cookies();
+  if (roleId) {
+    const ctx = await getContext();
+    if (
+      !(await ctx.perm.can('course:switchrole', courseId)) ||
+      !(await isSwitchableRole(db, courseId, roleId))
+    )
+      return;
+  }
   if (roleId)
     jar.set(VIEW_AS_COOKIE, `${courseId}:${roleId}`, {
       path: '/',

@@ -112,13 +112,16 @@ export async function authenticateApiToken(
       where: { id: t.id },
       data: { lastUsedAt: now, lastUsedIp: meta.ip ?? null },
     });
+  const perm = new Permissions(db, await loadUserAccess(db, u));
+  // Losing API access (e.g. a PROHIBIT on the role) disables existing tokens too.
+  if (!(await perm.can('webservice:createtoken'))) return null;
   return {
     tokenId: t.id,
     scopes: t.scopes.filter((s): s is ApiScope => (API_SCOPES as readonly string[]).includes(s)),
     ctx: {
       db,
       actor: { kind: 'user', userId: u.id, isSiteAdmin: u.isSiteAdmin },
-      perm: new Permissions(db, await loadUserAccess(db, u)),
+      perm,
       now,
       locale: meta.locale ?? (u.locale === 'en' ? 'en' : 'ru'),
       ip: meta.ip ?? null,

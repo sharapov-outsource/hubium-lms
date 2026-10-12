@@ -513,6 +513,9 @@ export async function getCourseOutline(
   courseId: string,
 ): Promise<OutlineSection[]> {
   const access = await getCourseAccess(ctx, courseId);
+  // Callers outside the course page (REST API, AI tutor) rely on this check.
+  if (!access.canView || (access.course.deletedAt && !ctx.perm.isSiteAdmin))
+    throw new NotFoundError('Course');
   const userId = ctx.perm.userId;
   const [sections, activities, facts] = await Promise.all([
     ctx.db.courseSection.findMany({ where: { courseId }, orderBy: { rank: 'asc' } }),

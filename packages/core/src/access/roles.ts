@@ -149,3 +149,23 @@ export async function syncCapabilities(db: Db): Promise<{ newCapabilities: strin
     return { newCapabilities: syncedRow ? newCaps : [] };
   });
 }
+
+/** Archetypes a teacher may preview the course as ("view as role"). Never more powerful ones. */
+export const SWITCHABLE_ARCHETYPES = ['TEACHER', 'STUDENT', 'OBSERVER', 'GUEST'] as const;
+
+/** Validates a "view as" request: a course context and a role with a harmless archetype. */
+export async function isSwitchableRole(
+  db: Db,
+  contextId: string,
+  roleId: string,
+): Promise<boolean> {
+  const [role, ctx] = await Promise.all([
+    db.role.findUnique({ where: { id: roleId }, select: { archetype: true } }),
+    db.context.findUnique({ where: { id: contextId }, select: { level: true } }),
+  ]);
+  return (
+    !!role &&
+    ctx?.level === 'COURSE' &&
+    (SWITCHABLE_ARCHETYPES as readonly string[]).includes(role.archetype)
+  );
+}

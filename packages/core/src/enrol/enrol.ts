@@ -422,6 +422,10 @@ export async function listParticipants(
     });
     restrictGroups = mine.map((m) => m.groupId);
   }
+  // Contact details (and searching by them) only for people who manage the course roster.
+  const showContacts =
+    (await ctx.perm.can('enrol:manage', q.courseId)) ||
+    (await ctx.perm.can('user:viewdetails', q.courseId));
   const where: Prisma.UserWhereInput = {
     deletedAt: null,
     enrolments: { some: { courseId: q.courseId, ...(q.status ? { status: q.status } : {}) } },
@@ -435,8 +439,12 @@ export async function listParticipants(
       ? {
           OR: [
             { name: { contains: q.q, mode: 'insensitive' } },
-            { email: { contains: q.q, mode: 'insensitive' } },
-            { username: { contains: q.q, mode: 'insensitive' } },
+            ...(showContacts
+              ? [
+                  { email: { contains: q.q, mode: 'insensitive' as const } },
+                  { username: { contains: q.q, mode: 'insensitive' as const } },
+                ]
+              : []),
           ],
         }
       : {}),
@@ -468,7 +476,15 @@ export async function listParticipants(
       },
     }),
   ]);
-  return { total, page: q.page, pageSize: q.pageSize, users };
+  return {
+    total,
+    page: q.page,
+    pageSize: q.pageSize,
+    showContacts,
+    users: showContacts
+      ? users
+      : users.map((u) => ({ ...u, email: '', emailPlaceholder: true, username: null })),
+  };
 }
 
 /** Users not yet enrolled, for the "enrol users" picker. */

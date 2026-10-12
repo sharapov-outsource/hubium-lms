@@ -102,6 +102,28 @@ describe('users service', () => {
     ).rejects.toBeInstanceOf(ValidationError);
   });
 
+  it('manager cannot change a site admin\u2019s email or password', async () => {
+    const ctx = await ctxFor(t.db, 'manager@hubium.local');
+    const admin = await t.db.user.findUniqueOrThrow({ where: { email: 'admin@test.local' } });
+    await expect(updateUser.run(ctx, { id: admin.id, password: 'Takeover123' })).rejects.toThrow(
+      /admin/,
+    );
+    await expect(updateUser.run(ctx, { id: admin.id, email: 'evil@x.y' })).rejects.toThrow();
+    expect((await t.db.user.findUniqueOrThrow({ where: { id: admin.id } })).email).toBe(
+      'admin@test.local',
+    );
+  });
+
+  it('a password reset by an admin signs the user out', async () => {
+    const ctx = await ctxFor(t.db, 'admin@test.local');
+    const s = await t.db.user.findUniqueOrThrow({ where: { email: 'student3@hubium.local' } });
+    await t.db.session.create({
+      data: { userId: s.id, token: 'tok-pw', expiresAt: new Date(Date.now() + 1e6) },
+    });
+    await updateUser.run(ctx, { id: s.id, password: 'NewPassword123' });
+    expect(await t.db.session.count({ where: { userId: s.id } })).toBe(0);
+  });
+
   it('update changes name and suspend kills sessions', async () => {
     const ctx = await ctxFor(t.db, 'admin@test.local');
     const s = await t.db.user.findUniqueOrThrow({ where: { email: 'student2@hubium.local' } });

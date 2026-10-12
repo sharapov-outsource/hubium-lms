@@ -34,11 +34,24 @@ for (let i = 1; i <= n; i++) {
     });
     u = await db.user.findUniqueOrThrow({ where: { id } });
   }
-  await core.enrolUsers.run(sys, { courseId: course.id, userIds: [u.id], roleId: student.id }).catch(() => {});
-  const ctx = { ...sys, actor: { kind: 'user' as const, userId: u.id, isSiteAdmin: false }, perm: new core.Permissions(db, await core.loadUserAccess(db, u)) };
-  const t = await core.createApiToken(ctx, { name: 'k6', scopes: ['read', 'write'], expiresInDays: 7 });
+  await core.enrolUsers
+    .run(sys, { courseId: course.id, userIds: [u.id], roleId: student.id })
+    .catch(() => {});
+  const ctx = {
+    ...sys,
+    actor: { kind: 'user' as const, userId: u.id, isSiteAdmin: false },
+    perm: new core.Permissions(db, await core.loadUserAccess(db, u)),
+  };
+  const t = await core.createApiToken(ctx, {
+    name: 'k6',
+    scopes: ['read', 'write'],
+    expiresInDays: 7,
+  });
   out.push({ username, token: t.token });
 }
-writeFileSync(path.resolve(import.meta.dirname, '../../../tools/k6/users.json'), JSON.stringify(out));
+writeFileSync(
+  path.resolve(import.meta.dirname, '../../../tools/k6/users.json'),
+  JSON.stringify(out),
+);
 console.log(`Wrote ${out.length} users to tools/k6/users.json`);
 await db.$disconnect();

@@ -171,6 +171,72 @@ describe('REST API v1', () => {
     expect(ev.status).toBe(200);
   });
 
+  it('hides other courses, classmates\u2019 emails, and serialises grades', async () => {
+    // a course the student is not enrolled in
+    const other = await courseFixture(t.db, 'API2');
+    await other.addActivity('page', 'Секрет', { content: '<p>x</p>' });
+    const outsider = await mint(f.users.student3!);
+    await t.db.enrolment.deleteMany({
+      where: { courseId: other.courseId, userId: f.users.student3 },
+    });
+    expect((await call(outsider, `/courses/${other.courseId}/contents`)).status).toBe(404);
+
+    // students see names but not emails, and cannot search by email
+    const list = (await (
+      await call(tokens.student!, `/courses/${f.courseId}/enrolments`)
+    ).json()) as {
+      items: { email: string | null }[];
+    };
+    expect(list.items.length).toBeGreaterThan(1);
+    expect(list.items.every((p) => p.email === null)).toBe(true);
+    const byEmail = (await (
+      await call(tokens.student!, `/courses/${f.courseId}/enrolments?q=hubium.local`)
+    ).json()) as { total: number };
+    expect(byEmail.total).toBe(0);
+    const teacherView = (await (
+      await call(tokens.teacher!, `/courses/${f.courseId}/enrolments`)
+    ).json()) as {
+      items: { email: string | null }[];
+    };
+    expect(teacherView.items.some((p) => p.email?.includes('@'))).toBe(true);
+
+    // grades come back as arrays, not empty Map objects
+    const g = (await (
+      await call(tokens.teacher!, `/courses/${f.courseId}/grades?all=1`)
+    ).json()) as {
+      items: unknown[];
+      grades: unknown[];
+    };
+    expect(Array.isArray(g.items) && g.items.length > 0).toBe(true);
+    expect(Array.isArray(g.grades)).toBe(true);
+  });
+
+  it('stops honouring tokens once API access is prohibited', async () => {
+    const token = await mint(f.users.student2!, ['read']);
+    expect((await call(token, '/me')).status).toBe(200);
+    const role = await t.db.role.findFirstOrThrow({ where: { shortName: 'user' } });
+    const before = await t.db.roleCapability.findUnique({
+      where: { roleId_capability: { roleId: role.id, capability: 'webservice:createtoken' } },
+    });
+    await t.db.roleCapability.upsert({
+      where: { roleId_capability: { roleId: role.id, capability: 'webservice:createtoken' } },
+      create: { roleId: role.id, capability: 'webservice:createtoken', permission: 'PROHIBIT' },
+      update: { permission: 'PROHIBIT' },
+    });
+    const { invalidatePermissionCaches } = await import('@hubium/core');
+    invalidatePermissionCaches('roles');
+    try {
+      expect((await call(token, '/me')).status).toBe(401);
+    } finally {
+      if (before)
+        await t.db.roleCapability.update({
+          where: { roleId_capability: { roleId: role.id, capability: 'webservice:createtoken' } },
+          data: { permission: before.permission },
+        });
+      invalidatePermissionCaches('roles');
+    }
+  });
+
   it('rate-limits per token', async () => {
     const small = createApi({ db: t.db, rateLimitPerMinute: 2 });
     const go = () =>

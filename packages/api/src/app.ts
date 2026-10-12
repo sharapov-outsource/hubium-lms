@@ -216,6 +216,29 @@ const Token = z
   })
   .openapi('Token');
 
+const GradesReport = z
+  .object({
+    items: z.array(
+      z.object({
+        id: Id,
+        name: z.string(),
+        kind: z.string(),
+        gradeMax: z.number(),
+        categoryId: Id.nullable(),
+      }),
+    ),
+    users: z.array(z.object({ id: Id, name: z.string() })).optional(),
+    grades: z.array(
+      z.object({
+        userId: Id,
+        itemId: Id,
+        finalGrade: z.number().nullable(),
+        feedback: z.string().nullable(),
+      }),
+    ),
+  })
+  .openapi('GradesReport');
+
 const Page = <T extends z.ZodType>(item: T) =>
   z.object({ items: z.array(item), total: z.number().int(), page: z.number().int() });
 
@@ -396,7 +419,7 @@ export function createApi(opts: ApiOptions) {
                 email: z.string().email(),
                 firstName: z.string(),
                 lastName: z.string(),
-                password: z.string().optional(),
+                password: z.string().min(8),
               }),
             },
           },
@@ -661,16 +684,52 @@ export function createApi(opts: ApiOptions) {
         params: IdParam,
         query: z.object({ userId: Id.optional(), all: z.enum(['0', '1']).optional() }),
       },
-      responses: { 200: ok(z.object({ report: z.unknown() })), ...errors },
+      responses: { 200: ok(GradesReport), ...errors },
     }),
     async (c) => {
       const id = c.req.valid('param').id;
       const q = c.req.valid('query');
-      const report =
-        q.all === '1'
-          ? await graderReport(ctxOf(c), id)
-          : await userReport(ctxOf(c), id, q.userId ?? uid(c));
-      return c.json({ report: JSON.parse(JSON.stringify(report)) }, 200);
+      const dec = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+      const itemOut = (i: {
+        id: string;
+        name: string;
+        kind: string;
+        gradeMax: unknown;
+        categoryId: string | null;
+      }) => ({
+        id: i.id,
+        name: i.name,
+        kind: i.kind,
+        gradeMax: Number(i.gradeMax),
+        categoryId: i.categoryId,
+      });
+      const gradeOut = (g: {
+        userId: string;
+        gradeItemId: string;
+        finalGrade: unknown;
+        feedback: string | null;
+      }) => ({
+        userId: g.userId,
+        itemId: g.gradeItemId,
+        finalGrade: dec(g.finalGrade),
+        feedback: g.feedback,
+      });
+      if (q.all === '1') {
+        const r = await graderReport(ctxOf(c), id);
+        return c.json(
+          {
+            items: r.items.map(itemOut),
+            users: r.users.map((u) => ({ id: u.id, name: u.name })),
+            grades: [...r.cell.values()].map(gradeOut),
+          },
+          200,
+        );
+      }
+      const r = await userReport(ctxOf(c), id, q.userId ?? uid(c));
+      return c.json(
+        { items: r.items.map(itemOut), grades: [...r.grades.values()].map(gradeOut) },
+        200,
+      );
     },
   );
 
