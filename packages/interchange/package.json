@@ -17,7 +17,7 @@
     "@hubium/editor": "workspace:*",
     "@hubium/questions": "workspace:*",
     "fast-xml-parser": "5.11.1",
-    "fflate": "0.8.2",
+    "fflate": "0.8.3",
     "tar-stream": "3.2.1",
     "zod": "4.6.6"
   },

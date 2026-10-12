@@ -184,7 +184,7 @@ describe('mod-lti (LTI 1.3 platform)', () => {
         activityProgress: 'Completed',
         gradingProgress: 'FullyGraded',
         timestamp: new Date().toISOString(),
-        comment: 'Отлично',
+        comment: 'Отлично <img src=x onerror=alert(1)>',
       }),
     });
     expect(score.status).toBe(200);
@@ -195,7 +195,8 @@ describe('mod-lti (LTI 1.3 platform)', () => {
       where: { gradeItemId_userId: { gradeItemId: item.id, userId: f.users.student1! } },
     });
     expect(Number(g.finalGrade)).toBe(80);
-    expect(g.feedback).toBe('Отлично');
+    // plain-text comment from the tool is stored escaped, never as markup
+    expect(g.feedback).toBe('<p>Отлично &lt;img src=x onerror=alert(1)&gt;</p>');
     const results = (await (
       await http('anon', 'GET', `ags/${ltiId}/lineitems/0/results`, { headers: auth })
     ).json()) as {
@@ -203,6 +204,7 @@ describe('mod-lti (LTI 1.3 platform)', () => {
     }[];
     expect(results[0]).toMatchObject({
       userId: f.users.student1,
+      comment: 'Отлично <img src=x onerror=alert(1)>',
       resultScore: 80,
       resultMaximum: 100,
     });

@@ -9,3 +9,7 @@ onlyBuiltDependencies:
   - esbuild
   - prisma
   - sharp
+
+# Transitive security fixes (mysql2 comes with better-auth's optional adapters; unused here)
+overrides:
+  mysql2: ">=3.23.1"

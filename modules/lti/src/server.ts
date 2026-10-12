@@ -20,6 +20,19 @@ import {
   verifyToolJwt,
 } from './protocol.ts';
 
+const textToHtml = (t: string) =>
+  t.trim()
+    ? `<p>${t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</p>`
+    : '';
+const htmlToText = (h: string) =>
+  h
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .trim();
+
 export * from './protocol.ts';
 
 // mod-lti: LTI 1.3 platform. Tools are registered by administrators; activities launch
@@ -526,7 +539,9 @@ async function handleAgs(ctx: ModuleCtx, req: Request, activityId: string, rest:
       {
         userId,
         rawGrade: raw === null ? null : Math.min(Number(item.gradeMax), raw),
-        feedback: typeof body.comment === 'string' ? body.comment.slice(0, 10_000) : undefined,
+        // AGS comments are plain text: escape them so the gradebook shows them literally.
+        feedback:
+          typeof body.comment === 'string' ? textToHtml(body.comment.slice(0, 10_000)) : undefined,
         itemNumber: n,
       },
     ]);
@@ -551,7 +566,7 @@ async function handleAgs(ctx: ModuleCtx, req: Request, activityId: string, rest:
             ? null
             : (Number(g.finalGrade) / Number(item!.gradeMax)) * li.scoreMaximum,
         resultMaximum: li.scoreMaximum,
-        ...(g.feedback ? { comment: g.feedback } : {}),
+        ...(g.feedback ? { comment: htmlToText(g.feedback) } : {}),
       })),
       200,
       'application/vnd.ims.lis.v2.resultcontainer+json',

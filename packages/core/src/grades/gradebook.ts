@@ -227,6 +227,9 @@ export async function setActivityGrades(
   for (const g of grades) {
     const item = items.find((i) => i.itemNumber === (g.itemNumber ?? 0));
     if (!item) continue;
+    // Feedback is rendered as HTML in the gradebook: never trust a module (or the
+    // external tool behind it) to have sanitised it.
+    if (g.feedback) g.feedback = sanitizeRichText(g.feedback);
     await writeGrade(
       tx,
       item,
