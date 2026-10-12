@@ -6,6 +6,10 @@ import { unsubscribeAction } from './action';
 
 export const dynamic = 'force-dynamic';
 
+export async function generateMetadata() {
+  return { title: (await getTranslations('notifications'))('unsubscribe.title') };
+}
+
 export default async function UnsubscribePage({
   params,
   searchParams,
