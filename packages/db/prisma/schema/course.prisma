@@ -149,6 +149,8 @@ model Activity {
   liveMeeting        LiveMeeting?
   liveAttendance     LiveAttendance[]
   liveRecordings     LiveRecording[]
+  scormPackage       ScormPackage?
+  scormAttempts      ScormAttempt[]
 
   @@index([courseId, sectionId, rank])
   @@index([moduleKey])
