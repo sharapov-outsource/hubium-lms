@@ -13,7 +13,7 @@
     "generate": "prisma generate",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
-    "migrate:diff": "prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code",
+    "migrate:diff": "node scripts/check-drift.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests"
   },

@@ -23,6 +23,9 @@ export const settingDefs = {
   'email.fromName': z.string().default('Hubium'),
   'course.creatorRole': z.string().default('editingteacher'),
   'mentors.enabled': z.boolean().default(false),
+  'ai.enabled': z.boolean().default(false),
+  /** Privacy notice users accept before their first AI request (Markdown). */
+  'ai.notice': z.string().max(20_000).default(''),
 } as const satisfies Record<string, z.ZodType>;
 
 export type SettingKey = keyof typeof settingDefs;

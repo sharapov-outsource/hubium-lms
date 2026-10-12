@@ -2,6 +2,7 @@
 
 import { RichTextEditor } from '@hubium/editor/client';
 import { useEditorLabels } from '@hubium/editor/field';
+import type { AiGradeSuggestion } from '@hubium/module-sdk';
 import { callModuleAction, DateTimeInput } from '@hubium/module-sdk/form';
 import {
   Alert,
@@ -14,6 +15,7 @@ import {
   Field,
   Input,
   Label,
+  Textarea,
 } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { useRouter } from 'next/navigation';
@@ -212,6 +214,7 @@ export function GradeForm({
   feedback,
   canReopen,
   nextUrl,
+  ai,
 }: {
   activityId: string;
   courseId: string;
@@ -221,12 +224,20 @@ export function GradeForm({
   feedback: string;
   canReopen: boolean;
   nextUrl: string;
+  ai?: { available: boolean; consentRequired: boolean; notice: string };
 }) {
   const t = useTranslations('mod.assign');
   const labels = useEditorLabels();
   const router = useRouter();
   const { pending, run } = useAction(activityId);
   const formRef = useRef<HTMLFormElement>(null);
+  // Applying an AI suggestion remounts the editor with the draft as its initial value.
+  const [draft, setDraft] = useState<{ key: number; html: string } | null>(null);
+  const applySuggestion = (s: AiGradeSuggestion) => {
+    const input = formRef.current?.elements.namedItem('grade') as HTMLInputElement | null;
+    if (input) input.value = String(s.suggestedGrade);
+    setDraft((d) => ({ key: (d?.key ?? 0) + 1, html: textToHtml(s.feedbackDraft) }));
+  };
   const save = (goNext: boolean) => {
     const fd = new FormData(formRef.current!);
     const raw = String(fd.get('grade') ?? '')
@@ -255,7 +266,16 @@ export function GradeForm({
       <CardHeader>
         <CardTitle>{t('grade')}</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="grid gap-4">
+        {ai?.available ? (
+          <AiGradeAssist
+            activityId={activityId}
+            userId={userId}
+            consentRequired={ai.consentRequired}
+            notice={ai.notice}
+            onApply={applySuggestion}
+          />
+        ) : null}
         <form ref={formRef} className="grid gap-4" onSubmit={(e) => e.preventDefault()}>
           <Field label={`${t('grade')} (${t('outOf', { max: gradeMax })})`} htmlFor="assign-grade">
             <Input
@@ -269,9 +289,10 @@ export function GradeForm({
           <div className="grid gap-1.5">
             <Label htmlFor="assign-feedback">{t('feedback')}</Label>
             <RichTextEditor
+              key={draft?.key ?? 0}
               id="assign-feedback"
               name="feedback"
-              defaultValue={feedback}
+              defaultValue={draft?.html ?? feedback}
               labels={labels}
               ariaLabel={t('feedback')}
               minHeight={120}
@@ -352,5 +373,152 @@ export function ExtensionForm({
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+const textToHtml = (text: string) =>
+  text
+    .split(/\n{2,}/)
+    .map(
+      (p) =>
+        `<p>${p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</p>`,
+    )
+    .join('');
+
+function AiGradeAssist({
+  activityId,
+  userId,
+  consentRequired,
+  notice,
+  onApply,
+}: {
+  activityId: string;
+  userId: string;
+  consentRequired: boolean;
+  notice: string;
+  onApply: (s: AiGradeSuggestion) => void;
+}) {
+  const t = useTranslations('mod.assign.ai');
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [criteria, setCriteria] = useState('');
+  const [s, setS] = useState<AiGradeSuggestion | null>(null);
+  const fail = (r: { code?: string; message?: string }) =>
+    toast.error(
+      r.code === 'RATE_LIMITED'
+        ? t('limit')
+        : r.code === 'BAD_REQUEST' && r.message?.includes('declined')
+          ? t('refused')
+          : (r.message ?? 'Error'),
+    );
+  if (consentRequired)
+    return (
+      <Alert variant="info" className="grid gap-2">
+        <strong>{t('consentTitle')}</strong>
+        {notice ? <p className="whitespace-pre-wrap text-sm">{notice}</p> : null}
+        <Button
+          size="sm"
+          className="w-fit"
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              const r = await callModuleAction(activityId, 'aiConsent', {});
+              if (!r.ok) return void fail(r);
+              router.refresh();
+            })
+          }
+        >
+          {t('consentAccept')}
+        </Button>
+      </Alert>
+    );
+  return (
+    <section
+      aria-labelledby="ai-assist-title"
+      className="grid gap-3 rounded-lg border border-dashed p-3"
+    >
+      <div>
+        <h3 id="ai-assist-title" className="font-medium">
+          {t('title')}
+        </h3>
+        <p className="text-xs text-muted-foreground">{t('hint')}</p>
+      </div>
+      <Field label={t('criteria')} htmlFor="ai-criteria">
+        <Textarea
+          id="ai-criteria"
+          value={criteria}
+          onChange={(e) => setCriteria(e.target.value)}
+          className="min-h-16 text-sm"
+        />
+      </Field>
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        className="w-fit"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            const r = await callModuleAction<AiGradeSuggestion>(activityId, 'aiSuggest', {
+              userId,
+              criteria,
+            });
+            if (!r.ok || !r.data) return void fail(r);
+            setS(r.data);
+          })
+        }
+      >
+        {pending ? t('suggesting') : t('suggest')}
+      </Button>
+      {s ? (
+        <div className="grid gap-2 text-sm" aria-live="polite">
+          <p className="font-medium">
+            {t('suggested', { grade: s.suggestedGrade, max: s.gradeMax })}{' '}
+            <span className="text-muted-foreground">
+              · {t('confidence', { value: Math.round(s.confidence * 100) })}
+            </span>
+          </p>
+          <ul className="list-disc pl-5">
+            {s.criteria.map((c) => (
+              <li key={c.name}>
+                <strong>{c.name}</strong> ({Math.round(c.score * 100)}%): {c.comment}
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs font-medium">{t('feedbackDraft')}</p>
+          <p className="whitespace-pre-wrap rounded-md bg-muted p-2">{s.feedbackDraft}</p>
+          {s.unreadFiles.length ? (
+            <p className="text-xs text-muted-foreground">
+              {t('unreadFiles', { files: s.unreadFiles.join(', ') })}
+            </p>
+          ) : null}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                onApply(s);
+                void callModuleAction(activityId, 'aiMark', { id: s.id, status: 'APPLIED' });
+                toast.success(t('applied'));
+                setS(null);
+              }}
+            >
+              {t('apply')}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                void callModuleAction(activityId, 'aiMark', { id: s.id, status: 'DISCARDED' });
+                setS(null);
+              }}
+            >
+              {t('discard')}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </section>
   );
 }

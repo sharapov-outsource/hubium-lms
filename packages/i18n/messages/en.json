@@ -312,7 +312,8 @@
     "impersonating": "You are logged in as {name}",
     "stopImpersonating": "Return to my account",
     "announcements": "Announcements",
-    "lti": "LTI"
+    "lti": "LTI",
+    "ai": "AI"
   },
   "email": {
     "footer": "You received this email because you have an account on this site.",
@@ -432,7 +433,8 @@
       "settings": "Settings",
       "enrolment": "Enrolment",
       "questionBank": "Question bank",
-      "stream": "Stream"
+      "stream": "Stream",
+      "tutor": "AI tutor"
     },
     "editMode": "Edit mode",
     "editOn": "Edit",
@@ -831,7 +833,8 @@
       "m50": "−50%",
       "m100": "−100%"
     },
-    "exportXml": "Export Moodle XML"
+    "exportXml": "Export Moodle XML",
+    "aiGenerate": "Generate with AI"
   },
   "notifications": {
     "title": "Notifications",
@@ -1015,5 +1018,127 @@
     "failed": "Import failed: {error}",
     "done": "Done: {sections} sections, {activities} activities, {questions} questions, {files} files.",
     "openCourse": "Open course"
+  },
+  "ai": {
+    "saved": "Saved",
+    "features": {
+      "QUIZGEN": "Question generation",
+      "GRADING_ASSIST": "Grading assistant",
+      "TUTOR": "Course AI tutor"
+    },
+    "consent": {
+      "title": "Before you first use AI",
+      "default": "Your requests and course text will be sent to the AI provider chosen by the administrator. AI answers may contain mistakes.",
+      "accept": "Accept and continue"
+    },
+    "limit": {
+      "perMinute": "Too many requests in a row — wait a minute.",
+      "userDaily": "Your daily AI limit is used up. Try again tomorrow.",
+      "courseMonthly": "This course’s monthly AI limit is used up."
+    },
+    "course": {
+      "title": "AI in this course",
+      "hint": "Features the administrator enabled. You can switch them off for this course."
+    },
+    "tutor": {
+      "title": "Chat with the tutor",
+      "history": "Conversations",
+      "newChat": "New conversation",
+      "untitled": "Untitled",
+      "empty": "Ask a question about the course material — the tutor answers with links to sources.",
+      "placeholder": "Your question about the course…",
+      "send": "Send",
+      "you": "You:",
+      "tutor": "Tutor:",
+      "thinking": "The tutor is thinking…",
+      "sources": "Sources",
+      "helpful": "Helpful answer",
+      "notHelpful": "Unhelpful answer",
+      "blocked": "The tutor is unavailable while the quiz attempt “{name}” is open.",
+      "refused": "The tutor cannot help with this request.",
+      "failed": "Could not get an answer. Try again.",
+      "disclaimer": "The tutor only uses course material you can access and may make mistakes."
+    },
+    "quizgen": {
+      "title": "Generate questions with AI",
+      "description": "AI suggests questions from the chosen material. They are saved as drafts — review them before use.",
+      "sources": "Source material",
+      "noSources": "The course has no material with text.",
+      "types": "Question types",
+      "count": "Number",
+      "difficulty": "Difficulty",
+      "levels": {
+        "easy": "Easy",
+        "medium": "Medium",
+        "hard": "Hard"
+      },
+      "language": "Language",
+      "generate": "Generate",
+      "working": "AI is writing questions…",
+      "failed": "Generation failed: {error}",
+      "again": "Try again",
+      "done": "Drafts created: {count}. Choose which to keep.",
+      "keep": "Keep",
+      "edit": "Edit",
+      "apply": "Accept {accept}, delete {reject}",
+      "toBank": "To the question bank"
+    }
+  },
+  "adminAi": {
+    "title": "Artificial intelligence",
+    "description": "Providers, features, limits and user consent.",
+    "site": "General",
+    "enabled": "Enable AI features on this site",
+    "notice": "Privacy notice",
+    "noticeHint": "Users accept it before their first request (Markdown).",
+    "save": "Save",
+    "saved": "Saved",
+    "providers": "Providers",
+    "kind": "Type",
+    "openaiCompat": "OpenAI-compatible (Ollama, vLLM, YandexGPT…)",
+    "mock": "Test provider (no key)",
+    "name": "Name",
+    "baseUrl": "Base URL",
+    "baseUrlAnthropic": "Leave empty for api.anthropic.com",
+    "baseUrlCompat": "E.g. http://ollama:11434/v1",
+    "apiKey": "API key",
+    "keyStored": "Key stored — leave empty to keep",
+    "modelGeneration": "Generation model",
+    "modelCheap": "Cheap model",
+    "modelPremium": "Premium model",
+    "jsonSchema": "Supports JSON Schema",
+    "streaming": "Supports streaming",
+    "providerEnabled": "Enabled",
+    "addProvider": "Add provider",
+    "disabled": "Disabled",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this provider?",
+    "features": "Features",
+    "provider": "Provider",
+    "model": "Model",
+    "modelHint": "generation / cheap / premium or a model id",
+    "effort": "Reasoning effort",
+    "effortDefault": "Default",
+    "limits": {
+      "perMinute": "Requests per minute per user",
+      "userDailyTokens": "Tokens per day per user",
+      "courseMonthlyTokens": "Tokens per month per course"
+    },
+    "bumpNotice": "Ask for consent again",
+    "embeddings": "Embeddings for search",
+    "embeddingKind": "Embedding provider",
+    "embeddingHint": "Without embeddings the tutor uses full-text search only. bge-m3 (1024 dimensions) is recommended.",
+    "embeddingNone": "None",
+    "reindex": "Reindex courses",
+    "reindexQueued": "Reindexing started",
+    "usage": "Usage since {since}",
+    "noUsage": "No requests yet",
+    "feature": "Feature",
+    "status": "Status",
+    "requests": "Requests",
+    "inputTokens": "Input tokens",
+    "outputTokens": "Output tokens",
+    "cacheRead": "From cache",
+    "topCourses": "Top courses by usage"
   }
 }

@@ -22,6 +22,7 @@ export interface ModuleServices {
   recomputeCompletion: ModuleCtx['completion']['recompute'];
   notify: ModuleCtx['notify']['send'];
   activityAccess: ModuleCtx['activities']['get'];
+  ai: ModuleCtx['ai'];
 }
 
 const services: Partial<Record<keyof ModuleServices, unknown>> = {};
@@ -225,6 +226,18 @@ export function buildModuleCtx(
     },
     activities: {
       get: (activityId) => service('activityAccess', ctx, tx)(activityId),
+    },
+    get ai() {
+      return services.ai
+        ? service('ai', ctx, tx)
+        : {
+            status: async () => ({ available: false, consentRequired: false, notice: '' }),
+            acceptConsent: async () => {},
+            suggestGrade: async () => {
+              throw new Error('AI is not available');
+            },
+            markSuggestion: async () => {},
+          };
     },
     content: {
       url(activityId, path, opts) {

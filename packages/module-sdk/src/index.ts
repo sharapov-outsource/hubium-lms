@@ -90,6 +90,28 @@ export interface ModuleContent {
   appOrigin(): string;
 }
 
+export interface AiGradeSuggestion {
+  id: string;
+  suggestedGrade: number;
+  gradeMax: number;
+  criteria: { name: string; score: number; comment: string }[];
+  feedbackDraft: string;
+  confidence: number;
+  /** Attachments the assistant could not read. */
+  unreadFiles: string[];
+}
+
+/** AI services for modules (grading assistant). Absent features report unavailable. */
+export interface ModuleAi {
+  status(
+    feature: 'GRADING_ASSIST',
+    courseId: string,
+  ): Promise<{ available: boolean; consentRequired: boolean; notice: string }>;
+  acceptConsent(feature: 'GRADING_ASSIST'): Promise<void>;
+  suggestGrade(input: { submissionId: string; criteria?: string }): Promise<AiGradeSuggestion>;
+  markSuggestion(id: string, status: 'APPLIED' | 'DISCARDED'): Promise<void>;
+}
+
 export interface ModuleActivities {
   /** Loads an activity with the viewer's access (for module HTTP routes). */
   get(activityId: string): Promise<{
@@ -162,6 +184,7 @@ export interface ModuleCtx {
   jobs: ModuleJobs;
   realtime: ModuleRealtime;
   activities: ModuleActivities;
+  ai: ModuleAi;
   content: ModuleContent;
   log(event: string, data?: Record<string, unknown>): Promise<void>;
 }
@@ -270,6 +293,19 @@ export interface ActivityModule<S = Record<string, unknown>> {
     path: string[],
   ): Promise<Response>;
   actions?: Record<string, ModuleAction>;
+  /**
+   * AI integration. Text from `extract` (plain text with Markdown-style headings, or
+   * sanitised HTML, which core converts) is indexed
+   * for the course tutor and quiz generation; the activity intro is indexed by core.
+   * `tutorPolicy`: 'exclude' keeps the activity out of retrieval; 'exclude-while-open'
+   * also lets `blocksTutor` switch the tutor off while the user is mid-activity
+   * (an open quiz attempt).
+   */
+  ai?: {
+    extract?(ctx: ModuleCtx, a: ActivityRef<S>): Promise<{ title?: string; text: string }[]>;
+    tutorPolicy?: 'include' | 'exclude' | 'exclude-while-open';
+    blocksTutor?(ctx: ModuleCtx, a: ActivityRef<S>, userId: string): Promise<boolean>;
+  };
   /** Notification types; labels come from `mod.<key>.notify.<name>` messages. */
   notifications?: Record<string, NotificationTypeDef>;
   /** Who may read files in each file area (besides users who can manage the course). */
