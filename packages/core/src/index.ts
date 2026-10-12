@@ -1,4 +1,5 @@
 export * from './access/index.ts';
+export * from './cache-bus.ts';
 export * from './context.ts';
 export * from './crypto.ts';
 export * from './env.ts';

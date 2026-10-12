@@ -88,4 +88,5 @@ export async function setSettings(
     });
   }
   invalidateSettingsCache();
+  await db.$executeRaw`SELECT pg_notify('hubium_cache', 'settings')`;
 }

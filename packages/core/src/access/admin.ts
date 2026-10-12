@@ -1,9 +1,15 @@
+import type { Prisma } from '@hubium/db';
 import { z } from 'zod';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { defineOperation } from '../operation.ts';
 import { isCapability } from './capabilities.ts';
 import { invalidatePermissionCaches } from './permissions.ts';
+
+async function notifyRoles(tx: Prisma.TransactionClient): Promise<void> {
+  invalidatePermissionCaches('roles');
+  await tx.$executeRaw`SELECT pg_notify('hubium_cache', 'roles')`;
+}
 
 // Role editor operations (capability matrix) and context overrides.
 
@@ -68,7 +74,7 @@ export const createRole = defineOperation({
       objectId: role.id,
       origin: ctx.origin,
     });
-    ctx.afterCommit(() => invalidatePermissionCaches('roles'));
+    await notifyRoles(ctx.tx);
     return { id: role.id };
   },
 });
@@ -88,7 +94,7 @@ export const updateRole = defineOperation({
       where: { id: role.id },
       data: { name: input.name, assignableLevels: role.isProtected ? [] : input.assignableLevels },
     });
-    ctx.afterCommit(() => invalidatePermissionCaches('roles'));
+    await notifyRoles(ctx.tx);
     return { id: role.id };
   },
 });
@@ -108,7 +114,7 @@ export const deleteRole = defineOperation({
       throw new ConflictError('Role is in use');
     }
     await ctx.tx.role.delete({ where: { id } });
-    ctx.afterCommit(() => invalidatePermissionCaches('roles'));
+    await notifyRoles(ctx.tx);
     return { id };
   },
 });
@@ -139,7 +145,7 @@ export const setRoleCapability = defineOperation({
       data: { capability, permission },
       origin: ctx.origin,
     });
-    ctx.afterCommit(() => invalidatePermissionCaches('roles'));
+    await notifyRoles(ctx.tx);
     return { ok: true };
   },
 });
@@ -163,7 +169,7 @@ export const setRoleOverride = defineOperation({
         update: { permission },
       });
     }
-    ctx.afterCommit(() => invalidatePermissionCaches('roles'));
+    await notifyRoles(ctx.tx);
     return { ok: true };
   },
 });

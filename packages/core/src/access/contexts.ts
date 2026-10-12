@@ -55,4 +55,5 @@ export async function moveContext(db: Tx, id: string, newParentId: string): Prom
     data: { parentId: newParentId, ancestorIds: newPrefix, depth: newPrefix.length },
   });
   invalidatePermissionCaches('contexts');
+  await db.$executeRaw`SELECT pg_notify('hubium_cache', 'contexts')`;
 }

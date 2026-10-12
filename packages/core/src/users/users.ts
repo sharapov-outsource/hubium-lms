@@ -29,8 +29,16 @@ export const UserCreateInput = z
     firstName: z.string().trim().min(1).max(100),
     lastName: z.string().trim().min(1).max(100),
     password: z.string().min(8).max(128),
-    locale: z.enum(['ru', 'en']).optional(),
-    timezone: z.string().optional(),
+    locale: z
+      .enum(['ru', 'en'])
+      .optional()
+      .or(z.literal('').transform(() => undefined)),
+    timezone: z
+      .string()
+      .trim()
+      .max(64)
+      .optional()
+      .or(z.literal('').transform(() => undefined)),
     isSiteAdmin: z.boolean().optional(),
     mustChangePassword: z.boolean().optional(),
     emailVerified: z.boolean().optional(),

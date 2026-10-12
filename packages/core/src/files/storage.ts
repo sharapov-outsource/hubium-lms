@@ -1,0 +1,209 @@
+import { createReadStream, createWriteStream } from 'node:fs';
+import { copyFile, mkdir, rm, stat } from 'node:fs/promises';
+import path from 'node:path';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import {
+  CopyObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { sign, verifySignature } from '../crypto.ts';
+
+// Storage drivers. Keys are opaque, e.g. "blobs/01/9f/<uuid>". The bucket is never public:
+// downloads go through ACL-checked routes that stream (FS) or redirect to a presigned URL (S3).
+
+export interface StoredObject {
+  size: number;
+  contentType?: string;
+}
+
+export interface StorageDriver {
+  readonly kind: 'fs' | 's3';
+  put(key: string, body: Buffer | Readable, contentType: string): Promise<void>;
+  getStream(key: string): Promise<Readable>;
+  head(key: string): Promise<StoredObject | null>;
+  delete(key: string): Promise<void>;
+  copy(from: string, to: string): Promise<void>;
+  /** Short-lived URL a browser can GET. FS driver returns a signed app route. */
+  signedReadUrl(
+    key: string,
+    opts: { ttlSeconds: number; filename?: string; inline?: boolean },
+  ): Promise<string>;
+}
+
+function safeJoin(root: string, key: string): string {
+  const p = path.resolve(root, key);
+  if (!p.startsWith(path.resolve(root) + path.sep)) throw new Error('Invalid storage key');
+  return p;
+}
+
+export class FsStorage implements StorageDriver {
+  readonly kind = 'fs' as const;
+  constructor(
+    private readonly root: string,
+    private readonly secret: string,
+    private readonly appUrl = '',
+  ) {}
+
+  async put(key: string, body: Buffer | Readable, _contentType: string) {
+    const p = safeJoin(this.root, key);
+    await mkdir(path.dirname(p), { recursive: true });
+    if (Buffer.isBuffer(body)) await pipeline(Readable.from([body]), createWriteStream(p));
+    else await pipeline(body, createWriteStream(p));
+  }
+  async getStream(key: string) {
+    return createReadStream(safeJoin(this.root, key));
+  }
+  async head(key: string) {
+    try {
+      const s = await stat(safeJoin(this.root, key));
+      return { size: s.size };
+    } catch {
+      return null;
+    }
+  }
+  async delete(key: string) {
+    await rm(safeJoin(this.root, key), { force: true });
+  }
+  async copy(from: string, to: string) {
+    const dest = safeJoin(this.root, to);
+    await mkdir(path.dirname(dest), { recursive: true });
+    await copyFile(safeJoin(this.root, from), dest);
+  }
+  async signedReadUrl(
+    key: string,
+    opts: { ttlSeconds: number; filename?: string; inline?: boolean },
+  ) {
+    const exp = Math.floor(Date.now() / 1000) + opts.ttlSeconds;
+    const payload = `${key}|${exp}|${opts.filename ?? ''}|${opts.inline ? 1 : 0}`;
+    const token = Buffer.from(payload).toString('base64url');
+    return `${this.appUrl}/files/blob/${token}.${sign(payload, this.secret, 'blob')}`;
+  }
+  /** Validates a token produced by signedReadUrl. */
+  verifyToken(token: string): { key: string; filename: string; inline: boolean } | null {
+    const [data, sig] = token.split('.');
+    if (!data || !sig) return null;
+    const payload = Buffer.from(data, 'base64url').toString();
+    if (!verifySignature(payload, sig, this.secret, 'blob')) return null;
+    const [key, exp, filename, inline] = payload.split('|');
+    if (!key || Number(exp) < Date.now() / 1000) return null;
+    return { key, filename: filename ?? '', inline: inline === '1' };
+  }
+}
+
+export interface S3Config {
+  endpoint?: string;
+  publicUrl?: string;
+  region: string;
+  bucket: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+}
+
+export class S3Storage implements StorageDriver {
+  readonly kind = 's3' as const;
+  private readonly client: S3Client;
+  private readonly signer: S3Client;
+  constructor(private readonly cfg: S3Config) {
+    const credentials =
+      cfg.accessKeyId && cfg.secretAccessKey
+        ? { accessKeyId: cfg.accessKeyId, secretAccessKey: cfg.secretAccessKey }
+        : undefined;
+    this.client = new S3Client({
+      region: cfg.region,
+      endpoint: cfg.endpoint,
+      forcePathStyle: true,
+      credentials,
+    });
+    // Signatures cover the host, so presign against the public endpoint.
+    this.signer = new S3Client({
+      region: cfg.region,
+      endpoint: cfg.publicUrl ?? cfg.endpoint,
+      forcePathStyle: true,
+      credentials,
+    });
+  }
+  async put(key: string, body: Buffer | Readable, contentType: string) {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.cfg.bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      }),
+    );
+  }
+  async getStream(key: string) {
+    const r = await this.client.send(new GetObjectCommand({ Bucket: this.cfg.bucket, Key: key }));
+    return r.Body as Readable;
+  }
+  async head(key: string) {
+    try {
+      const r = await this.client.send(
+        new HeadObjectCommand({ Bucket: this.cfg.bucket, Key: key }),
+      );
+      return { size: Number(r.ContentLength ?? 0), contentType: r.ContentType };
+    } catch {
+      return null;
+    }
+  }
+  async delete(key: string) {
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.cfg.bucket, Key: key }));
+  }
+  async copy(from: string, to: string) {
+    await this.client.send(
+      new CopyObjectCommand({
+        Bucket: this.cfg.bucket,
+        Key: to,
+        CopySource: `${this.cfg.bucket}/${from}`,
+      }),
+    );
+  }
+  async signedReadUrl(
+    key: string,
+    opts: { ttlSeconds: number; filename?: string; inline?: boolean },
+  ) {
+    const disposition = `${opts.inline ? 'inline' : 'attachment'}${
+      opts.filename ? `; filename*=UTF-8''${encodeURIComponent(opts.filename)}` : ''
+    }`;
+    return getSignedUrl(
+      this.signer,
+      new GetObjectCommand({
+        Bucket: this.cfg.bucket,
+        Key: key,
+        ResponseContentDisposition: disposition,
+      }),
+      { expiresIn: opts.ttlSeconds },
+    );
+  }
+}
+
+let storage: StorageDriver | undefined;
+
+export function getStorage(): StorageDriver {
+  if (storage) return storage;
+  const env = process.env;
+  if (env.STORAGE_DRIVER === 's3') {
+    storage = new S3Storage({
+      endpoint: env.S3_ENDPOINT,
+      publicUrl: env.S3_PUBLIC_URL,
+      region: env.S3_REGION ?? 'us-east-1',
+      bucket: env.S3_BUCKET ?? 'hubium',
+      accessKeyId: env.S3_ACCESS_KEY,
+      secretAccessKey: env.S3_SECRET_KEY,
+    });
+  } else {
+    const root = path.resolve(env.STORAGE_FS_ROOT ?? path.resolve(process.cwd(), '.storage'));
+    storage = new FsStorage(root, env.APP_SECRET ?? 'dev-secret', '');
+  }
+  return storage;
+}
+
+export function setStorage(s: StorageDriver | undefined): void {
+  storage = s;
+}

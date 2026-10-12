@@ -1,0 +1,191 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { SYSTEM_CONTEXT_ID } from '@hubium/db';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ctxFor, useTestDb } from '../../test/helpers.ts';
+import {
+  canReadFile,
+  copyFiles,
+  garbageCollectBlobs,
+  isInlineSafe,
+  listFiles,
+  sanitizeFilename,
+  sniffMimeType,
+  storeFile,
+} from './files.ts';
+import { FsStorage, setStorage } from './storage.ts';
+
+const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
+
+describe('file helpers', () => {
+  it('sniffs real types regardless of the declared one', () => {
+    expect(sniffMimeType(PNG, 'text/html', 'x.html')).toBe('image/png');
+    expect(sniffMimeType(Buffer.from('%PDF-1.7'), 'application/octet-stream', 'a.bin')).toBe(
+      'application/pdf',
+    );
+    expect(
+      sniffMimeType(
+        Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'),
+        'text/plain',
+        'a.txt',
+      ),
+    ).toBe('image/svg+xml');
+    expect(sniffMimeType(Buffer.from('hello'), 'text/plain', 'a.txt')).toBe('text/plain');
+  });
+  it('keeps declared office types for zip containers', () => {
+    const zip = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0, 0]);
+    const docx = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    expect(sniffMimeType(zip, docx, 'a.docx')).toBe(docx);
+    expect(sniffMimeType(zip, '', 'a.zip')).toBe('application/zip');
+  });
+  it('only marks safe types inline', () => {
+    expect(isInlineSafe('image/png')).toBe(true);
+    expect(isInlineSafe('text/html')).toBe(false);
+    expect(isInlineSafe('application/zip')).toBe(false);
+  });
+  it('sanitizes file names', () => {
+    expect(sanitizeFilename('../../etc/passwd')).toBe('.._.._etc_passwd');
+    expect(sanitizeFilename('  ')).toBe('file');
+  });
+});
+
+describe('FsStorage', () => {
+  let dir: string;
+  beforeAll(async () => {
+    dir = await mkdtemp(path.join(os.tmpdir(), 'hubium-fs-'));
+  });
+  afterAll(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+  it('rejects path traversal keys', async () => {
+    const s = new FsStorage(dir, 'secret');
+    await expect(s.put('../evil', Buffer.from('x'), 'text/plain')).rejects.toThrow(
+      /Invalid storage key/,
+    );
+  });
+  it('signed tokens verify and expire', async () => {
+    const s = new FsStorage(dir, 'secret');
+    const url = await s.signedReadUrl('blobs/aa/key', { ttlSeconds: 60, filename: 'a.txt' });
+    const token = url.split('/files/blob/')[1]!;
+    expect(s.verifyToken(token)?.key).toBe('blobs/aa/key');
+    expect(s.verifyToken(`${token}x`)).toBeNull();
+    const expired = await s.signedReadUrl('k', { ttlSeconds: -10 });
+    expect(s.verifyToken(expired.split('/files/blob/')[1]!)).toBeNull();
+  });
+});
+
+describe('file service', () => {
+  const t = useTestDb({ profile: 'demo' });
+  let dir: string;
+  beforeAll(async () => {
+    dir = await mkdtemp(path.join(os.tmpdir(), 'hubium-files-'));
+    setStorage(new FsStorage(dir, 'secret'));
+  });
+  afterAll(async () => {
+    setStorage(undefined);
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('stores, dedupes blobs and copies rows', async () => {
+    const a = await storeFile(t.db, {
+      contextId: SYSTEM_CONTEXT_ID,
+      component: 'site',
+      area: 'branding',
+      name: 'logo.png',
+      data: PNG,
+    });
+    const b = await storeFile(t.db, {
+      contextId: SYSTEM_CONTEXT_ID,
+      component: 'site',
+      area: 'test',
+      name: 'same.png',
+      data: PNG,
+    });
+    expect(a.blobId).toBe(b.blobId);
+    expect(a.mimeType).toBe('image/png');
+    const n = await copyFiles(
+      t.db,
+      { contextId: SYSTEM_CONTEXT_ID, component: 'site', area: 'test' },
+      { contextId: SYSTEM_CONTEXT_ID, area: 'test2' },
+    );
+    expect(n).toBe(1);
+    expect(
+      (
+        await listFiles(t.db, { contextId: SYSTEM_CONTEXT_ID, component: 'site', area: 'test2' })
+      )[0]!.blobId,
+    ).toBe(a.blobId);
+  });
+
+  it('enforces size and type limits', async () => {
+    await expect(
+      storeFile(t.db, {
+        contextId: SYSTEM_CONTEXT_ID,
+        component: 'site',
+        area: 'x',
+        name: 'a.txt',
+        data: Buffer.alloc(2048),
+        maxBytes: 1024,
+      }),
+    ).rejects.toMatchObject({ fieldErrors: { file: [expect.stringMatching(/larger/)] } });
+    await expect(
+      storeFile(t.db, {
+        contextId: SYSTEM_CONTEXT_ID,
+        component: 'site',
+        area: 'x',
+        name: 'a.txt',
+        data: Buffer.from('hi'),
+        mimeType: 'text/plain',
+        allowedTypes: /^image\//,
+      }),
+    ).rejects.toMatchObject({ fieldErrors: { file: [expect.stringMatching(/not allowed/)] } });
+  });
+
+  it('replace swaps the file at the same address', async () => {
+    await storeFile(t.db, {
+      contextId: SYSTEM_CONTEXT_ID,
+      component: 'site',
+      area: 'r',
+      name: 'a.txt',
+      data: Buffer.from('one'),
+      mimeType: 'text/plain',
+    });
+    await storeFile(t.db, {
+      contextId: SYSTEM_CONTEXT_ID,
+      component: 'site',
+      area: 'r',
+      name: 'a.txt',
+      data: Buffer.from('two'),
+      mimeType: 'text/plain',
+      replace: true,
+    });
+    expect(
+      await listFiles(t.db, { contextId: SYSTEM_CONTEXT_ID, component: 'site', area: 'r' }),
+    ).toHaveLength(1);
+  });
+
+  it('ACL: branding is public, unknown areas are admin-only', async () => {
+    const logo = await t.db.file.findFirstOrThrow({ where: { area: 'branding' } });
+    const other = await t.db.file.findFirstOrThrow({ where: { area: 'test' } });
+    const student = await ctxFor(t.db, 'student1@hubium.local');
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    expect(await canReadFile(student, logo)).toBe(true);
+    expect(await canReadFile(student, other)).toBe(false);
+    expect(await canReadFile(admin, other)).toBe(true);
+  });
+
+  it('GC removes unreferenced blobs only', async () => {
+    const f = await storeFile(t.db, {
+      contextId: SYSTEM_CONTEXT_ID,
+      component: 'site',
+      area: 'gc',
+      name: 'g.txt',
+      data: Buffer.from('garbage'),
+      mimeType: 'text/plain',
+    });
+    await t.db.file.delete({ where: { id: f.id } });
+    expect(await garbageCollectBlobs(t.db, -1000)).toBeGreaterThanOrEqual(1);
+    expect(await t.db.fileBlob.findUnique({ where: { id: f.blobId } })).toBeNull();
+    expect(await t.db.fileBlob.count()).toBeGreaterThan(0);
+  });
+});
