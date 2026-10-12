@@ -1,0 +1,34 @@
+{
+  "name": "@hubium/api",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/zod-openapi": "1.6.3",
+    "@hubium/core": "workspace:*",
+    "@hubium/db": "workspace:*",
+    "@scalar/hono-api-reference": "0.12.12",
+    "hono": "4.13.13",
+    "zod": "4.6.6"
+  },
+  "devDependencies": {
+    "@hubium/mod-assign": "workspace:*",
+    "@hubium/mod-content": "workspace:*",
+    "@hubium/mod-forum": "workspace:*",
+    "@hubium/mod-quiz": "workspace:*",
+    "@hubium/tooling": "workspace:*",
+    "@scalar/openapi-parser": "0.29.13",
+    "@types/node": "^24",
+    "dotenv": "18.0.7",
+    "typescript": "~5.9.3",
+    "vitest": "5.0.4"
+  }
+}

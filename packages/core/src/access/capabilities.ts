@@ -67,6 +67,8 @@ export const coreCapabilities = {
   // communication
   'announcement:post': { level: 'COURSE', archetypes: [M, ET], risk: ['spam'] },
   'message:send': { level: 'SYSTEM', archetypes: [U] },
+  // REST API personal access tokens (a token never exceeds its user's capabilities)
+  'webservice:createtoken': { level: 'SYSTEM', archetypes: [U], risk: ['personal'] },
   'calendar:manageown': { level: 'SYSTEM', archetypes: [U] },
   'calendar:managecourse': { level: 'COURSE', archetypes: [M, ET] },
   'calendar:managesite': { level: 'SYSTEM', archetypes: [M] },
