@@ -30,8 +30,10 @@
   "devDependencies": {
     "@hubium/mod-assign": "workspace:*",
     "@hubium/mod-forum": "workspace:*",
+    "@hubium/mod-livesession": "workspace:*",
     "@hubium/mod-content": "workspace:*",
     "@hubium/mod-quiz": "workspace:*",
+    "@hubium/mod-video": "workspace:*",
     "@hubium/tooling": "workspace:*",
     "@types/node": "^24",
     "@types/nodemailer": "8.0.2",

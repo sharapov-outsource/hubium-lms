@@ -25,6 +25,7 @@ export async function seedDemoCourses(db: Db, users: Record<string, string>) {
   if (existing) {
     await seedDemoAssessment(db, existing.id);
     await seedDemoComms(db, existing.id);
+    await seedDemoMedia(db, existing.id);
     return { created: false };
   }
   const ctx = systemCtx(db);
@@ -187,6 +188,7 @@ export async function seedDemoCourses(db: Db, users: Record<string, string>) {
   });
   await seedDemoAssessment(db, py);
   await seedDemoComms(db, py);
+  await seedDemoMedia(db, py);
   return { created: true, courses: [py, hist] };
 }
 
@@ -317,5 +319,41 @@ export async function seedDemoComms(db: Db, courseId: string) {
       notify: false,
       notifiedAt: new Date(),
     },
+  });
+}
+
+/** Demo embedded video and a Jitsi live session (idempotent). */
+export async function seedDemoMedia(db: Db, courseId: string) {
+  if (
+    await db.activity.findFirst({
+      where: { courseId, moduleKey: { in: ['video', 'livesession'] } },
+    })
+  )
+    return;
+  const ctx = systemCtx(db);
+  const sections = await db.courseSection.findMany({
+    where: { courseId },
+    orderBy: { rank: 'asc' },
+  });
+  const target = sections[1] ?? sections[0]!;
+  await createActivity.run(ctx, {
+    courseId,
+    sectionId: target.id,
+    moduleKey: 'video',
+    name: 'Видеолекция: переменные и типы',
+    completionMode: 'AUTO',
+    completionRules: { module: { minPercent: 90 } },
+    settings: { source: 'embed', embedUrl: 'https://www.youtube.com/watch?v=kqtD5dpn9C8' },
+  });
+  const start = new Date(Date.now() + 2 * 86_400_000);
+  start.setUTCHours(15, 0, 0, 0);
+  await createActivity.run(ctx, {
+    courseId,
+    sectionId: target.id,
+    moduleKey: 'livesession',
+    name: 'Онлайн-консультация',
+    completionMode: 'AUTO',
+    completionRules: { module: { attended: true } },
+    settings: { provider: 'jitsi', startsAt: start.toISOString(), durationMin: 60 },
   });
 }

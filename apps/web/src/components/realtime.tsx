@@ -23,6 +23,7 @@ export type RealtimeType =
   | 'message.read'
   | 'typing'
   | 'task.progress'
+  | 'video.status'
   | 'reconnect';
 
 type Handler = (data: Record<string, unknown>) => void;
@@ -42,6 +43,7 @@ const TYPES: RealtimeType[] = [
   'message.read',
   'typing',
   'task.progress',
+  'video.status',
 ];
 
 export function RealtimeProvider({ children }: { children: ReactNode }) {
@@ -50,6 +52,8 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
 
   const emit = useCallback((type: RealtimeType, data: Record<string, unknown>) => {
     for (const fn of handlers.current.get(type) ?? []) fn(data);
+    // Module UIs cannot import this provider; they listen on window instead.
+    window.dispatchEvent(new CustomEvent('hubium:realtime', { detail: { type, data } }));
   }, []);
 
   useEffect(() => {

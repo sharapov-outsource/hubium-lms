@@ -13,9 +13,11 @@ import { contentModules } from '@hubium/mod-content/server';
 import forumEn from '@hubium/mod-forum/messages/en.json' with { type: 'json' };
 import forumRu from '@hubium/mod-forum/messages/ru.json' with { type: 'json' };
 import { forumModules } from '@hubium/mod-forum/server';
+import { livesessionModules } from '@hubium/mod-livesession/server';
 import quizEn from '@hubium/mod-quiz/messages/en.json' with { type: 'json' };
 import quizRu from '@hubium/mod-quiz/messages/ru.json' with { type: 'json' };
 import { quizModules } from '@hubium/mod-quiz/server';
+import { videoModules } from '@hubium/mod-video/server';
 import { afterAll, beforeAll } from 'vitest';
 import {
   invalidatePermissionCaches,
@@ -27,7 +29,14 @@ import { registerModules } from '../src/modules/registry.ts';
 import { seed } from '../src/seed/seed.ts';
 import '../src/bootstrap.ts';
 
-registerModules([...contentModules, ...assignModules, ...quizModules, ...forumModules] as never);
+registerModules([
+  ...contentModules,
+  ...assignModules,
+  ...quizModules,
+  ...forumModules,
+  ...videoModules,
+  ...livesessionModules,
+] as never);
 registerModuleMessages({
   ru: { ...assignRu, ...quizRu, ...forumRu },
   en: { ...assignEn, ...quizEn, ...forumEn },
