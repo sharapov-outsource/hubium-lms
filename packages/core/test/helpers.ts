@@ -5,6 +5,7 @@ loadEnv({ path: path.resolve(import.meta.dirname, '../../../.env'), quiet: true 
 
 import type { Db } from '@hubium/db';
 import { createTestDatabase, type TestDatabase } from '@hubium/db/testing';
+import { contentModules } from '@hubium/mod-content/server';
 import { afterAll, beforeAll } from 'vitest';
 import {
   invalidatePermissionCaches,
@@ -12,7 +13,12 @@ import {
   Permissions,
 } from '../src/access/permissions.ts';
 import type { Actor, RequestContext } from '../src/context.ts';
+import { registerModules } from '../src/modules/registry.ts';
 import { seed } from '../src/seed/seed.ts';
+import '../src/bootstrap.ts';
+
+registerModules(contentModules as never);
+
 import { invalidateSettingsCache } from '../src/settings/settings.ts';
 
 /** Fresh seeded database per test file. */
@@ -25,6 +31,7 @@ export function useTestDb(opts: { profile?: 'minimal' | 'demo' } = {}) {
     invalidateSettingsCache();
     await seed(state.db, {
       profile: opts.profile ?? 'demo',
+      courses: false,
       adminEmail: 'admin@test.local',
       adminPassword: 'Admin12345!',
     });
