@@ -1,0 +1,154 @@
+/* Hubium design tokens. Import after `@import "tailwindcss";` in the app stylesheet. */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #ffffff;
+  --foreground: #1b1d22;
+  --surface: #f7f7f8;
+  --card: #ffffff;
+  --card-foreground: #1b1d22;
+  --muted: #f1f2f4;
+  --muted-foreground: #565c68;
+  --border: #e4e6ea;
+  --input: #d7dae0;
+  --accent: #4f46e5;
+  --accent-foreground: #ffffff;
+  --accent-soft: #eef0fe;
+  --ring: #4f46e5;
+  --destructive: #c42b2b;
+  --destructive-foreground: #ffffff;
+  --success: #146c34;
+  --success-soft: #e8f6ed;
+  --warning: #8a5100;
+  --warning-soft: #fdf3e1;
+  --radius: 0.625rem;
+  color-scheme: light;
+}
+
+.dark {
+  --background: #111318;
+  --foreground: #e8eaee;
+  --surface: #171a20;
+  --card: #1a1d24;
+  --card-foreground: #e8eaee;
+  --muted: #22262e;
+  --muted-foreground: #a0a6b2;
+  --border: #2c313b;
+  --input: #3a404b;
+  --accent: #8b8cf6;
+  --accent-foreground: #15161c;
+  --accent-soft: #262842;
+  --ring: #8b8cf6;
+  --destructive: #f07272;
+  --destructive-foreground: #1a0d0d;
+  --success: #5fd08a;
+  --success-soft: #16301f;
+  --warning: #f0b44c;
+  --warning-soft: #33280f;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+  .prose-content {
+    line-height: 1.65;
+  }
+  .prose-content p {
+    margin: 0.6em 0;
+  }
+  .prose-content h2 {
+    font-size: 1.35em;
+    font-weight: 600;
+    margin: 1.2em 0 0.4em;
+  }
+  .prose-content h3 {
+    font-size: 1.15em;
+    font-weight: 600;
+    margin: 1em 0 0.3em;
+  }
+  .prose-content ul {
+    list-style: disc;
+    padding-left: 1.4em;
+  }
+  .prose-content ol {
+    list-style: decimal;
+    padding-left: 1.4em;
+  }
+  .prose-content a {
+    color: var(--color-accent);
+    text-decoration: underline;
+  }
+  .prose-content blockquote {
+    border-left: 3px solid var(--color-border);
+    padding-left: 1em;
+    color: var(--color-muted-foreground);
+  }
+  .prose-content code {
+    background: var(--color-muted);
+    padding: 0.1em 0.3em;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  .prose-content pre {
+    background: var(--color-muted);
+    padding: 0.8em;
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+  .prose-content img {
+    max-width: 100%;
+    border-radius: 8px;
+  }
+  .prose-content table {
+    border-collapse: collapse;
+  }
+  .prose-content td,
+  .prose-content th {
+    border: 1px solid var(--color-border);
+    padding: 0.3em 0.6em;
+  }
+}
