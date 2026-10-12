@@ -167,7 +167,8 @@
     "unknownDevice": "Unknown device",
     "emailPlaceholderHint": "You have no real email address. Add one to receive notifications and reset your password.",
     "notifications": "Notifications",
-    "messages": "Messages"
+    "messages": "Messages",
+    "apiTokens": "API tokens"
   },
   "admin": {
     "title": "Administration",
@@ -1140,5 +1141,27 @@
     "outputTokens": "Output tokens",
     "cacheRead": "From cache",
     "topCourses": "Top courses by usage"
+  },
+  "apiTokens": {
+    "title": "API tokens",
+    "new": "New token",
+    "hint": "A token lets programs use the REST API on your behalf. See the <docs>API documentation</docs>.",
+    "name": "Name",
+    "scopes": "Scopes",
+    "scopeRead": "Read",
+    "scopeWrite": "Write",
+    "expires": "Expires",
+    "days": "{n} days",
+    "never": "Never",
+    "create": "Create token",
+    "createdTitle": "Token created",
+    "createdHint": "Copy it now — it will not be shown again.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "lastUsed": "Last used",
+    "revoke": "Revoke",
+    "revokeConfirm": "Revoke this token? Programs using it will lose access.",
+    "revoked": "Revoked",
+    "empty": "No tokens yet"
   }
 }
