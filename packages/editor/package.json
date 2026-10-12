@@ -1,0 +1,42 @@
+{
+  "name": "@hubium/editor",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    "./client": "./src/client.tsx",
+    "./server": "./src/server.ts",
+    "./field": "./src/field.tsx"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@tiptap/extension-image": "3.31.4",
+    "@tiptap/extension-placeholder": "3.31.4",
+    "@tiptap/extension-table": "3.31.4",
+    "@tiptap/pm": "3.31.4",
+    "@tiptap/react": "3.31.4",
+    "@tiptap/starter-kit": "3.31.4",
+    "@hubium/ui": "workspace:*",
+    "lucide-react": "1.55.0",
+    "next-intl": "4.14.9",
+    "sanitize-html": "2.18.0"
+  },
+  "peerDependencies": {
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "devDependencies": {
+    "@hubium/tooling": "workspace:*",
+    "@types/node": "^24",
+    "@types/react": "19.3.0",
+    "@types/sanitize-html": "2.16.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "~5.9.3",
+    "vitest": "5.0.4"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "@hubium/mod-content",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    "./server": "./src/server.ts",
+    "./ui": "./src/ui/index.tsx",
+    "./messages/*": "./messages/*"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hubium/editor": "workspace:*",
+    "@hubium/module-sdk": "workspace:*",
+    "@hubium/ui": "workspace:*",
+    "lucide-react": "1.55.0",
+    "next-intl": "4.14.9",
+    "zod": "4.6.6"
+  },
+  "peerDependencies": {
+    "react": "^19"
+  },
+  "devDependencies": {
+    "@hubium/tooling": "workspace:*",
+    "@types/node": "^24",
+    "@types/react": "19.3.0",
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "typescript": "~5.9.3",
+    "vitest": "5.0.4"
+  }
+}
