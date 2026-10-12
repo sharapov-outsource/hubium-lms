@@ -3,3 +3,5 @@
 import './completion/completion.ts';
 import './courses/file-access.ts';
 import './grades/gradebook.ts';
+import './messaging/messaging.ts';
+import './notifications/notifications.ts';

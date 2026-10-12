@@ -6,13 +6,27 @@ import { fromPrisma, PgBoss, type SendOptions } from 'pg-boss';
 
 export interface JobPayloads {
   'email.send': { to: string; subject: string; html: string; text: string; template?: string };
+  'notification.email': { ids: string[] };
+  'notification.fanout': { userIds: string[]; n: object };
   [name: string]: object;
 }
 export type JobName = keyof JobPayloads & string;
 
-export const coreQueues: JobName[] = ['email.send'];
+export const coreQueues: JobName[] = ['email.send', 'notification.email', 'notification.fanout'];
 
 let bossPromise: Promise<PgBoss> | undefined;
+
+export interface CapturedJob {
+  name: string;
+  data: object;
+  opts: SendOptions;
+}
+let sink: ((job: CapturedJob) => void) | undefined;
+
+/** Tests: capture jobs in memory instead of sending them to pg-boss. */
+export function setJobSink(fn: ((job: CapturedJob) => void) | undefined): void {
+  sink = fn;
+}
 const createdQueues = new Set<string>();
 
 export function getBoss(
@@ -60,6 +74,10 @@ export async function enqueue<N extends JobName>(
   opts: SendOptions & { tx?: Prisma.TransactionClient } = {},
 ): Promise<string | null> {
   const { tx, ...sendOpts } = opts;
+  if (sink) {
+    sink({ name, data, opts: sendOpts });
+    return null;
+  }
   await ensureQueue(name);
   const boss = await getBoss();
   return boss.send(name, data, {

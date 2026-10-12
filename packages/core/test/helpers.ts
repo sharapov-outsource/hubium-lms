@@ -5,8 +5,16 @@ loadEnv({ path: path.resolve(import.meta.dirname, '../../../.env'), quiet: true 
 
 import type { Db } from '@hubium/db';
 import { createTestDatabase, type TestDatabase } from '@hubium/db/testing';
+import { registerModuleMessages } from '@hubium/i18n';
+import assignEn from '@hubium/mod-assign/messages/en.json' with { type: 'json' };
+import assignRu from '@hubium/mod-assign/messages/ru.json' with { type: 'json' };
 import { assignModules } from '@hubium/mod-assign/server';
 import { contentModules } from '@hubium/mod-content/server';
+import forumEn from '@hubium/mod-forum/messages/en.json' with { type: 'json' };
+import forumRu from '@hubium/mod-forum/messages/ru.json' with { type: 'json' };
+import { forumModules } from '@hubium/mod-forum/server';
+import quizEn from '@hubium/mod-quiz/messages/en.json' with { type: 'json' };
+import quizRu from '@hubium/mod-quiz/messages/ru.json' with { type: 'json' };
 import { quizModules } from '@hubium/mod-quiz/server';
 import { afterAll, beforeAll } from 'vitest';
 import {
@@ -19,9 +27,34 @@ import { registerModules } from '../src/modules/registry.ts';
 import { seed } from '../src/seed/seed.ts';
 import '../src/bootstrap.ts';
 
-registerModules([...contentModules, ...assignModules, ...quizModules] as never);
+registerModules([...contentModules, ...assignModules, ...quizModules, ...forumModules] as never);
+registerModuleMessages({
+  ru: { ...assignRu, ...quizRu, ...forumRu },
+  en: { ...assignEn, ...quizEn, ...forumEn },
+});
 
+import { type CapturedJob, setJobSink } from '../src/jobs/jobs.ts';
+import { setMailTransport } from '../src/mail/mail.ts';
 import { invalidateSettingsCache } from '../src/settings/settings.ts';
+
+/** Jobs enqueued during tests (pg-boss is not used). */
+export const capturedJobs: CapturedJob[] = [];
+setJobSink((job) => capturedJobs.push(job));
+
+/** Emails "sent" during tests. */
+export const sentMail: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  headers?: Record<string, string>;
+}[] = [];
+setMailTransport({
+  sendMail: async (m: (typeof sentMail)[number]) => {
+    sentMail.push(m);
+    return { messageId: `test-${sentMail.length}` };
+  },
+} as never);
 
 /** Fresh seeded database per test file. */
 export function useTestDb(opts: { profile?: 'minimal' | 'demo' } = {}) {

@@ -59,6 +59,13 @@ function lookup(obj: unknown, key: string): string | undefined {
   return typeof cur === 'string' ? cur : undefined;
 }
 
+const extra: Record<Locale, Record<string, unknown>> = { ru: {}, en: {} };
+
+/** Adds module messages (namespace `mod`) to the server-side translator. */
+export function registerModuleMessages(m: Record<Locale, Record<string, unknown>>): void {
+  for (const l of locales) Object.assign(extra[l], m[l]);
+}
+
 /**
  * Minimal server-side translator for the worker (emails, notifications).
  * Supports {var} interpolation and ICU-style {n, plural, one{..} few{..} many{..} other{..}}.
@@ -69,7 +76,10 @@ export function createTranslator(locale: Locale) {
     key: MessageKey | (string & {}),
     values: Record<string, string | number> = {},
   ): string {
-    const raw = lookup(messages[locale], key) ?? lookup(messages[defaultLocale], key) ?? key;
+    const raw =
+      (key.startsWith('mod.')
+        ? (lookup(extra[locale], key.slice(4)) ?? lookup(extra[defaultLocale], key.slice(4)))
+        : (lookup(messages[locale], key) ?? lookup(messages[defaultLocale], key))) ?? key;
     return format(raw, values, plural);
   };
 }

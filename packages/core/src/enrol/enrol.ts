@@ -7,6 +7,7 @@ import { logEvent } from '../events/log.ts';
 import { optionalText } from '../lib/zod.ts';
 import { buildModuleCtx } from '../modules/module-ctx.ts';
 import { listModules } from '../modules/registry.ts';
+import { notifyUsers } from '../notifications/notifications.ts';
 import { defineOperation } from '../operation.ts';
 
 type Tx = Prisma.TransactionClient | Db;
@@ -111,6 +112,20 @@ export const enrolUsers = defineOperation({
         relatedUserId: userId,
         data: { roleId: role.id, method: 'manual' },
         origin: ctx.origin,
+      });
+    }
+    // Seeding and sync jobs run as system and stay quiet.
+    if (ctx.actor.kind === 'user') {
+      const course = await ctx.tx.course.findUniqueOrThrow({
+        where: { id: input.courseId },
+        select: { fullName: true },
+      });
+      await notifyUsers(ctx.tx, input.userIds, {
+        type: 'enrol.enrolled',
+        title: { key: 'notifications.text.enrolled', values: { course: course.fullName } },
+        url: `/course/${input.courseId}`,
+        courseId: input.courseId,
+        actorId: ctx.perm.userId,
       });
     }
     return { count: input.userIds.length };

@@ -62,18 +62,32 @@ export interface ModuleCompletion {
   recompute(activityId: string, userId: string): Promise<void>;
 }
 
+/** Plain text, or an i18n key (e.g. `mod.assign.notify.gradedTitle`) rendered per recipient. */
+export type NotifyText = string | { key: string; values?: Record<string, string | number> };
+
 export interface ModuleNotify {
+  /**
+   * Notifies users. `type` is `<moduleKey>.<name>` for a type declared in
+   * `ActivityModule.notifications`. The acting user is never notified.
+   */
   send(
     userIds: string[],
     n: {
       type: string;
-      title: string;
-      body?: string;
+      title: NotifyText;
+      body?: NotifyText;
       url?: string;
       courseId?: string;
       contextId?: string;
+      data?: Record<string, unknown>;
     },
   ): Promise<void>;
+}
+
+/** Default channels of a notification type; users override them in their preferences. */
+export interface NotificationTypeDef {
+  email: 'OFF' | 'IMMEDIATE' | 'DIGEST';
+  inApp?: boolean;
 }
 
 export interface ModuleCtx {
@@ -164,6 +178,8 @@ export interface ActivityModule<S = Record<string, unknown>> {
   /** Scheduled jobs run by the worker with a system ModuleCtx. Schedule is cron (UTC). */
   cron?: { name: string; schedule: string; handler(ctx: ModuleCtx): Promise<unknown> }[];
   actions?: Record<string, ModuleAction>;
+  /** Notification types; labels come from `mod.<key>.notify.<name>` messages. */
+  notifications?: Record<string, NotificationTypeDef>;
   /** Who may read files in each file area (besides users who can manage the course). */
   files?: Record<
     string,
