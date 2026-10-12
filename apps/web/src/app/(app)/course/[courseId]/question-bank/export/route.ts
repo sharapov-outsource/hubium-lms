@@ -1,4 +1,5 @@
 import { listQuestions } from '@hubium/core';
+import { exportMoodleXml } from '@hubium/interchange';
 import { type QuestionData, type QuestionType, toGift } from '@hubium/questions';
 import { getContext } from '@/server/session';
 
@@ -17,7 +18,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
   const ctx = await getContext();
   if (!(await ctx.perm.can('question:manage', courseId).catch(() => false)))
     return new Response('Forbidden', { status: 403 });
-  const categoryId = new URL(req.url).searchParams.get('category') ?? undefined;
+  const sp = new URL(req.url).searchParams;
+  const categoryId = sp.get('category') ?? undefined;
+  if (sp.get('format') === 'xml')
+    return new Response(await exportMoodleXml(ctx, courseId, categoryId), {
+      headers: {
+        'Content-Type': 'application/xml; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="questions.moodle.xml"',
+      },
+    });
   const qs = await listQuestions(ctx, courseId, { categoryId });
   const body = qs
     .map((q) =>

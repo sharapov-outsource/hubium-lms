@@ -35,6 +35,9 @@ importers:
       '@hubium/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@hubium/interchange':
+        specifier: workspace:*
+        version: link:../../packages/interchange
       '@hubium/mod-assign':
         specifier: workspace:*
         version: link:../../modules/assign
@@ -138,6 +141,9 @@ importers:
       '@hubium/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@hubium/interchange':
+        specifier: workspace:*
+        version: link:../../packages/interchange
       '@hubium/mod-assign':
         specifier: workspace:*
         version: link:../../modules/assign

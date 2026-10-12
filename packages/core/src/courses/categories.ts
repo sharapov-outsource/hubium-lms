@@ -1,5 +1,6 @@
 import { type Category, type Db, type Prisma, SYSTEM_CONTEXT_ID, uuidv7 } from '@hubium/db';
 import { z } from 'zod';
+import type { Capability } from '../access/capabilities.ts';
 import { createContext, moveContext } from '../access/contexts.ts';
 import type { RequestContext } from '../context.ts';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
@@ -186,10 +187,10 @@ export const moveCategoryOrder = defineOperation({
   },
 });
 
-/** Categories where the actor may create courses (for the "new course" picker). */
+/** Categories where the actor holds `cap` (for course/restore category pickers). */
 export async function categoriesWhereCan(
   ctx: RequestContext,
-  cap: 'course:create' | 'category:manage',
+  cap: Capability,
 ): Promise<CategoryNode[]> {
   const flat = flattenTree(await getCategoryTree(ctx.db, { includeHidden: true }));
   const out: CategoryNode[] = [];

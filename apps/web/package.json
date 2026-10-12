@@ -16,6 +16,7 @@
     "@hubium/db": "workspace:*",
     "@hubium/editor": "workspace:*",
     "@hubium/i18n": "workspace:*",
+    "@hubium/interchange": "workspace:*",
     "@hubium/mod-assign": "workspace:*",
     "@hubium/mod-content": "workspace:*",
     "@hubium/mod-forum": "workspace:*",

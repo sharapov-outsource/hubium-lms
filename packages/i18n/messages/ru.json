@@ -791,9 +791,9 @@
       "HIDDEN": "Скрыт"
     },
     "empty": "В этой категории нет вопросов",
-    "import": "Импорт GIFT",
-    "importHint": "Вставьте вопросы в формате GIFT (как в Moodle) или выберите файл .txt",
-    "importFile": "Файл GIFT",
+    "import": "Импорт вопросов",
+    "importHint": "Вставьте вопросы в формате GIFT или выберите файл GIFT (.txt) либо Moodle XML (.xml)",
+    "importFile": "Файл GIFT или Moodle XML",
     "importResult": "Импортировано вопросов: {created}. Ошибок: {errors}.",
     "export": "Экспорт GIFT",
     "answers": "Варианты ответов",
@@ -830,7 +830,8 @@
       "p0": "0%",
       "m50": "−50%",
       "m100": "−100%"
-    }
+    },
+    "exportXml": "Экспорт Moodle XML"
   },
   "notifications": {
     "title": "Уведомления",
@@ -992,5 +993,27 @@
     "sendEmail": "Передавать e-mail",
     "enabled": "Включён",
     "save": "Сохранить"
+  },
+  "backup": {
+    "title": "Резервная копия и копирование",
+    "downloadHint": "Архив .hubium содержит структуру курса, настройки элементов, банк вопросов и файлы (без данных студентов).",
+    "download": "Скачать резервную копию",
+    "duplicate": "Создать копию курса",
+    "duplicateSubmit": "Создать копию",
+    "fullName": "Полное название",
+    "shortName": "Краткое название",
+    "category": "Категория",
+    "copyOf": "{name} (копия)",
+    "importTitle": "Импорт курса",
+    "importHint": "Восстановление из резервной копии Hubium (.hubium) или импорт курса из Moodle (.mbz).",
+    "file": "Файл архива",
+    "fileHint": ".hubium или .mbz (резервная копия Moodle 3.x–4.x без данных пользователей)",
+    "notAllowed": "Нет прав на этот тип импорта в выбранной категории",
+    "importSubmit": "Импортировать",
+    "uploading": "Загрузка файла…",
+    "processing": "Обработка архива…",
+    "failed": "Импорт не удался: {error}",
+    "done": "Готово: разделов {sections}, элементов {activities}, вопросов {questions}, файлов {files}.",
+    "openCourse": "Открыть курс"
   }
 }

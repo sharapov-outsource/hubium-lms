@@ -14,6 +14,7 @@ import {
   updateGradeItem,
   ValidationError,
 } from '@hubium/core';
+import { importMoodleXml } from '@hubium/interchange';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { formToObject, runAction } from '../action';
@@ -161,6 +162,15 @@ export async function importGiftAction(fd: FormData) {
     if (file instanceof File && file.size)
       gift = Buffer.from(await file.arrayBuffer()).toString('utf8');
     if (!gift.trim()) throw new ValidationError({ gift: ['Paste GIFT text or choose a file'] });
+    if (gift.trimStart().startsWith('<')) {
+      // Moodle XML: categories come from the file itself.
+      const r = await importMoodleXml(await getContext(), v.courseId ?? '', gift);
+      revalidatePath(`/course/${v.courseId}/question-bank`);
+      return {
+        created: r.created,
+        errors: r.errors.map((e, i) => ({ block: i + 1, message: `${e.name}: ${e.message}` })),
+      };
+    }
     const r = await importGift.run(await getContext(), {
       courseId: v.courseId,
       categoryId: v.categoryId || undefined,

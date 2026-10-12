@@ -791,9 +791,9 @@
       "HIDDEN": "Hidden"
     },
     "empty": "No questions in this category",
-    "import": "Import GIFT",
-    "importHint": "Paste questions in GIFT format (as in Moodle) or choose a .txt file",
-    "importFile": "GIFT file",
+    "import": "Import questions",
+    "importHint": "Paste GIFT questions or choose a GIFT (.txt) or Moodle XML (.xml) file",
+    "importFile": "GIFT or Moodle XML file",
     "importResult": "Questions imported: {created}. Errors: {errors}.",
     "export": "Export GIFT",
     "answers": "Answers",
@@ -830,7 +830,8 @@
       "p0": "0%",
       "m50": "−50%",
       "m100": "−100%"
-    }
+    },
+    "exportXml": "Export Moodle XML"
   },
   "notifications": {
     "title": "Notifications",
@@ -992,5 +993,27 @@
     "sendEmail": "Send e-mail",
     "enabled": "Enabled",
     "save": "Save"
+  },
+  "backup": {
+    "title": "Backup and duplicate",
+    "downloadHint": "A .hubium archive holds the course structure, activity settings, question bank and files (no student data).",
+    "download": "Download backup",
+    "duplicate": "Duplicate course",
+    "duplicateSubmit": "Create copy",
+    "fullName": "Full name",
+    "shortName": "Short name",
+    "category": "Category",
+    "copyOf": "{name} (copy)",
+    "importTitle": "Import course",
+    "importHint": "Restore a Hubium backup (.hubium) or import a Moodle course (.mbz).",
+    "file": "Archive file",
+    "fileHint": ".hubium or .mbz (Moodle 3.x–4.x backup without user data)",
+    "notAllowed": "You cannot run this kind of import in the selected category",
+    "importSubmit": "Import",
+    "uploading": "Uploading…",
+    "processing": "Processing archive…",
+    "failed": "Import failed: {error}",
+    "done": "Done: {sections} sections, {activities} activities, {questions} questions, {files} files.",
+    "openCourse": "Open course"
   }
 }
