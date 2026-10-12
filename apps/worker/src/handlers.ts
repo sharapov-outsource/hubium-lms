@@ -1,4 +1,5 @@
 import {
+  expireEnrolments,
   INDEX_COURSE_JOB,
   INDEX_JOB,
   indexActivity,
@@ -98,6 +99,14 @@ export const coreHandlers: JobHandlerDef[] = [
     cron: '10 * * * *',
     async handler(_data: never, { db }) {
       return { notified: await sendCalendarReminders(db) };
+    },
+  },
+  {
+    // Access already ends with endsAt; this keeps statuses and reports in step.
+    name: 'enrol.expire',
+    cron: '5 * * * *',
+    async handler(_data: never, { db }) {
+      return { expired: await expireEnrolments(db) };
     },
   },
   {

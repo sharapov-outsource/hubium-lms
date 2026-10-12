@@ -338,12 +338,20 @@ export const ManualItemInput = z.object({
   idNumber: optionalText(100),
 });
 
+/** Grade categories are addressed by id from forms: they must belong to the same course. */
+async function requireGradeCategory(tx: Tx, courseId: string, categoryId: string) {
+  const c = await tx.gradeCategory.findFirst({ where: { id: categoryId, courseId } });
+  if (!c) throw new NotFoundError('Grade category');
+  return c;
+}
+
 export const createManualItem = defineOperation({
   name: 'grade.item.create',
   input: ManualItemInput,
   authorize: (ctx, i) => ctx.perm.require('grade:manage', i.courseId),
   async handler(ctx, input) {
     const { root } = await ensureCourseGradebook(ctx.tx, input.courseId);
+    if (input.categoryId) await requireGradeCategory(ctx.tx, input.courseId, input.categoryId);
     const count = await ctx.tx.gradeItem.count({ where: { courseId: input.courseId } });
     const item = await ctx.tx.gradeItem.create({
       data: {
@@ -383,6 +391,7 @@ export const updateGradeItem = defineOperation({
   async handler(ctx, { id, ...data }) {
     const item = await ctx.tx.gradeItem.findUniqueOrThrow({ where: { id } });
     if (item.kind === 'MODULE') delete data.name; // module items follow the activity name
+    if (data.categoryId) await requireGradeCategory(ctx.tx, item.courseId, data.categoryId);
     await ctx.tx.gradeItem.update({ where: { id }, data });
     const users = await ctx.tx.enrolment.findMany({
       where: { courseId: item.courseId },
@@ -433,6 +442,7 @@ export const saveGradeCategory = defineOperation({
       dropLowest: input.dropLowest,
       aggregateOnlyGraded: input.aggregateOnlyGraded,
     };
+    if (input.id) await requireGradeCategory(ctx.tx, input.courseId, input.id);
     const cat = input.id
       ? await ctx.tx.gradeCategory.update({ where: { id: input.id }, data })
       : await ctx.tx.gradeCategory.create({

@@ -2,6 +2,7 @@ import { type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { hashPassword } from 'better-auth/crypto';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
+import { assertCanAssignRole } from '../enrol/enrol.ts';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { defineOperation } from '../operation.ts';
@@ -320,19 +321,14 @@ export const assignSystemRole = defineOperation({
     if (!role?.assignableLevels.includes('SYSTEM')) {
       throw new ValidationError({ roleId: ['Role cannot be assigned at site level'] });
     }
+    const user = await ctx.tx.user.findUnique({ where: { id: userId } });
+    if (!user || user.deletedAt) throw new NotFoundError('User');
+    // Granting and taking away follow the same rule (e.g. managers may not create managers).
+    await assertCanAssignRole(ctx, SYSTEM_CONTEXT_ID, roleId);
+    const key = { userId, roleId, contextId: SYSTEM_CONTEXT_ID, component: 'MANUAL' as const };
     if (assigned) {
-      await ctx.tx.roleAssignment.upsert({
-        where: {
-          userId_roleId_contextId_component: {
-            userId,
-            roleId,
-            contextId: SYSTEM_CONTEXT_ID,
-            component: 'MANUAL',
-          },
-        },
-        create: { userId, roleId, contextId: SYSTEM_CONTEXT_ID },
-        update: {},
-      });
+      if (!(await ctx.tx.roleAssignment.findFirst({ where: key })))
+        await ctx.tx.roleAssignment.create({ data: key });
     } else {
       await ctx.tx.roleAssignment.deleteMany({
         where: { userId, roleId, contextId: SYSTEM_CONTEXT_ID, component: 'MANUAL' },

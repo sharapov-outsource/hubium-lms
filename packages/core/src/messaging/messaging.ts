@@ -205,6 +205,26 @@ export async function syncGroupChatMembers(
   }
 }
 
+/** People who leave course groups also leave those groups' chats. */
+export async function leaveGroupChats(
+  tx: AnyDb,
+  where: { groupIds: string[] } | { courseId: string },
+  userIds: string[],
+): Promise<void> {
+  if (!userIds.length) return;
+  await tx.conversationMember.updateMany({
+    where: {
+      userId: { in: userIds },
+      leftAt: null,
+      conversation:
+        'groupIds' in where
+          ? { groupId: { in: where.groupIds } }
+          : { courseId: where.courseId, groupId: { not: null } },
+    },
+    data: { leftAt: new Date() },
+  });
+}
+
 export interface ConversationSummary {
   id: string;
   kind: 'DIRECT' | 'GROUP' | 'SELF';

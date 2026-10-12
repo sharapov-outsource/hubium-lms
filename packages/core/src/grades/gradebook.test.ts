@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
-import { ForbiddenError, ValidationError } from '../errors.ts';
+import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { runModuleAction } from '../modules/actions.ts';
 import {
   createManualItem,
@@ -47,6 +47,34 @@ describe('gradebook', () => {
     await overrideGrade.run(teacher, { itemId: manualId, userId: f.users.student1!, value: 5 });
     // (40 + 5) / (50 + 10) = 75%
     expect(await total(t.db, f.courseId, f.users.student1!)).toBeCloseTo(75);
+  });
+
+  it('grade categories of another course cannot be used or edited', async () => {
+    const other = await courseFixture(t.db, 'GRADES2');
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const { id: foreign } = await saveGradeCategory.run(admin, {
+      courseId: other.courseId,
+      name: 'Чужая',
+      aggregation: 'MEAN',
+    });
+    const teacher = await ctxFor(t.db, 'teacher@hubium.local');
+    await expect(
+      saveGradeCategory.run(teacher, {
+        courseId: f.courseId,
+        id: foreign,
+        name: 'Моя',
+        aggregation: 'HIGHEST',
+      }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    await expect(
+      createManualItem.run(teacher, { courseId: f.courseId, name: 'X', categoryId: foreign }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    await expect(
+      updateGradeItem.run(teacher, { id: manualId, categoryId: foreign }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    expect((await t.db.gradeCategory.findUniqueOrThrow({ where: { id: foreign } })).name).toBe(
+      'Чужая',
+    );
   });
 
   it('validates range and enrolment; students cannot edit', async () => {

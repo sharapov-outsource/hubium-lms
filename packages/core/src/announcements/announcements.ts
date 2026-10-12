@@ -1,6 +1,7 @@
 import { type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { extractText, sanitizeRichText } from '@hubium/editor/server';
 import { z } from 'zod';
+import { usersWithCap } from '../access/permissions.ts';
 import type { RequestContext } from '../context.ts';
 import { getCourseAccess } from '../courses/courses.ts';
 import { activeCourseUserIds } from '../enrol/participants.ts';
@@ -38,11 +39,16 @@ async function authorizeScope(ctx: RequestContext, courseId: string | null | und
 export async function notifyAnnouncement(tx: Tx, id: string, now = new Date()): Promise<number> {
   const a = await tx.announcement.findUnique({
     where: { id },
-    include: { course: { select: { fullName: true } } },
+    include: { course: { select: { fullName: true, visible: true } } },
   });
   if (!a || a.notifiedAt || !a.notify || a.publishAt > now) return 0;
-  await tx.announcement.update({ where: { id }, data: { notifiedAt: now } });
-  const recipients = a.courseId
+  // The cron and an edit may race: only the one that claims the row sends.
+  const claimed = await tx.announcement.updateMany({
+    where: { id, notifiedAt: null },
+    data: { notifiedAt: now },
+  });
+  if (!claimed.count) return 0;
+  let recipients = a.courseId
     ? await activeCourseUserIds(tx, a.courseId, { groupId: a.groupId, now })
     : (
         await tx.user.findMany({
@@ -50,6 +56,11 @@ export async function notifyAnnouncement(tx: Tx, id: string, now = new Date()): 
           select: { id: true },
         })
       ).map((u) => u.id);
+  if (a.courseId && a.course && !a.course.visible) {
+    // Learners cannot open a hidden course; only its staff hear about it.
+    const staff = new Set(await usersWithCap(tx as Db, 'course:viewhidden', a.courseId));
+    recipients = recipients.filter((u) => staff.has(u));
+  }
   const body = extractText(a.contentHtml).slice(0, 500);
   return notifyUsers(tx, recipients, {
     type: a.courseId ? 'announcement.course' : 'announcement.site',
@@ -135,6 +146,10 @@ export const updateAnnouncement = defineOperation({
   },
   async handler(ctx, input) {
     const a = await ctx.tx.announcement.findUniqueOrThrow({ where: { id: input.id } });
+    if (input.groupId && a.courseId) {
+      const g = await ctx.tx.group.findUnique({ where: { id: input.groupId } });
+      if (g?.courseId !== a.courseId) throw new ValidationError({ groupId: ['Unknown group'] });
+    }
     await ctx.tx.announcement.update({
       where: { id: a.id },
       data: {

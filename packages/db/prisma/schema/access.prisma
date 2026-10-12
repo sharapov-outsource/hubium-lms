@@ -113,7 +113,10 @@ model RoleAssignment {
   role    Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
   context Context @relation(fields: [contextId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, roleId, contextId, component])
+  // One row per role and enrolment: a user may hold the same role through several
+  // enrolments (manual + cohort), each suspended or removed on its own.
+  @@unique([enrolmentId, roleId])
+  @@index([userId, contextId])
   @@index([contextId, roleId])
 }
 

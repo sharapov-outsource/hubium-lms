@@ -303,6 +303,36 @@ describe('courses domain', () => {
       ids.course!,
     );
     expect(outline.flatMap((s) => s.activities).some((a) => a.activity.id === id)).toBe(false);
+    expect(
+      (await getActivityAccess(await ctxFor(t.db, 'student2@hubium.local'), id)).missing,
+    ).toEqual([]);
+  });
+
+  it('stealth activities opened by link still obey restrictions and hidden sections', async () => {
+    const teacher = await ctxFor(t.db, 'teacher@hubium.local');
+    const { id } = await createActivity.run(teacher, {
+      courseId: ids.course!,
+      sectionId: ids.s1!,
+      moduleKey: 'page',
+      name: 'Секрет',
+      visibility: 'STEALTH',
+      settings: { content: '<p>Secret</p>' },
+      availability: {
+        op: '&',
+        c: [{ type: 'completion', activityId: ids.manual!, state: 'complete' }],
+      },
+    });
+    const open = async (email: string) =>
+      (await getActivityAccess(await ctxFor(t.db, email), id)).canOpen;
+    expect(await open('student1@hubium.local')).toBe(true);
+    expect(await open('student2@hubium.local')).toBe(false);
+    await t.db.courseSection.update({ where: { id: ids.s1! }, data: { visible: false } });
+    try {
+      expect(await open('student1@hubium.local')).toBe(false);
+      expect(await open('teacher@hubium.local')).toBe(true);
+    } finally {
+      await t.db.courseSection.update({ where: { id: ids.s1! }, data: { visible: true } });
+    }
   });
 
   it('self enrolment with course key and group keys', async () => {
