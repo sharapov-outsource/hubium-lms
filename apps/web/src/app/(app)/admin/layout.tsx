@@ -7,16 +7,21 @@ import { AdminNav } from './admin-nav';
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   await requireUser();
   const ctx = await getContext();
-  const [users, roles, config] = await Promise.all([
+  const [users, roles, config, categories, cohorts] = await Promise.all([
     ctx.perm.can('user:update'),
     ctx.perm.can('role:manage'),
     ctx.perm.can('site:config'),
+    ctx.perm.can('category:manage'),
+    ctx.perm.can('cohort:manage'),
   ]);
-  if (!users && !roles && !config) forbidden();
+  if (!users && !roles && !config && !categories && !cohorts) forbidden();
   const t = await getTranslations('admin');
   const items = [
     { key: 'overview', href: '/admin', label: t('overview'), show: true, exact: true },
     { key: 'users', href: '/admin/users', label: t('users'), show: users },
+    { key: 'categories', href: '/admin/categories', label: t('categories'), show: categories },
+    { key: 'courses', href: '/admin/courses', label: t('courses'), show: categories },
+    { key: 'cohorts', href: '/admin/cohorts', label: t('cohorts'), show: cohorts },
     { key: 'roles', href: '/admin/roles', label: t('roles'), show: roles },
     { key: 'permissions', href: '/admin/permissions', label: t('permissionCheck'), show: roles },
     { key: 'settings', href: '/admin/settings/general', label: t('siteSettings'), show: config },

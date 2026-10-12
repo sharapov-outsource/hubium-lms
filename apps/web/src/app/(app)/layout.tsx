@@ -8,10 +8,19 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const ctx = await getContext();
   const items: NavItem[] = [
     { href: '/dashboard', label: 'nav.dashboard', icon: 'home', mobile: true },
+    { href: '/my-courses', label: 'nav.myCourses', icon: 'courses', mobile: true },
+    { href: '/catalog', label: 'nav.catalog', icon: 'catalog' },
+    { href: '/calendar', label: 'nav.calendar', icon: 'calendar', mobile: true },
   ];
   if (
     user.isSiteAdmin ||
-    (await ctx.perm.canAny(['user:update', 'role:manage', 'site:config', 'category:manage']))
+    (await ctx.perm.canAny([
+      'user:update',
+      'role:manage',
+      'site:config',
+      'category:manage',
+      'cohort:manage',
+    ]))
   ) {
     items.push({ href: '/admin', label: 'nav.admin', icon: 'admin', mobile: true });
   }

@@ -7,7 +7,7 @@ import {
   Permissions,
   type RequestContext,
 } from '@hubium/core';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { forbidden, redirect } from 'next/navigation';
 import { getLocale } from 'next-intl/server';
 import { cache } from 'react';
@@ -58,16 +58,39 @@ export const getContext = cache(async (): Promise<RequestContext> => {
     isSiteAdmin: user.isSiteAdmin,
     realUserId: session?.session.impersonatedBy ?? undefined,
   };
+  const switchedRole = await readSwitchedRole(user.id);
   return {
     db,
     actor,
-    perm: new Permissions(db, await loadUserAccess(db, user)),
+    perm: new Permissions(db, await loadUserAccess(db, user, { switchedRole })),
     now: new Date(),
     locale,
     ip,
     origin: 'WEB',
   };
 });
+
+export const VIEW_AS_COOKIE = 'hubium-viewas';
+
+/** "View as role" switch, honoured only when the user may switch roles in that course. */
+async function readSwitchedRole(
+  userId: string,
+): Promise<{ roleId: string; contextId: string } | undefined> {
+  const raw = (await cookies()).get(VIEW_AS_COOKIE)?.value;
+  if (!raw) return undefined;
+  const [contextId, roleId] = raw.split(':');
+  if (!contextId || !roleId) return undefined;
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user) return undefined;
+  const real = new Permissions(db, await loadUserAccess(db, user));
+  if (!(await real.can('course:switchrole', contextId).catch(() => false))) return undefined;
+  return { roleId, contextId };
+}
+
+export async function getSwitchedRole(): Promise<{ roleId: string; contextId: string } | null> {
+  const user = await getCurrentUser();
+  return user ? ((await readSwitchedRole(user.id)) ?? null) : null;
+}
 
 /** For pages: signed-in user holding the capability, else 403 page. */
 export async function requireCapability(cap: Capability, contextId?: string) {
