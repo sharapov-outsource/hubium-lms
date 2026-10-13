@@ -1,5 +1,8 @@
 import type { Prisma } from '@hubium/db';
+import { log } from '@hubium/log';
 import { fromPrisma, PgBoss, type SendOptions } from 'pg-boss';
+
+const logger = log('jobs');
 
 // pg-boss wrapper. The web app only enqueues (no supervision, no cron); the worker
 // process runs maintenance, schedules and handlers.
@@ -44,7 +47,7 @@ export function getBoss(
       schedule: worker,
       migrate: true,
     });
-    boss.on('error', (e) => console.error('[pg-boss]', e));
+    boss.on('error', (e) => logger.error({ err: e }, 'pg-boss error'));
     await boss.start();
     return boss;
   })().catch((e) => {

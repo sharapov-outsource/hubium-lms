@@ -2,9 +2,12 @@ import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { open, stat } from 'node:fs/promises';
 import { type Db, type File, type Prisma, SYSTEM_CONTEXT_ID, uuidv7 } from '@hubium/db';
+import { log } from '@hubium/log';
 import type { RequestContext } from '../context.ts';
 import { ValidationError } from '../errors.ts';
 import { getStorage } from './storage.ts';
+
+const logger = log('files');
 
 type Tx = Prisma.TransactionClient | Db;
 
@@ -283,7 +286,9 @@ export async function garbageCollectBlobs(db: Db, olderThanMs = 24 * 3600_000): 
     if (!r.count) continue;
     await getStorage()
       .delete(b.storageKey)
-      .catch((e) => console.warn('[files] could not delete', b.storageKey, e));
+      .catch((e) =>
+        logger.warn({ err: e, storageKey: b.storageKey }, 'could not delete a stored blob'),
+      );
     deleted++;
   }
   return deleted;

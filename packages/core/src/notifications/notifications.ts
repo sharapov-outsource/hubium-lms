@@ -1,5 +1,6 @@
 import { type Db, type EmailMode, type Prisma, uuidv7 } from '@hubium/db';
 import { createTranslator, isLocale, type Locale } from '@hubium/i18n';
+import { log } from '@hubium/log';
 import { z } from 'zod';
 import { sign, verifySignature } from '../crypto.ts';
 import { getEnv } from '../env.ts';
@@ -11,6 +12,8 @@ import { defineOperation } from '../operation.ts';
 import { publishRealtime } from '../realtime.ts';
 import { getAllSettings } from '../settings/settings.ts';
 import { PUSH_JOB, pushConfig } from './push.ts';
+
+const logger = log('notifications');
 
 // Notifications: one row per recipient, rendered in the recipient's language. The in-app
 // centre reads the rows; email goes out immediately (job) or in a daily digest (cron).
@@ -378,7 +381,7 @@ export async function sendNotificationEmails(db: Db, ids: string[]): Promise<num
     } catch (e) {
       // Left PENDING: the job fails below and pg-boss retries it with backoff; mails
       // already sent are SENT and skipped on the retry.
-      console.error('[notifications] email failed', e);
+      logger.error({ err: e, notificationId: n.id }, 'notification email failed');
       failed++;
     }
   }
@@ -472,7 +475,7 @@ export async function sendDigests(
       });
       sent++;
     } catch (e) {
-      console.error('[notifications] digest failed', e);
+      logger.error({ err: e }, 'digest email failed');
     }
   }
   return sent;

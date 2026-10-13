@@ -40,9 +40,12 @@ import {
   WEBHOOK_EVENTS,
 } from '@hubium/core';
 import type { Db } from '@hubium/db';
+import { log } from '@hubium/log';
 import { Scalar } from '@scalar/hono-api-reference';
 import type { Context, MiddlewareHandler } from 'hono';
 import { rateLimit } from './rate-limit.ts';
+
+const logger = log('api');
 
 // REST API v1: a thin transport over core operations. Every request is authenticated
 // with a personal access token and runs as its user, narrowed by the token's scopes.
@@ -327,7 +330,8 @@ export function createApi(opts: ApiOptions) {
   app.onError((e, c) => {
     const r = toActionError(e);
     const status = STATUS[r.code as keyof typeof STATUS] ?? 500;
-    if (status === 500 && !(e instanceof AppError)) console.error('[api]', e);
+    if (status === 500 && !(e instanceof AppError))
+      logger.error({ err: e, method: c.req.method, path: c.req.path }, 'API request failed');
     return c.json(
       {
         code: r.code,
@@ -335,6 +339,23 @@ export function createApi(opts: ApiOptions) {
         fieldErrors: r.fieldErrors,
       },
       status,
+    );
+  });
+
+  // Access log: one record per request, with the token's user once authenticated.
+  app.use('*', async (c, next) => {
+    const started = performance.now();
+    await next();
+    const ctx = c.get('ctx') as RequestContext | undefined;
+    logger.info(
+      {
+        method: c.req.method,
+        path: c.req.path,
+        status: c.res.status,
+        ms: Math.round(performance.now() - started),
+        userId: ctx?.actor.kind === 'user' ? ctx.actor.userId : undefined,
+      },
+      'API request',
     );
   });
 

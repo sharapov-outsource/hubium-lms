@@ -1,10 +1,13 @@
 import type { Db } from '@hubium/db';
+import { log } from '@hubium/log';
 import { assertPublicUrl } from '@hubium/module-sdk/net';
 import webpush from 'web-push';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { getEnv } from '../env.ts';
 import { ForbiddenError, ValidationError } from '../errors.ts';
+
+const logger = log('push');
 
 // Web Push (PWA notifications). Notifications shown in the app are also pushed to the
 // user's subscribed devices when VAPID keys are configured and the user has not turned
@@ -111,7 +114,7 @@ export async function sendPushNotifications(
         if (status === 404 || status === 410) {
           await db.pushSubscription.delete({ where: { id: s.id } }).catch(() => {});
           removed++;
-        } else console.warn('[push] delivery failed', status ?? (e as Error).message);
+        } else logger.warn({ err: e, status, subscriptionId: s.id }, 'push delivery failed');
       }
     }
   }

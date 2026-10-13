@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import type { Prisma } from '@hubium/db';
+import { log } from '@hubium/log';
 import { type ActivityRef, defineAction, defineModule, type ModuleCtx } from '@hubium/module-sdk';
 import { bool, optionalNumber } from '@hubium/module-sdk/fields';
 import { z } from 'zod';
@@ -19,6 +20,8 @@ import {
   scorePercent,
   trackFromCmi,
 } from './package.ts';
+
+const logger = log('scorm');
 
 export * from './package.ts';
 
@@ -519,7 +522,7 @@ export const scorm = defineModule<ScormSettingsT>({
         await commitTrack(ctx, a, { userId: grant.userId, attemptId, scoId }, body);
         return ok({ result: true, errorCode: 0 });
       } catch (e) {
-        console.error('[scorm] commit failed', e);
+        logger.error({ err: e, activityId: a.id, attemptId, scoId }, 'SCORM commit failed');
         return ok({ result: false, errorCode: 101 });
       }
     }

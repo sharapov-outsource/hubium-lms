@@ -1,8 +1,11 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { log } from '@hubium/log';
 import { type ActivityRef, defineAction, defineModule, type ModuleCtx } from '@hubium/module-sdk';
 import { bool, isoDate } from '@hubium/module-sdk/fields';
 import { z } from 'zod';
 import { getProvider, type MeetingSpec, type ProviderKind } from './providers.ts';
+
+const logger = log('livesession');
 
 export * from './providers.ts';
 
@@ -127,7 +130,7 @@ export async function pollMeetings(ctx: ModuleCtx, intervalSec = 60): Promise<nu
     try {
       info = await getProvider(settings.data.provider).info(m.meetingId);
     } catch (e) {
-      console.error('[livesession] poll failed', e);
+      logger.warn({ err: e, meetingId: m.meetingId }, 'meeting status poll failed');
       continue;
     }
     if (info?.running) {

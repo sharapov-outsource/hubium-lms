@@ -1,5 +1,8 @@
 import type { Db, Prisma } from '@hubium/db';
 import { uuidv7 } from '@hubium/db';
+import { log } from '@hubium/log';
+
+const logger = log('realtime');
 
 // Realtime bus: events are published with pg_notify on `hubium_rt` (delivered on commit
 // when sent inside a transaction) and dispatched by every web instance to the SSE
@@ -100,7 +103,7 @@ export function dispatchRealtime(payload: string): void {
       try {
         fn(event);
       } catch (e) {
-        console.error('[realtime] listener failed', e);
+        logger.error({ err: e, userId }, 'realtime listener failed');
       }
     }
   }

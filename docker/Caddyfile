@@ -1,6 +1,22 @@
 # Site addresses are the app's public URLs (APP_URL, CONTENT_HOST, S3_PUBLIC_URL).
 
+# JSON access log on stdout. Tokens in URLs (content links, unsubscribe and calendar feed
+# paths, ?token= in sign-in mails) are replaced, and the Referer, which may carry them, is
+# dropped; Caddy already hides cookies and Authorization headers.
+(access_log) {
+	log {
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp "(/(?:c|unsubscribe|ical)/)[^/?]+|([?&]token=)[^&]+" "${1}${2}[redacted]"
+				request>headers>Referer delete
+			}
+		}
+	}
+}
+
 {$APP_URL} {
+	import access_log
 	encode zstd gzip
 	reverse_proxy web:3000 {
 		flush_interval -1
@@ -9,6 +25,7 @@
 
 # Untrusted content (SCORM, raw HTML) on its own origin; the app only answers /c/* here.
 {$CONTENT_HOST} {
+	import access_log
 	reverse_proxy web:3000
 }
 

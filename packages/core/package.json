@@ -27,6 +27,7 @@
     "@hubium/db": "workspace:*",
     "@hubium/editor": "workspace:*",
     "@hubium/i18n": "workspace:*",
+    "@hubium/log": "workspace:*",
     "@hubium/module-sdk": "workspace:*",
     "@hubium/questions": "workspace:*",
     "better-auth": "1.7.7",

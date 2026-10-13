@@ -27,6 +27,8 @@ x-app-env: &app-env
   AUTH_YANDEX_SECRET: ${AUTH_YANDEX_SECRET:-}
   AUTH_VK_ID: ${AUTH_VK_ID:-}
   AUTH_VK_SECRET: ${AUTH_VK_SECRET:-}
+  # JSON log lines on stdout (docker compose logs); see docs/operations.md
+  LOG_LEVEL: ${LOG_LEVEL:-info}
 
 services:
   db:
@@ -68,6 +70,7 @@ services:
     build: { context: .., dockerfile: docker/Dockerfile, target: migrate, args: *build-args }
     environment:
       <<: *app-env
+      HUBIUM_SERVICE: migrate
       # minimal: the administrator only; demo: also sample courses and users
       SEED_PROFILE: ${SEED_PROFILE:-minimal}
     depends_on:
@@ -76,7 +79,9 @@ services:
 
   web:
     build: { context: .., dockerfile: docker/Dockerfile, target: web, args: *build-args }
-    environment: *app-env
+    environment:
+      <<: *app-env
+      HUBIUM_SERVICE: web
     depends_on:
       migrate: { condition: service_completed_successfully }
     restart: unless-stopped
@@ -85,6 +90,7 @@ services:
     build: { context: .., dockerfile: docker/Dockerfile, target: worker, args: *build-args }
     environment:
       <<: *app-env
+      HUBIUM_SERVICE: worker
       WORKER_QUEUES: default
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -94,6 +100,7 @@ services:
     build: { context: .., dockerfile: docker/Dockerfile, target: worker-media, args: *build-args }
     environment:
       <<: *app-env
+      HUBIUM_SERVICE: worker-media
       WORKER_QUEUES: media
       WORKER_HEALTH_PORT: "3001"
     depends_on:

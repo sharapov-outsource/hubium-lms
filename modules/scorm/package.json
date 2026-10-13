@@ -18,6 +18,7 @@
   "dependencies": {
     "@hubium/db": "workspace:*",
     "@hubium/editor": "workspace:*",
+    "@hubium/log": "workspace:*",
     "@hubium/module-sdk": "workspace:*",
     "@hubium/ui": "workspace:*",
     "fast-xml-parser": "5.11.2",

@@ -117,6 +117,21 @@ OLD_APP_SECRET=<текущий> APP_SECRET=<новый> pnpm --filter @hubium/co
 - **Администрирование → Окружение** — живые проверки: база и pgvector, heartbeat воркера, очередь задач и ошибки за сутки, запись в хранилище, SMTP, отдельный домен контента, Web Push, AI, ffmpeg.
 - Воркер обновляет heartbeat раз в минуту; тревога, если `hubium_worker_heartbeat_age_seconds > 180`.
 
+## Логи
+
+Все сервисы пишут в stdout по одной JSON-записи на строку: `docker compose -f docker/compose.yml logs -f web worker`. Такие строки без настройки разбирают Loki, Elastic, Graylog и Vector.
+
+```json
+{"level":"warn","time":"2026-10-13T12:04:05.123Z","service":"worker","component":"webhooks","webhookId":"…","event":"enrolment.created","host":"hr.example.org","status":503,"attempt":9,"msg":"webhook delivery failed for good"}
+```
+
+- `service` — `web`, `worker`, `worker-media` или `migrate`; `component` — часть системы (`jobs`, `api`, `webhooks`, `notifications`, `next`…). Ошибки идут с полем `err` (тип, сообщение, стек).
+- Воркер пишет каждую неудачную задачу (`job`, `jobId`, `ms`, `err`). Ожидаемые повторы, например недоступный получатель вебхука, пишутся как `warn`, остальное как `error`. Успешные задачи видны на уровне `debug`.
+- REST API пишет каждый запрос: метод, путь, статус, время и пользователя токена. Серверные ошибки страниц приходят от `next` с маршрутом и `digest`: по нему ошибку находят из сообщения, которое увидел пользователь.
+- Caddy пишет журнал доступа в JSON. Токены в URL (ссылки на контент, отписка, календарь, `?token=` из писем) заменены на `[redacted]`, заголовок Referer не пишется, cookies и `Authorization` скрыты.
+- Пароли, секреты, токены и ключи API в записи не попадают: эти поля вырезаются.
+- `LOG_LEVEL` в `.env`: `debug`, `info` (по умолчанию), `warn`, `error`. При разработке (`NODE_ENV` не `production`) строки выводятся в читаемом виде; `LOG_FORMAT=json` или `pretty` выбирает формат явно.
+
 ## Масштабирование
 
 - `web` можно запускать в нескольких экземплярах: сеансы в базе, realtime через `LISTEN/NOTIFY`, кэши сбрасываются через канал `hubium_cache`. Лимит REST API считается в каждом экземпляре.

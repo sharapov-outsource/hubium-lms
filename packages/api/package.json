@@ -16,6 +16,7 @@
     "@hono/zod-openapi": "1.6.3",
     "@hubium/core": "workspace:*",
     "@hubium/db": "workspace:*",
+    "@hubium/log": "workspace:*",
     "@scalar/hono-api-reference": "0.12.12",
     "hono": "4.13.13",
     "zod": "4.6.7"

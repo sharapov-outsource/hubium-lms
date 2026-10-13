@@ -1,5 +1,6 @@
 import { createHmac, randomBytes } from 'node:crypto';
 import type { Db, Prisma, Webhook } from '@hubium/db';
+import { log } from '@hubium/log';
 import { assertPublicUrl, checkUrlShape, UnsafeUrlError } from '@hubium/module-sdk/net';
 import { z } from 'zod';
 import { publishInvalidation } from '../cache-bus.ts';
@@ -15,6 +16,8 @@ import { WEBHOOK_EVENTS, WEBHOOK_JOB, WEBHOOK_MAX_ATTEMPTS, WEBHOOK_RETRY } from
 // Webhook subscriptions (administrators, in the admin area or over the REST API) and the
 // worker that sends deliveries: a signed POST, retried with backoff, never redirected and
 // never to internal addresses unless SSRF_ALLOW_HOSTS lists the host.
+
+const logger = log('webhooks');
 
 /** Failed deliveries in a row after which a webhook is switched off. */
 export const WEBHOOK_FAILURE_LIMIT = 50;
@@ -240,8 +243,9 @@ export function signWebhook(secret: string, body: string, timestamp: number): st
   return `t=${timestamp},v1=${mac}`;
 }
 
-/** Thrown to let the job queue retry a delivery later. */
+/** Thrown to let the job queue retry a delivery later (logged as a warning, not an error). */
 export class WebhookRetry extends Error {
+  readonly expected = true;
   constructor(message: string) {
     super(message);
     this.name = 'WebhookRetry';
@@ -324,7 +328,17 @@ export async function deliverWebhook(db: Db, deliveryId: string) {
       status: ok ? 'SUCCESS' : again ? 'PENDING' : 'FAILED',
     },
   });
+  const fields = {
+    webhookId: w.id,
+    deliveryId: d.id,
+    event: d.event,
+    host: new URL(w.url).host,
+    status,
+    attempt: attempts,
+  };
   if (again) throw new WebhookRetry(`Webhook answered ${status ?? answer}`);
+  if (ok) logger.debug(fields, 'webhook delivered');
+  else logger.warn({ ...fields, answer: answer.slice(0, 200) }, 'webhook delivery failed for good');
   if (d.event === 'ping') return { ok, status };
 
   if (ok) {
@@ -346,6 +360,10 @@ export async function deliverWebhook(db: Db, deliveryId: string) {
         },
       });
       await publishInvalidation(db, 'webhooks');
+      logger.warn(
+        { webhookId: w.id, host: fields.host },
+        'webhook switched off after repeated failures',
+      );
     }
   }
   return { ok, status };

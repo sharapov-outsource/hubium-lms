@@ -1,6 +1,9 @@
+import { log } from '@hubium/log';
 import { z } from 'zod';
 import type { MutationContext, RequestContext } from './context.ts';
 import { AppError, ValidationError } from './errors.ts';
+
+const logger = log('operations');
 
 // One operation, three transports (server actions, REST, worker). See architecture §1.4.
 
@@ -55,7 +58,7 @@ export function defineOperation<I extends z.ZodType, O>(def: OperationDef<I, O>)
         try {
           await fn();
         } catch (e) {
-          console.error(`[${def.name}] afterCommit failed`, e);
+          logger.error({ err: e, operation: def.name }, 'after-commit step failed');
         }
       }
       return result;
@@ -84,6 +87,6 @@ export function toActionError(e: unknown): Extract<ActionResult<never>, { ok: fa
       fieldErrors: zodFieldErrors(e),
     };
   }
-  console.error(e);
+  logger.error({ err: e }, 'unexpected error');
   return { ok: false, code: 'INTERNAL', message: 'Internal error' };
 }
