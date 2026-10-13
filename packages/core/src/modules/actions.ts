@@ -1,12 +1,22 @@
 import type { RequestContext } from '../context.ts';
 import { getActivityAccess } from '../courses/activities.ts';
 import { ForbiddenError, NotFoundError } from '../errors.ts';
+import { withActorScope } from '../events/actor-scope.ts';
 import { parseInput } from '../operation.ts';
 import { buildModuleCtx, toActivityRef } from './module-ctx.ts';
 import { requireModule } from './registry.ts';
 
 /** Runs `ActivityModule.actions[name]` with access, capability and input checks. */
-export async function runModuleAction(
+export function runModuleAction(
+  ctx: RequestContext,
+  activityId: string,
+  name: string,
+  raw: unknown,
+): Promise<unknown> {
+  return withActorScope(ctx.actor, () => runAction(ctx, activityId, name, raw));
+}
+
+async function runAction(
   ctx: RequestContext,
   activityId: string,
   name: string,

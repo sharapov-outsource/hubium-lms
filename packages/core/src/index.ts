@@ -16,6 +16,7 @@ export * from './enrol/enrol.ts';
 export * from './enrol/participants.ts';
 export * from './env.ts';
 export * from './errors.ts';
+export * from './events/actor-scope.ts';
 export * from './events/log.ts';
 export * from './files/text.ts';
 export * from './files/uploads.ts';

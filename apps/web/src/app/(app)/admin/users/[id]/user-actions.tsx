@@ -9,6 +9,7 @@ import { useTransition } from 'react';
 import {
   assignSystemRoleAction,
   deleteUserAction,
+  loginAsAction,
   setUserSuspendedAction,
 } from '@/server/actions/admin';
 
@@ -52,13 +53,16 @@ export function DangerZone({
   name,
   suspended,
   canDelete,
+  canLoginAs,
 }: {
   userId: string;
   name: string;
   suspended: boolean;
   canDelete: boolean;
+  canLoginAs: boolean;
 }) {
   const t = useTranslations('admin.user');
+  const ta = useTranslations('admin');
   const tc = useTranslations('common');
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -78,6 +82,37 @@ export function DangerZone({
         >
           {suspended ? t('unsuspend') : t('suspend')}
         </Button>
+        {canLoginAs ? (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline">{ta('loginAs')}</Button>
+            </DialogTrigger>
+            <DialogContent
+              title={ta('loginAs')}
+              description={ta('loginAsConfirm', { name })}
+              closeLabel={tc('close')}
+            >
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">{tc('cancel')}</Button>
+                </DialogClose>
+                <Button
+                  disabled={pending}
+                  onClick={() =>
+                    start(async () => {
+                      const r = await loginAsAction(userId);
+                      if (!r.ok) toast.error(r.message);
+                      // a full load drops everything cached for the administrator
+                      else window.location.assign('/dashboard');
+                    })
+                  }
+                >
+                  {ta('loginAs')}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        ) : null}
         {canDelete ? (
           <Dialog>
             <DialogTrigger asChild>

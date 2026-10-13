@@ -1,5 +1,6 @@
 import type { Db, EventOrigin, Prisma } from '@hubium/db';
 import { emitWebhook, webhookEventFor } from '../webhooks/events.ts';
+import { currentRealActorId } from './actor-scope.ts';
 
 type Tx = Prisma.TransactionClient | Db;
 
@@ -22,7 +23,7 @@ export async function logEvent(db: Tx, e: LogEventInput): Promise<void> {
     data: {
       name: e.name,
       actorId: e.actorId ?? null,
-      realActorId: e.realActorId ?? null,
+      realActorId: e.realActorId !== undefined ? e.realActorId : currentRealActorId(),
       contextId: e.contextId ?? null,
       courseId: e.courseId ?? null,
       objectType: e.objectType,

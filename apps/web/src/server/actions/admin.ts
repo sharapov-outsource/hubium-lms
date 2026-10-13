@@ -7,7 +7,9 @@ import {
   createUser,
   deleteRole,
   deleteUser,
+  ForbiddenError,
   getAllSettings,
+  logEvent,
   setRoleCapability,
   setSettings,
   setUserSuspended,
@@ -18,11 +20,14 @@ import {
 import { BRANDING_CONTEXT, storeFile } from '@hubium/core/files/files';
 import { enqueue } from '@hubium/core/jobs/jobs';
 import { renderActionEmail } from '@hubium/core/mail/mail';
+import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { createTranslator } from '@hubium/i18n';
 import { generateAccentPalette } from '@hubium/ui/palette';
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { formToObject, runAction } from '../action';
+import { auth } from '../auth';
 import { db } from '../db';
 import { getContext, requireUser } from '../session';
 
@@ -239,5 +244,32 @@ export async function sendTestEmailAction() {
       template: 'test',
     });
     return null;
+  });
+}
+
+/** Starts a "log in as" session; the permission check is in the auth endpoint. */
+export async function loginAsAction(userId: string) {
+  return runAction(async () => {
+    await auth.api.loginAs({ body: { userId }, headers: await headers() });
+    return null;
+  });
+}
+
+/** Ends a "log in as" session and returns to the administrator's own account. */
+export async function stopLoginAsAction() {
+  return runAction(async () => {
+    const { actor } = await getContext();
+    if (actor.kind !== 'user' || !actor.realUserId) throw new ForbiddenError();
+    await auth.api.stopImpersonating({ headers: await headers() });
+    await logEvent(db, {
+      name: 'user.loggedinas.stopped',
+      actorId: actor.realUserId,
+      realActorId: null,
+      contextId: SYSTEM_CONTEXT_ID,
+      objectType: 'user',
+      objectId: actor.userId,
+      relatedUserId: actor.userId,
+    });
+    return { userId: actor.userId };
   });
 }

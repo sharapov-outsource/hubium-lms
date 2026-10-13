@@ -30,6 +30,8 @@ function requireUser(ctx: RequestContext): string {
 
 export async function createApiToken(ctx: RequestContext, raw: unknown) {
   const userId = requireUser(ctx);
+  if (ctx.actor.kind === 'user' && ctx.actor.realUserId)
+    throw new ForbiddenError('Not available while logged in as another user');
   // A token can never do more than a browser session; API access itself is a capability.
   await ctx.perm.require('webservice:createtoken');
   const input = CreateTokenInput.parse(raw);

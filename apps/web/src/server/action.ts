@@ -1,12 +1,16 @@
 import 'server-only';
-import { type ActionResult, toActionError } from '@hubium/core';
+import { type ActionResult, toActionError, withActorScope } from '@hubium/core';
+import { APIError } from 'better-auth/api';
+import { getContext } from './session';
 
 export type { ActionResult };
 
 /** Runs a server-action body and maps thrown errors to a serialisable result. */
 export async function runAction<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
   try {
-    return { ok: true, data: await fn() };
+    // events logged by the action record who is really behind a "log in as" session
+    const { actor } = await getContext();
+    return { ok: true, data: await withActorScope(actor, fn) };
   } catch (e) {
     // Next.js uses thrown errors for redirect()/notFound(); let them through.
     if (
@@ -18,6 +22,9 @@ export async function runAction<T>(fn: () => Promise<T>): Promise<ActionResult<T
       const digest = (e as { digest: string }).digest;
       if (digest.startsWith('NEXT_') || digest.startsWith('NEXT_HTTP_ERROR')) throw e;
     }
+    // Better Auth refusals carry a message meant for the person
+    if (e instanceof APIError)
+      return { ok: false, code: String(e.status), message: e.body?.message ?? e.message };
     return toActionError(e);
   }
 }

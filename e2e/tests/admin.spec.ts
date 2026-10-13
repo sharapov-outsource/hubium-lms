@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { setSetting } from './db';
+import { setSetting, sql } from './db';
 import { ADMIN, chooseOption, expectAccessible, login } from './helpers';
 
 const stamp = Date.now();
@@ -23,6 +23,34 @@ test('admin creates a user, assigns a site role, the user signs in', async ({ pa
   await page.context().clearCookies();
   await login(page, `boris${stamp}`, 'Password123');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Борис');
+});
+
+test('admin logs in as a student and returns', async ({ page }) => {
+  const [student] = await sql<{ id: string; name: string }>(
+    `SELECT id, name FROM "User" WHERE username = 'student1'`,
+  );
+  await login(page, ADMIN.login, ADMIN.password);
+  await page.goto(`/admin/users/${student!.id}`);
+  await page.getByRole('button', { name: 'Войти под пользователем' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Войти под пользователем' }).click();
+  await page.waitForURL(/\/dashboard/);
+  await expect(page.getByText(`Вы вошли как ${student!.name}`)).toBeVisible();
+  await expectAccessible(page);
+  // the student's credentials are out of reach
+  await page.goto('/settings/account');
+  const emailForm = page.locator('form').filter({ has: page.locator('input[name=email]') });
+  await emailForm.locator('input[name=email]').fill(`changed${stamp}@example.com`);
+  await emailForm.getByRole('button').click();
+  await expect(page.getByText('Недостаточно прав для этого действия')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Вернуться в свою учётную запись' }).click();
+  await page.waitForURL(new RegExp(`/admin/users/${student!.id}`));
+  await expect(page.getByText(/Вы вошли как/)).toHaveCount(0);
+  const [event] = await sql<{ n: number }>(
+    `SELECT count(*)::int AS n FROM "EventLog" WHERE name = 'user.loggedinas.stopped' AND "relatedUserId" = $1`,
+    [student!.id],
+  );
+  expect(event!.n).toBeGreaterThan(0);
 });
 
 test('role matrix change applies and permission checker explains it', async ({ page }) => {

@@ -2,11 +2,12 @@ import { type Db, uuidv7 } from '@hubium/db';
 import { isLocale } from '@hubium/i18n';
 import { type BetterAuthOptions, type BetterAuthPlugin, betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { admin, twoFactor, username } from 'better-auth/plugins';
 import { genericOAuth, yandex } from 'better-auth/plugins/generic-oauth';
 import { sendAuthEmail } from '../mail/mail.ts';
 import { getAllSettings } from '../settings/settings.ts';
+import { impersonatedBy, loginAs } from './login-as.ts';
 
 // Better Auth instance. Authentication only — authorization is Hubium's own (can()).
 
@@ -44,6 +45,22 @@ export function configuredOAuthProviders(): ('google' | 'yandex' | 'vk')[] {
 }
 
 const EMAIL_SIGN_IN_PATHS = new Set(['/sign-up/email', '/sign-in/email', '/sign-in/username']);
+
+/** Credentials stay with their owner: not changeable from a "log in as" session. */
+const CREDENTIAL_PATHS = new Set([
+  '/change-email',
+  '/change-password',
+  '/set-password',
+  '/delete-user',
+  '/link-social',
+  '/unlink-account',
+  '/revoke-session',
+  '/revoke-sessions',
+  '/revoke-other-sessions',
+  '/two-factor/enable',
+  '/two-factor/disable',
+  '/two-factor/generate-backup-codes',
+]);
 
 export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAuthOptions) {
   const { social, generic } = oauthProviders();
@@ -136,6 +153,18 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
           };
           return;
         }
+        // The admin plugin is here for its impersonation session only; Hubium manages
+        // users itself (its other endpoints check User.role, which Hubium does not use).
+        if (c.path.startsWith('/admin/') && c.path !== '/admin/stop-impersonating')
+          throw new APIError('NOT_FOUND');
+        if (CREDENTIAL_PATHS.has(c.path)) {
+          const s = await getSessionFromCtx(c);
+          if (impersonatedBy(s?.session))
+            throw new APIError('FORBIDDEN', {
+              message: 'Not available while logged in as another user',
+            });
+          return;
+        }
         // Providers switched off in Admin → Settings stay off even when their keys are set.
         const body = (c.body ?? {}) as { provider?: string; providerId?: string };
         const params = (c.params ?? {}) as { id?: string; providerId?: string };
@@ -187,6 +216,8 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
             return { data: session };
           },
           async after(session) {
+            // logging in as someone is not that person's login
+            if (impersonatedBy(session)) return;
             await db.user.update({
               where: { id: session.userId },
               data: { lastLoginAt: new Date() },
@@ -200,6 +231,7 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
       // The settings page swaps in the site name before showing the QR code.
       twoFactor({ issuer: 'Hubium LMS' }),
       admin({ defaultRole: 'user', adminRoles: [] }),
+      loginAs(db),
       ...(generic.length ? [genericOAuth({ config: generic })] : []),
       ...extraPlugins,
     ],

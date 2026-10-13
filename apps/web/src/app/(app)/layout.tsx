@@ -3,18 +3,22 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
+import { LoginAsBanner } from '@/components/shell/login-as-banner';
 import type { NavItem } from '@/components/shell/nav-items';
 import { db } from '@/server/db';
 import { getContext, requireUser } from '@/server/session';
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await requireUser();
+  const ctx = await getContext();
+  // While logged in as someone, their own obligations (policies, password, 2FA) stay theirs.
+  const loggedInAs = ctx.actor.kind === 'user' && !!ctx.actor.realUserId;
   // New mandatory policy versions must be accepted before anything else.
-  if ((await pendingPolicies(db, user.id)).length) redirect('/policies');
+  if (!loggedInAs && (await pendingPolicies(db, user.id)).length) redirect('/policies');
   // A password set by an administrator must be replaced, and admins may be required to
   // use two-factor sign-in: until then only the security settings are reachable.
   const path = (await headers()).get('x-hubium-path') ?? '';
-  if (path !== '/settings/security') {
+  if (!loggedInAs && path !== '/settings/security') {
     if (user.mustChangePassword) redirect('/settings/security?required=password');
     if (
       user.isSiteAdmin &&
@@ -23,7 +27,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     )
       redirect('/settings/security?required=2fa');
   }
-  const ctx = await getContext();
   const items: NavItem[] = [
     { href: '/dashboard', label: 'nav.dashboard', icon: 'home', mobile: true },
     { href: '/my-courses', label: 'nav.myCourses', icon: 'courses', mobile: true },
@@ -51,6 +54,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   }
   return (
     <AppShell user={user} items={items}>
+      {loggedInAs ? <LoginAsBanner name={user.name} /> : null}
       {children}
     </AppShell>
   );

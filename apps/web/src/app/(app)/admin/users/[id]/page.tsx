@@ -112,6 +112,12 @@ export default async function EditUserPage({
               name={user.name}
               suspended={user.status === 'SUSPENDED'}
               canDelete={await ctx.perm.can('user:delete')}
+              canLoginAs={
+                user.status === 'ACTIVE' &&
+                !(ctx.actor.kind === 'user' && ctx.actor.realUserId) &&
+                (!user.isSiteAdmin || ctx.perm.isSiteAdmin) &&
+                (await ctx.perm.can('user:loginas'))
+              }
             />
           ) : null}
         </div>
