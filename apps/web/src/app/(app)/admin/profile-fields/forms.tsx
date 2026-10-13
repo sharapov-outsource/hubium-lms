@@ -8,11 +8,19 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
+import { type LanguageOption, LocalizedFields } from '@/components/localized-fields';
 import { profileFieldCommandAction, saveProfileFieldAction } from '@/server/actions/profile-fields';
 
 const TYPES = ['text', 'textarea', 'checkbox', 'menu', 'date'] as const;
 
-export function ProfileFieldForm({ field }: { field?: ProfileField }) {
+export function ProfileFieldForm({
+  field,
+  languages,
+}: {
+  field?: ProfileField;
+  /** Languages of the label: the site language first. */
+  languages: LanguageOption[];
+}) {
   const t = useTranslations('profileFields');
   const tc = useTranslations('common');
   const sfx = field?.id ?? 'new';
@@ -31,29 +39,22 @@ export function ProfileFieldForm({ field }: { field?: ProfileField }) {
       className="grid gap-4"
     >
       {field ? <input type="hidden" name="id" value={field.id} /> : null}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <FormField
-          id={`f-shortName-${sfx}`}
-          name="shortName"
-          label={t('shortName')}
-          hint={t('shortNameHint')}
-          defaultValue={field?.shortName}
-          required
-        />
-        <FormField
-          id={`f-nameRu-${sfx}`}
-          name="nameRu"
-          label={t('nameRu')}
-          defaultValue={field?.name.ru}
-          required
-        />
-        <FormField
-          id={`f-nameEn-${sfx}`}
-          name="nameEn"
-          label={t('nameEn')}
-          defaultValue={field?.name.en}
-        />
-      </div>
+      <FormField
+        id={`f-shortName-${sfx}`}
+        name="shortName"
+        label={t('shortName')}
+        hint={t('shortNameHint')}
+        defaultValue={field?.shortName}
+        required
+      />
+      <LocalizedFields
+        name="name"
+        label={t('name')}
+        languages={languages}
+        values={field?.name}
+        idSuffix={`-${sfx}`}
+        maxLength={100}
+      />
       <FormField id={`f-type-${sfx}`} name="type" label={t('type')}>
         <Select
           id={`f-type-${sfx}`}

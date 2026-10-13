@@ -1,5 +1,6 @@
 import type { Db, GradeCategory, GradeItem, Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
+import { createTranslator } from '@hubium/i18n/packs';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
@@ -779,7 +780,9 @@ export async function gradeExportRows(
     'firstname lastname',
     'email',
     'username',
-    ...items.map((i) => (i.kind === 'COURSE' ? 'Course total' : i.name)),
+    ...items.map((i) =>
+      i.kind === 'COURSE' ? createTranslator(ctx.locale)('grades.total') : i.name,
+    ),
   ];
   return [
     header,
@@ -804,7 +807,10 @@ export async function exportGradesCsv(ctx: RequestContext, courseId: string): Pr
 }
 
 export async function exportGradesXlsx(ctx: RequestContext, courseId: string): Promise<Uint8Array> {
-  return writeXlsx(await gradeExportRows(ctx, courseId), 'Grades');
+  return writeXlsx(
+    await gradeExportRows(ctx, courseId),
+    createTranslator(ctx.locale)('grades.title'),
+  );
 }
 
 // ── history ───────────────────────────────────────────────────────────────────

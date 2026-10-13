@@ -32,13 +32,13 @@ test.describe
       await login(page, ADMIN.login, ADMIN.password);
       await page.goto('/admin/policies');
       await page.locator('#f-key-new').fill('e2e-terms');
-      await page.locator('#f-nameRu-new').fill('Правила e2e');
+      await page.locator('#f-name-ru-new').fill('Правила e2e');
       await page.getByRole('button', { name: 'Создать' }).click();
       await expect(page.getByRole('heading', { name: 'Правила e2e' })).toBeVisible();
       const card = page
         .locator('[class*="card"]', { has: page.getByRole('heading', { name: 'Правила e2e' }) })
         .first();
-      await card.getByLabel('Текст (рус.)').fill('## Правила\n\nНе списывать на тестах.');
+      await card.getByLabel('Текст (русский)').fill('## Правила\n\nНе списывать на тестах.');
       await card.getByRole('button', { name: 'Опубликовать новую версию' }).click();
       await expect(page.getByText('Новая версия опубликована')).toBeVisible();
       // the admin is the first to be asked

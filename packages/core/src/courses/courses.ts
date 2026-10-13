@@ -557,7 +557,7 @@ export const CatalogQuery = z.object({
   pageSize: z.coerce.number().int().min(1).max(60).default(12),
 });
 
-/** Words of a search query, normalised for to_tsquery (letters and digits only, ё → е). */
+/** Words of a search query for to_tsquery: letters and digits only, ё → е. */
 export function searchTerms(q: string): string[] {
   return (
     q
@@ -568,18 +568,15 @@ export function searchTerms(q: string): string[] {
 }
 
 /**
- * Ids of catalog courses matching `q`, best first: full text in Russian and English with
- * prefixes (every word must match), or the name containing the query, or a name close to
- * it (typos).
+ * Ids of catalog courses matching `q`, best first: full text in the languages of the
+ * installed packs with prefixes and without accents (every word must match), or the name
+ * containing the query, or a name close to it (typos).
  */
 async function matchCourses(db: Db, q: string): Promise<string[]> {
   const terms = searchTerms(q);
   const query = terms.length
     ? Prisma.join(
-        terms.map(
-          (t) =>
-            Prisma.sql`(to_tsquery('russian', ${`${t}:*`}) || to_tsquery('english', ${`${t}:*`}) || to_tsquery('simple', ${`${t}:*`}))`,
-        ),
+        terms.map((t) => Prisma.sql`hubium_prefix_query(${t})`),
         ' && ',
       )
     : null;
@@ -589,7 +586,7 @@ async function matchCourses(db: Db, q: string): Promise<string[]> {
       FROM "Course" c
      WHERE c."deletedAt" IS NULL AND c.visible
        AND (${query ? Prisma.sql`c.tsv @@ (${query})` : Prisma.sql`false`}
-            OR c."fullName" ILIKE ${like} OR c."shortName"::text ILIKE ${like}
+            OR unaccent(c."fullName") ILIKE unaccent(${like}) OR c."shortName"::text ILIKE ${like}
             OR c."fullName" % ${q})
      ORDER BY ${query ? Prisma.sql`ts_rank_cd(c.tsv, ${query})` : Prisma.sql`0`}
               + similarity(c."fullName", ${q}) DESC, c."fullName"

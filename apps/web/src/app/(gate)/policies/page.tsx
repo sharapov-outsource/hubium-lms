@@ -1,4 +1,4 @@
-import { pendingPolicies } from '@hubium/core';
+import { getAllSettings, pendingPolicies, pickLocalized, siteLocale } from '@hubium/core';
 import { redirect } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Markdown } from '@/components/ai/markdown';
@@ -13,8 +13,12 @@ export default async function PoliciesPage() {
   const user = await requireUser();
   const pending = await pendingPolicies(db, user.id);
   if (!pending.length) redirect('/dashboard');
-  const [t, locale] = await Promise.all([getTranslations('policies'), getLocale()]);
-  const pick = (v: { ru: string; en: string }) => (locale === 'en' && v.en ? v.en : v.ru);
+  const [t, locale, settings] = await Promise.all([
+    getTranslations('policies'),
+    getLocale(),
+    getAllSettings(db),
+  ]);
+  const pick = (v: Record<string, string>) => pickLocalized(v, locale, siteLocale(settings));
   return (
     <div className="grid gap-6">
       <div>

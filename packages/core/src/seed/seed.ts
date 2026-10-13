@@ -3,6 +3,7 @@ import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { ensureSystemContext } from '../access/contexts.ts';
 import { invalidatePermissionCaches } from '../access/permissions.ts';
 import { syncCapabilities } from '../access/roles.ts';
+import { syncSearchLanguages } from '../settings/languages.ts';
 import { createUserRecord } from '../users/users.ts';
 
 export interface SeedOptions {
@@ -64,6 +65,7 @@ export const demoUsers = [
 export async function seed(db: Db, opts: SeedOptions) {
   await ensureSystemContext(db);
   await syncCapabilities(db);
+  await syncSearchLanguages(db);
   invalidatePermissionCaches();
 
   let adminCreated = false;

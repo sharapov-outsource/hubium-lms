@@ -16,6 +16,8 @@ describe('catalog search', () => {
       [it, 'Алгебра для школьников', 'ALG-7', '<p>Уравнения</p>'],
       [science, 'Математика', 'MATH-1', '<p>Пределы и ряды</p>'],
       [it, 'Учёт и отчётность', 'ACC-1', ''],
+      [it, 'Übungen zur Programmierung', 'DE-1', '<p>Grundlagen</p>'],
+      [it, 'Histoire de l’art', 'FR-1', '<p>Les élèves découvrent la peinture</p>'],
     ] as const)
       await createCourse.run(sys, { categoryId, fullName, shortName, summary, sections: 1 });
   });
@@ -35,6 +37,13 @@ describe('catalog search', () => {
     expect(await names('практика')).toEqual(['Программирование на Python']);
     expect(await names('ряды пределы')).toEqual(['Математика']);
     expect(await names('py-101')).toEqual(['Программирование на Python']);
+  });
+
+  it('searches in every installed language and ignores accents', async () => {
+    expect(await names('ubungen')).toEqual(['Übungen zur Programmierung']);
+    expect(await names('programmierungen')).toEqual(['Übungen zur Programmierung']);
+    expect(await names('eleves')).toEqual(['Histoire de l’art']);
+    expect(await names('peintures')).toEqual(['Histoire de l’art']);
   });
 
   it('finds courses by their category, also after it is renamed', async () => {

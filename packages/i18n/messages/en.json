@@ -82,7 +82,8 @@
       "chooseFiles": "Choose files",
       "noFile": "No file chosen",
       "noFiles": "No files chosen"
-    }
+    },
+    "inLanguage": "{label} ({language})"
   },
   "nav": {
     "main": "Main navigation",
@@ -252,8 +253,6 @@
     "role": {
       "new": "New role",
       "shortName": "Short name",
-      "nameRu": "Name (Russian)",
-      "nameEn": "Name (English)",
       "archetype": "Archetype",
       "assignableLevels": "Assignable at",
       "capabilities": "Capabilities",
@@ -283,7 +282,8 @@
         "GUEST": "Guest",
         "USER": "Authenticated user",
         "NONE": "No archetype"
-      }
+      },
+      "name": "Name"
     },
     "check": {
       "title": "Check permissions",
@@ -972,7 +972,11 @@
       "m100": "−100%"
     },
     "exportXml": "Export Moodle XML",
-    "aiGenerate": "Generate with AI"
+    "aiGenerate": "Generate with AI",
+    "true": "True",
+    "false": "False",
+    "untitledQuestion": "Question",
+    "importedCategory": "Imported"
   },
   "notifications": {
     "title": "Notifications",
@@ -1402,19 +1406,17 @@
     "description": "Privacy policy, site terms and other documents users accept.",
     "new": "New document",
     "key": "Key",
-    "nameRu": "Name (Russian)",
-    "nameEn": "Name (English)",
     "save": "Save",
     "create": "Create",
     "saved": "Saved",
     "draft": "Not published",
     "published": "Published {date} · accepted {n}",
-    "contentRu": "Text (Russian)",
-    "contentEn": "Text (English)",
     "markdown": "Markdown is supported",
     "mandatory": "Must be accepted",
     "publish": "Publish a new version",
-    "publishedOk": "New version published"
+    "publishedOk": "New version published",
+    "name": "Name",
+    "content": "Text"
   },
   "offline": {
     "title": "You are offline",
@@ -1441,8 +1443,6 @@
     "empty": "No fields yet.",
     "shortName": "Short name",
     "shortNameHint": "Latin letters, digits and _; the CSV column is profile_field_‹short name›",
-    "nameRu": "Name (Russian)",
-    "nameEn": "Name (English)",
     "type": "Type",
     "types": {
       "text": "Short text",
@@ -1458,7 +1458,8 @@
     "saved": "Field saved",
     "deleteConfirm": "Delete the “{name}” field together with its values for every user?",
     "section": "More details",
-    "csvHint": "profile_field_‹short name› columns fill profile fields: {names}."
+    "csvHint": "profile_field_‹short name› columns fill profile fields: {names}.",
+    "name": "Name"
   },
   "adminGrades": {
     "title": "Scales and letter grades",

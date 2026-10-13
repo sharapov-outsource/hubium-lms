@@ -1,6 +1,6 @@
 'use server';
 
-import { acceptPolicies, publishPolicyVersion, savePolicy } from '@hubium/core';
+import { acceptPolicies, localizedFromForm, publishPolicyVersion, savePolicy } from '@hubium/core';
 import { revalidatePath } from 'next/cache';
 import { formToObject, runAction } from '../action';
 import { getContext } from '../session';
@@ -15,7 +15,7 @@ export async function savePolicyAction(fd: FormData) {
     const r = await savePolicy.run(await getContext(), {
       id: v.id || undefined,
       key: v.key,
-      name: { ru: v.nameRu, en: v.nameEn ?? '' },
+      name: localizedFromForm(v, 'name'),
     });
     revalidatePath('/admin/policies');
     return r;
@@ -27,7 +27,7 @@ export async function publishPolicyAction(fd: FormData) {
     const v = formToObject(fd);
     const r = await publishPolicyVersion.run(await getContext(), {
       policyId: v.policyId,
-      content: { ru: v.contentRu, en: v.contentEn ?? '' },
+      content: localizedFromForm(v, 'content'),
       mandatory: fd.get('mandatory') === 'on',
     });
     revalidatePath('/admin/policies');

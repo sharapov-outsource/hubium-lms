@@ -4,6 +4,7 @@ import type { ActionResult } from '@hubium/core/operation';
 import { Checkbox, Select } from '@hubium/ui';
 import { useTranslations } from 'next-intl';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
+import { type LanguageOption, LocalizedFields } from '@/components/localized-fields';
 
 const LEVELS = ['SYSTEM', 'CATEGORY', 'COURSE', 'ACTIVITY'] as const;
 const ARCHETYPES = [
@@ -20,10 +21,18 @@ export function RoleForm({
   action,
   role,
   copyFrom = [],
+  languages,
 }: {
   action: (fd: FormData) => Promise<ActionResult<unknown>>;
-  role?: { id: string; nameRu: string; nameEn: string; levels: string[]; isProtected: boolean };
+  role?: {
+    id: string;
+    name: Record<string, string>;
+    levels: string[];
+    isProtected: boolean;
+  };
   copyFrom?: { id: string; name: string }[];
+  /** Languages of the name: the site language first. */
+  languages: LanguageOption[];
 }) {
   const t = useTranslations('admin.role');
   const tc = useTranslations('common');
@@ -43,10 +52,13 @@ export function RoleForm({
           required
         />
       ) : null}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormField name="nameRu" label={t('nameRu')} defaultValue={role?.nameRu} required />
-        <FormField name="nameEn" label={t('nameEn')} defaultValue={role?.nameEn} required />
-      </div>
+      <LocalizedFields
+        name="name"
+        label={t('name')}
+        languages={languages}
+        values={role?.name}
+        maxLength={100}
+      />
       {!role ? (
         <>
           <FormField name="archetype" label={t('archetype')}>

@@ -1,10 +1,12 @@
-import type { ContextLevel, Db, RoleArchetype } from '@hubium/db';
+import type { ContextLevel, Db, Prisma, RoleArchetype } from '@hubium/db';
+import { locales } from '@hubium/i18n';
+import { createTranslator } from '@hubium/i18n/packs';
+import { type Localized, pickLocalized } from '../lib/localized.ts';
 import { capabilities, defaultCapabilitiesFor } from './capabilities.ts';
 
 export interface DefaultRole {
   shortName: string;
   archetype: RoleArchetype;
-  name: { ru: string; en: string };
   assignableLevels: ContextLevel[];
   /** Implicit roles are never assigned by hand. */
   implicit?: boolean;
@@ -14,50 +16,42 @@ export const defaultRoles: DefaultRole[] = [
   {
     shortName: 'manager',
     archetype: 'MANAGER',
-    name: { ru: 'Менеджер', en: 'Manager' },
     assignableLevels: ['SYSTEM', 'CATEGORY', 'COURSE'],
   },
   {
     shortName: 'coursecreator',
     archetype: 'COURSECREATOR',
-    name: { ru: 'Создатель курсов', en: 'Course creator' },
     assignableLevels: ['SYSTEM', 'CATEGORY'],
   },
   {
     shortName: 'editingteacher',
     archetype: 'EDITINGTEACHER',
-    name: { ru: 'Преподаватель', en: 'Teacher' },
     assignableLevels: ['COURSE', 'ACTIVITY'],
   },
   {
     shortName: 'teacher',
     archetype: 'TEACHER',
-    name: { ru: 'Ассистент', en: 'Non-editing teacher' },
     assignableLevels: ['COURSE', 'ACTIVITY'],
   },
   {
     shortName: 'student',
     archetype: 'STUDENT',
-    name: { ru: 'Студент', en: 'Student' },
     assignableLevels: ['COURSE', 'ACTIVITY'],
   },
   {
     shortName: 'observer',
     archetype: 'OBSERVER',
-    name: { ru: 'Наблюдатель', en: 'Observer' },
     assignableLevels: ['COURSE'],
   },
   {
     shortName: 'guest',
     archetype: 'GUEST',
-    name: { ru: 'Гость', en: 'Guest' },
     assignableLevels: [],
     implicit: true,
   },
   {
     shortName: 'user',
     archetype: 'USER',
-    name: { ru: 'Пользователь', en: 'Authenticated user' },
     assignableLevels: [],
     implicit: true,
   },
@@ -71,6 +65,18 @@ const defaultAssignRules: Record<string, string[]> = {
 
 const SYNCED_KEY = 'access.syncedCapabilities';
 
+/** A built-in role's name in every installed language (the archetype names of the packs). */
+export function defaultRoleName(archetype: RoleArchetype): Localized {
+  return Object.fromEntries(
+    locales.map((l) => [l, createTranslator(l)(`admin.role.archetypes.${archetype}`)]),
+  );
+}
+
+/** A role's name for display: its name in `locale`, another language, or its short name. */
+export function roleName(role: { name: unknown; shortName: string }, locale: string): string {
+  return pickLocalized(role.name, locale) || role.shortName;
+}
+
 /**
  * Creates missing default roles and grants newly introduced capabilities to roles
  * by archetype. Capabilities seen before are never touched, so admin edits survive.
@@ -78,18 +84,25 @@ const SYNCED_KEY = 'access.syncedCapabilities';
 export async function syncCapabilities(db: Db): Promise<{ newCapabilities: string[] }> {
   return db.$transaction(async (tx) => {
     const existing = await tx.role.findMany({
-      select: { id: true, shortName: true, archetype: true },
+      select: { id: true, shortName: true, archetype: true, name: true },
     });
     const byShort = new Map(existing.map((r) => [r.shortName, r]));
     const created: string[] = [];
 
     for (const [i, def] of defaultRoles.entries()) {
-      if (byShort.has(def.shortName)) continue;
+      const found = byShort.get(def.shortName);
+      if (found) {
+        // languages installed since: their names are added, names set by hand stay
+        const name = { ...defaultRoleName(def.archetype), ...(found.name as Localized) };
+        if (Object.keys(name).length > Object.keys(found.name as object).length)
+          await tx.role.update({ where: { id: found.id }, data: { name } });
+        continue;
+      }
       const role = await tx.role.create({
         data: {
           shortName: def.shortName,
           archetype: def.archetype,
-          name: def.name,
+          name: defaultRoleName(def.archetype) as Prisma.InputJsonValue,
           assignableLevels: def.assignableLevels,
           sortOrder: i,
           isProtected: def.implicit ?? false,

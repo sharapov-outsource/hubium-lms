@@ -10,6 +10,12 @@ describe('list search', () => {
     expect(matchScore('java', 'Python для начинающих')).toBe(0);
   });
 
+  it('ignores accents: élève, Übung and their plain spellings find each other', () => {
+    expect(matchScore('eleve', 'Élève de première')).toBeGreaterThan(0);
+    expect(matchScore('übung', 'Ubungen')).toBeGreaterThan(0);
+    expect(matchScore('citta', 'La città di Roma')).toBeGreaterThan(0);
+  });
+
   it('ranks a word start above the middle, and both above scattered words', () => {
     const start = matchScore('для', 'Python для начинающих');
     const middle = matchScore('ля', 'Python для начинающих');

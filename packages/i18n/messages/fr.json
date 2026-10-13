@@ -81,7 +81,8 @@
       "chooseFiles": "Choisir des fichiers",
       "noFile": "Aucun fichier choisi",
       "noFiles": "Aucun fichier choisi"
-    }
+    },
+    "inLanguage": "{label} ({language})"
   },
   "nav": {
     "main": "Navigation principale",
@@ -251,8 +252,6 @@
     "role": {
       "new": "Nouveau rôle",
       "shortName": "Nom abrégé",
-      "nameRu": "Nom (russe)",
-      "nameEn": "Nom (anglais)",
       "archetype": "Archétype",
       "assignableLevels": "Attribuable au niveau",
       "capabilities": "Capacités",
@@ -282,7 +281,8 @@
         "GUEST": "Invité",
         "USER": "Utilisateur authentifié",
         "NONE": "Aucun archétype"
-      }
+      },
+      "name": "Nom"
     },
     "check": {
       "title": "Vérifier les permissions",
@@ -971,7 +971,11 @@
       "m100": "−100 %"
     },
     "exportXml": "Exporter en Moodle XML",
-    "aiGenerate": "Générer avec l’IA"
+    "aiGenerate": "Générer avec l’IA",
+    "true": "Vrai",
+    "false": "Faux",
+    "untitledQuestion": "Question",
+    "importedCategory": "Importé"
   },
   "notifications": {
     "title": "Notifications",
@@ -1401,19 +1405,17 @@
     "description": "Politique de confidentialité, conditions d’utilisation du site et autres documents que les utilisateurs acceptent.",
     "new": "Nouveau document",
     "key": "Clé",
-    "nameRu": "Nom (russe)",
-    "nameEn": "Nom (anglais)",
     "save": "Enregistrer",
     "create": "Créer",
     "saved": "Enregistré",
     "draft": "Non publié",
     "published": "Publié le {date} · {n, plural, one {# acceptation} other {# acceptations}}",
-    "contentRu": "Texte (russe)",
-    "contentEn": "Texte (anglais)",
     "markdown": "Markdown est pris en charge",
     "mandatory": "Acceptation obligatoire",
     "publish": "Publier une nouvelle version",
-    "publishedOk": "Nouvelle version publiée"
+    "publishedOk": "Nouvelle version publiée",
+    "name": "Nom",
+    "content": "Texte"
   },
   "offline": {
     "title": "Vous êtes hors ligne",
@@ -1440,8 +1442,6 @@
     "empty": "Aucun champ pour l’instant.",
     "shortName": "Nom abrégé",
     "shortNameHint": "Lettres latines, chiffres et _ ; la colonne CSV est profile_field_‹nom abrégé›",
-    "nameRu": "Nom (russe)",
-    "nameEn": "Nom (anglais)",
     "type": "Type",
     "types": {
       "text": "Texte court",
@@ -1457,7 +1457,8 @@
     "saved": "Champ enregistré",
     "deleteConfirm": "Supprimer le champ « {name} » ainsi que ses valeurs pour tous les utilisateurs ?",
     "section": "Informations complémentaires",
-    "csvHint": "Les colonnes profile_field_‹nom abrégé› remplissent les champs de profil : {names}."
+    "csvHint": "Les colonnes profile_field_‹nom abrégé› remplissent les champs de profil : {names}.",
+    "name": "Nom"
   },
   "adminGrades": {
     "title": "Barèmes et lettres",

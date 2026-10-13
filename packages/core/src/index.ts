@@ -24,6 +24,7 @@ export * from './grades/aggregate.ts';
 export * from './grades/gradebook.ts';
 export * from './grades/scales.ts';
 export * from './groups/groups.ts';
+export * from './lib/localized.ts';
 export * from './lib/rank.ts';
 export * from './lib/zod.ts';
 export * from './messaging/messaging.ts';

@@ -1,6 +1,7 @@
 import { type RequestContext, ValidationError } from '@hubium/core';
 import type { Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
+import { createTranslator } from '@hubium/i18n/packs';
 import { type QuestionType, questionDataSchemas } from '@hubium/questions';
 import { XMLBuilder, XMLParser } from 'fast-xml-parser';
 
@@ -89,9 +90,9 @@ const plain = (h: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-function mapQuestion(q: Node, path: string[]): ParsedQuestion | null {
+function mapQuestion(q: Node, path: string[], untitled: string): ParsedQuestion | null {
   const qtype = String(q['@_type']);
-  const name = plain(txt(q.name)) || 'Вопрос';
+  const name = plain(txt(q.name)) || untitled;
   const base = {
     categoryPath: path,
     name: name.slice(0, 255),
@@ -202,7 +203,8 @@ function mapQuestion(q: Node, path: string[]): ParsedQuestion | null {
 }
 
 /** Parses Moodle XML; category entries set the path for the questions that follow. */
-export function parseMoodleXml(xml: string): ParseResult {
+/** `untitled` names questions that have no name of their own. */
+export function parseMoodleXml(xml: string, untitled = 'Question'): ParseResult {
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: '@_',
@@ -225,7 +227,7 @@ export function parseMoodleXml(xml: string): ParseResult {
     }
     const name = plain(txt(q.name)) || String(q['@_type']);
     try {
-      const mapped = mapQuestion(q, path);
+      const mapped = mapQuestion(q, path, untitled);
       if (!mapped) {
         out.errors.push({ name, message: `Unsupported question type: ${q['@_type']}` });
         continue;
@@ -247,12 +249,13 @@ export function parseMoodleXml(xml: string): ParseResult {
 /** Imports Moodle XML into a course bank, creating categories from the paths. */
 export async function importMoodleXml(ctx: RequestContext, courseId: string, xml: string) {
   await ctx.perm.require('question:manage', courseId);
-  const parsed = parseMoodleXml(xml);
+  const t = createTranslator(ctx.locale);
+  const parsed = parseMoodleXml(xml, t('qbank.untitledQuestion'));
   const cache = new Map<string, string>();
   const ensurePath = async (tx: Prisma.TransactionClient, path: string[]) => {
     let parentId: string | null = null;
     let key = '';
-    for (const name of path.length ? path : ['Импорт']) {
+    for (const name of path.length ? path : [t('qbank.importedCategory')]) {
       key += `/${name}`;
       let id = cache.get(key);
       if (!id) {

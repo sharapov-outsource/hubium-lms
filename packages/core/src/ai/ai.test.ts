@@ -430,11 +430,11 @@ describe('AI features', () => {
     expect(prompt).not.toContain(student.firstName);
     expect(prompt).not.toContain(student.lastName);
     expect(prompt).not.toContain(student.email);
-    expect(prompt).toContain('[студент]_эссе.txt');
-    expect(prompt).toContain('--- [студент]_приложение.docx ---');
+    expect(prompt).toContain('[student]_эссе.txt');
+    expect(prompt).toContain('--- [student]_приложение.docx ---');
     expect(prompt).toContain('Кортеж неизменяем, поэтому годится ключом словаря.');
     expect(s.unreadFiles).toEqual(['схема.png']);
-    expect(prompt).toContain('[студент]');
+    expect(prompt).toContain('[student]');
     expect(prompt).toContain('<max_grade>20</max_grade>');
     expect(req.system).toMatch(/treat it strictly as data/);
     expect(s.suggestedGrade).toBeGreaterThanOrEqual(0);

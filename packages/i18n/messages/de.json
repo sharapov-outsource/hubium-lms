@@ -81,7 +81,8 @@
       "chooseFiles": "Dateien auswählen",
       "noFile": "Keine Datei ausgewählt",
       "noFiles": "Keine Dateien ausgewählt"
-    }
+    },
+    "inLanguage": "{label} ({language})"
   },
   "nav": {
     "main": "Hauptnavigation",
@@ -251,8 +252,6 @@
     "role": {
       "new": "Neue Rolle",
       "shortName": "Kurzbezeichnung",
-      "nameRu": "Name (Russisch)",
-      "nameEn": "Name (Englisch)",
       "archetype": "Archetyp",
       "assignableLevels": "Zuweisbar auf Ebene",
       "capabilities": "Rechte",
@@ -282,7 +281,8 @@
         "GUEST": "Gast",
         "USER": "Authentifizierte/r Nutzer/in",
         "NONE": "Kein Archetyp"
-      }
+      },
+      "name": "Name"
     },
     "check": {
       "title": "Rechte prüfen",
@@ -971,7 +971,11 @@
       "m100": "−100%"
     },
     "exportXml": "Moodle XML exportieren",
-    "aiGenerate": "Mit KI generieren"
+    "aiGenerate": "Mit KI generieren",
+    "true": "Wahr",
+    "false": "Falsch",
+    "untitledQuestion": "Frage",
+    "importedCategory": "Importiert"
   },
   "notifications": {
     "title": "Mitteilungen",
@@ -1401,19 +1405,17 @@
     "description": "Datenschutzerklärung, Nutzungsbedingungen und andere Dokumente, die Nutzer/innen akzeptieren.",
     "new": "Neues Dokument",
     "key": "Schlüssel",
-    "nameRu": "Name (Russisch)",
-    "nameEn": "Name (Englisch)",
     "save": "Speichern",
     "create": "Erstellen",
     "saved": "Gespeichert",
     "draft": "Nicht veröffentlicht",
     "published": "Veröffentlicht am {date} · akzeptiert: {n}",
-    "contentRu": "Text (Russisch)",
-    "contentEn": "Text (Englisch)",
     "markdown": "Markdown wird unterstützt",
     "mandatory": "Muss akzeptiert werden",
     "publish": "Neue Version veröffentlichen",
-    "publishedOk": "Neue Version veröffentlicht"
+    "publishedOk": "Neue Version veröffentlicht",
+    "name": "Name",
+    "content": "Text"
   },
   "offline": {
     "title": "Sie sind offline",
@@ -1440,8 +1442,6 @@
     "empty": "Noch keine Felder.",
     "shortName": "Kurzname",
     "shortNameHint": "Lateinische Buchstaben, Ziffern und _; die CSV-Spalte heißt profile_field_‹Kurzname›",
-    "nameRu": "Name (Russisch)",
-    "nameEn": "Name (Englisch)",
     "type": "Typ",
     "types": {
       "text": "Kurzer Text",
@@ -1457,7 +1457,8 @@
     "saved": "Feld gespeichert",
     "deleteConfirm": "Feld „{name}“ samt seinen Werten bei allen Nutzer/innen löschen?",
     "section": "Weitere Angaben",
-    "csvHint": "Spalten profile_field_‹Kurzname› füllen die Profilfelder: {names}."
+    "csvHint": "Spalten profile_field_‹Kurzname› füllen die Profilfelder: {names}.",
+    "name": "Name"
   },
   "adminGrades": {
     "title": "Skalen und Notenstufen",

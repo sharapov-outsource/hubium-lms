@@ -94,7 +94,7 @@ test('custom profile field: defined, filled by an admin, shown on the profile', 
     await page.goto('/admin/profile-fields');
     await expectAccessible(page);
     await page.locator('#f-shortName-new').fill(short);
-    await page.locator('#f-nameRu-new').fill('Факультет');
+    await page.locator('#f-name-ru-new').fill('Факультет');
     await chooseOption(page.locator('#f-type-new'), 'menu');
     await page.locator('#f-choices-new').fill('Физфак\nМехмат');
     await page.locator('#f-visibleToOthers-new').check();

@@ -1,6 +1,11 @@
 'use server';
 
-import { deleteProfileField, moveProfileField, saveProfileField } from '@hubium/core';
+import {
+  deleteProfileField,
+  localizedFromForm,
+  moveProfileField,
+  saveProfileField,
+} from '@hubium/core';
 import { revalidatePath } from 'next/cache';
 import { formToObject, runAction } from '../action';
 import { getContext } from '../session';
@@ -13,7 +18,7 @@ export async function saveProfileFieldAction(fd: FormData) {
     const r = await saveProfileField.run(await getContext(), {
       id: v.id || undefined,
       shortName: v.shortName,
-      name: { ru: v.nameRu, en: v.nameEn },
+      name: localizedFromForm(v, 'name'),
       type: v.type,
       choices: (v.choices ?? '')
         .split('\n')

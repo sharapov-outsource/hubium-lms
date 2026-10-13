@@ -1,3 +1,4 @@
+import { roleName } from '@hubium/core';
 import { Badge, Button, PageHeader, Table, TBody, Td, THead, Th, Tr } from '@hubium/ui';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
@@ -47,7 +48,7 @@ export default async function RolesPage() {
             <Tr key={r.id}>
               <Td>
                 <Link href={`/admin/roles/${r.id}`} className="font-medium hover:underline">
-                  {(r.name as Record<string, string>)[locale] ?? r.shortName}
+                  {roleName(r, locale)}
                 </Link>
                 {r.isProtected ? <Badge className="ml-2">{t('role.protected')}</Badge> : null}
               </Td>

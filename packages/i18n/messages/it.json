@@ -81,7 +81,8 @@
       "chooseFiles": "Scegli i file",
       "noFile": "Nessun file selezionato",
       "noFiles": "Nessun file selezionato"
-    }
+    },
+    "inLanguage": "{label} ({language})"
   },
   "nav": {
     "main": "Navigazione principale",
@@ -251,8 +252,6 @@
     "role": {
       "new": "Nuovo ruolo",
       "shortName": "Nome breve",
-      "nameRu": "Nome (russo)",
-      "nameEn": "Nome (inglese)",
       "archetype": "Archetipo",
       "assignableLevels": "Assegnabile in",
       "capabilities": "Privilegi",
@@ -282,7 +281,8 @@
         "GUEST": "Ospite",
         "USER": "Utente autenticato",
         "NONE": "Nessun archetipo"
-      }
+      },
+      "name": "Nome"
     },
     "check": {
       "title": "Verifica permessi",
@@ -971,7 +971,11 @@
       "m100": "−100%"
     },
     "exportXml": "Esporta Moodle XML",
-    "aiGenerate": "Genera con l’IA"
+    "aiGenerate": "Genera con l’IA",
+    "true": "Vero",
+    "false": "Falso",
+    "untitledQuestion": "Domanda",
+    "importedCategory": "Importato"
   },
   "notifications": {
     "title": "Notifiche",
@@ -1401,19 +1405,17 @@
     "description": "Informativa sulla privacy, condizioni d’uso del sito e altri documenti che gli utenti accettano.",
     "new": "Nuovo documento",
     "key": "Chiave",
-    "nameRu": "Nome (russo)",
-    "nameEn": "Nome (inglese)",
     "save": "Salva",
     "create": "Crea",
     "saved": "Salvato",
     "draft": "Non pubblicato",
     "published": "Pubblicato il {date} · accettazioni: {n}",
-    "contentRu": "Testo (russo)",
-    "contentEn": "Testo (inglese)",
     "markdown": "Markdown supportato",
     "mandatory": "Accettazione obbligatoria",
     "publish": "Pubblica una nuova versione",
-    "publishedOk": "Nuova versione pubblicata"
+    "publishedOk": "Nuova versione pubblicata",
+    "name": "Nome",
+    "content": "Testo"
   },
   "offline": {
     "title": "Nessuna connessione",
@@ -1440,8 +1442,6 @@
     "empty": "Ancora nessun campo.",
     "shortName": "Nome breve",
     "shortNameHint": "Lettere latine, cifre e _; la colonna CSV è profile_field_‹nome breve›",
-    "nameRu": "Nome (russo)",
-    "nameEn": "Nome (inglese)",
     "type": "Tipo",
     "types": {
       "text": "Testo breve",
@@ -1457,7 +1457,8 @@
     "saved": "Campo salvato",
     "deleteConfirm": "Eliminare il campo «{name}» insieme ai suoi valori per tutti gli utenti?",
     "section": "Altri dettagli",
-    "csvHint": "Le colonne profile_field_‹nome breve› compilano i campi del profilo: {names}."
+    "csvHint": "Le colonne profile_field_‹nome breve› compilano i campi del profilo: {names}.",
+    "name": "Nome"
   },
   "adminGrades": {
     "title": "Scale e lettere",

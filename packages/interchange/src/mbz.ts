@@ -11,6 +11,7 @@ import {
 import { fileUrl, storeFile } from '@hubium/core/files/files';
 import type { Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
+import { createTranslator } from '@hubium/i18n/packs';
 import { type QuestionType, questionDataSchemas } from '@hubium/questions';
 import { XMLParser } from 'fast-xml-parser';
 import tar from 'tar-stream';
@@ -277,6 +278,7 @@ export async function importMbz(
   target: { categoryId: string; fullName?: string; shortName?: string },
 ): Promise<MbzReport> {
   const warnings: string[] = [];
+  const t = createTranslator(ctx.locale);
   const info = ((xml(archive, 'moodle_backup.xml')?.moodle_backup as Node | undefined)
     ?.information ?? {}) as Node;
   const contents = (info.contents ?? {}) as Node;
@@ -435,7 +437,7 @@ export async function importMbz(
           data: {
             contextId: courseId,
             parentId: parent,
-            name: name || 'Импорт',
+            name: name || t('qbank.importedCategory'),
             info: sanitizeRichText(txt(c.info)),
           },
         });
@@ -462,7 +464,7 @@ export async function importMbz(
         for (const g of groups) {
           for (const q of g.questions) {
             const mapped = mapMoodleQuestion(q);
-            const name = txt(q.name) || 'Вопрос';
+            const name = txt(q.name) || t('qbank.untitledQuestion');
             if (!mapped) {
               warnings.push(`Question "${name}": type ${txt(q.qtype)} is not supported`);
               continue;

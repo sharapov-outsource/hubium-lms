@@ -206,7 +206,7 @@ function TypeFields({
                 checked={data.correct === b}
                 onChange={() => setData({ ...data, correct: b })}
               />
-              {b ? 'True / Верно' : 'False / Неверно'}
+              {b ? t('true') : t('false')}
             </label>
           ))}
         </fieldset>

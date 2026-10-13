@@ -2,6 +2,7 @@ import type { Prisma } from '@hubium/db';
 import { z } from 'zod';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { localizedText } from '../lib/localized.ts';
 import { defineOperation } from '../operation.ts';
 import { type Capability, capabilities, isCapability, type Level } from './capabilities.ts';
 import { invalidatePermissionCaches } from './permissions.ts';
@@ -13,10 +14,7 @@ async function notifyRoles(tx: Prisma.TransactionClient): Promise<void> {
 
 // Role editor operations (capability matrix) and context overrides.
 
-const LocalisedName = z.object({
-  ru: z.string().trim().min(1).max(100),
-  en: z.string().trim().min(1).max(100),
-});
+const LocalisedName = localizedText(100);
 
 export const createRole = defineOperation({
   name: 'role.create',

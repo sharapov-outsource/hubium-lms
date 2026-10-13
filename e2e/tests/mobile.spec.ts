@@ -67,6 +67,8 @@ test('main pages fit a phone screen', async ({ page }) => {
     '/admin/cohorts',
     '/admin/roles',
     '/admin/profile-fields',
+    '/admin/policies',
+    '/admin/languages',
     '/admin/settings/general',
     '/admin/environment',
   ])

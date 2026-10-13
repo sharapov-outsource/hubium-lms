@@ -1,4 +1,4 @@
-import { getCourseAccess, listParticipants } from '@hubium/core';
+import { getCourseAccess, listParticipants, roleName } from '@hubium/core';
 import { Avatar, Badge, Button, Input, Select, Table, TBody, Td, THead, Th, Tr } from '@hubium/ui';
 import { forbidden } from 'next/navigation';
 import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
@@ -42,8 +42,7 @@ export default async function ParticipantsPage({
     }),
     db.group.findMany({ where: { courseId }, orderBy: { name: 'asc' } }),
   ]);
-  const roleName = (r: { name: unknown; shortName: string }) =>
-    (r.name as Record<string, string>)[locale] ?? r.shortName;
+  const roleLabel = (r: { name: unknown; shortName: string }) => roleName(r, locale);
   const canManage = access.canManageEnrolments;
   const canRoles = await ctx.perm.can('role:assign', courseId);
   const now = new Date();
@@ -71,7 +70,7 @@ export default async function ParticipantsPage({
               <option value="">{t('allRoles')}</option>
               {roles.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {roleName(r)}
+                  {roleLabel(r)}
                 </option>
               ))}
             </Select>
@@ -98,7 +97,7 @@ export default async function ParticipantsPage({
         {canManage ? (
           <EnrolDialog
             courseId={courseId}
-            roles={roles.map((r) => ({ id: r.id, name: roleName(r), shortName: r.shortName }))}
+            roles={roles.map((r) => ({ id: r.id, name: roleLabel(r), shortName: r.shortName }))}
           />
         ) : null}
       </div>
@@ -141,7 +140,7 @@ export default async function ParticipantsPage({
                   <div className="flex flex-wrap gap-1">
                     {u.roleAssignments.map((ra) => (
                       <Badge key={ra.id} variant="accent">
-                        {roleName(ra.role)}
+                        {roleLabel(ra.role)}
                       </Badge>
                     ))}
                   </div>
@@ -175,7 +174,7 @@ export default async function ParticipantsPage({
                     <ParticipantActions
                       courseId={courseId}
                       user={{ id: u.id, name: u.name, suspended: e?.status === 'SUSPENDED' }}
-                      roles={canRoles ? roles.map((r) => ({ id: r.id, name: roleName(r) })) : []}
+                      roles={canRoles ? roles.map((r) => ({ id: r.id, name: roleLabel(r) })) : []}
                       current={u.roleAssignments.map((ra) => ra.roleId)}
                     />
                   </Td>

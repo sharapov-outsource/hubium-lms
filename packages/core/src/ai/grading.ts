@@ -60,7 +60,7 @@ export function pseudonymise(text: string, identifiers: (string | null | undefin
     .filter((s): s is string => !!s && s.trim().length >= 2)
     .sort((a, b) => b.length - a.length);
   for (const id of ids)
-    out = out.replace(new RegExp(id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'giu'), '[студент]');
+    out = out.replace(new RegExp(id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'giu'), '[student]');
   return out.replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[email]');
 }
 

@@ -1,4 +1,4 @@
-import { getCourseAccess } from '@hubium/core';
+import { getCourseAccess, roleName } from '@hubium/core';
 import { DateInput } from '@hubium/module-sdk/form';
 import {
   Alert,
@@ -53,8 +53,7 @@ export default async function EnrolmentPage({ params }: { params: Promise<{ cour
   ]);
   const self = methods.find((m) => m.type === 'SELF');
   const cohortMethods = methods.filter((m) => m.type === 'COHORT');
-  const roleName = (r: { name: unknown; shortName: string }) =>
-    (r.name as Record<string, string>)[locale] ?? r.shortName;
+  const roleLabel = (r: { name: unknown; shortName: string }) => roleName(r, locale);
   return (
     <div className="grid max-w-3xl gap-6">
       <Card>
@@ -171,7 +170,7 @@ export default async function EnrolmentPage({ params }: { params: Promise<{ cour
                 >
                   {roles.map((r) => (
                     <option key={r.id} value={r.id}>
-                      {roleName(r)}
+                      {roleLabel(r)}
                     </option>
                   ))}
                 </Select>

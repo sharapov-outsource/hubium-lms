@@ -10,6 +10,7 @@ import {
   ForbiddenError,
   getAllSettings,
   listProfileFields,
+  localizedFromForm,
   logEvent,
   profileValuesFromForm,
   saveLanguageSettings,
@@ -120,7 +121,7 @@ export async function createRoleAction(fd: FormData) {
     const v = formToObject(fd);
     return createRole.run(await getContext(), {
       shortName: v.shortName,
-      name: { ru: v.nameRu, en: v.nameEn },
+      name: localizedFromForm(v, 'name'),
       archetype: v.archetype,
       assignableLevels: LEVELS.filter((l) => fd.get(`level_${l}`)),
       copyFromRoleId: v.copyFromRoleId || undefined,
@@ -135,7 +136,7 @@ export async function updateRoleAction(fd: FormData) {
     const v = formToObject(fd);
     const r = await updateRole.run(await getContext(), {
       id: v.id,
-      name: { ru: v.nameRu, en: v.nameEn },
+      name: localizedFromForm(v, 'name'),
       assignableLevels: LEVELS.filter((l) => fd.get(`level_${l}`)),
     });
     revalidatePath(`/admin/roles/${r.id}`);

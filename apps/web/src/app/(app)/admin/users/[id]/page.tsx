@@ -1,4 +1,4 @@
-import { enabledLanguages } from '@hubium/core';
+import { enabledLanguages, roleName } from '@hubium/core';
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import {
   Alert,
@@ -104,7 +104,7 @@ export default async function EditUserPage({
                   userId={user.id}
                   roles={roles.map((r) => ({
                     id: r.id,
-                    name: (r.name as Record<string, string>)[locale] ?? r.shortName,
+                    name: roleName(r, locale),
                     assigned: assigned.some((a) => a.roleId === r.id),
                   }))}
                 />

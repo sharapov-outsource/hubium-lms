@@ -1,4 +1,4 @@
-import { capabilities, capabilityComponent } from '@hubium/core';
+import { capabilities, capabilityComponent, editingLanguages, roleName } from '@hubium/core';
 import { Card, CardContent, CardHeader, CardTitle, PageHeader } from '@hubium/ui';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     db.role.findUnique({ where: { id }, select: { name: true, shortName: true } }),
     getLocale(),
   ]);
-  return role ? { title: (role.name as Record<string, string>)[locale] ?? role.shortName } : {};
+  return role ? { title: roleName(role, locale) } : {};
 }
 
 export default async function RolePage({ params }: { params: Promise<{ id: string }> }) {
@@ -29,8 +29,11 @@ export default async function RolePage({ params }: { params: Promise<{ id: strin
     include: { capabilities: true, _count: { select: { assignments: true } } },
   });
   if (!role) notFound();
-  const [t, locale] = await Promise.all([getTranslations('admin.role'), getLocale()]);
-  const names = role.name as Record<string, string>;
+  const [t, locale, languages] = await Promise.all([
+    getTranslations('admin.role'),
+    getLocale(),
+    editingLanguages(db, role.name),
+  ]);
   const current = Object.fromEntries(role.capabilities.map((c) => [c.capability, c.permission]));
   const groups = new Map<string, { cap: string; risk: string[] }[]>();
   for (const [cap, def] of capabilities) {
@@ -41,11 +44,11 @@ export default async function RolePage({ params }: { params: Promise<{ id: strin
   return (
     <>
       <PageHeader
-        title={names[locale] ?? role.shortName}
+        title={roleName(role, locale)}
         description={`${role.shortName} · ${t(`archetypes.${role.archetype}`)}`}
         actions={
           !role.isProtected && role._count.assignments === 0 ? (
-            <DeleteRoleButton id={role.id} name={names[locale] ?? role.shortName} />
+            <DeleteRoleButton id={role.id} name={roleName(role, locale)} />
           ) : null
         }
       />
@@ -54,10 +57,10 @@ export default async function RolePage({ params }: { params: Promise<{ id: strin
           <CardContent className="pt-5">
             <RoleForm
               action={updateRoleAction}
+              languages={languages}
               role={{
                 id: role.id,
-                nameRu: names.ru ?? '',
-                nameEn: names.en ?? '',
+                name: role.name as Record<string, string>,
                 levels: role.assignableLevels,
                 isProtected: role.isProtected,
               }}

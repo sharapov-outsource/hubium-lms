@@ -1,6 +1,6 @@
-import { listProfileFields } from '@hubium/core';
+import { editingLanguages, listProfileFields, profileFieldLabel } from '@hubium/core';
 import { Badge, Card, CardContent, CardHeader, CardTitle, PageHeader } from '@hubium/ui';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { db } from '@/server/db';
 import { titled } from '@/server/page-title';
 import { requireCapability } from '@/server/session';
@@ -10,7 +10,13 @@ export const generateMetadata = titled('profileFields', 'title');
 
 export default async function ProfileFieldsPage() {
   await requireCapability('site:config');
-  const [t, fields] = await Promise.all([getTranslations('profileFields'), listProfileFields(db)]);
+  const [t, fields, locale] = await Promise.all([
+    getTranslations('profileFields'),
+    listProfileFields(db),
+    getLocale(),
+  ]);
+  const languages = await Promise.all(fields.map((f) => editingLanguages(db, f.name)));
+  const newLanguages = await editingLanguages(db);
   return (
     <div className="grid max-w-4xl gap-6">
       <PageHeader title={t('title')} description={t('description')} className="mb-0" />
@@ -18,19 +24,19 @@ export default async function ProfileFieldsPage() {
       {fields.map((f, i) => (
         <Card key={f.id}>
           <CardHeader className="flex-row flex-wrap items-center gap-2">
-            <CardTitle className="mr-auto">{f.name.ru}</CardTitle>
+            <CardTitle className="mr-auto">{profileFieldLabel(f, locale)}</CardTitle>
             <Badge>{f.shortName}</Badge>
             <Badge variant="neutral">{t(`types.${f.type}`)}</Badge>
             {f.required ? <Badge variant="warning">{t('required')}</Badge> : null}
             <FieldCommands
               id={f.id}
-              name={f.name.ru}
+              name={profileFieldLabel(f, locale)}
               first={i === 0}
               last={i === fields.length - 1}
             />
           </CardHeader>
           <CardContent>
-            <ProfileFieldForm field={f} />
+            <ProfileFieldForm field={f} languages={languages[i]!} />
           </CardContent>
         </Card>
       ))}
@@ -39,7 +45,7 @@ export default async function ProfileFieldsPage() {
           <CardTitle>{t('new')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <ProfileFieldForm />
+          <ProfileFieldForm languages={newLanguages} />
         </CardContent>
       </Card>
     </div>

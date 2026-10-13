@@ -1,4 +1,4 @@
-import { capabilities, capabilityComponent, listRoleOverrides } from '@hubium/core';
+import { capabilities, capabilityComponent, listRoleOverrides, roleName } from '@hubium/core';
 import { Alert, Badge, Card, CardContent } from '@hubium/ui';
 import Link from 'next/link';
 import { forbidden } from 'next/navigation';
@@ -41,8 +41,7 @@ export async function OverridesPanel({
     if (!groups.has(g)) groups.set(g, []);
     groups.get(g)!.push({ cap, risk: [...(def.risk ?? [])] });
   }
-  const name = (r: { name: unknown; shortName: string }) =>
-    (r.name as Record<string, string>)[locale] ?? r.shortName;
+  const name = (r: { name: unknown; shortName: string }) => roleName(r, locale);
   return (
     <Card>
       <CardContent className="grid gap-4 pt-5">

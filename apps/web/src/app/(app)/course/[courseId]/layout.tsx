@@ -1,4 +1,4 @@
-import { aiFeaturesFor, categoryPath, getCourseAccess } from '@hubium/core';
+import { aiFeaturesFor, categoryPath, getCourseAccess, roleName } from '@hubium/core';
 import { Alert, Badge } from '@hubium/ui';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
@@ -45,8 +45,7 @@ export default async function CourseLayout({
           orderBy: { sortOrder: 'asc' },
         })
       : [];
-  const roleName = (r: { name: unknown; shortName: string }) =>
-    (r.name as Record<string, string>)[locale] ?? r.shortName;
+  const roleLabel = (r: { name: unknown; shortName: string }) => roleName(r, locale);
   const base = `/course/${courseId}`;
   const ai = access.canView ? await aiFeaturesFor(ctx, courseId) : null;
   const tabs = access.canView
@@ -110,7 +109,7 @@ export default async function CourseLayout({
     <div>
       {viewingAs ? (
         <Alert variant="warning" className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <span>{t('viewingAs', { role: roleName(viewingAs) })}</span>
+          <span>{t('viewingAs', { role: roleLabel(viewingAs) })}</span>
           <ViewAsMenu courseId={courseId} roles={[]} active label={t('stopViewAs')} />
         </Alert>
       ) : null}
@@ -136,7 +135,7 @@ export default async function CourseLayout({
         {!viewingAs && switchable.length ? (
           <ViewAsMenu
             courseId={courseId}
-            roles={switchable.map((r) => ({ id: r.id, name: roleName(r) }))}
+            roles={switchable.map((r) => ({ id: r.id, name: roleLabel(r) }))}
             label={t('viewAs')}
           />
         ) : null}

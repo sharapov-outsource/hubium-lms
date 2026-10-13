@@ -1,3 +1,4 @@
+import { pickLocalized } from '@hubium/core';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@hubium/ui';
 import { Download } from 'lucide-react';
 import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
@@ -45,10 +46,9 @@ export default async function PrivacySettingsPage() {
           ) : (
             <ul className="grid gap-1 text-sm">
               {accepted.map((a) => {
-                const name = a.version.policy.name as { ru: string; en: string };
                 return (
                   <li key={a.id} className="flex justify-between gap-2">
-                    <span>{locale === 'en' && name.en ? name.en : name.ru}</span>
+                    <span>{pickLocalized(a.version.policy.name, locale)}</span>
                     <span className="text-muted-foreground">
                       {format.dateTime(a.acceptedAt, { dateStyle: 'medium' })}
                     </span>

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { type Localized, localizedText } from '../lib/localized.ts';
 import { buildModuleCtx } from '../modules/module-ctx.ts';
 import { listModules } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
@@ -211,8 +212,6 @@ export async function erasePersonalData(
 
 // ── policies ─────────────────────────────────────────────────────────────────
 
-const Localized = z.object({ ru: z.string().trim().min(1), en: z.string().trim().default('') });
-
 export const savePolicy = defineOperation({
   name: 'policy.save',
   mutation: true,
@@ -222,7 +221,7 @@ export const savePolicy = defineOperation({
       .string()
       .trim()
       .regex(/^[a-z][a-z0-9-]{1,40}$/, 'Lowercase letters, digits and dashes'),
-    name: Localized,
+    name: localizedText(200),
   }),
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, i) {
@@ -238,7 +237,7 @@ export const publishPolicyVersion = defineOperation({
   mutation: true,
   input: z.object({
     policyId: z.string().uuid(),
-    content: Localized,
+    content: localizedText(500_000),
     mandatory: z.boolean().default(true),
   }),
   authorize: (ctx) => ctx.perm.require('site:config'),
@@ -297,8 +296,8 @@ export async function pendingPolicies(db: Db, userId: string) {
     .map((c) => ({
       versionId: c.version.id,
       key: c.policy.key,
-      name: c.policy.name as { ru: string; en: string },
-      content: c.version.content as { ru: string; en: string },
+      name: c.policy.name as Localized,
+      content: c.version.content as Localized,
       publishedAt: c.version.publishedAt!,
     }));
 }

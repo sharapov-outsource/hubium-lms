@@ -1,4 +1,4 @@
-import { getAllSettings, siteLocale } from '@hubium/core';
+import { getAllSettings, roleName, siteLocale } from '@hubium/core';
 import { configuredOAuthProviders } from '@hubium/core/auth/auth';
 import { languageInfo } from '@hubium/i18n/packs';
 import { Badge, Card, CardContent, Checkbox, Select, Textarea } from '@hubium/ui';
@@ -70,7 +70,7 @@ export default async function SettingsSectionPage({
             <Select id="f-creatorRole" name="creatorRole" defaultValue={s['course.creatorRole']}>
               {roles.map((r) => (
                 <option key={r.id} value={r.shortName}>
-                  {(r.name as Record<string, string>)[locale] ?? r.shortName}
+                  {roleName(r, locale)}
                 </option>
               ))}
             </Select>

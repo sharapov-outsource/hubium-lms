@@ -1,10 +1,16 @@
 import type { ReactNode } from 'react';
 
-/** Lower case, "ё" as "е", and spaces, underscores and slashes alike; keeps the length. */
+/** A letter without its accent (é → e, ü → u, ё → е) when that is still one letter. */
+const fold = (ch: string) => {
+  const bare = ch.normalize('NFD').replace(/\p{M}/gu, '');
+  return bare.length === 1 ? bare : ch;
+};
+
+/** Lower case without accents, spaces, underscores and slashes alike; keeps the length. */
 export function normalizeSearch(text: string): string {
   return text
     .toLowerCase()
-    .replace(/ё/g, 'е')
+    .replace(/[^\x20-\x7e\s]/g, fold)
     .replace(/[\s_/]/g, ' ');
 }
 

@@ -1,5 +1,5 @@
 import type { Db } from '@hubium/db';
-import { BASE_LOCALE, type Locale, locales } from '@hubium/i18n';
+import { BASE_LOCALE, isLocale, type Locale, locales } from '@hubium/i18n';
 import { type LanguageInfo, languageInfo, type PackReport, packReport } from '@hubium/i18n/packs';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
@@ -97,4 +97,45 @@ export async function enabledLanguages(db: Db): Promise<{ code: Locale; name: st
   return enabledLocales(settings)
     .map((code) => ({ code, name: languageInfo(code).name }))
     .sort((a, b) => a.name.localeCompare(b.name, site));
+}
+
+/**
+ * Languages a text in several languages is edited in: the site language first (required),
+ * the other enabled languages, and any language the text already has, so saving keeps it.
+ */
+export async function editingLanguages(
+  db: Db,
+  existing?: unknown,
+): Promise<{ code: Locale; name: string }[]> {
+  const settings = await getAllSettings(db);
+  const site = siteLocale(settings);
+  const codes = new Set(enabledLocales(settings));
+  if (existing && typeof existing === 'object')
+    for (const k of Object.keys(existing)) if (isLocale(k)) codes.add(k);
+  codes.delete(site);
+  const rest = [...codes]
+    .map((code) => ({ code, name: languageInfo(code).name }))
+    .sort((a, b) => a.name.localeCompare(b.name, site));
+  return [{ code: site, name: languageInfo(site).name }, ...rest];
+}
+
+const FTS_KEY = 'search.ftsConfigs';
+
+/**
+ * Keeps the database's search languages in step with the installed packs: the seed stores
+ * their PostgreSQL configurations and, when they changed, rebuilds the search vectors.
+ */
+export async function syncSearchLanguages(db: Db): Promise<boolean> {
+  const configs = [...new Set(locales.map((l) => languageInfo(l).fts))]
+    .filter((c) => c !== 'simple')
+    .sort();
+  const row = await db.siteSetting.findUnique({ where: { key: FTS_KEY } });
+  if (JSON.stringify(row?.value) === JSON.stringify(configs)) return false;
+  await db.siteSetting.upsert({
+    where: { key: FTS_KEY },
+    create: { key: FTS_KEY, value: configs },
+    update: { value: configs },
+  });
+  await db.$executeRaw`SELECT hubium_reindex_search()`;
+  return true;
 }

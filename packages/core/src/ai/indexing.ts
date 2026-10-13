@@ -73,7 +73,7 @@ async function replaceChunks(db: Db, src: ChunkRow) {
           ${uuidv7()}::uuid, ${src.courseId}::uuid, ${src.activityId}::uuid, ${src.sourceType}, ${src.sourceId},
           ${i}, ${c.heading || src.title}, ${c.text}, ${c.tokenCount}, ${hashes[i]}, ${model},
           ${vec}::vector,
-          to_tsvector('russian', ${doc}) || to_tsvector('english', ${doc})
+          hubium_text_tsv(${doc}, 'D')
         )`;
     }
   });
@@ -156,10 +156,9 @@ export async function retrieveChunks(
   const lists: { id: string }[][] = [];
 
   const text = await db.$queryRaw<{ id: string }[]>`
-    SELECT "id" FROM "ContentChunk",
-      websearch_to_tsquery('russian', ${query}) qr, websearch_to_tsquery('english', ${query}) qe
-    WHERE "courseId" = ${courseId}::uuid AND ${allowed} AND ("tsv" @@ qr OR "tsv" @@ qe)
-    ORDER BY ts_rank("tsv", qr) + ts_rank("tsv", qe) DESC
+    SELECT "id" FROM "ContentChunk", hubium_websearch(${query}) q
+    WHERE "courseId" = ${courseId}::uuid AND ${allowed} AND "tsv" @@ q
+    ORDER BY ts_rank("tsv", q) DESC
     LIMIT ${k * 3}`;
   lists.push(text);
 

@@ -1,14 +1,18 @@
 'use client';
 
 import { Checkbox, Textarea } from '@hubium/ui';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
+import { type LanguageOption, LocalizedFields } from '@/components/localized-fields';
 import { publishPolicyAction, savePolicyAction } from '@/server/actions/privacy';
 
 export function PolicyForm({
   policy,
+  languages,
 }: {
-  policy?: { id: string; key: string; nameRu: string; nameEn: string };
+  policy?: { id: string; key: string; name: Record<string, string> };
+  /** Languages of the texts: the site language first. */
+  languages: LanguageOption[];
 }) {
   const t = useTranslations('adminPolicies');
   const sfx = policy?.id ?? 'new';
@@ -20,28 +24,22 @@ export function PolicyForm({
       className="grid gap-3"
     >
       {policy ? <input type="hidden" name="id" value={policy.id} /> : null}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <FormField
-          id={`f-key-${sfx}`}
-          name="key"
-          label={t('key')}
-          defaultValue={policy?.key}
-          required
-        />
-        <FormField
-          id={`f-nameRu-${sfx}`}
-          name="nameRu"
-          label={t('nameRu')}
-          defaultValue={policy?.nameRu}
-          required
-        />
-        <FormField
-          id={`f-nameEn-${sfx}`}
-          name="nameEn"
-          label={t('nameEn')}
-          defaultValue={policy?.nameEn}
-        />
-      </div>
+      <FormField
+        id={`f-key-${sfx}`}
+        name="key"
+        label={t('key')}
+        defaultValue={policy?.key}
+        required
+        className="sm:max-w-xs"
+      />
+      <LocalizedFields
+        name="name"
+        label={t('name')}
+        languages={languages}
+        values={policy?.name}
+        idSuffix={`-${sfx}`}
+        maxLength={200}
+      />
       <SubmitButton className="w-fit" variant={policy ? 'secondary' : 'primary'}>
         {policy ? t('save') : t('create')}
       </SubmitButton>
@@ -52,11 +50,22 @@ export function PolicyForm({
 export function PublishForm({
   policyId,
   content,
+  languages,
 }: {
   policyId: string;
-  content: { ru: string; en: string };
+  content: Record<string, string>;
+  languages: LanguageOption[];
 }) {
   const t = useTranslations('adminPolicies');
+  const tc = useTranslations('common');
+  const locale = useLocale();
+  const named = (code: string, own: string) => {
+    try {
+      return new Intl.DisplayNames([locale], { type: 'language' }).of(code) ?? own;
+    } catch {
+      return own;
+    }
+  };
   return (
     <ActionForm
       action={publishPolicyAction}
@@ -64,28 +73,27 @@ export function PublishForm({
       className="grid gap-3 border-t pt-4"
     >
       <input type="hidden" name="policyId" value={policyId} />
-      <FormField
-        id={`f-contentRu-${policyId}`}
-        name="contentRu"
-        label={t('contentRu')}
-        hint={t('markdown')}
-      >
-        <Textarea
-          id={`f-contentRu-${policyId}`}
-          name="contentRu"
-          rows={8}
-          defaultValue={content.ru}
-          required
-        />
-      </FormField>
-      <FormField id={`f-contentEn-${policyId}`} name="contentEn" label={t('contentEn')}>
-        <Textarea
-          id={`f-contentEn-${policyId}`}
-          name="contentEn"
-          rows={4}
-          defaultValue={content.en}
-        />
-      </FormField>
+      {languages.map((l, i) => {
+        const id = `f-content-${l.code}-${policyId}`;
+        return (
+          <FormField
+            key={l.code}
+            id={id}
+            name={`content_${l.code}`}
+            label={tc('inLanguage', { label: t('content'), language: named(l.code, l.name) })}
+            hint={i === 0 ? t('markdown') : undefined}
+          >
+            <Textarea
+              id={id}
+              name={`content_${l.code}`}
+              lang={l.code}
+              rows={i === 0 ? 8 : 4}
+              defaultValue={content[l.code] ?? ''}
+              required={i === 0}
+            />
+          </FormField>
+        );
+      })}
       <label htmlFor={`mand-${policyId}`} className="flex items-center gap-2 text-sm">
         <Checkbox id={`mand-${policyId}`} name="mandatory" defaultChecked />
         {t('mandatory')}

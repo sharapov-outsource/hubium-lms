@@ -5,6 +5,7 @@ import {
   getContextChain,
   loadRoleDefinitions,
   loadUserAccess,
+  roleName,
 } from '@hubium/core';
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import {
@@ -61,9 +62,9 @@ export default async function PermissionCheckPage({
       const roles = await db.role.findMany({
         where: { id: { in: ex.roles.map((r) => r.roleId) } },
       });
-      const roleName = (id: string) => {
+      const roleLabel = (id: string) => {
         const r = roles.find((x) => x.id === id);
-        return r ? ((r.name as Record<string, string>)[locale] ?? r.shortName) : id;
+        return r ? roleName(r, locale) : id;
       };
       const ctxName = (id: string) =>
         id === SYSTEM_CONTEXT_ID
@@ -84,7 +85,7 @@ export default async function PermissionCheckPage({
               {ex.roles.map((r) => (
                 <li key={r.roleId}>
                   {t('roleRow', {
-                    role: roleName(r.roleId),
+                    role: roleLabel(r.roleId),
                     at: ctxName(r.at),
                     base: r.base ?? '—',
                     final: r.final ?? '—',

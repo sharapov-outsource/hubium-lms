@@ -1,7 +1,10 @@
 import type { Db, Prisma } from '@hubium/db';
+import { locales } from '@hubium/i18n';
+import { createTranslator } from '@hubium/i18n/packs';
 import { z } from 'zod';
 import { NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { type Localized, localizedText, pickLocalized } from '../lib/localized.ts';
 import { defineOperation } from '../operation.ts';
 
 // Custom profile fields defined by administrators. Values live in User.customFields as
@@ -15,7 +18,8 @@ export type ProfileFieldType = (typeof PROFILE_FIELD_TYPES)[number];
 export interface ProfileField {
   id: string;
   shortName: string;
-  name: { ru: string; en: string };
+  /** The field's label by language. */
+  name: Localized;
   type: ProfileFieldType;
   choices: string[];
   required: boolean;
@@ -48,11 +52,19 @@ export async function listProfileFields(db: Tx): Promise<ProfileField[]> {
 }
 
 export function profileFieldLabel(f: Pick<ProfileField, 'name' | 'shortName'>, locale: string) {
-  return (f.name as Record<string, string>)[locale] || f.name.ru || f.shortName;
+  return pickLocalized(f.name, locale) || f.shortName;
 }
 
-const TRUE = new Set(['1', 'true', 'yes', 'on', 'да']);
-const FALSE = new Set(['', '0', 'false', 'no', 'off', 'нет']);
+/** "Yes" and "no" in every installed language (CSV files are typed by people). */
+function words(key: 'common.yes' | 'common.no', base: string[]): Set<string> {
+  return new Set([...base, ...locales.map((l) => createTranslator(l)(key).toLowerCase())]);
+}
+let yesNo: { yes: Set<string>; no: Set<string> } | undefined;
+const yesNoWords = () =>
+  (yesNo ??= {
+    yes: words('common.yes', ['1', 'true', 'yes', 'on']),
+    no: words('common.no', ['', '0', 'false', 'no', 'off']),
+  });
 
 /** One raw value (form, CSV, API) to its stored form, or an error message. */
 function coerce(f: ProfileField, raw: unknown): { value?: string | boolean; error?: string } {
@@ -61,8 +73,8 @@ function coerce(f: ProfileField, raw: unknown): { value?: string | boolean; erro
     const s = String(raw ?? '')
       .trim()
       .toLowerCase();
-    if (TRUE.has(s)) return { value: true };
-    if (FALSE.has(s)) return { value: false };
+    if (yesNoWords().yes.has(s)) return { value: true };
+    if (yesNoWords().no.has(s)) return { value: false };
     return { error: 'Expected yes or no' };
   }
   const s = typeof raw === 'string' ? raw.trim() : raw == null ? '' : String(raw).trim();
@@ -139,10 +151,7 @@ export async function writeProfileValues(db: Tx, userId: string, values: Profile
 
 // ── administration ──────────────────────────────────────────────────────────
 
-const LocalisedName = z.object({
-  ru: z.string().trim().min(1).max(100),
-  en: z.string().trim().max(100).default(''),
-});
+const LocalisedName = localizedText(100);
 
 export const ProfileFieldInput = z
   .object({
@@ -177,7 +186,7 @@ export const saveProfileField = defineOperation({
       throw new ValidationError({ shortName: ['This short name is already in use'] });
     const data = {
       shortName: input.shortName,
-      name: { ru: input.name.ru, en: input.name.en || input.name.ru },
+      name: input.name,
       type: input.type,
       options: { choices: input.type === 'menu' ? input.choices : [] },
       required: input.required,
