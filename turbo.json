@@ -13,6 +13,19 @@
     },
     "test": {
       "dependsOn": ["^build"],
+      "env": [
+        "DATABASE_URL",
+        "TEST_DATABASE_URL",
+        "APP_URL",
+        "CONTENT_HOST",
+        "APP_SECRET",
+        "SMTP_URL",
+        "AUTH_RATE_LIMIT",
+        "S3_TEST_ENDPOINT",
+        "FFMPEG_PATH",
+        "FFPROBE_PATH"
+      ],
+      "passThroughEnv": ["S3_TEST_ACCESS_KEY", "S3_TEST_SECRET_KEY", "ANTHROPIC_API_KEY"],
       "outputs": []
     },
     "dev": {
