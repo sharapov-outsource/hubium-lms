@@ -36,7 +36,7 @@ interface Link {
 }
 
 const layout = (siteName: string, inner: string, footer: string, unsub?: Link) =>
-  `<!doctype html><html><body style="margin:0;background:#f7f7f8;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#1b1d22"><div style="max-width:560px;margin:0 auto;padding:32px 16px"><div style="background:#fff;border:1px solid #e4e6ea;border-radius:12px;padding:28px"><p style="margin:0 0 16px;font-weight:600;color:#4f46e5">${escapeHtml(siteName)}</p>${inner}</div><p style="font-size:12px;color:#5d6370;text-align:center;margin-top:16px">${escapeHtml(footer)}${unsub ? ` · <a href="${escapeHtml(unsub.url)}" style="color:#5d6370">${escapeHtml(unsub.label)}</a>` : ''}</p></div></body></html>`;
+  `<!doctype html><html><body style="margin:0;background:#f7f7f8;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#1b1d22"><div style="max-width:560px;margin:0 auto;padding:32px 16px"><div style="background:#fff;border:1px solid #e4e6ea;border-radius:12px;padding:28px;overflow-wrap:anywhere"><p style="margin:0 0 16px;font-weight:600;color:#4f46e5">${escapeHtml(siteName)}</p>${inner}</div><p style="font-size:12px;color:#5d6370;text-align:center;margin-top:16px">${escapeHtml(footer)}${unsub ? ` · <a href="${escapeHtml(unsub.url)}" style="color:#5d6370">${escapeHtml(unsub.label)}</a>` : ''}</p></div></body></html>`;
 
 /** Daily digest: a list of notifications with links. */
 export function renderDigestEmail(opts: {
@@ -89,7 +89,7 @@ export function renderActionEmail(opts: {
   unsubscribe?: Link;
 }): { html: string; text: string } {
   const button = opts.action
-    ? `<p style="margin:24px 0"><a href="${escapeHtml(opts.action.url)}" style="background:#4f46e5;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:600">${escapeHtml(opts.action.label)}</a></p><p style="font-size:13px;color:#5d6370">${escapeHtml(opts.action.url)}</p>`
+    ? `<p style="margin:24px 0"><a href="${escapeHtml(opts.action.url)}" style="background:#4f46e5;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:600">${escapeHtml(opts.action.label)}</a></p><p style="font-size:13px;color:#5d6370;word-break:break-all;overflow-wrap:anywhere">${escapeHtml(opts.action.url)}</p>`
     : '';
   const html = layout(
     opts.siteName,
