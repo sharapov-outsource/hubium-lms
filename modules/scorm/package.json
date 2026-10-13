@@ -20,12 +20,12 @@
     "@hubium/editor": "workspace:*",
     "@hubium/module-sdk": "workspace:*",
     "@hubium/ui": "workspace:*",
-    "fast-xml-parser": "5.11.1",
+    "fast-xml-parser": "5.11.2",
     "lucide-react": "1.55.0",
     "next-intl": "4.14.9",
-    "scorm-again": "3.4.4",
+    "scorm-again": "3.4.6",
     "yauzl": "3.4.0",
-    "zod": "4.6.6"
+    "zod": "4.6.7"
   },
   "peerDependencies": {
     "react": "^19"
@@ -38,7 +38,7 @@
     "fflate": "0.8.3",
     "next": "16.4.0",
     "react": "19.3.0",
-    "typescript": "~5.9.3",
+    "typescript": "~7.0.2",
     "vitest": "5.0.4"
   }
 }
