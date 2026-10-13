@@ -1,10 +1,14 @@
 'use client';
 
+import { Button, Checkbox, Textarea } from '@hubium/ui';
+import { Dialog, DialogContent, DialogFooter } from '@hubium/ui/dialog';
 import Image from '@tiptap/extension-image';
+import Mathematics from '@tiptap/extension-mathematics';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { EditorContent, mergeAttributes, Node, useEditor, useEditorState } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import katex from 'katex';
 import {
   Bold,
   Code,
@@ -17,11 +21,12 @@ import {
   ListOrdered,
   Quote,
   Redo2,
+  Sigma,
   Table2,
   Undo2,
   Video,
 } from 'lucide-react';
-import { type ReactNode, useId, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 
 /** Video embed (YouTube, RuTube, VK Video, Vimeo). The server re-validates the host. */
 const Embed = Node.create({
@@ -65,6 +70,13 @@ export interface RichTextLabels {
   videoPrompt: string;
   videoInvalid: string;
   table: string;
+  formula: string;
+  formulaLatex: string;
+  formulaBlock: string;
+  formulaPreview: string;
+  insert: string;
+  remove: string;
+  cancel: string;
   undo: string;
   redo: string;
 }
@@ -85,9 +97,99 @@ export const defaultLabels: RichTextLabels = {
   videoPrompt: 'Video URL (YouTube, RuTube, VK Video, Vimeo)',
   videoInvalid: 'Unsupported video link',
   table: 'Table',
+  formula: 'Formula',
+  formulaLatex: 'Formula in LaTeX, for example \\frac{a}{b}',
+  formulaBlock: 'On a line of its own',
+  formulaPreview: 'Preview',
+  insert: 'Insert',
+  remove: 'Remove',
+  cancel: 'Cancel',
   undo: 'Undo',
   redo: 'Redo',
 };
+
+const KATEX = { throwOnError: false, strict: false, trust: false } as const;
+
+/** A formula being written: new (pos null) or an existing node at `pos`. */
+type FormulaDraft = { latex: string; block: boolean; pos: number | null };
+
+function FormulaDialog({
+  draft,
+  labels,
+  onClose,
+  onSave,
+  onRemove,
+}: {
+  draft: FormulaDraft | null;
+  labels: RichTextLabels;
+  onClose: () => void;
+  onSave: (d: FormulaDraft) => void;
+  onRemove: (d: FormulaDraft) => void;
+}) {
+  const [latex, setLatex] = useState('');
+  const [block, setBlock] = useState(false);
+  const id = useId();
+  useEffect(() => {
+    if (draft) {
+      setLatex(draft.latex);
+      setBlock(draft.block);
+    }
+  }, [draft]);
+  const preview = latex.trim() ? katex.renderToString(latex, { ...KATEX, displayMode: block }) : '';
+  return (
+    <Dialog open={!!draft} onOpenChange={(open) => (open ? null : onClose())}>
+      <DialogContent title={labels.formula} closeLabel={labels.cancel}>
+        <div className="grid gap-3">
+          <label htmlFor={`${id}-latex`} className="text-sm font-medium">
+            {labels.formulaLatex}
+          </label>
+          <Textarea
+            id={`${id}-latex`}
+            rows={3}
+            className="font-mono"
+            value={latex}
+            onChange={(e) => setLatex(e.target.value)}
+            autoFocus
+          />
+          {draft?.pos === null ? (
+            <label htmlFor={`${id}-block`} className="flex items-center gap-2 text-sm">
+              <Checkbox
+                id={`${id}-block`}
+                checked={block}
+                onChange={(e) => setBlock(e.target.checked)}
+              />
+              {labels.formulaBlock}
+            </label>
+          ) : null}
+          <div
+            aria-label={labels.formulaPreview}
+            role="img"
+            className="min-h-12 overflow-x-auto rounded-md border border-border p-3"
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: KaTeX output with trust: false
+            dangerouslySetInnerHTML={{ __html: preview }}
+          />
+        </div>
+        <DialogFooter>
+          {draft && draft.pos !== null ? (
+            <Button type="button" variant="ghost" onClick={() => onRemove(draft)}>
+              {labels.remove}
+            </Button>
+          ) : null}
+          <Button type="button" variant="outline" onClick={onClose}>
+            {labels.cancel}
+          </Button>
+          <Button
+            type="button"
+            disabled={!latex.trim()}
+            onClick={() => draft && onSave({ latex: latex.trim(), block, pos: draft.pos })}
+          >
+            {draft?.pos === null ? labels.insert : labels.formula}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 /** Client-side counterpart of toEmbedUrl (kept in sync with ./server.ts). */
 function embedUrl(raw: string): string | null {
@@ -170,6 +272,7 @@ export function RichTextEditor({
   onChangeHtml?: (html: string) => void;
 }) {
   const [html, setHtml] = useState(defaultValue);
+  const [formula, setFormula] = useState<FormulaDraft | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const autoId = useId();
   const editor = useEditor({
@@ -186,6 +289,15 @@ export function RichTextEditor({
       TableHeader,
       TableCell,
       Embed,
+      Mathematics.configure({
+        katexOptions: KATEX,
+        inlineOptions: {
+          onClick: (node, pos) => setFormula({ latex: node.attrs.latex, block: false, pos }),
+        },
+        blockOptions: {
+          onClick: (node, pos) => setFormula({ latex: node.attrs.latex, block: true, pos }),
+        },
+      }),
     ],
     content: defaultValue,
     editorProps: {
@@ -334,6 +446,12 @@ export function RichTextEditor({
         >
           <Table2 />
         </ToolButton>
+        <ToolButton
+          label={labels.formula}
+          onClick={() => setFormula({ latex: '', block: false, pos: null })}
+        >
+          <Sigma />
+        </ToolButton>
         <span className="flex-1" />
         <ToolButton
           label={labels.undo}
@@ -352,6 +470,33 @@ export function RichTextEditor({
       </div>
       <EditorContent editor={editor} />
       <input type="hidden" name={name} value={html} />
+      <FormulaDialog
+        draft={formula}
+        labels={labels}
+        onClose={() => setFormula(null)}
+        onSave={(d) => {
+          const c = chain();
+          if (d.pos === null)
+            (d.block
+              ? c.insertBlockMath({ latex: d.latex })
+              : c.insertInlineMath({ latex: d.latex })
+            ).run();
+          else
+            (d.block
+              ? c.updateBlockMath({ latex: d.latex, pos: d.pos })
+              : c.updateInlineMath({ latex: d.latex, pos: d.pos })
+            ).run();
+          setFormula(null);
+        }}
+        onRemove={(d) => {
+          const c = chain();
+          (d.block
+            ? c.deleteBlockMath({ pos: d.pos! })
+            : c.deleteInlineMath({ pos: d.pos! })
+          ).run();
+          setFormula(null);
+        }}
+      />
       {uploadImage ? (
         <input
           ref={fileRef}
@@ -373,10 +518,24 @@ export function RichTextEditor({
   );
 }
 
-/** Renders sanitised HTML produced by the server. */
+/** Renders sanitised HTML produced by the server; formulas are drawn by KaTeX. */
 export function RichText({ html, className }: { html: string; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: new HTML means new formula nodes to draw
+  useEffect(() => {
+    const nodes = ref.current?.querySelectorAll<HTMLElement>(
+      '[data-type="inline-math"][data-latex], [data-type="block-math"][data-latex]',
+    );
+    if (!nodes?.length) return;
+    for (const el of nodes)
+      katex.render(el.dataset.latex ?? '', el, {
+        ...KATEX,
+        displayMode: el.dataset.type === 'block-math',
+      });
+  }, [html]);
   return (
     <div
+      ref={ref}
       className={`prose-content ${className ?? ''}`}
       // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised on write by sanitizeRichText
       dangerouslySetInnerHTML={{ __html: html }}

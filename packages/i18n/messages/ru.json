@@ -418,7 +418,14 @@
     "videoInvalid": "Этот видеосервис не поддерживается",
     "table": "Таблица",
     "undo": "Отменить",
-    "redo": "Повторить"
+    "redo": "Повторить",
+    "formula": "Формула",
+    "formulaLatex": "Формула в LaTeX, например \\frac{a}{b}",
+    "formulaBlock": "Отдельной строкой",
+    "formulaPreview": "Предпросмотр",
+    "insert": "Вставить",
+    "remove": "Удалить",
+    "cancel": "Отмена"
   },
   "catalog": {
     "title": "Каталог курсов",

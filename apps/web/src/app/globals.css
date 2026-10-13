@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "@hubium/ui/styles.css";
+/* formulas in rich text; the fonts are bundled and served from this origin */
+@import "katex/dist/katex.min.css";
 
 @source "../../../../packages/ui/src";
 @source "../../../../modules";

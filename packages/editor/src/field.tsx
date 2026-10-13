@@ -22,6 +22,13 @@ export function useEditorLabels(): RichTextLabels {
     videoPrompt: t('videoPrompt'),
     videoInvalid: t('videoInvalid'),
     table: t('table'),
+    formula: t('formula'),
+    formulaLatex: t('formulaLatex'),
+    formulaBlock: t('formulaBlock'),
+    formulaPreview: t('formulaPreview'),
+    insert: t('insert'),
+    remove: t('remove'),
+    cancel: t('cancel'),
     undo: t('undo'),
     redo: t('redo'),
   };

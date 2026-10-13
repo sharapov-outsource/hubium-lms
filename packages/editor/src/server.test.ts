@@ -33,6 +33,19 @@ describe('sanitizeRichText', () => {
 });
 
 describe('text helpers', () => {
+  it('keeps formulas as LaTeX and nothing else of their markup', () => {
+    const html =
+      '<p>Площадь <span data-type="inline-math" data-latex="\\pi r^2" onclick="x()"></span></p>' +
+      '<div data-type="block-math" data-latex="\\sum_{i=1}^{n} i"></div>' +
+      '<span data-type="evil" data-latex="x">y</span>';
+    const clean = sanitizeRichText(html);
+    expect(clean).toContain('<span data-type="inline-math" data-latex="\\pi r^2"></span>');
+    expect(clean).toContain('<div data-type="block-math" data-latex="\\sum_{i=1}^{n} i"></div>');
+    expect(clean).not.toContain('onclick');
+    expect(clean).not.toContain('evil');
+    expect(extractText(clean)).toBe('Площадь \\pi r^2\n\\sum_{i=1}^{n} i\ny');
+  });
+
   it('extracts text with line breaks', () => {
     expect(extractText('<h2>Title</h2><p>One &amp; two</p><ul><li>a</li><li>b</li></ul>')).toBe(
       'Title\nOne & two\na\nb',

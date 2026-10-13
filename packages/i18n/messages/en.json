@@ -418,7 +418,14 @@
     "videoInvalid": "This video service is not supported",
     "table": "Table",
     "undo": "Undo",
-    "redo": "Redo"
+    "redo": "Redo",
+    "formula": "Formula",
+    "formulaLatex": "Formula in LaTeX, for example \\frac{a}{b}",
+    "formulaBlock": "On a line of its own",
+    "formulaPreview": "Preview",
+    "insert": "Insert",
+    "remove": "Remove",
+    "cancel": "Cancel"
   },
   "catalog": {
     "title": "Course catalog",

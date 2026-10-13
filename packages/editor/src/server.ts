@@ -94,8 +94,17 @@ export function sanitizeRichText(html: string): string {
       td: ['colspan', 'rowspan'],
       th: ['colspan', 'rowspan'],
       col: ['style'],
-      div: ['data-embed'],
-      span: ['class'],
+      // formulas (Tiptap mathematics): the LaTeX source, rendered by KaTeX on display
+      div: [
+        'data-embed',
+        { name: 'data-type', multiple: false, values: ['block-math'] },
+        'data-latex',
+      ],
+      span: [
+        'class',
+        { name: 'data-type', multiple: false, values: ['inline-math'] },
+        'data-latex',
+      ],
     },
     allowedClasses: { span: ['math'] },
     allowedSchemes: ['http', 'https', 'mailto'],
@@ -129,6 +138,10 @@ export function sanitizeRichText(html: string): string {
 export function extractText(html: string): string {
   return sanitize(
     (html ?? '')
+      // formulas keep their LaTeX, so search and the AI tutor see them
+      .replace(/<(span|div)\b[^>]*\bdata-latex="([^"]*)"[^>]*>\s*<\/\1>/gi, (_, tag, latex) =>
+        tag.toLowerCase() === 'div' ? `\n${latex}\n` : ` ${latex} `,
+      )
       .replace(/<\/(p|h[1-6]|li|tr|blockquote|pre|div)>/gi, '\n')
       .replace(/<br\s*\/?>/gi, '\n'),
     { allowedTags: [], allowedAttributes: {} },
@@ -140,6 +153,7 @@ export function extractText(html: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/[ \t]+/g, ' ')
+    .replace(/ *\n */g, '\n')
     .replace(/\n\s*\n+/g, '\n')
     .trim();
 }
