@@ -23,7 +23,7 @@ Thanks for helping! A few rules keep the codebase healthy.
 - `packages/core` holds business rules and never imports `next` or `react`.
 - `modules/*` never import `packages/core`; they receive services through `ctx`.
 - The worker never imports UI code.
-- Every user-visible string goes into `packages/i18n/messages/{ru,en}.json`; a test enforces key parity.
+- Every user-visible string goes into every pack in `packages/i18n/messages/` (ru, en, fr, de, it); module strings into `modules/<module>/messages/`. A test checks that each pack is complete and its placeholders match English. See [docs/i18n.md](docs/i18n.md).
 - Permission checks go through `ctx.perm.can()/require()` with code-defined capabilities.
 - Database changes: edit `packages/db/prisma/schema/*.prisma`, then `pnpm db:migrate:dev --name <change>`.
 

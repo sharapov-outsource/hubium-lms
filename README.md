@@ -113,7 +113,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 
 - Sign-in by email or username (for learners without email), email verification, two-factor authentication (TOTP), sign-in with Google, Yandex ID and VK ID, and active session management.
 - An installable PWA with an offline page and push notifications.
-- Russian and English, light and dark themes, and a mobile layout with bottom navigation.
+- Russian, English, French, German and Italian; a language is a set of JSON files ([docs/i18n.md](docs/i18n.md)) and administrators enable languages and set the site language in the admin area. Light and dark themes, and a mobile layout with bottom navigation.
 - Accessibility: every end-to-end scenario is checked with axe for serious and critical violations.
 - Security:
   - a CSP with a nonce on every request, and Origin checks;
@@ -199,6 +199,7 @@ The stack is Node.js 24, Next.js 16, React 19, PostgreSQL 18 with pgvector, Pris
 ## Documentation
 
 - [docs/operations.md](docs/operations.md): installation, configuration, backups, updates, monitoring (in Russian).
+- [docs/i18n.md](docs/i18n.md): languages, language packs, fallback and how to add a language.
 - [docs/api.md](docs/api.md): REST API, tokens and webhooks.
 - [docs/modules.md](docs/modules.md): writing an activity module.
 - [docs/security.md](docs/security.md): built-in protections and an operator checklist.
