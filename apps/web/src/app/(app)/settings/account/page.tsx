@@ -9,8 +9,10 @@ import {
 } from '@hubium/ui';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
+import { ProfileFieldInputs } from '@/components/profile-field-inputs';
 import { changeEmailAction, updateProfileAction } from '@/server/actions/account';
 import { titled } from '@/server/page-title';
+import { profileFieldViews } from '@/server/profile-fields';
 import { requireUser } from '@/server/session';
 
 export const generateMetadata = titled('settings', 'account');
@@ -23,6 +25,7 @@ export default async function AccountSettings() {
     getTranslations('common'),
     getLocale(),
   ]);
+  const fields = await profileFieldViews(locale, { ownProfile: true });
   return (
     <div className="grid gap-6">
       <Card>
@@ -61,6 +64,10 @@ export default async function AccountSettings() {
                 emptyText={tc('nothingFound')}
               />
             </FormField>
+            <ProfileFieldInputs
+              fields={fields}
+              values={(user.customFields ?? {}) as Record<string, string | boolean>}
+            />
             <div>
               <SubmitButton>{tc('save')}</SubmitButton>
             </div>

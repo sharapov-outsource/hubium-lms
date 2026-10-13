@@ -14,6 +14,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { updateUserAction } from '@/server/actions/admin';
 import { db } from '@/server/db';
 import { viewerCan } from '@/server/page-title';
+import { profileFieldViews } from '@/server/profile-fields';
 import { requireCapability } from '@/server/session';
 import { UserForm } from '../user-form';
 import { DangerZone, SiteRoleToggles } from './user-actions';
@@ -75,6 +76,7 @@ export default async function EditUserPage({
               action={updateUserAction}
               mode="edit"
               canSetAdmin={ctx.perm.isSiteAdmin}
+              profileFields={await profileFieldViews(locale)}
               values={{
                 id: user.id,
                 firstName: user.firstName,
@@ -83,6 +85,7 @@ export default async function EditUserPage({
                 locale: user.locale,
                 timezone: user.timezone,
                 isSiteAdmin: user.isSiteAdmin,
+                customFields: user.customFields as Record<string, string | boolean>,
               }}
             />
           </CardContent>

@@ -1,4 +1,9 @@
-import { createApiToken, revokeApiToken, setActivityVisibility } from '@hubium/core';
+import {
+  createApiToken,
+  revokeApiToken,
+  saveProfileField,
+  setActivityVisibility,
+} from '@hubium/core';
 import { ctxFor, useTestDb } from '@hubium/core/testing';
 import { courseFixture } from '@hubium/core/testing/course-fixture';
 import { validate } from '@scalar/openapi-parser';
@@ -90,6 +95,33 @@ describe('REST API v1', () => {
     const body = (await users.json()) as { items: { username: string }[]; total: number };
     expect(body.items.some((u) => u.username === 'student1')).toBe(true);
     expect(body.items[0]).not.toHaveProperty('passwordHash');
+  });
+
+  it('creates users with custom profile fields and returns them', async () => {
+    await saveProfileField.run(await ctxFor(t.db, 'admin@test.local'), {
+      shortName: 'employee_no',
+      name: { ru: 'Табельный номер' },
+      type: 'text',
+    });
+    const body = (customFields: Record<string, unknown>) => ({
+      method: 'POST',
+      body: JSON.stringify({
+        username: `api${Object.keys(customFields).length}`,
+        email: `api${Object.keys(customFields).length}@example.org`,
+        firstName: 'Api',
+        lastName: 'User',
+        password: 'Secret12345!',
+        customFields,
+      }),
+    });
+    const created = await call(tokens.admin!, '/users', body({ employee_no: 'A-17' }));
+    expect(created.status).toBe(201);
+    const users = (await (await call(tokens.admin!, '/users?q=api1')).json()) as {
+      items: { customFields: Record<string, unknown> }[];
+    };
+    expect(users.items[0]?.customFields).toEqual({ employee_no: 'A-17' });
+    const me = (await (await call(tokens.student!, '/me')).json()) as Record<string, unknown>;
+    expect(me.customFields).toEqual({});
   });
 
   it('lists courses and contents without hidden activities', async () => {

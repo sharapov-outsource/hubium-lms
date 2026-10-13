@@ -27,6 +27,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     { key: 'categories', href: '/admin/categories', label: t('categories'), show: categories },
     { key: 'courses', href: '/admin/courses', label: t('courses'), show: categories },
     { key: 'cohorts', href: '/admin/cohorts', label: t('cohorts'), show: cohorts },
+    {
+      key: 'profileFields',
+      href: '/admin/profile-fields',
+      label: t('profileFields'),
+      show: config,
+    },
     { key: 'roles', href: '/admin/roles', label: t('roles'), show: roles },
     { key: 'permissions', href: '/admin/permissions', label: t('permissionCheck'), show: roles },
     { key: 'lti', href: '/admin/lti', label: t('lti'), show: config },

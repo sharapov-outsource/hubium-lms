@@ -9,7 +9,9 @@ import {
   deleteUser,
   ForbiddenError,
   getAllSettings,
+  listProfileFields,
   logEvent,
+  profileValuesFromForm,
   setRoleCapability,
   setRoleOverride,
   setSettings,
@@ -17,6 +19,7 @@ import {
   updateRole,
   updateUser,
   ValidationError,
+  validateProfileValues,
 } from '@hubium/core';
 import { BRANDING_CONTEXT, storeFile } from '@hubium/core/files/files';
 import { enqueue } from '@hubium/core/jobs/jobs';
@@ -34,11 +37,21 @@ import { getContext, requireUser } from '../session';
 
 const bool = (v: FormDataEntryValue | null) => v === 'on' || v === 'true' || v === '1';
 
+/** Custom profile fields of the admin user form; required ones must be filled. */
+async function profileFieldsFromForm(v: Record<string, string>) {
+  const fields = await listProfileFields(db);
+  return validateProfileValues(fields, profileValuesFromForm(fields, v), { requireAll: true });
+}
+
 export async function createUserAction(fd: FormData) {
   const res = await runAction(async () => {
     const ctx = await getContext();
     const v = formToObject(fd);
-    return createUser.run(ctx, { ...v, isSiteAdmin: bool(fd.get('isSiteAdmin')) });
+    return createUser.run(ctx, {
+      ...v,
+      isSiteAdmin: bool(fd.get('isSiteAdmin')),
+      customFields: await profileFieldsFromForm(v),
+    });
   });
   if (res.ok) redirect(`/admin/users/${res.data.id}?created=1`);
   return res;
@@ -53,6 +66,7 @@ export async function updateUserAction(fd: FormData) {
       locale: v.locale || null,
       timezone: v.timezone || null,
       isSiteAdmin: ctx.perm.isSiteAdmin ? bool(fd.get('isSiteAdmin')) : undefined,
+      customFields: await profileFieldsFromForm(v),
     });
     revalidatePath(`/admin/users/${r.id}`);
     return r;

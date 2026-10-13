@@ -1,6 +1,12 @@
 'use server';
 
-import { ValidationError } from '@hubium/core';
+import {
+  listProfileFields,
+  profileValuesFromForm,
+  ValidationError,
+  validateProfileValues,
+  writeProfileValues,
+} from '@hubium/core';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { z } from 'zod';
@@ -27,14 +33,23 @@ function validTimezone(tz: string): boolean {
 export async function updateProfileAction(fd: FormData) {
   return runAction(async () => {
     const user = await requireUser();
-    const r = ProfileInput.safeParse(formToObject(fd));
+    const form = formToObject(fd);
+    const r = ProfileInput.safeParse(form);
     if (!r.success) throw r.error;
     const { firstName, lastName, timezone } = r.data;
     if (timezone && !validTimezone(timezone))
       throw new ValidationError({ timezone: ['Unknown time zone'] });
-    await db.user.update({
-      where: { id: user.id },
-      data: { firstName, lastName, name: `${firstName} ${lastName}`, timezone: timezone || null },
+    // custom profile fields the person may change themselves
+    const fields = (await listProfileFields(db)).filter((f) => !f.locked);
+    const custom = validateProfileValues(fields, profileValuesFromForm(fields, form), {
+      requireAll: true,
+    });
+    await db.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: user.id },
+        data: { firstName, lastName, name: `${firstName} ${lastName}`, timezone: timezone || null },
+      });
+      await writeProfileValues(tx, user.id, custom);
     });
     revalidatePath('/', 'layout');
     return null;

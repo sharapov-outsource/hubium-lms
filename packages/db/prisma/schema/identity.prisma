@@ -190,6 +190,8 @@ model UserProfileField {
   type            String
   options         Json     @default("{}")
   required        Boolean  @default(false)
+  /// The person cannot change it on their own profile (set by administrators or imports).
+  locked          Boolean  @default(false)
   visibleToOthers Boolean  @default(false)
   sortOrder       Int      @default(0)
   createdAt       DateTime @default(now()) @db.Timestamptz(3)

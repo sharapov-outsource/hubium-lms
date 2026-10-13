@@ -27,10 +27,13 @@ type Cond =
   | { type: 'grade'; activityId: string; min?: number; max?: number }
   | {
       type: 'profile';
-      field: 'email' | 'firstName' | 'lastName' | 'username';
+      /** Standard field name, or `cf:<shortName>` for a custom profile field. */
+      field: string;
       op: string;
       value: string;
     };
+
+const STANDARD_FIELDS = ['email', 'firstName', 'lastName', 'username'] as const;
 
 export interface ActivityFormValues {
   id?: string;
@@ -56,10 +59,13 @@ function AvailabilityEditor({
   initial,
   activities,
   groups,
+  profileFields,
 }: {
   initial: ActivityFormValues['availability'];
   activities: { id: string; name: string }[];
   groups: { id: string; name: string }[];
+  /** Custom profile fields: `cf:<shortName>` and their labels. */
+  profileFields: { key: string; label: string }[];
 }) {
   const t = useTranslations('activity');
   const error = useFieldError('availability');
@@ -196,11 +202,16 @@ function AvailabilityEditor({
                 aria-label={t('conditionTypes.profile')}
                 className="w-36"
                 value={c.field}
-                onChange={(e) => update(i, { field: e.target.value as 'email' })}
+                onChange={(e) => update(i, { field: e.target.value })}
               >
-                {(['email', 'firstName', 'lastName', 'username'] as const).map((f) => (
+                {STANDARD_FIELDS.map((f) => (
                   <option key={f} value={f}>
                     {t(`profileFields.${f}`)}
+                  </option>
+                ))}
+                {profileFields.map((f) => (
+                  <option key={f.key} value={f.key}>
+                    {f.label}
                   </option>
                 ))}
               </Select>
@@ -271,6 +282,7 @@ export function ActivityForm({
   supportsGroups,
   activities,
   groups,
+  profileFields = [],
   submitLabel,
 }: {
   action: (fd: FormData) => Promise<ActionResult<unknown>>;
@@ -283,6 +295,7 @@ export function ActivityForm({
   supportsGroups: boolean;
   activities: { id: string; name: string }[];
   groups: { id: string; name: string }[];
+  profileFields?: { key: string; label: string }[];
   submitLabel: string;
 }) {
   const t = useTranslations('activity');
@@ -407,6 +420,7 @@ export function ActivityForm({
             initial={values.availability}
             activities={activities}
             groups={groups}
+            profileFields={profileFields}
           />
         </CardContent>
       </Card>

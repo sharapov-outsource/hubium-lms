@@ -1,7 +1,8 @@
+import { listProfileFields, profileFieldLabel } from '@hubium/core';
 import { Avatar, Button, Card, CardContent } from '@hubium/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
 import { MessageUserButton } from '@/components/comms/message-buttons';
 import { db } from '@/server/db';
 import { getContext, getCurrentUser, requireUser } from '@/server/session';
@@ -27,6 +28,22 @@ export default async function ProfilePage({ params }: { params: Promise<{ userId
   const isMe = me.id === user.id;
   const canAdmin = await ctx.perm.can('user:update');
   const showEmail = isMe || canAdmin;
+  const [locale, format] = await Promise.all([getLocale(), getFormatter()]);
+  // custom fields: all for the person and administrators, the public ones for others
+  const stored = (user.customFields ?? {}) as Record<string, string | boolean>;
+  const details = (await listProfileFields(db))
+    .filter((f) => (isMe || canAdmin || f.visibleToOthers) && stored[f.shortName] !== undefined)
+    .map((f) => {
+      const v = stored[f.shortName];
+      const text =
+        typeof v === 'boolean'
+          ? t(v ? 'common.yes' : 'common.no')
+          : f.type === 'date' && v
+            ? format.dateTime(new Date(`${v}T00:00:00Z`), { dateStyle: 'long', timeZone: 'UTC' })
+            : v;
+      return { label: profileFieldLabel(f, locale), text };
+    })
+    .filter((d) => d.text !== '');
   return (
     <Card className="max-w-2xl">
       <CardContent className="flex flex-wrap items-center gap-5 pt-6">
@@ -51,6 +68,16 @@ export default async function ProfilePage({ params }: { params: Promise<{ userId
             </Button>
           ) : null}
         </div>
+        {details.length ? (
+          <dl className="grid w-full gap-x-6 gap-y-2 border-t border-border pt-4 text-sm sm:grid-cols-[auto_1fr]">
+            {details.map((d) => (
+              <div key={d.label} className="contents">
+                <dt className="text-muted-foreground">{d.label}</dt>
+                <dd className="whitespace-pre-line">{d.text}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
       </CardContent>
     </Card>
   );

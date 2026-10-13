@@ -361,7 +361,8 @@
     "lti": "LTI",
     "ai": "AI",
     "policies": "Policies",
-    "webhooks": "Webhooks"
+    "webhooks": "Webhooks",
+    "profileFields": "Profile fields"
   },
   "email": {
     "footer": "You received this email because you have an account on this site.",
@@ -1344,5 +1345,31 @@
     "hint": "“Deny” removes the permission here, but it can be allowed again further down. “Prohibit” applies everywhere below and beats any allow.",
     "readOnly": "You can view but not change these: overriding permissions is not allowed for you.",
     "open": "Permissions"
+  },
+  "profileFields": {
+    "title": "Profile fields",
+    "description": "Extra details about users, such as faculty, class or staff number. They can be uploaded from CSV and used in access restrictions.",
+    "new": "New field",
+    "empty": "No fields yet.",
+    "shortName": "Short name",
+    "shortNameHint": "Latin letters, digits and _; the CSV column is profile_field_<short name>",
+    "nameRu": "Name (Russian)",
+    "nameEn": "Name (English)",
+    "type": "Type",
+    "types": {
+      "text": "Short text",
+      "textarea": "Text",
+      "checkbox": "Checkbox",
+      "menu": "Menu",
+      "date": "Date"
+    },
+    "choices": "Options, one per line",
+    "required": "Required",
+    "locked": "Users cannot change it themselves",
+    "visibleToOthers": "Shown to others on the profile",
+    "saved": "Field saved",
+    "deleteConfirm": "Delete the “{name}” field together with its values for every user?",
+    "section": "More details",
+    "csvHint": "profile_field_<short name> columns fill profile fields: {names}."
   }
 }

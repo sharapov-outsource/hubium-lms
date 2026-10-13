@@ -3,12 +3,13 @@ import { fileUrl } from '@hubium/core/files/files';
 import { Button, PageHeader } from '@hubium/ui';
 import Link from 'next/link';
 import { forbidden, notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { safePath } from '@/lib/safe-path';
 import { getModuleUI } from '@/modules/ui';
 import { updateActivityAction } from '@/server/actions/courses';
 import { db } from '@/server/db';
 import { activityName } from '@/server/page-title';
+import { profileConditionFields } from '@/server/profile-fields';
 import { getContext } from '@/server/session';
 import { ActivityForm } from '../../activity-form';
 
@@ -111,6 +112,7 @@ export default async function EditActivityPage({
         supportsGroups={!!m.supports.groups}
         activities={activities}
         groups={groups}
+        profileFields={await profileConditionFields(await getLocale())}
         submitLabel={tc('save')}
       />
     </>

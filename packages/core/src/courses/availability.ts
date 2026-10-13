@@ -3,6 +3,8 @@ import { z } from 'zod';
 // Activity/section availability ("restrict access"). A JSON tree of AND/OR conditions,
 // evaluated by a pure function that also explains what is missing.
 
+export const STANDARD_PROFILE_FIELDS = ['email', 'firstName', 'lastName', 'username'] as const;
+
 export const ConditionSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('date'),
@@ -23,7 +25,11 @@ export const ConditionSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('profile'),
-    field: z.enum(['email', 'firstName', 'lastName', 'username']),
+    /** A standard field, or `cf:<shortName>` for a custom profile field. */
+    field: z.union([
+      z.enum(STANDARD_PROFILE_FIELDS),
+      z.string().regex(/^cf:[a-z][a-z0-9_]{1,49}$/),
+    ]),
     op: z.enum(['equals', 'contains', 'startsWith', 'endsWith', 'isEmpty', 'isNotEmpty']),
     value: z.string().default(''),
   }),
@@ -53,7 +59,8 @@ export interface AvailabilityFacts {
   groupIds: ReadonlySet<string>;
   /** activityId → grade in percent (0..100). */
   grades: ReadonlyMap<string, number>;
-  profile: Partial<Record<'email' | 'firstName' | 'lastName' | 'username', string>>;
+  /** Standard fields by name and custom ones as `cf:<shortName>`, all as text. */
+  profile: Partial<Record<string, string>>;
 }
 
 export interface AvailabilityResult {

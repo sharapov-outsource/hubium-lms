@@ -1,10 +1,11 @@
 import { getCourseAccess, getModule } from '@hubium/core';
 import { PageHeader } from '@hubium/ui';
 import { forbidden, notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { getModuleUI } from '@/modules/ui';
 import { createActivityAction } from '@/server/actions/courses';
 import { db } from '@/server/db';
+import { profileConditionFields } from '@/server/profile-fields';
 import { getContext } from '@/server/session';
 import { ActivityForm } from '../activity-form';
 
@@ -71,6 +72,7 @@ export default async function NewActivityPage({
         supportsGroups={!!m.supports.groups}
         activities={activities}
         groups={groups}
+        profileFields={await profileConditionFields(await getLocale())}
         submitLabel={tc('create')}
       />
     </>

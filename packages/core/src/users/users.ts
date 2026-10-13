@@ -7,6 +7,14 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '.
 import { logEvent } from '../events/log.ts';
 import { defineOperation } from '../operation.ts';
 import { erasePersonalData } from '../privacy/privacy.ts';
+import {
+  CSV_PREFIX,
+  FORM_PREFIX,
+  listProfileFields,
+  type ProfileValues,
+  validateProfileValues,
+  writeProfileValues,
+} from './profile-fields.ts';
 
 type Tx = Prisma.TransactionClient | Db;
 
@@ -44,6 +52,8 @@ export const UserCreateInput = z
     isSiteAdmin: z.boolean().optional(),
     mustChangePassword: z.boolean().optional(),
     emailVerified: z.boolean().optional(),
+    /** Custom profile fields by short name (see profile-fields.ts). */
+    customFields: z.record(z.string(), z.unknown()).optional(),
   })
   .refine((v) => v.email || v.username, {
     message: 'Email or username is required',
@@ -59,6 +69,9 @@ export function placeholderEmail(username: string): string {
 /** Creates a user with a credential account. Used by admin UI, CSV upload and seed. */
 export async function createUserRecord(db: Tx, raw: UserCreate) {
   const input = UserCreateInput.parse(raw);
+  const customFields: ProfileValues = input.customFields
+    ? validateProfileValues(await listProfileFields(db), input.customFields)
+    : {};
   const email = input.email ?? placeholderEmail(input.username!);
   const dupe = await db.user.findFirst({
     where: {
@@ -85,6 +98,7 @@ export async function createUserRecord(db: Tx, raw: UserCreate) {
       timezone: input.timezone,
       isSiteAdmin: input.isSiteAdmin ?? false,
       mustChangePassword: input.mustChangePassword ?? false,
+      customFields,
     },
   });
   await db.account.create({
@@ -139,6 +153,7 @@ export async function listUsers(ctx: RequestContext, raw: z.input<typeof UserLis
         isSiteAdmin: true,
         lastLoginAt: true,
         createdAt: true,
+        customFields: true,
       },
     }),
   ]);
@@ -184,6 +199,8 @@ export const UserUpdateInput = z.object({
     .max(128)
     .optional()
     .or(z.literal('').transform(() => undefined)),
+  /** Custom profile fields to change, by short name; others keep their values. */
+  customFields: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const updateUser = defineOperation({
@@ -220,6 +237,12 @@ export const updateUser = defineOperation({
         ...(input.isSiteAdmin !== undefined ? { isSiteAdmin: input.isSiteAdmin } : {}),
       },
     });
+    if (input.customFields)
+      await writeProfileValues(
+        ctx.tx,
+        user.id,
+        validateProfileValues(await listProfileFields(ctx.tx), input.customFields),
+      );
     if (input.password) {
       await setPassword(ctx.tx, user.id, input.password);
       // A password set by someone else signs the user out everywhere.
@@ -407,9 +430,18 @@ export const bulkUploadUsers = defineOperation({
         csv: [`Header must include: firstname, lastname, password and email or username`],
       });
     }
+    // profile_field_<shortname> columns fill custom profile fields
+    const fields = new Set((await listProfileFields(ctx.db)).map((f) => f.shortName));
+    const custom = header.filter((h) => h.startsWith(CSV_PREFIX));
+    const unknown = custom.filter((h) => !fields.has(h.slice(CSV_PREFIX.length)));
+    if (unknown.length)
+      throw new ValidationError({ csv: [`Unknown profile fields: ${unknown.join(', ')}`] });
     const result: BulkUploadResult = { created: 0, errors: [] };
     for (const [i, r] of rows.entries()) {
       const get = (n: string) => (col(n) >= 0 ? (r[col(n)] ?? '').trim() : undefined);
+      const customFields = Object.fromEntries(
+        custom.map((h) => [h.slice(CSV_PREFIX.length), get(h) ?? '']),
+      );
       try {
         await ctx.db.$transaction(async (tx) => {
           const user = await createUserRecord(tx, {
@@ -421,6 +453,7 @@ export const bulkUploadUsers = defineOperation({
             locale: (get('lang') || undefined) as 'ru' | 'en' | undefined,
             emailVerified: true,
             mustChangePassword: get('mustchangepassword') === '1',
+            customFields,
           });
           await logEvent(tx, {
             name: 'user.created',
@@ -434,8 +467,12 @@ export const bulkUploadUsers = defineOperation({
       } catch (e) {
         const message =
           e instanceof ValidationError
-            ? Object.values(e.fieldErrors ?? {})
-                .flat()
+            ? Object.entries(e.fieldErrors ?? {})
+                .map(([k, v]) =>
+                  k.startsWith(FORM_PREFIX)
+                    ? `${CSV_PREFIX}${k.slice(FORM_PREFIX.length)}: ${v.join(', ')}`
+                    : v.join('; '),
+                )
                 .join('; ')
             : e instanceof z.ZodError
               ? e.issues.map((x) => `${x.path.join('.')}: ${x.message}`).join('; ')

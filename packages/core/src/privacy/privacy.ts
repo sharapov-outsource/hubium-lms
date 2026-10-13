@@ -6,6 +6,7 @@ import { logEvent } from '../events/log.ts';
 import { buildModuleCtx } from '../modules/module-ctx.ts';
 import { listModules } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
+import { listProfileFields, profileFieldLabel, profileValueText } from '../users/profile-fields.ts';
 
 // Personal data: export ("download my data") and erasure on account deletion, plus
 // site policies (privacy policy, terms) that users accept before using the site.
@@ -149,10 +150,18 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
     relatedUserId: userId,
     origin: ctx.origin,
   });
+  // custom profile fields under their names, as the person saw them on the profile
+  const stored = (user.customFields ?? {}) as Record<string, string | boolean>;
+  const customFields = (await listProfileFields(db))
+    .filter((f) => f.shortName in stored)
+    .map((f) => ({
+      field: profileFieldLabel(f, ctx.locale),
+      value: profileValueText(stored[f.shortName]),
+    }));
   return JSON.parse(
     JSON.stringify({
       exportedAt: ctx.now.toISOString(),
-      user,
+      user: { ...user, customFields },
       enrolments,
       roles,
       grades,

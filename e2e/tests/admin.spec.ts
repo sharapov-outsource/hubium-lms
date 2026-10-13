@@ -84,6 +84,39 @@ test('a course override takes a permission away from students', async ({ page })
   }
 });
 
+test('custom profile field: defined, filled by an admin, shown on the profile', async ({
+  page,
+}) => {
+  const short = `faculty${stamp}`;
+  const [student] = await sql<{ id: string }>(`SELECT id FROM "User" WHERE username = 'student1'`);
+  try {
+    await login(page, ADMIN.login, ADMIN.password);
+    await page.goto('/admin/profile-fields');
+    await expectAccessible(page);
+    await page.locator('#f-shortName-new').fill(short);
+    await page.locator('#f-nameRu-new').fill('Факультет');
+    await chooseOption(page.locator('#f-type-new'), 'menu');
+    await page.locator('#f-choices-new').fill('Физфак\nМехмат');
+    await page.locator('#f-visibleToOthers-new').check();
+    await page.getByRole('button', { name: 'Создать' }).click();
+    await expect(page.getByText('Поле сохранено').first()).toBeVisible();
+
+    await page.goto(`/admin/users/${student!.id}`);
+    await chooseOption(page.locator(`#f-cf_${short}`), 'Физфак');
+    await page.getByRole('button', { name: 'Сохранить' }).first().click();
+    await expect(page.getByText('Изменения сохранены').first()).toBeVisible();
+
+    await page.context().clearCookies();
+    await login(page, 'student1', DEMO_PASSWORD);
+    await page.goto(`/profile/${student!.id}`);
+    await expect(page.getByText('Факультет')).toBeVisible();
+    await expect(page.getByText('Физфак')).toBeVisible();
+  } finally {
+    await sql(`DELETE FROM "UserProfileField" WHERE "shortName" = $1`, [short]);
+    await sql(`UPDATE "User" SET "customFields" = "customFields" - $1::text`, [short]);
+  }
+});
+
 test('role matrix change applies and permission checker explains it', async ({ page }) => {
   await login(page, ADMIN.login, ADMIN.password);
   await page.goto('/admin/roles');

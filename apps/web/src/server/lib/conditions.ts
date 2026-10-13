@@ -1,6 +1,6 @@
 import 'server-only';
-import type { Condition } from '@hubium/core';
-import { getFormatter, getTranslations } from 'next-intl/server';
+import { type Condition, listProfileFields, profileFieldLabel } from '@hubium/core';
+import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
 import { db } from '../db';
 
 /** Human-readable list of unmet availability conditions. */
@@ -11,6 +11,15 @@ export async function describeConditions(conditions: Condition[]): Promise<strin
     c.type === 'completion' || c.type === 'grade' ? [c.activityId] : [],
   );
   const groupIds = conditions.flatMap((c) => (c.type === 'group' && c.groupId ? [c.groupId] : []));
+  const custom = conditions.some((c) => c.type === 'profile' && c.field.startsWith('cf:'))
+    ? await listProfileFields(db)
+    : [];
+  const locale = await getLocale();
+  const fieldName = (field: string) => {
+    if (!field.startsWith('cf:')) return t(`profileFields.${field as 'email'}`);
+    const f = custom.find((x) => x.shortName === field.slice(3));
+    return f ? profileFieldLabel(f, locale) : field.slice(3);
+  };
   const [acts, groups] = await Promise.all([
     actIds.length
       ? db.activity.findMany({ where: { id: { in: actIds } }, select: { id: true, name: true } })
@@ -48,7 +57,7 @@ export async function describeConditions(conditions: Condition[]): Promise<strin
         });
       case 'profile':
         return t('condProfile', {
-          field: t(`profileFields.${c.field}`),
+          field: fieldName(c.field),
           op: t(`profileOps.${c.op}`),
           value: c.value,
         });

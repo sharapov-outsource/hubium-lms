@@ -4,6 +4,7 @@ import type { ActionResult } from '@hubium/core/operation';
 import { Checkbox, Select } from '@hubium/ui';
 import { useTranslations } from 'next-intl';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
+import { ProfileFieldInputs, type ProfileFieldView } from '@/components/profile-field-inputs';
 
 export interface UserFormValues {
   id?: string;
@@ -14,6 +15,7 @@ export interface UserFormValues {
   locale?: string | null;
   timezone?: string | null;
   isSiteAdmin?: boolean;
+  customFields?: Record<string, string | boolean>;
 }
 
 export function UserForm({
@@ -21,13 +23,16 @@ export function UserForm({
   values = {},
   canSetAdmin,
   mode,
+  profileFields = [],
 }: {
   action: (fd: FormData) => Promise<ActionResult<unknown>>;
   values?: UserFormValues;
   canSetAdmin: boolean;
   mode: 'create' | 'edit';
+  profileFields?: ProfileFieldView[];
 }) {
   const t = useTranslations('admin.user');
+  const tp = useTranslations('profileFields');
   const ta = useTranslations('auth');
   const tc = useTranslations('common');
   return (
@@ -83,6 +88,12 @@ export function UserForm({
           placeholder="Europe/Moscow"
         />
       </div>
+      {profileFields.length ? (
+        <fieldset className="grid gap-4">
+          <legend className="mb-1 text-sm font-semibold">{tp('section')}</legend>
+          <ProfileFieldInputs fields={profileFields} values={values.customFields ?? {}} />
+        </fieldset>
+      ) : null}
       {canSetAdmin ? (
         <label htmlFor="isSiteAdmin" className="flex items-center gap-2 text-sm">
           <Checkbox id="isSiteAdmin" name="isSiteAdmin" defaultChecked={values.isSiteAdmin} />

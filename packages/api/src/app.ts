@@ -93,6 +93,10 @@ const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 
 // ── schemas ──────────────────────────────────────────────────────────────────
 
+const CustomFields = z.record(z.string(), z.union([z.string(), z.boolean()])).openapi({
+  description: 'Custom profile fields by short name (Administration → Profile fields)',
+});
+
 const Me = z
   .object({
     id: Id,
@@ -104,6 +108,7 @@ const Me = z
     locale: z.string().nullable(),
     timezone: z.string().nullable(),
     isSiteAdmin: z.boolean(),
+    customFields: CustomFields,
   })
   .openapi('Me');
 
@@ -115,6 +120,7 @@ const User = z
     name: z.string(),
     status: z.string(),
     lastLoginAt: z.string().nullable(),
+    customFields: CustomFields,
   })
   .openapi('User');
 
@@ -444,6 +450,7 @@ export function createApi(opts: ApiOptions) {
           locale: u.locale,
           timezone: u.timezone,
           isSiteAdmin: u.isSiteAdmin,
+          customFields: (u.customFields ?? {}) as Record<string, string | boolean>,
         },
         200,
       );
@@ -479,6 +486,7 @@ export function createApi(opts: ApiOptions) {
             name: u.name,
             status: u.status,
             lastLoginAt: iso(u.lastLoginAt),
+            customFields: (u.customFields ?? {}) as Record<string, string | boolean>,
           })),
           total: r.total,
           page: q.page,
@@ -505,6 +513,7 @@ export function createApi(opts: ApiOptions) {
                 firstName: z.string(),
                 lastName: z.string(),
                 password: z.string().min(8),
+                customFields: CustomFields.optional(),
               }),
             },
           },

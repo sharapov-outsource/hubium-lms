@@ -13,6 +13,7 @@ import { buildModuleCtx, toActivityRef } from '../modules/module-ctx.ts';
 import { requireModule } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
 import { getSetting } from '../settings/settings.ts';
+import { profileValueText } from '../users/profile-fields.ts';
 import {
   type AvailabilityFacts,
   AvailabilityTreeSchema,
@@ -491,7 +492,13 @@ export async function loadAvailabilityFacts(
     }),
     ctx.db.user.findUnique({
       where: { id: userId },
-      select: { email: true, firstName: true, lastName: true, username: true },
+      select: {
+        email: true,
+        firstName: true,
+        lastName: true,
+        username: true,
+        customFields: true,
+      },
     }),
   ]);
   const toFact = (s: CompletionState): CompletionFact =>
@@ -522,6 +529,11 @@ export async function loadAvailabilityFacts(
       firstName: user?.firstName ?? '',
       lastName: user?.lastName ?? '',
       username: user?.username ?? '',
+      ...Object.fromEntries(
+        Object.entries((user?.customFields ?? {}) as Record<string, string | boolean>).map(
+          ([k, v]) => [`cf:${k}`, profileValueText(v)],
+        ),
+      ),
     },
   };
 }
