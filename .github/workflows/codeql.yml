@@ -10,9 +10,24 @@ on:
 permissions:
   security-events: write
   contents: read
+  actions: read
 
 jobs:
+  # Code scanning on a private personal repository needs GitHub Advanced Security, so the
+  # analysis runs once the repository is public. Schedule events carry no repository
+  # data, hence the API lookup instead of github.event.repository.private.
+  visibility:
+    runs-on: ubuntu-latest
+    outputs:
+      public: ${{ steps.repo.outputs.public }}
+    steps:
+      - id: repo
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: echo "public=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.private | not')" >> "$GITHUB_OUTPUT"
+
   analyze:
+    needs: visibility
+    if: needs.visibility.outputs.public == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
