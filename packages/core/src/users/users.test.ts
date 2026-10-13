@@ -68,6 +68,15 @@ describe('users service', () => {
     const u = await t.db.user.findUniqueOrThrow({ where: { id } });
     expect(u.email).toBe('kid01@users.invalid');
     expect(u.emailPlaceholder).toBe(true);
+    // the taken name is reported on the username, not on the placeholder address
+    await expect(
+      createUser.run(ctx, {
+        username: 'kid01',
+        firstName: 'K',
+        lastName: 'O',
+        password: 'Password123',
+      }),
+    ).rejects.toMatchObject({ fieldErrors: { username: ['Username taken'] } });
   });
 
   it('students cannot create or list users', async () => {

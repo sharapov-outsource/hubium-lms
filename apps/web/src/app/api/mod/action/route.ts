@@ -31,11 +31,6 @@ export async function POST(req: Request) {
     const data = await runModuleAction(ctx, activityId, action, input);
     return Response.json({ ok: true, data });
   } catch (e) {
-    const err = toActionError(e);
-    // Module handlers throw plain Errors with user-facing messages.
-    if (err.code === 'INTERNAL' && e instanceof Error && !(e as { code?: unknown }).code) {
-      return Response.json({ ok: false, code: 'BAD_REQUEST', message: e.message });
-    }
-    return Response.json(err);
+    return Response.json(toActionError(e));
   }
 }

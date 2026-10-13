@@ -1,6 +1,6 @@
 import type { RequestContext } from '../context.ts';
 import { getActivityAccess } from '../courses/activities.ts';
-import { ForbiddenError, NotFoundError } from '../errors.ts';
+import { AppError, ForbiddenError, NotFoundError } from '../errors.ts';
 import { withActorScope } from '../events/actor-scope.ts';
 import { parseInput } from '../operation.ts';
 import { buildModuleCtx, toActivityRef } from './module-ctx.ts';
@@ -13,7 +13,16 @@ export function runModuleAction(
   name: string,
   raw: unknown,
 ): Promise<unknown> {
-  return withActorScope(ctx.actor, () => runAction(ctx, activityId, name, raw));
+  return withActorScope(ctx.actor, () => runAction(ctx, activityId, name, raw)).catch((e) => {
+    throw userError(e);
+  });
+}
+
+/** Module handlers throw plain Errors with messages for the user: a bad request, not a crash. */
+function userError(e: unknown): unknown {
+  return e instanceof Error && Object.getPrototypeOf(e) === Error.prototype && !('code' in e)
+    ? new AppError('BAD_REQUEST', e.message, { cause: e })
+    : e;
 }
 
 async function runAction(

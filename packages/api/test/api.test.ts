@@ -122,6 +122,33 @@ describe('REST API v1', () => {
     expect(users.items[0]?.customFields).toEqual({ employee_no: 'A-17' });
     const me = (await (await call(tokens.student!, '/me')).json()) as Record<string, unknown>;
     expect(me.customFields).toEqual({});
+
+    // an account without an email: the internal placeholder address is never shown
+    const pupil = await call(tokens.admin!, '/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        username: 'pupil7',
+        firstName: 'Pupil',
+        lastName: 'Seven',
+        password: 'Secret12345!',
+        locale: 'en',
+      }),
+    });
+    expect(pupil.status).toBe(201);
+    const { id } = (await pupil.json()) as { id: string };
+    const pupilMe = (await (await call(await mint(id), '/me')).json()) as Record<string, unknown>;
+    expect(pupilMe).toMatchObject({ username: 'pupil7', email: null, locale: 'en' });
+    const taken = await call(tokens.admin!, '/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        username: 'pupil7',
+        firstName: 'P',
+        lastName: 'S',
+        password: 'x'.repeat(9),
+      }),
+    });
+    expect(taken.status).toBe(400);
+    expect(await taken.json()).toMatchObject({ fieldErrors: { username: ['Username taken'] } });
   });
 
   it('lists courses and contents without hidden activities', async () => {
@@ -143,8 +170,10 @@ describe('REST API v1', () => {
     expect((await call(tokens.student!, `/activities/${hiddenId}`)).status).toBe(404);
     const a = (await (await call(tokens.student!, `/activities/${assignId}`)).json()) as {
       settings: object;
+      available: boolean;
     };
     expect(a.settings).toEqual({});
+    expect(a.available).toBe(true);
     // unknown course
     expect(
       (await call(tokens.student!, '/courses/00000000-0000-7000-8000-000000000000')).status,
@@ -183,6 +212,13 @@ describe('REST API v1', () => {
       where: { activityId: assignId, userId: f.users.student1 },
     });
     expect(sub.status).toBe('SUBMITTED');
+    // a module's own refusal is a bad request with its message, not an internal error
+    const again = await call(tokens.student!, `/activities/${assignId}/actions/saveSubmission`, {
+      method: 'POST',
+      body: JSON.stringify({ text: '<p>Ещё</p>', submit: true }),
+    });
+    expect(again.status).toBe(400);
+    expect(await again.json()).toMatchObject({ code: 'BAD_REQUEST', message: 'Already submitted' });
     // teacher can't submit (capability)
     const denied = await call(tokens.teacher!, `/activities/${assignId}/actions/saveSubmission`, {
       method: 'POST',

@@ -836,6 +836,9 @@ importers:
       '@hubium/db':
         specifier: workspace:*
         version: link:../db
+      '@hubium/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@hubium/log':
         specifier: workspace:*
         version: link:../log

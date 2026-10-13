@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Db } from '@hubium/db';
+import { defaultLocale, isLocale, type Locale } from '@hubium/i18n';
 import { z } from 'zod';
 import { loadUserAccess, Permissions } from '../access/permissions.ts';
 import type { RequestContext } from '../context.ts';
@@ -97,7 +98,7 @@ export async function revokeApiToken(ctx: RequestContext, id: string) {
 export async function authenticateApiToken(
   db: Db,
   raw: string,
-  meta: { ip?: string | null; locale?: 'ru' | 'en'; now?: Date } = {},
+  meta: { ip?: string | null; locale?: Locale; now?: Date } = {},
 ): Promise<{ ctx: RequestContext; scopes: ApiScope[]; tokenId: string } | null> {
   if (!raw.startsWith(PREFIX) || raw.length > 200) return null;
   const now = meta.now ?? new Date();
@@ -125,7 +126,7 @@ export async function authenticateApiToken(
       actor: { kind: 'user', userId: u.id, isSiteAdmin: u.isSiteAdmin },
       perm,
       now,
-      locale: meta.locale ?? (u.locale === 'en' ? 'en' : 'ru'),
+      locale: meta.locale ?? (isLocale(u.locale) ? u.locale : defaultLocale),
       ip: meta.ip ?? null,
       origin: 'API',
     },

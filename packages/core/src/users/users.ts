@@ -80,8 +80,11 @@ export async function createUserRecord(db: Tx, raw: UserCreate) {
     select: { email: true, username: true },
   });
   if (dupe) {
+    // without an email the address is a placeholder made from the username
     throw new ValidationError(
-      dupe.email === email ? { email: ['Email already in use'] } : { username: ['Username taken'] },
+      input.email && dupe.email === email
+        ? { email: ['Email already in use'] }
+        : { username: ['Username taken'] },
     );
   }
   const user = await db.user.create({

@@ -659,6 +659,9 @@ export async function getActivityAccess(ctx: RequestContext, activityId: string)
     access,
     canOpen,
     listed,
+    /** Whether the user meets the restrictions (editors may open it anyway). */
+    available: entry?.available ?? false,
+    completion: entry?.completion ?? null,
     missing: entry && listed ? entry.availabilityMissing : [],
   };
 }

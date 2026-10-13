@@ -40,6 +40,7 @@ import {
   WEBHOOK_EVENTS,
 } from '@hubium/core';
 import type { Db } from '@hubium/db';
+import { fromAcceptLanguage, locales } from '@hubium/i18n';
 import { log } from '@hubium/log';
 import { Scalar } from '@scalar/hono-api-reference';
 import type { Context, MiddlewareHandler } from 'hono';
@@ -86,6 +87,8 @@ const errors = {
   404: err('Not found'),
   429: err('Rate limit exceeded'),
 };
+/** Changes may also collide with existing data (a taken short name, an existing enrolment). */
+const writeErrors = { ...errors, 409: err('Conflicts with existing data') };
 const security = [{ bearerAuth: [] }];
 const Id = z.string().uuid();
 const IdParam = z.object({ id: Id.openapi({ param: { name: 'id', in: 'path' } }) });
@@ -101,7 +104,7 @@ const Me = z
   .object({
     id: Id,
     username: z.string().nullable(),
-    email: z.string(),
+    email: z.string().nullable().openapi({ description: 'Null for accounts without an email' }),
     name: z.string(),
     firstName: z.string(),
     lastName: z.string(),
@@ -377,8 +380,8 @@ export function createApi(opts: ApiOptions) {
     const header = c.req.header('authorization') ?? '';
     const raw = header.match(/^Bearer\s+(\S+)$/i)?.[1];
     const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
-    const lang = c.req.header('accept-language')?.toLowerCase().startsWith('en') ? 'en' : undefined;
-    const r = raw ? await authenticateApiToken(opts.db, raw, { ip, locale: lang }) : null;
+    const locale = fromAcceptLanguage(c.req.header('accept-language'));
+    const r = raw ? await authenticateApiToken(opts.db, raw, { ip, locale }) : null;
     if (!r)
       return c.json({ code: 'UNAUTHENTICATED', message: 'Missing or invalid token' }, 401, {
         'WWW-Authenticate': 'Bearer',
@@ -443,7 +446,7 @@ export function createApi(opts: ApiOptions) {
         {
           id: u.id,
           username: u.username,
-          email: u.email,
+          email: u.emailPlaceholder ? null : u.email,
           name: u.name,
           firstName: u.firstName,
           lastName: u.lastName,
@@ -507,19 +510,24 @@ export function createApi(opts: ApiOptions) {
         body: {
           content: {
             'application/json': {
-              schema: z.object({
-                username: z.string(),
-                email: z.string().email(),
-                firstName: z.string(),
-                lastName: z.string(),
-                password: z.string().min(8),
-                customFields: CustomFields.optional(),
-              }),
+              schema: z
+                .object({
+                  username: z.string().optional(),
+                  email: z.string().email().optional(),
+                  firstName: z.string(),
+                  lastName: z.string(),
+                  password: z.string().min(8),
+                  locale: z.enum(locales).optional(),
+                  timezone: z.string().optional().openapi({ example: 'Europe/Moscow' }),
+                  mustChangePassword: z.boolean().optional(),
+                  customFields: CustomFields.optional(),
+                })
+                .openapi({ description: 'A username, an email or both' }),
             },
           },
         },
       },
-      responses: { 201: ok(z.object({ id: Id }), 'Created'), ...errors },
+      responses: { 201: ok(z.object({ id: Id }), 'Created'), ...writeErrors },
     }),
     async (c) => c.json(await createUser.run(ctxOf(c), c.req.valid('json')), 201),
   );
@@ -603,7 +611,7 @@ export function createApi(opts: ApiOptions) {
           },
         },
       },
-      responses: { 201: ok(z.object({ id: Id }), 'Created'), ...errors },
+      responses: { 201: ok(z.object({ id: Id }), 'Created'), ...writeErrors },
     }),
     async (c) => {
       const r = await createCourse.run(ctxOf(c), c.req.valid('json'));
@@ -854,8 +862,8 @@ export function createApi(opts: ApiOptions) {
           name: a.name,
           intro: a.intro,
           visibility: a.visibility,
-          available: true,
-          completion: null,
+          available: r.available,
+          completion: r.completion,
           url: `${opts.origin ?? ''}/course/${a.courseId}/a/${a.id}`,
           // settings can hold answers/keys: only course editors get them
           settings: manage ? (a.settings as Record<string, unknown>) : {},
@@ -870,7 +878,7 @@ export function createApi(opts: ApiOptions) {
       method: 'post',
       path: '/activities/{id}/actions/{name}',
       tags: ['Activities'],
-      summary: 'Run a module action (e.g. assign "saveSubmission", forum "post")',
+      summary: 'Run a module action (e.g. assign "saveSubmission", forum "reply")',
       security,
       request: {
         params: IdParam.extend({
@@ -881,7 +889,7 @@ export function createApi(opts: ApiOptions) {
         }),
         body: { content: { 'application/json': { schema: z.record(z.string(), z.unknown()) } } },
       },
-      responses: { 200: ok(z.object({ data: z.unknown() })), ...errors },
+      responses: { 200: ok(z.object({ data: z.unknown() })), ...writeErrors },
     }),
     async (c) => {
       const p = c.req.valid('param');
