@@ -20,8 +20,11 @@ import { Download, Plus, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { forbidden } from 'next/navigation';
 import { getFormatter, getTranslations } from 'next-intl/server';
+import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
 import { CategoryForm, DeleteQuestionButton, GiftImportForm } from './bank-parts';
+
+export const generateMetadata = titled('course', 'tabs.questionBank');
 
 export default async function QuestionBankPage({
   params,

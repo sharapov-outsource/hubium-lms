@@ -6,7 +6,10 @@ import { getFormatter, getTranslations } from 'next-intl/server';
 import { CommandButton } from '@/components/confirm-button';
 import { activityCommandAction } from '@/server/actions/courses';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
+
+export const generateMetadata = titled('course', 'recycleBin');
 
 export default async function BinPage({ params }: { params: Promise<{ courseId: string }> }) {
   const { courseId } = await params;

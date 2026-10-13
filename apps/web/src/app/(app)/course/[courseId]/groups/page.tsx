@@ -4,8 +4,11 @@ import { Users } from 'lucide-react';
 import { forbidden } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
 import { GroupCard, NewGroupForm } from './group-parts';
+
+export const generateMetadata = titled('course', 'tabs.groups');
 
 export default async function GroupsPage({ params }: { params: Promise<{ courseId: string }> }) {
   const { courseId } = await params;

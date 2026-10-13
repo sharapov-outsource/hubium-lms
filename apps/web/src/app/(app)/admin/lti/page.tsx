@@ -4,8 +4,11 @@ import { getTranslations } from 'next-intl/server';
 import { CommandButton } from '@/components/confirm-button';
 import { deleteLtiToolAction, rotateLtiKeyAction } from '@/server/actions/lti';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { requireCapability } from '@/server/session';
 import { ToolForm } from './tool-form';
+
+export const generateMetadata = titled('adminLti', 'title');
 
 function Info({ label, value }: { label: string; value?: string }) {
   if (!value) return null;

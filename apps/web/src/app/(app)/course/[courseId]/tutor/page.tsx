@@ -6,8 +6,11 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { AiConsentCard } from '@/components/ai/consent-card';
+import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
 import { TutorChat } from './tutor-chat';
+
+export const generateMetadata = titled('course', 'tabs.tutor');
 
 export default async function TutorPage({
   params,

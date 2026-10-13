@@ -2,7 +2,10 @@ import { Button, Card, CardContent, CardHeader, CardTitle } from '@hubium/ui';
 import { Download } from 'lucide-react';
 import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { requireUser } from '@/server/session';
+
+export const generateMetadata = titled('settings', 'privacy');
 
 export default async function PrivacySettingsPage() {
   const user = await requireUser();

@@ -4,9 +4,20 @@ import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { updateRoleAction } from '@/server/actions/admin';
 import { db } from '@/server/db';
+import { viewerCan } from '@/server/page-title';
 import { requireCapability } from '@/server/session';
 import { RoleForm } from '../role-form';
 import { CapabilityMatrix, DeleteRoleButton } from './matrix';
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  if (!/^[0-9a-f-]{36}$/.test(id) || !(await viewerCan('role:manage'))) return {};
+  const [role, locale] = await Promise.all([
+    db.role.findUnique({ where: { id }, select: { name: true, shortName: true } }),
+    getLocale(),
+  ]);
+  return role ? { title: (role.name as Record<string, string>)[locale] ?? role.shortName } : {};
+}
 
 export default async function RolePage({ params }: { params: Promise<{ id: string }> }) {
   await requireCapability('role:manage');

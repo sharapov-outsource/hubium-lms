@@ -10,7 +10,10 @@ import {
 import { getLocale, getTranslations } from 'next-intl/server';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { changeEmailAction, updateProfileAction } from '@/server/actions/account';
+import { titled } from '@/server/page-title';
 import { requireUser } from '@/server/session';
+
+export const generateMetadata = titled('settings', 'account');
 
 export default async function AccountSettings() {
   const user = await requireUser();

@@ -2,10 +2,6 @@ import { Card, CardContent, PageHeader } from '@hubium/ui';
 import { getTranslations } from 'next-intl/server';
 import { db } from '@/server/db';
 
-export async function generateMetadata() {
-  return { title: (await getTranslations('admin'))('title') };
-}
-
 export default async function AdminOverview() {
   const t = await getTranslations('admin');
   const since = new Date(Date.now() - 30 * 24 * 3600_000);

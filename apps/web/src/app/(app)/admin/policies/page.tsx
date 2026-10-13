@@ -2,8 +2,11 @@ import { listPolicies } from '@hubium/core';
 import { Badge, Card, CardContent, CardHeader, CardTitle, PageHeader } from '@hubium/ui';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { requireCapability } from '@/server/session';
 import { PolicyForm, PublishForm } from './forms';
+
+export const generateMetadata = titled('adminPolicies', 'title');
 
 export default async function AdminPoliciesPage() {
   await requireCapability('site:config');

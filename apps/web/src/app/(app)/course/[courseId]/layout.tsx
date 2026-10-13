@@ -4,9 +4,15 @@ import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { db } from '@/server/db';
+import { courseName, sectionTitle } from '@/server/page-title';
 import { getContext, getSwitchedRole, requireUser } from '@/server/session';
 import { CourseTabs } from './course-tabs';
 import { ViewAsMenu } from './view-as';
+
+export async function generateMetadata({ params }: { params: Promise<{ courseId: string }> }) {
+  const name = await courseName((await params).courseId);
+  return name ? sectionTitle(name) : {};
+}
 
 export default async function CourseLayout({
   children,

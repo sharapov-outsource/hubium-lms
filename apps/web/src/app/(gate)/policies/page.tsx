@@ -3,8 +3,11 @@ import { redirect } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Markdown } from '@/components/ai/markdown';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { requireUser } from '@/server/session';
 import { AcceptPoliciesForm } from './accept-form';
+
+export const generateMetadata = titled('policies', 'title');
 
 export default async function PoliciesPage() {
   const user = await requireUser();

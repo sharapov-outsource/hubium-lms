@@ -2,8 +2,11 @@ import { completionReport } from '@hubium/core';
 import { EmptyState, Progress } from '@hubium/ui';
 import { forbidden } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
+import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
 import { CompletionCell } from './cell';
+
+export const generateMetadata = titled('course', 'tabs.completion');
 
 export default async function CompletionPage({
   params,

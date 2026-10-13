@@ -17,8 +17,11 @@ import { forbidden } from 'next/navigation';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { CommandButton } from '@/components/confirm-button';
 import { revokeApiTokenAction } from '@/server/actions/tokens';
+import { titled } from '@/server/page-title';
 import { getContext, requireUser } from '@/server/session';
 import { NewTokenForm } from './new-token';
+
+export const generateMetadata = titled('settings', 'apiTokens');
 
 export default async function ApiTokensPage() {
   await requireUser();

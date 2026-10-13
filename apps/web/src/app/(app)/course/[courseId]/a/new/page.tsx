@@ -8,6 +8,18 @@ import { db } from '@/server/db';
 import { getContext } from '@/server/session';
 import { ActivityForm } from '../activity-form';
 
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ module?: string }>;
+}) {
+  const { module } = await searchParams;
+  const m = module ? getModule(module) : undefined;
+  if (!m) return {};
+  const [t, tm] = await Promise.all([getTranslations('activity'), getTranslations('mod')]);
+  return { title: t('new', { module: tm(`${m.key}.name` as never) }) };
+}
+
 export default async function NewActivityPage({
   params,
   searchParams,

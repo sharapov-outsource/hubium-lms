@@ -13,9 +13,17 @@ import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { updateUserAction } from '@/server/actions/admin';
 import { db } from '@/server/db';
+import { viewerCan } from '@/server/page-title';
 import { requireCapability } from '@/server/session';
 import { UserForm } from '../user-form';
 import { DangerZone, SiteRoleToggles } from './user-actions';
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  if (!/^[0-9a-f-]{36}$/.test(id) || !(await viewerCan('user:update'))) return {};
+  const user = await db.user.findUnique({ where: { id }, select: { name: true } });
+  return user ? { title: user.name } : {};
+}
 
 export default async function EditUserPage({
   params,

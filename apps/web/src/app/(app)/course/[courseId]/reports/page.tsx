@@ -15,7 +15,10 @@ import {
 import { forbidden } from 'next/navigation';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
+
+export const generateMetadata = titled('course', 'tabs.reports');
 
 export default async function ReportsPage({ params }: { params: Promise<{ courseId: string }> }) {
   const { courseId } = await params;

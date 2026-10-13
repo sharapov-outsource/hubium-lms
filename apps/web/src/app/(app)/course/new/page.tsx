@@ -3,8 +3,11 @@ import { PageHeader } from '@hubium/ui';
 import { forbidden } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { createCourseAction } from '@/server/actions/courses';
+import { titled } from '@/server/page-title';
 import { getContext, requireUser } from '@/server/session';
 import { CourseForm } from '../course-form';
+
+export const generateMetadata = titled('course', 'new');
 
 export default async function NewCoursePage({
   searchParams,

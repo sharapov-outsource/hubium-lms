@@ -26,6 +26,7 @@ import { Download } from 'lucide-react';
 import Link from 'next/link';
 import { forbidden } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
+import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
 import {
   AggregationForm,
@@ -34,6 +35,8 @@ import {
   ItemSetupRow,
   ManualItemForm,
 } from './grade-parts';
+
+export const generateMetadata = titled('course', 'tabs.grades');
 
 const n = decimalToNumber;
 

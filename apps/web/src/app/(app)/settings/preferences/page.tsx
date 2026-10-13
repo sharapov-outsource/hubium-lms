@@ -1,6 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@hubium/ui';
 import { getTranslations } from 'next-intl/server';
 import { LocaleSwitcher, ThemeSwitcher } from '@/components/locale-theme-switcher';
+import { titled } from '@/server/page-title';
+
+export const generateMetadata = titled('settings', 'preferences');
 
 export default async function PreferencesPage() {
   const tc = await getTranslations('common');

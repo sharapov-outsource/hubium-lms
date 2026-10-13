@@ -10,8 +10,11 @@ import {
 } from '@hubium/ui';
 import { getTranslations } from 'next-intl/server';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { requireCapability } from '@/server/session';
 import { CategoryForm, CategoryRowActions } from './category-parts';
+
+export const generateMetadata = titled('categories', 'title');
 
 export default async function CategoriesPage({
   searchParams,

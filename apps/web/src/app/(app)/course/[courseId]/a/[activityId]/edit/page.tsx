@@ -7,8 +7,22 @@ import { safePath } from '@/lib/safe-path';
 import { getModuleUI } from '@/modules/ui';
 import { updateActivityAction } from '@/server/actions/courses';
 import { db } from '@/server/db';
+import { activityName } from '@/server/page-title';
 import { getContext } from '@/server/session';
 import { ActivityForm } from '../../activity-form';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ courseId: string; activityId: string }>;
+}) {
+  const { courseId, activityId } = await params;
+  const [name, t] = await Promise.all([
+    activityName(courseId, activityId),
+    getTranslations('activity'),
+  ]);
+  return { title: name ? t('edit', { name }) : undefined };
+}
 
 export default async function EditActivityPage({
   params,

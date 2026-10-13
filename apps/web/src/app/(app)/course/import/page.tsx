@@ -2,8 +2,11 @@ import { categoriesWhereCan } from '@hubium/core';
 import { PageHeader } from '@hubium/ui';
 import { forbidden } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
+import { titled } from '@/server/page-title';
 import { getContext, requireUser } from '@/server/session';
 import { CourseImporter } from './importer';
+
+export const generateMetadata = titled('backup', 'importTitle');
 
 export default async function ImportCoursePage() {
   await requireUser();

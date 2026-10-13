@@ -3,7 +3,10 @@ import { Badge, Card, CardContent, PageHeader, Table, TBody, Td, THead, Th, Tr }
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { buildInfo } from '@/lib/build-info';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { requireCapability } from '@/server/session';
+
+export const generateMetadata = titled('admin.env', 'title');
 
 export const dynamic = 'force-dynamic';
 

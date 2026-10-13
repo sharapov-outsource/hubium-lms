@@ -20,7 +20,10 @@ import {
 } from '@hubium/ui';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { requireCapability } from '@/server/session';
+
+export const generateMetadata = titled('admin.check', 'title');
 
 export default async function PermissionCheckPage({
   searchParams,

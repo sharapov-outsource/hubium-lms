@@ -17,7 +17,10 @@ import {
   saveCohortAction,
 } from '@/server/actions/courses';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { requireCapability } from '@/server/session';
+
+export const generateMetadata = titled('cohorts', 'title');
 
 export default async function CohortsPage() {
   await requireCapability('cohort:manage');

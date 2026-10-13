@@ -17,15 +17,17 @@ import { ModuleIcon } from '@/components/module-icon';
 import { getModuleUI } from '@/modules/ui';
 import { db } from '@/server/db';
 import { describeConditions } from '@/server/lib/conditions';
+import { activityName } from '@/server/page-title';
 import { getContext } from '@/server/session';
 import { CompletionToggle } from '../../outline-parts';
 
-export async function generateMetadata({ params }: { params: Promise<{ activityId: string }> }) {
-  const { activityId } = await params;
-  const a = /^[0-9a-f-]{36}$/.test(activityId)
-    ? await db.activity.findUnique({ where: { id: activityId }, select: { name: true } })
-    : null;
-  return { title: a?.name };
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ courseId: string; activityId: string }>;
+}) {
+  const { courseId, activityId } = await params;
+  return { title: (await activityName(courseId, activityId)) ?? undefined };
 }
 
 export default async function ActivityPage({

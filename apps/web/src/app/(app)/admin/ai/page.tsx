@@ -17,8 +17,11 @@ import { getFormatter, getTranslations } from 'next-intl/server';
 import { CommandButton } from '@/components/confirm-button';
 import { deleteAiProviderAction, reindexAllAction } from '@/server/actions/ai';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { requireCapability } from '@/server/session';
 import { EmbeddingsForm, FeatureForm, ProviderForm, type ProviderValues, SiteForm } from './forms';
+
+export const generateMetadata = titled('adminAi', 'title');
 
 export default async function AdminAiPage() {
   await requireCapability('site:config');

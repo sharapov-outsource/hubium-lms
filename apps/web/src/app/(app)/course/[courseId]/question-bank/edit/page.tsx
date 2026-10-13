@@ -8,6 +8,15 @@ import { db } from '@/server/db';
 import { getContext } from '@/server/session';
 import { QuestionEditor } from './question-editor';
 
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ id?: string }>;
+}) {
+  const [{ id }, t] = await Promise.all([searchParams, getTranslations('qbank')]);
+  return { title: id ? t('title') : t('newQuestion') };
+}
+
 export default async function EditQuestionPage({
   params,
   searchParams,

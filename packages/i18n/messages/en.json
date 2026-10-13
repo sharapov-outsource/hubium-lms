@@ -138,6 +138,7 @@
     "verify": "Verify",
     "trustDevice": "Trust this device for 30 days",
     "verifiedTitle": "Email verified",
+    "verifyEmailTitle": "Email verification",
     "backToSignIn": "Back to sign in",
     "tooManyAttempts": "Too many sign-in attempts. Wait a minute and try again."
   },

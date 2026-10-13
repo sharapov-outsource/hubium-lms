@@ -5,7 +5,10 @@ import { ActionForm, SubmitButton } from '@/components/action-form';
 import { CommandButton } from '@/components/confirm-button';
 import { blockUserAction, setMessagePrivacyAction } from '@/server/actions/comms';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { requireUser } from '@/server/session';
+
+export const generateMetadata = titled('settings', 'messages');
 
 export default async function MessageSettingsPage() {
   const user = await requireUser();

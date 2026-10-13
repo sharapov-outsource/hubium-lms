@@ -5,7 +5,10 @@ import { getFormatter, getTranslations } from 'next-intl/server';
 import { CommandButton } from '@/components/confirm-button';
 import { restoreCourseAction } from '@/server/actions/courses';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { requireCapability } from '@/server/session';
+
+export const generateMetadata = titled('adminCourses', 'title');
 
 export default async function AdminCoursesPage({
   searchParams,

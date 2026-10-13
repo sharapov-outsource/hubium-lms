@@ -4,10 +4,13 @@ import { forbidden } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { CommandButton } from '@/components/confirm-button';
 import { deleteCourseAction, updateCourseAction } from '@/server/actions/courses';
+import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
 import { CourseForm } from '../../course-form';
 import { CourseAiCard } from './ai-card';
 import { BackupCard } from './backup-card';
+
+export const generateMetadata = titled('course', 'tabs.settings');
 
 const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : undefined);
 

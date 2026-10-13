@@ -1,8 +1,11 @@
 import { PageHeader } from '@hubium/ui';
 import { getTranslations } from 'next-intl/server';
 import { createUserAction } from '@/server/actions/admin';
+import { titled } from '@/server/page-title';
 import { requireCapability } from '@/server/session';
 import { UserForm } from '../user-form';
+
+export const generateMetadata = titled('admin.user', 'new');
 
 export default async function NewUserPage() {
   const { ctx } = await requireCapability('user:create');

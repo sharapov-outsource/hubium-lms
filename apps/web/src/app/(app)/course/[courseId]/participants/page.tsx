@@ -4,8 +4,11 @@ import { forbidden } from 'next/navigation';
 import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
 import { Pagination } from '@/components/pagination';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
 import { EnrolDialog, ParticipantActions } from './participant-actions';
+
+export const generateMetadata = titled('course', 'tabs.participants');
 
 export default async function ParticipantsPage({
   params,

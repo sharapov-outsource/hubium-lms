@@ -3,7 +3,10 @@ import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { requireCapability } from '@/server/session';
+
+export const generateMetadata = titled('admin', 'roles');
 
 export default async function RolesPage() {
   await requireCapability('role:manage');

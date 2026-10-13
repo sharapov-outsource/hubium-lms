@@ -1,5 +1,8 @@
 import { getTranslations } from 'next-intl/server';
+import { titled } from '@/server/page-title';
 import { OfflineRetry } from './retry';
+
+export const generateMetadata = titled('offline', 'title');
 
 // Precached by the service worker and shown when a navigation fails offline.
 export default async function OfflinePage() {

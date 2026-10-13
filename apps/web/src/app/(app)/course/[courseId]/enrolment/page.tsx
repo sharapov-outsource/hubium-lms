@@ -21,7 +21,10 @@ import {
   saveSelfEnrolmentAction,
 } from '@/server/actions/courses';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
+
+export const generateMetadata = titled('course', 'tabs.enrolment');
 
 const d = (x: Date | null) => (x ? x.toISOString().slice(0, 10) : undefined);
 

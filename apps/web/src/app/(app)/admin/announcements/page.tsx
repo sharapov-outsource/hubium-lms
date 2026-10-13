@@ -3,7 +3,10 @@ import { PageHeader } from '@hubium/ui';
 import { getTranslations } from 'next-intl/server';
 import { AnnouncementComposer } from '@/components/comms/announcement-composer';
 import { AnnouncementList } from '@/components/comms/announcement-list';
+import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
+
+export const generateMetadata = titled('announcements', 'site');
 
 export default async function SiteAnnouncementsPage() {
   const ctx = await getContext();

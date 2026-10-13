@@ -20,8 +20,11 @@ import { ActionForm, SubmitButton } from '@/components/action-form';
 import { serverModules } from '@/modules/server';
 import { saveNotificationPrefsAction } from '@/server/actions/comms';
 import { db } from '@/server/db';
+import { titled } from '@/server/page-title';
 import { requireUser } from '@/server/session';
 import { PushToggle } from './push-toggle';
+
+export const generateMetadata = titled('settings', 'notifications');
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 

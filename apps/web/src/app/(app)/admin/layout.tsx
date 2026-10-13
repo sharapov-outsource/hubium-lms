@@ -1,8 +1,13 @@
 import { forbidden } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
+import { sectionTitle } from '@/server/page-title';
 import { getContext, requireUser } from '@/server/session';
 import { AdminNav } from './admin-nav';
+
+export async function generateMetadata() {
+  return sectionTitle((await getTranslations('admin'))('title'));
+}
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   await requireUser();

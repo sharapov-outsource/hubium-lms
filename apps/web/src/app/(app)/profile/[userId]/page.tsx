@@ -4,7 +4,17 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { MessageUserButton } from '@/components/comms/message-buttons';
 import { db } from '@/server/db';
-import { getContext, requireUser } from '@/server/session';
+import { getContext, getCurrentUser, requireUser } from '@/server/session';
+
+export async function generateMetadata({ params }: { params: Promise<{ userId: string }> }) {
+  const { userId } = await params;
+  if (!/^[0-9a-f-]{36}$/.test(userId) || !(await getCurrentUser())) return {};
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { name: true, deletedAt: true },
+  });
+  return user && !user.deletedAt ? { title: user.name } : {};
+}
 
 export default async function ProfilePage({ params }: { params: Promise<{ userId: string }> }) {
   const me = await requireUser();

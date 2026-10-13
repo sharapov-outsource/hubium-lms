@@ -7,9 +7,17 @@ import {
 import { requireUser } from '@/server/session';
 import { Messenger } from './messenger';
 
-export async function generateMetadata() {
-  const t = await getTranslations('messages');
-  return { title: t('title') };
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ conversationId?: string[] }>;
+}) {
+  const [{ conversationId }, t] = await Promise.all([params, getTranslations('messages')]);
+  const id = conversationId?.[0];
+  // Only members get the conversation back; anyone else sees the plain section title.
+  const info = id ? await conversationInfoAction(id).catch(() => null) : null;
+  const name = info?.kind === 'SELF' ? t('self') : (info?.name ?? info?.other?.name);
+  return { title: name ? `${name} · ${t('title')}` : t('title') };
 }
 
 export default async function MessagesPage({

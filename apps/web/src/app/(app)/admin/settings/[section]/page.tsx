@@ -14,6 +14,13 @@ import { TestEmailButton } from './test-email';
 const SECTIONS = ['general', 'branding', 'registration', 'authentication', 'email'] as const;
 type Section = (typeof SECTIONS)[number];
 
+export async function generateMetadata({ params }: { params: Promise<{ section: string }> }) {
+  const { section } = await params;
+  if (!SECTIONS.includes(section as Section)) return {};
+  const t = await getTranslations('admin');
+  return { title: `${t('siteSettings')}: ${t(section)}` };
+}
+
 export default async function SettingsSectionPage({
   params,
 }: {

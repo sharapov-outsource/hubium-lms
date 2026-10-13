@@ -12,9 +12,12 @@ import { getFormatter, getTranslations } from 'next-intl/server';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { changePasswordAction } from '@/server/actions/account';
 import { auth } from '@/server/auth';
+import { titled } from '@/server/page-title';
 import { getSession, requireUser } from '@/server/session';
 import { RevokeButtons } from './revoke-buttons';
 import { TwoFactorPanel } from './two-factor-panel';
+
+export const generateMetadata = titled('settings', 'security');
 
 function deviceLabel(ua: string | null | undefined, unknown: string): string {
   if (!ua) return unknown;

@@ -9,8 +9,11 @@ import { PageHeader } from '@hubium/ui';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { AiConsentCard } from '@/components/ai/consent-card';
+import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
 import { QuizGenerator } from './generator';
+
+export const generateMetadata = titled('ai.quizgen', 'title');
 
 export default async function AiQuestionsPage({
   params,
