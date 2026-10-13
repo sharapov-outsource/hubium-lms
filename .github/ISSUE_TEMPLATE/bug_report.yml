@@ -1,0 +1,109 @@
+name: Ошибка · Bug report
+description: Что-то работает не так, как ожидалось
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо, что сообщаете об ошибке. **Уязвимости не публикуйте здесь** — используйте [приватный отчёт](https://github.com/sharapov-outsource/hubium/security/advisories/new) (см. SECURITY.md).
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Что случилось · What happened
+      description: Коротко опишите проблему.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги для воспроизведения · Steps to reproduce
+      description: Под какой ролью (студент, преподаватель, администратор) и что именно делали.
+      placeholder: |
+        1. Войти как преподаватель
+        2. Открыть курс «…» → …
+        3. Нажать «…»
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ожидаемое поведение · Expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Фактическое поведение · Actual
+      description: Текст ошибки, что показал интерфейс.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Раздел · Area
+      options:
+        - Вход и учётные записи
+        - Курсы, разделы, запись на курс
+        - Задание
+        - Тест и банк вопросов
+        - Форум, сообщения, уведомления
+        - Видео и вебинары
+        - SCORM
+        - LTI
+        - Журнал оценок
+        - Календарь
+        - AI-тьютор и помощники
+        - Резервные копии, импорт из Moodle
+        - REST API
+        - Администрирование
+        - Мобильная версия и PWA
+        - Другое
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Версия · Version
+      description: Номер сборки внизу боковой панели (например, `1.0.0 · 9ae07c9`) или коммит.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Как развёрнуто · Deployment
+      options:
+        - Docker Compose (docker/compose.yml)
+        - Из исходников (pnpm)
+        - Другое
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Браузер и устройство · Browser and device
+      placeholder: Chrome 140, Windows 11 / Safari, iPhone 15
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Логи и скриншоты · Logs and screenshots
+      description: Логи `web` и `worker`, консоль браузера. Уберите персональные данные и секреты.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Проверка · Checks
+      options:
+        - label: Среди существующих issue такой ошибки нет
+          required: true
+        - label: Это не уязвимость безопасности
+          required: true
