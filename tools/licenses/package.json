@@ -1,0 +1,13 @@
+{
+  "name": "@hubium/licenses",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "author": "Alexander S. <alexander@sharapov.biz>",
+  "description": "Dependency license check: every installed package must carry a license that may be shipped with an AGPL-3.0 application (rules in policy.json).",
+  "type": "module",
+  "scripts": {
+    "check": "node check.mjs",
+    "test": "node --test"
+  }
+}

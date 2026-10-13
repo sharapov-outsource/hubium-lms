@@ -17,6 +17,7 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "depcruise": "pnpm --filter @hubium/depcruise depcruise",
+    "licenses:check": "pnpm --filter @hubium/licenses check",
     "db:generate": "pnpm --filter @hubium/db generate",
     "db:migrate": "pnpm --filter @hubium/db migrate:deploy",
     "db:migrate:dev": "pnpm --filter @hubium/db migrate:dev",

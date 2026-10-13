@@ -4,6 +4,7 @@ packages:
   - modules/*
   - e2e
   - tools/depcruise
+  - tools/licenses
 
 # Dependencies allowed to run install scripts; everything else is blocked (strictDepBuilds).
 allowBuilds:

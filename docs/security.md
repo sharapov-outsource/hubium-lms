@@ -30,4 +30,4 @@ This page lists the protections built into Hubium and what an operator should ch
 - [ ] Only the hosts that really are internal services are listed in `SSRF_ALLOW_HOSTS`.
 - [ ] `METRICS_TOKEN` is long and random, or unset.
 - [ ] A privacy policy is published (Admin → Policies); for personal data of Russian citizens check 152-ФЗ: data localisation and, if an external AI provider is used, cross-border transfer consent.
-- [ ] Dependencies are scanned (CI runs osv-scanner and CodeQL).
+- [ ] Dependencies are scanned (CI runs osv-scanner and CodeQL) and their licenses checked against `tools/licenses/policy.json` (`pnpm licenses:check`).
