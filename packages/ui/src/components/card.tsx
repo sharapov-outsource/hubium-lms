@@ -4,8 +4,10 @@ import { cn } from '../lib/cn.ts';
 export function Card({ className, ...props }: ComponentProps<'div'>) {
   return (
     <div
+      // min-w-0: as a grid or flex item a card never widens the page past the screen;
+      // wide content (tables) scrolls inside it instead
       className={cn(
-        'rounded-lg border border-border bg-card text-card-foreground shadow-xs',
+        'min-w-0 rounded-lg border border-border bg-card text-card-foreground shadow-xs',
         className,
       )}
       {...props}

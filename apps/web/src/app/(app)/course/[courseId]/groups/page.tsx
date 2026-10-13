@@ -27,8 +27,8 @@ export default async function GroupsPage({ params }: { params: Promise<{ courseI
     }),
   ]);
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
-      <div className="grid content-start gap-4">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid min-w-0 content-start gap-4">
         {groups.length === 0 ? <EmptyState icon={<Users />} title={t('empty')} /> : null}
         {groups.map((g) => (
           <GroupCard

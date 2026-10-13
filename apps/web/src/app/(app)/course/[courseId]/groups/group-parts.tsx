@@ -57,9 +57,9 @@ export function GroupCard({
     });
   return (
     <Card>
-      <CardHeader className="flex-row items-start justify-between gap-2">
-        <div>
-          <CardTitle>{group.name}</CardTitle>
+      <CardHeader className="flex-row flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <CardTitle className="break-words">{group.name}</CardTitle>
           <p className="text-sm text-muted-foreground">
             {t('membersCount', { count: members.length })}
             {group.enrolmentKey ? (
@@ -102,7 +102,7 @@ export function GroupCard({
           ))}
         </ul>
         {candidates.length ? (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Select
               aria-label={t('addMembers')}
               value={pick}

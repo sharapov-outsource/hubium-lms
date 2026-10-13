@@ -58,9 +58,9 @@ export function GroupingCard({
     });
   return (
     <Card role="region" aria-label={grouping.name}>
-      <CardHeader className="flex-row items-start justify-between gap-2">
-        <div>
-          <CardTitle>{grouping.name}</CardTitle>
+      <CardHeader className="flex-row flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <CardTitle className="break-words">{grouping.name}</CardTitle>
           <p className="text-sm text-muted-foreground">
             {[grouping.description, grouping.used ? t('usedBy', { count: grouping.used }) : '']
               .filter(Boolean)
