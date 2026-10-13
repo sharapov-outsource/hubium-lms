@@ -90,6 +90,7 @@ model Course {
   contentChunks      ContentChunk[]
   aiGenerations      AiGeneration[]
   tutorConversations TutorConversation[]
+  scales             Scale[]
 
   @@index([categoryId])
   @@index([deletedAt])

@@ -75,7 +75,7 @@ function When({
   );
 }
 
-export function AssignSettingsFields({ settings }: SettingsFieldsProps<AssignSettingsT>) {
+export function AssignSettingsFields({ settings, scales }: SettingsFieldsProps<AssignSettingsT>) {
   const t = useTranslations('mod.assign');
   return (
     <div className="grid gap-4">
@@ -102,6 +102,18 @@ export function AssignSettingsFields({ settings }: SettingsFieldsProps<AssignSet
         <Num name="gradeMax" label={t('gradeMax')} value={settings.gradeMax} min={1} />
         <Num name="gradePass" label={t('gradePass')} value={settings.gradePass} />
       </div>
+      {scales?.length ? (
+        <Field label={t('gradeScale')} htmlFor="as-scaleId" hint={t('gradeScaleHint')}>
+          <Select id="as-scaleId" name="settings.scaleId" defaultValue={settings.scaleId ?? ''}>
+            <option value="">{t('gradePoints')}</option>
+            {scales.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      ) : null}
       <Bool name="submitButton" label={t('submitButton')} checked={settings.submitButton} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t('reopen')} htmlFor="as-reopen">

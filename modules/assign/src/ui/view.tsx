@@ -18,7 +18,13 @@ import {
 import { Download, FileIcon } from 'lucide-react';
 import Link from 'next/link';
 import { getFormatter, getTranslations } from 'next-intl/server';
-import { type AssignSettingsT, canSubmitNow, effectiveDates } from '../server.ts';
+import {
+  type AssignSettingsT,
+  assignGradeText,
+  assignScale,
+  canSubmitNow,
+  effectiveDates,
+} from '../server.ts';
 import { ExtensionForm, GradeForm, SubmissionForm, WithdrawButton } from './client.tsx';
 
 type Props = ViewProps<AssignSettingsT>;
@@ -85,6 +91,7 @@ export async function AssignView(props: Props) {
 }
 
 async function StudentView({ activity: a, ctx }: Props) {
+  const scale = await assignScale(ctx.db, a);
   const [t, format] = await Promise.all([getTranslations('mod.assign'), getFormatter()]);
   if (ctx.actor.kind !== 'user') return null;
   const userId = ctx.actor.userId;
@@ -152,7 +159,9 @@ async function StudentView({ activity: a, ctx }: Props) {
               {t('grade')}:{' '}
               {lastGrade.grade === null
                 ? '—'
-                : `${Number(lastGrade.grade)} ${t('outOf', { max: a.settings.gradeMax })}`}
+                : assignGradeText(Number(lastGrade.grade), scale, a.settings.gradeMax, (max) =>
+                    t('outOf', { max }),
+                  )}
             </CardTitle>
             <p className="text-xs text-muted-foreground">
               {t('gradedBy', {
@@ -230,6 +239,7 @@ async function learners(ctx: Props['ctx'], activityId: string) {
 }
 
 async function TeacherOverview({ activity: a, ctx, searchParams }: Props) {
+  const scale = await assignScale(ctx.db, a);
   const [t, format] = await Promise.all([getTranslations('mod.assign'), getFormatter()]);
   const users = await learners(ctx, a.id);
   const [subs, grades] = await Promise.all([
@@ -320,7 +330,9 @@ async function TeacherOverview({ activity: a, ctx, searchParams }: Props) {
               </Td>
               <Td className="tabular-nums">
                 {g?.grade !== null && g?.grade !== undefined
-                  ? `${Number(g.grade)} / ${a.settings.gradeMax}`
+                  ? scale
+                    ? (scale[Number(g.grade) - 1] ?? '—')
+                    : `${Number(g.grade)} / ${a.settings.gradeMax}`
                   : '—'}
               </Td>
               <Td className="text-right">
@@ -337,6 +349,7 @@ async function TeacherOverview({ activity: a, ctx, searchParams }: Props) {
 }
 
 async function GradingPanel({ activity: a, ctx, userId }: Props & { userId: string }) {
+  const scale = await assignScale(ctx.db, a);
   const [t, format] = await Promise.all([getTranslations('mod.assign'), getFormatter()]);
   const users = await learners(ctx, a.id);
   const user = users.find((u) => u.id === userId);
@@ -402,6 +415,7 @@ async function GradingPanel({ activity: a, ctx, userId }: Props & { userId: stri
             courseId={a.courseId}
             userId={userId}
             gradeMax={a.settings.gradeMax}
+            scale={scale}
             grade={
               current?.grade === null || current?.grade === undefined ? null : Number(current.grade)
             }

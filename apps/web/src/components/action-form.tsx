@@ -63,7 +63,8 @@ export function ActionForm<T>({
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
+    // the pressed button's name and value come along, as with a native submit
+    const fd = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
     start(async () => {
       const r = await action(fd);
       // Server actions that redirect never resolve here.

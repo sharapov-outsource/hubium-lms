@@ -1,4 +1,12 @@
-import { importGift, runModuleAction } from '@hubium/core';
+import {
+  createManualItem,
+  importGift,
+  runModuleAction,
+  saveGradeCategory,
+  saveLetters,
+  saveScale,
+  updateGradeItem,
+} from '@hubium/core';
 import { fileUrl, storeFile } from '@hubium/core/files/files';
 import { ctxFor, useTestDb } from '@hubium/core/testing';
 import { courseFixture } from '@hubium/core/testing/course-fixture';
@@ -66,6 +74,30 @@ describe('.hubium backup and restore', () => {
       where: { courseId: f.courseId, name: 'Эссе' },
       data: { groupMode: 'SEPARATE', groupingId: grouping.id },
     });
+    // gradebook setup: a weighted category holding the essay, a scale item, own letters
+    const { id: catId } = await saveGradeCategory.run(sys, {
+      courseId: f.courseId,
+      name: 'Контрольные',
+      aggregation: 'MEAN',
+      weight: 2,
+    });
+    const essayItem = await t.db.gradeItem.findFirstOrThrow({
+      where: { courseId: f.courseId, activity: { name: 'Эссе' } },
+    });
+    await updateGradeItem.run(sys, { id: essayItem.id, categoryId: catId, display: 'PERCENT' });
+    const { id: scaleId } = await saveScale.run(sys, {
+      courseId: f.courseId,
+      name: 'Зачёт',
+      items: ['Не зачтено', 'Зачтено'],
+    });
+    await createManualItem.run(sys, { courseId: f.courseId, name: 'Допуск', scaleId });
+    await saveLetters.run(sys, {
+      contextId: f.courseId,
+      letters: [
+        { lowerBound: 60, letter: 'P' },
+        { lowerBound: 0, letter: 'F' },
+      ],
+    });
   });
 
   it('exports a self-describing archive without learners’ data', async () => {
@@ -128,6 +160,24 @@ describe('.hubium backup and restore', () => {
     });
     expect(grouping.groups.map((g) => g.group.name)).toEqual(['Группа А']);
     expect(assign).toMatchObject({ groupMode: 'SEPARATE', groupingId: grouping.id });
+    // the gradebook setup comes along
+    const cat = await t.db.gradeCategory.findFirstOrThrow({
+      where: { courseId: r.courseId, name: 'Контрольные' },
+    });
+    expect([cat.aggregation, Number(cat.weight)]).toEqual(['MEAN', 2]);
+    const essayItem = await t.db.gradeItem.findFirstOrThrow({ where: { activityId: assign.id } });
+    expect([essayItem.categoryId, essayItem.display]).toEqual([cat.id, 'PERCENT']);
+    const scale = await t.db.scale.findFirstOrThrow({ where: { courseId: r.courseId } });
+    expect(scale.items).toEqual(['Не зачтено', 'Зачтено']);
+    const admission = await t.db.gradeItem.findFirstOrThrow({
+      where: { courseId: r.courseId, name: 'Допуск' },
+    });
+    expect([admission.gradeType, admission.scaleId]).toEqual(['SCALE', scale.id]);
+    const letters = await t.db.gradeLetter.findMany({
+      where: { contextId: r.courseId },
+      orderBy: { lowerBound: 'desc' },
+    });
+    expect(letters.map((l) => l.letter)).toEqual(['P', 'F']);
   });
 
   it('duplicates a course with a new name', async () => {

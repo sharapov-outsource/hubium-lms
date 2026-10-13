@@ -2,18 +2,24 @@
 
 import {
   createManualItem,
+  deleteGradeCategory,
   deleteManualItem,
   deleteQuestion,
   deleteQuestionCategory,
+  deleteScale,
   importGift,
   importGradesCsv,
+  moveGradebookEntry,
   overrideGrade,
   saveGradeCategory,
+  saveLetters,
   saveQuestion,
   saveQuestionCategory,
+  saveScale,
   updateGradeItem,
   ValidationError,
 } from '@hubium/core';
+import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { importMoodleXml } from '@hubium/interchange';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -50,6 +56,7 @@ export async function updateGradeItemAction(
     hidden?: boolean;
     locked?: boolean;
     display?: 'REAL' | 'PERCENT' | 'LETTER';
+    categoryId?: string;
   },
 ) {
   return runAction(async () => {
@@ -67,17 +74,93 @@ export async function deleteGradeItemAction(courseId: string, id: string) {
   });
 }
 
-export async function saveAggregationAction(fd: FormData) {
+export async function saveGradeCategoryAction(fd: FormData) {
   return runAction(async () => {
     const v = formToObject(fd);
     const r = await saveGradeCategory.run(await getContext(), {
       courseId: v.courseId,
-      id: v.id,
+      id: v.id || undefined,
+      parentId: v.parentId || undefined,
+      name: v.name ?? '',
       aggregation: v.aggregation as 'NATURAL',
-      dropLowest: v.dropLowest,
+      dropLowest: v.dropLowest || 0,
+      keepHighest: v.keepHighest || 0,
+      weight: v.weight || 1,
       aggregateOnlyGraded: fd.get('aggregateOnlyGraded') === 'on',
     });
     revalidatePath(`/course/${v.courseId}/grades`);
+    return r;
+  });
+}
+
+export async function deleteGradeCategoryAction(courseId: string, id: string) {
+  return runAction(async () => {
+    const r = await deleteGradeCategory.run(await getContext(), { courseId, id });
+    revalidatePath(`/course/${courseId}/grades`);
+    return r;
+  });
+}
+
+export async function moveGradebookEntryAction(
+  courseId: string,
+  kind: 'category' | 'item',
+  id: string,
+  direction: 'up' | 'down',
+) {
+  return runAction(async () => {
+    const r = await moveGradebookEntry.run(await getContext(), { courseId, kind, id, direction });
+    revalidatePath(`/course/${courseId}/grades`);
+    return r;
+  });
+}
+
+const lines = (text: string | undefined) =>
+  (text ?? '')
+    .split('\n')
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+/** A course scale (with courseId) or a site scale (without). */
+export async function saveScaleAction(fd: FormData) {
+  return runAction(async () => {
+    const v = formToObject(fd);
+    const r = await saveScale.run(await getContext(), {
+      id: v.id || undefined,
+      courseId: v.courseId || null,
+      name: v.name ?? '',
+      items: lines(v.items),
+    });
+    revalidatePath(v.courseId ? `/course/${v.courseId}/grades` : '/admin/grades');
+    return r;
+  });
+}
+
+export async function deleteScaleAction(id: string, courseId: string | null) {
+  return runAction(async () => {
+    const r = await deleteScale.run(await getContext(), { id });
+    revalidatePath(courseId ? `/course/${courseId}/grades` : '/admin/grades');
+    return r;
+  });
+}
+
+/**
+ * Letter boundaries of a course (courseId) or of the site: rows `bound-N` / `letter-N`;
+ * `inherit` clears them.
+ */
+export async function saveLettersAction(fd: FormData) {
+  return runAction(async () => {
+    const v = formToObject(fd);
+    const letters: { lowerBound: string; letter: string }[] = [];
+    for (let i = 0; i < 50; i++) {
+      const letter = (v[`letter-${i}`] ?? '').trim();
+      const bound = (v[`bound-${i}`] ?? '').trim().replace(',', '.');
+      if (letter && bound) letters.push({ lowerBound: bound, letter });
+    }
+    const r = await saveLetters.run(await getContext(), {
+      contextId: v.courseId || SYSTEM_CONTEXT_ID,
+      letters: v.inherit ? [] : (letters as never),
+    });
+    revalidatePath(v.courseId ? `/course/${v.courseId}/grades` : '/admin/grades');
     return r;
   });
 }

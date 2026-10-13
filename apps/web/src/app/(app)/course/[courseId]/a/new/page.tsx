@@ -1,4 +1,4 @@
-import { getCourseAccess, getModule } from '@hubium/core';
+import { getCourseAccess, getModule, listScales } from '@hubium/core';
 import { PageHeader } from '@hubium/ui';
 import { forbidden, notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
@@ -66,6 +66,11 @@ export default async function NewActivityPage({
     }),
   ]);
   const Settings = ui.SettingsFields;
+  const scales = (await listScales(db, courseId)).map((x) => ({
+    id: x.id,
+    name: x.name,
+    items: x.items,
+  }));
   const Completion = ui.CompletionRulesFields;
   return (
     <>
@@ -75,7 +80,9 @@ export default async function NewActivityPage({
         hidden={{ courseId, sectionId: section.id, moduleKey: m.key }}
         courseId={courseId}
         values={{ completionMode: m.supports.viewCompletion ? 'NONE' : 'NONE' }}
-        settingsFields={<Settings settings={m.settings.defaults() as never} courseId={courseId} />}
+        settingsFields={
+          <Settings settings={m.settings.defaults() as never} courseId={courseId} scales={scales} />
+        }
         completionFields={Completion ? <Completion rules={{}} /> : null}
         supportsView={!!m.supports.viewCompletion}
         supportsGroups={!!m.supports.groups}

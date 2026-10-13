@@ -44,14 +44,15 @@ model Context {
   ancestorIds String[]     @db.Uuid
   depth       Int
 
-  parent      Context?         @relation("ContextTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children    Context[]        @relation("ContextTree")
-  overrides   RoleOverride[]
-  assignments RoleAssignment[]
-  files       File[]
-  category    Category?        @relation("CategoryContext")
-  course      Course?          @relation("CourseContext")
-  activity    Activity?        @relation("ActivityContext")
+  parent       Context?         @relation("ContextTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children     Context[]        @relation("ContextTree")
+  overrides    RoleOverride[]
+  assignments  RoleAssignment[]
+  files        File[]
+  gradeLetters GradeLetter[]
+  category     Category?        @relation("CategoryContext")
+  course       Course?          @relation("CourseContext")
+  activity     Activity?        @relation("ActivityContext")
 
   @@index([ancestorIds], type: Gin)
   @@index([parentId])

@@ -218,6 +218,8 @@ export interface GradeItemSpec {
   name: string;
   gradeMax: number;
   gradePass?: number;
+  /** Grade on a scale (its grades are then 1..n and gradeMax is ignored). */
+  scaleId?: string | null;
 }
 
 export interface CalendarEventSpec {

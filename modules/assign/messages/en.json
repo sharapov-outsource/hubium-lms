@@ -99,6 +99,9 @@
       "consentTitle": "Before you first use AI",
       "limit": "AI request limit reached, try again later",
       "refused": "The AI declined to process this submission"
-    }
+    },
+    "gradeScale": "Grading",
+    "gradeScaleHint": "On a scale the grade is picked from its list; the maximum grade is then not used.",
+    "gradePoints": "Points"
   }
 }

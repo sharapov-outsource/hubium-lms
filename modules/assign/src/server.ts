@@ -18,6 +18,8 @@ export const AssignSettings = z
     cutoffAt: isoDate,
     gradeMax: z.coerce.number().min(1).max(10_000).default(100),
     gradePass: optionalNumber(0, 10_000),
+    /** Grade on this scale instead of points (grades are its 1-based positions). */
+    scaleId: z.preprocess((v) => (v === '' ? null : v), z.string().uuid().nullable()).default(null),
     submitButton: bool(true),
     reopen: z.enum(['none', 'manual', 'untilpass']).default('none'),
     maxAttempts: z.coerce.number().int().min(0).max(100).default(0),
@@ -102,6 +104,29 @@ function userId(ctx: ModuleCtx): string {
   return ctx.actor.userId;
 }
 
+/** The grades of the assignment's scale, worst first; null when graded by points. */
+export async function assignScale(
+  db: Prisma.TransactionClient,
+  a: ActivityRef<AssignSettingsT>,
+): Promise<string[] | null> {
+  if (!a.settings.scaleId) return null;
+  const s = await db.scale.findFirst({
+    where: { id: a.settings.scaleId, OR: [{ courseId: null }, { courseId: a.courseId }] },
+    select: { items: true },
+  });
+  return s?.items ?? null;
+}
+
+/** A grade as people read it: the scale's grade, or points out of the maximum. */
+export function assignGradeText(
+  grade: number,
+  scale: string[] | null,
+  gradeMax: number,
+  outOf: (max: number) => string,
+): string {
+  return scale ? (scale[Math.round(grade) - 1] ?? '—') : `${grade} ${outOf(gradeMax)}`;
+}
+
 export const assign = defineModule<AssignSettingsT>({
   key: 'assign',
   archetype: 'activity',
@@ -162,7 +187,13 @@ export const assign = defineModule<AssignSettingsT>({
   },
   grading: {
     items: (a) => [
-      { itemNumber: 0, name: '', gradeMax: a.settings.gradeMax, gradePass: a.settings.gradePass },
+      {
+        itemNumber: 0,
+        name: '',
+        gradeMax: a.settings.gradeMax,
+        gradePass: a.settings.gradePass,
+        scaleId: a.settings.scaleId,
+      },
     ],
   },
   calendar: {
@@ -370,8 +401,14 @@ export const assign = defineModule<AssignSettingsT>({
       }),
       async handler(ctx, a, input) {
         const s = a.settings as AssignSettingsT;
-        if (input.grade !== null && (input.grade < 0 || input.grade > s.gradeMax))
-          throw new Error(`Grade must be between 0 and ${s.gradeMax}`);
+        const scale = await assignScale(ctx.db, a as ActivityRef<AssignSettingsT>);
+        if (input.grade !== null) {
+          if (scale) {
+            if (!Number.isInteger(input.grade) || input.grade < 1 || input.grade > scale.length)
+              throw new Error('Choose a grade of the scale');
+          } else if (input.grade < 0 || input.grade > s.gradeMax)
+            throw new Error(`Grade must be between 0 and ${s.gradeMax}`);
+        }
         const enrolled = await ctx.db.enrolment.findFirst({
           where: { courseId: a.courseId, userId: input.userId },
         });

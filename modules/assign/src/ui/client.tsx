@@ -15,6 +15,7 @@ import {
   Field,
   Input,
   Label,
+  Select,
   Textarea,
 } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
@@ -210,6 +211,7 @@ export function GradeForm({
   activityId,
   userId,
   gradeMax,
+  scale = null,
   grade,
   feedback,
   canReopen,
@@ -220,6 +222,8 @@ export function GradeForm({
   courseId: string;
   userId: string;
   gradeMax: number;
+  /** Grades of the scale, worst first, when the assignment is graded on one. */
+  scale?: string[] | null;
   grade: number | null;
   feedback: string;
   canReopen: boolean;
@@ -233,9 +237,22 @@ export function GradeForm({
   const formRef = useRef<HTMLFormElement>(null);
   // Applying an AI suggestion remounts the editor with the draft as its initial value.
   const [draft, setDraft] = useState<{ key: number; html: string } | null>(null);
+  const [scaleGrade, setScaleGrade] = useState(grade === null ? '' : String(grade));
   const applySuggestion = (s: AiGradeSuggestion) => {
-    const input = formRef.current?.elements.namedItem('grade') as HTMLInputElement | null;
-    if (input) input.value = String(s.suggestedGrade);
+    // the assistant grades in points; on a scale take the matching share of its grades
+    if (scale)
+      setScaleGrade(
+        String(
+          Math.min(
+            scale.length,
+            Math.max(1, Math.round((s.suggestedGrade / s.gradeMax) * scale.length)),
+          ),
+        ),
+      );
+    else {
+      const input = formRef.current?.elements.namedItem('grade') as HTMLInputElement | null;
+      if (input) input.value = String(s.suggestedGrade);
+    }
     setDraft((d) => ({ key: (d?.key ?? 0) + 1, html: textToHtml(s.feedbackDraft) }));
   };
   const save = (goNext: boolean) => {
@@ -277,15 +294,37 @@ export function GradeForm({
           />
         ) : null}
         <form ref={formRef} className="grid gap-4" onSubmit={(e) => e.preventDefault()}>
-          <Field label={`${t('grade')} (${t('outOf', { max: gradeMax })})`} htmlFor="assign-grade">
-            <Input
-              id="assign-grade"
-              name="grade"
-              inputMode="decimal"
-              defaultValue={grade ?? ''}
-              className="w-32"
-            />
-          </Field>
+          {scale ? (
+            <Field label={t('grade')} htmlFor="assign-grade">
+              <Select
+                id="assign-grade"
+                name="grade"
+                value={scaleGrade}
+                onChange={(e) => setScaleGrade(e.target.value)}
+                className="w-56"
+              >
+                <option value="">—</option>
+                {scale.map((label, i) => (
+                  <option key={label} value={i + 1}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : (
+            <Field
+              label={`${t('grade')} (${t('outOf', { max: gradeMax })})`}
+              htmlFor="assign-grade"
+            >
+              <Input
+                id="assign-grade"
+                name="grade"
+                inputMode="decimal"
+                defaultValue={grade ?? ''}
+                className="w-32"
+              />
+            </Field>
+          )}
           <div className="grid content-start gap-1.5">
             <Label htmlFor="assign-feedback">{t('feedback')}</Label>
             <RichTextEditor

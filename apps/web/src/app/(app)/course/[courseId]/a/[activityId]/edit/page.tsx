@@ -1,4 +1,10 @@
-import { getCourseAccess, getModule, parseAvailability, toActivityRef } from '@hubium/core';
+import {
+  getCourseAccess,
+  getModule,
+  listScales,
+  parseAvailability,
+  toActivityRef,
+} from '@hubium/core';
 import { fileUrl } from '@hubium/core/files/files';
 import { Button, PageHeader } from '@hubium/ui';
 import Link from 'next/link';
@@ -78,6 +84,11 @@ export default async function EditActivityPage({
   const ref = toActivityRef(a);
   const rules = (a.completionRules ?? {}) as { view?: boolean; module?: Record<string, unknown> };
   const Settings = ui.SettingsFields;
+  const scales = (await listScales(db, courseId)).map((x) => ({
+    id: x.id,
+    name: x.name,
+    items: x.items,
+  }));
   const Completion = ui.CompletionRulesFields;
   const returnTo = safePath(sp.returnTo, `/course/${courseId}/a/${a.id}`);
   return (
@@ -111,6 +122,7 @@ export default async function EditActivityPage({
         }}
         settingsFields={
           <Settings
+            scales={scales}
             settings={ref.settings as never}
             courseId={courseId}
             activityId={a.id}

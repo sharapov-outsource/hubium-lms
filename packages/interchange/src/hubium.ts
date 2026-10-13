@@ -3,9 +3,11 @@ import {
   buildModuleCtx,
   createActivity,
   createCourse,
+  ensureCourseGradebook,
   ForbiddenError,
   getModule,
   type RequestContext,
+  syncGradeItemsFor,
   toActivityRef,
   ValidationError,
 } from '@hubium/core';
@@ -63,6 +65,49 @@ const ActivityRow = z.object({
   module: z.unknown().optional(),
 });
 
+const Aggregation = z.enum(['NATURAL', 'MEAN', 'WEIGHTED_MEAN', 'HIGHEST', 'LOWEST', 'MEDIAN']);
+
+/** Gradebook setup: category tree, course scales and letters, item settings (no grades). */
+const GradebookJson = z.object({
+  categories: z.array(
+    z.object({
+      id: z.string(),
+      parentId: z.string().nullable(),
+      name: z.string(),
+      aggregation: Aggregation,
+      dropLowest: z.number().int(),
+      keepHighest: z.number().int(),
+      aggregateOnlyGraded: z.boolean(),
+      hidden: z.boolean(),
+      weight: z.number(),
+      sortOrder: z.number().int(),
+    }),
+  ),
+  scales: z.array(z.object({ id: z.string(), name: z.string(), items: z.array(z.string()) })),
+  letters: z.array(z.object({ lowerBound: z.number(), letter: z.string() })),
+  items: z.array(
+    z.object({
+      kind: z.enum(['MODULE', 'MANUAL']),
+      activityId: z.string().nullable(),
+      itemNumber: z.number().int(),
+      name: z.string(),
+      categoryId: z.string().nullable(),
+      gradeType: z.enum(['VALUE', 'SCALE', 'TEXT', 'NONE']),
+      scaleId: z.string().nullable(),
+      gradeMin: z.number(),
+      gradeMax: z.number(),
+      gradePass: z.number().nullable(),
+      weight: z.number(),
+      decimals: z.number().int(),
+      display: z.enum(['REAL', 'PERCENT', 'LETTER']),
+      hidden: z.boolean(),
+      locked: z.boolean(),
+      sortOrder: z.number().int(),
+      idNumber: z.string().nullable(),
+    }),
+  ),
+});
+
 const CourseJson = z.object({
   course: z.object({
     id: z.string(),
@@ -100,6 +145,8 @@ const CourseJson = z.object({
       }),
     )
     .default([]),
+  /** Absent in archives made before the gradebook was backed up. */
+  gradebook: GradebookJson.optional(),
   questionCategories: z.array(
     z.object({
       id: z.string(),
@@ -165,11 +212,18 @@ export async function exportCourse(ctx: RequestContext, courseId: string): Promi
   activities.sort(
     (a, b) => order.get(a.sectionId)! - order.get(b.sectionId)! || a.rank.localeCompare(b.rank),
   );
-  const [groups, groupings, categories] = await Promise.all([
-    db.group.findMany({ where: { courseId } }),
-    db.grouping.findMany({ where: { courseId }, include: { groups: true } }),
-    db.questionCategory.findMany({ where: { contextId: courseId } }),
-  ]);
+  const [groups, groupings, categories, gradeCategories, gradeItems, scales, letters] =
+    await Promise.all([
+      db.group.findMany({ where: { courseId } }),
+      db.grouping.findMany({ where: { courseId }, include: { groups: true } }),
+      db.questionCategory.findMany({ where: { contextId: courseId } }),
+      db.gradeCategory.findMany({ where: { courseId } }),
+      db.gradeItem.findMany({ where: { courseId, kind: { in: ['MODULE', 'MANUAL'] } } }),
+      db.scale.findMany({ where: { courseId } }),
+      db.gradeLetter.findMany({ where: { contextId: courseId } }),
+    ]);
+  const exported = new Set(activities.map((a) => a.id));
+  const n = (d: Prisma.Decimal | null) => (d === null ? null : d.toNumber());
   const questions = await db.question.findMany({
     where: { categoryId: { in: categories.map((c) => c.id) } },
   });
@@ -267,6 +321,43 @@ export async function exportCourse(ctx: RequestContext, courseId: string): Promi
       description: g.description,
       groupIds: g.groups.map((x) => x.groupId),
     })),
+    gradebook: {
+      categories: gradeCategories.map((c) => ({
+        id: c.id,
+        parentId: c.parentId,
+        name: c.name,
+        aggregation: c.aggregation,
+        dropLowest: c.dropLowest,
+        keepHighest: c.keepHighest,
+        aggregateOnlyGraded: c.aggregateOnlyGraded,
+        hidden: c.hidden,
+        weight: c.weight.toNumber(),
+        sortOrder: c.sortOrder,
+      })),
+      scales: scales.map((x) => ({ id: x.id, name: x.name, items: x.items })),
+      letters: letters.map((l) => ({ lowerBound: l.lowerBound.toNumber(), letter: l.letter })),
+      items: gradeItems
+        .filter((i) => i.kind === 'MANUAL' || (i.activityId && exported.has(i.activityId)))
+        .map((i) => ({
+          kind: i.kind as 'MODULE' | 'MANUAL',
+          activityId: i.activityId,
+          itemNumber: i.itemNumber,
+          name: i.name,
+          categoryId: i.categoryId,
+          gradeType: i.gradeType,
+          scaleId: i.scaleId,
+          gradeMin: i.gradeMin.toNumber(),
+          gradeMax: i.gradeMax.toNumber(),
+          gradePass: n(i.gradePass),
+          weight: i.weight.toNumber(),
+          decimals: i.decimals,
+          display: i.display,
+          hidden: i.hidden,
+          locked: i.locked,
+          sortOrder: i.sortOrder,
+          idNumber: i.idNumber,
+        })),
+    },
     questionCategories: categories.map((c) => ({
       id: c.id,
       parentId: c.parentId,
@@ -415,6 +506,56 @@ export async function restoreCourse(
         data: { id, courseId, name: g.name, description: g.description, idNumber: g.idNumber },
       });
     }
+    // gradebook setup first: activities refer to course scales in their settings
+    const gb = b.course.gradebook;
+    const { root: gradeRoot } = await ensureCourseGradebook(db, courseId);
+    if (gb) {
+      for (const sc of gb.scales) {
+        const id = uuidv7();
+        map.set(sc.id, id);
+        await db.scale.create({ data: { id, courseId, name: sc.name, items: sc.items } });
+      }
+      const oldRoot = gb.categories.find((c) => !c.parentId);
+      if (oldRoot) {
+        map.set(oldRoot.id, gradeRoot.id);
+        await db.gradeCategory.update({
+          where: { id: gradeRoot.id },
+          data: {
+            aggregation: oldRoot.aggregation,
+            dropLowest: oldRoot.dropLowest,
+            keepHighest: oldRoot.keepHighest,
+            aggregateOnlyGraded: oldRoot.aggregateOnlyGraded,
+          },
+        });
+      }
+      const pending = gb.categories.filter((c) => c.parentId);
+      while (pending.length) {
+        const i = pending.findIndex((c) => map.has(c.parentId!));
+        const c = pending.splice(i === -1 ? 0 : i, 1)[0]!;
+        const id = uuidv7();
+        map.set(c.id, id);
+        await db.gradeCategory.create({
+          data: {
+            id,
+            courseId,
+            parentId: map.get(c.parentId!) ?? gradeRoot.id,
+            name: c.name,
+            aggregation: c.aggregation,
+            dropLowest: c.dropLowest,
+            keepHighest: c.keepHighest,
+            aggregateOnlyGraded: c.aggregateOnlyGraded,
+            hidden: c.hidden,
+            weight: c.weight,
+            sortOrder: c.sortOrder,
+          },
+        });
+      }
+      if (gb.letters.length)
+        await db.gradeLetter.createMany({
+          data: gb.letters.map((l) => ({ contextId: courseId, ...l })),
+        });
+    }
+
     for (const g of b.course.groupings) {
       const id = uuidv7();
       map.set(g.id, id);
@@ -597,6 +738,50 @@ export async function restoreCourse(
           map.get(old),
         ),
       );
+    }
+    if (gb) {
+      for (const it of gb.items) {
+        const common = {
+          categoryId: it.categoryId ? (map.get(it.categoryId) ?? gradeRoot.id) : gradeRoot.id,
+          weight: it.weight,
+          decimals: it.decimals,
+          display: it.display,
+          hidden: it.hidden,
+          locked: it.locked,
+          sortOrder: it.sortOrder,
+          gradePass: it.gradePass,
+          idNumber: it.idNumber,
+        };
+        if (it.kind === 'MANUAL') {
+          // a site scale only exists on the site the course came from
+          const scaleId = it.scaleId
+            ? (map.get(it.scaleId) ??
+              (await db.scale.findFirst({ where: { id: it.scaleId, courseId: null } }))?.id ??
+              null)
+            : null;
+          await db.gradeItem.create({
+            data: {
+              ...common,
+              courseId,
+              kind: 'MANUAL',
+              name: it.name,
+              gradeType: scaleId ? 'SCALE' : it.gradeType === 'SCALE' ? 'VALUE' : it.gradeType,
+              scaleId,
+              gradeMin: scaleId ? 1 : it.gradeType === 'SCALE' ? 0 : it.gradeMin,
+              gradeMax: it.gradeMax,
+            },
+          });
+        } else {
+          const activityId = it.activityId ? map.get(it.activityId) : undefined;
+          if (!activityId) continue;
+          // settings now refer to the restored scales
+          await syncGradeItemsFor(db, activityId);
+          await db.gradeItem.updateMany({
+            where: { activityId, itemNumber: it.itemNumber },
+            data: common,
+          });
+        }
+      }
     }
     return {
       courseId,

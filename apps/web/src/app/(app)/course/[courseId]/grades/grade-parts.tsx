@@ -11,9 +11,9 @@ import {
   deleteGradeItemAction,
   importGradesAction,
   overrideGradeAction,
-  saveAggregationAction,
   updateGradeItemAction,
 } from '@/server/actions/grades';
+import { MoveButtons } from './setup-parts';
 
 export function GradeCell({
   courseId,
@@ -22,6 +22,7 @@ export function GradeCell({
   value,
   shown,
   max,
+  scale,
   overridden,
   label,
 }: {
@@ -31,6 +32,8 @@ export function GradeCell({
   value: number | null;
   shown: string;
   max: number;
+  /** Grades of the item's scale, worst first. */
+  scale?: string[] | null;
   overridden: boolean;
   label: string;
 }) {
@@ -39,6 +42,32 @@ export function GradeCell({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value === null ? '' : String(value));
   const [pending, start] = useTransition();
+  if (scale)
+    return (
+      <Select
+        aria-label={label}
+        title={overridden ? t('overridden') : undefined}
+        className="h-8 w-36"
+        value={value === null ? '' : String(Math.round(value))}
+        disabled={pending}
+        onChange={(e) =>
+          start(async () => {
+            const next = e.target.value === '' ? null : Number(e.target.value);
+            const r = await overrideGradeAction(courseId, itemId, userId, next);
+            if (!r.ok) toast.error(r.message);
+            else toast.success(t('saved'));
+            router.refresh();
+          })
+        }
+      >
+        <option value="">—</option>
+        {scale.map((s, i) => (
+          <option key={s} value={String(i + 1)}>
+            {s}
+          </option>
+        ))}
+      </Select>
+    );
   const commit = () => {
     const raw = draft.trim().replace(',', '.');
     const next = raw === '' ? null : Number(raw);
@@ -93,6 +122,9 @@ export function GradeCell({
 export function ItemSetupRow({
   courseId,
   item,
+  categories,
+  first,
+  last,
 }: {
   courseId: string;
   item: {
@@ -103,7 +135,12 @@ export function ItemSetupRow({
     weight: number;
     display: string;
     hidden: boolean;
+    categoryId: string;
+    scale: string | null;
   };
+  categories: { id: string; label: string }[];
+  first: boolean;
+  last: boolean;
 }) {
   const t = useTranslations('grades');
   const router = useRouter();
@@ -117,12 +154,38 @@ export function ItemSetupRow({
   return (
     <Tr>
       <Td>
-        {item.name}{' '}
-        <span className="text-xs text-muted-foreground">
-          · {t(`kind.${item.kind}` as 'kind.MODULE')}
+        <span className="flex items-center gap-1">
+          <MoveButtons
+            courseId={courseId}
+            kind="item"
+            id={item.id}
+            name={item.name}
+            first={first}
+            last={last}
+          />
+          <span>
+            {item.name}{' '}
+            <span className="text-xs text-muted-foreground">
+              · {t(`kind.${item.kind}` as 'kind.MODULE')}
+            </span>
+          </span>
         </span>
       </Td>
-      <Td className="tabular-nums">{item.gradeMax}</Td>
+      <Td>
+        <Select
+          aria-label={`${t('category')}: ${item.name}`}
+          className="h-8 w-44"
+          defaultValue={item.categoryId}
+          onChange={(e) => patch({ categoryId: e.target.value })}
+        >
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </Select>
+      </Td>
+      <Td className="tabular-nums">{item.scale ?? item.gradeMax}</Td>
       <Td>
         <Input
           aria-label={`${t('weight')}: ${item.name}`}
@@ -141,6 +204,7 @@ export function ItemSetupRow({
           aria-label={`${t('display')}: ${item.name}`}
           className="h-8 w-36"
           defaultValue={item.display}
+          disabled={!!item.scale}
           onChange={(e) => patch({ display: e.target.value as 'REAL' })}
         >
           {(['REAL', 'PERCENT', 'LETTER'] as const).map((d) => (
@@ -179,9 +243,18 @@ export function ItemSetupRow({
   );
 }
 
-export function ManualItemForm({ courseId }: { courseId: string }) {
+export function ManualItemForm({
+  courseId,
+  categories,
+  scales,
+}: {
+  courseId: string;
+  categories: { id: string; label: string }[];
+  scales: { id: string; name: string }[];
+}) {
   const t = useTranslations('grades');
   const tc = useTranslations('common');
+  const [scaleId, setScaleId] = useState('');
   return (
     <ActionForm
       action={createManualItemAction}
@@ -191,8 +264,43 @@ export function ManualItemForm({ courseId }: { courseId: string }) {
     >
       <input type="hidden" name="courseId" value={courseId} />
       <FormField name="name" label={t('name')} required />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <FormField name="categoryId" label={t('category')}>
+          <Select id="f-categoryId" name="categoryId" defaultValue={categories[0]?.id}>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        {scales.length ? (
+          <FormField name="scaleId" label={t('scale')}>
+            <Select
+              id="f-scaleId"
+              name="scaleId"
+              value={scaleId}
+              onChange={(e) => setScaleId(e.target.value)}
+            >
+              <option value="">{t('points')}</option>
+              {scales.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        ) : null}
+      </div>
       <div className="grid gap-3 sm:grid-cols-3">
-        <FormField name="gradeMax" type="number" label={t('gradeMax')} defaultValue="100" min={1} />
+        <FormField
+          name="gradeMax"
+          type="number"
+          label={t('gradeMax')}
+          defaultValue="100"
+          min={1}
+          disabled={!!scaleId}
+        />
         <FormField name="gradePass" type="number" label={t('gradePass')} min={0} />
         <FormField
           name="weight"
@@ -204,57 +312,6 @@ export function ManualItemForm({ courseId }: { courseId: string }) {
         />
       </div>
       <SubmitButton className="w-fit">{tc('add')}</SubmitButton>
-    </ActionForm>
-  );
-}
-
-export function AggregationForm({
-  courseId,
-  id,
-  aggregation,
-  dropLowest,
-  onlyGraded,
-}: {
-  courseId: string;
-  id: string;
-  aggregation: string;
-  dropLowest: number;
-  onlyGraded: boolean;
-}) {
-  const t = useTranslations('grades');
-  const tc = useTranslations('common');
-  return (
-    <ActionForm
-      action={saveAggregationAction}
-      success={tc('saved')}
-      className="flex flex-wrap items-end gap-3"
-    >
-      <input type="hidden" name="courseId" value={courseId} />
-      <input type="hidden" name="id" value={id} />
-      <FormField name="aggregation" label={t('aggregation')}>
-        <Select id="f-aggregation" name="aggregation" defaultValue={aggregation}>
-          {(['NATURAL', 'MEAN', 'WEIGHTED_MEAN', 'HIGHEST', 'LOWEST', 'MEDIAN'] as const).map(
-            (a) => (
-              <option key={a} value={a}>
-                {t(`aggregations.${a}`)}
-              </option>
-            ),
-          )}
-        </Select>
-      </FormField>
-      <FormField
-        name="dropLowest"
-        type="number"
-        min={0}
-        label={t('dropLowest')}
-        defaultValue={dropLowest}
-        className="w-36"
-      />
-      <label htmlFor="agg-only" className="flex h-9 items-center gap-2 text-sm">
-        <Checkbox id="agg-only" name="aggregateOnlyGraded" defaultChecked={onlyGraded} />
-        {t('onlyGraded')}
-      </label>
-      <SubmitButton>{tc('save')}</SubmitButton>
     </ActionForm>
   );
 }

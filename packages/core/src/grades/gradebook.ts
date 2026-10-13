@@ -4,13 +4,15 @@ import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { writeXlsx } from '../lib/xlsx.ts';
 import { optionalText } from '../lib/zod.ts';
 import { provideModuleServices, toActivityRef } from '../modules/module-ctx.ts';
 import { getModule } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
 import { parseCsv } from '../users/users.ts';
 import { emitWebhook } from '../webhooks/events.ts';
-import { type Aggregation, aggregate, defaultLetters, type LetterBoundary } from './aggregate.ts';
+import { type Aggregation, aggregate } from './aggregate.ts';
+import { requireScaleFor, scaleValue } from './scales.ts';
 
 type Tx = Prisma.TransactionClient | Db;
 
@@ -61,13 +63,27 @@ export async function syncGradeItemsFor(tx: Tx, activityId: string): Promise<voi
   let totalsChanged = false;
   for (const [i, spec] of specs.entries()) {
     const cur = existing.find((x) => x.itemNumber === spec.itemNumber);
+    // A scale that is not (or no longer) available grades by points.
+    const scale = spec.scaleId
+      ? await tx.scale.findFirst({
+          where: { id: spec.scaleId, OR: [{ courseId: null }, { courseId: a.courseId }] },
+        })
+      : null;
     const data = {
       name: specs.length > 1 ? `${a.name}: ${spec.name}` : a.name,
-      gradeMax: spec.gradeMax,
+      gradeType: scale ? ('SCALE' as const) : ('VALUE' as const),
+      scaleId: scale?.id ?? null,
+      gradeMin: scale ? 1 : 0,
+      gradeMax: scale ? scale.items.length : spec.gradeMax,
       gradePass: spec.gradePass ?? null,
       hidden: a.visibility === 'HIDDEN' || !!a.deletedAt,
     };
-    if (cur && (num(cur.gradeMax) !== spec.gradeMax || cur.hidden !== data.hidden))
+    if (
+      cur &&
+      (num(cur.gradeMax) !== data.gradeMax ||
+        num(cur.gradeMin) !== data.gradeMin ||
+        cur.hidden !== data.hidden)
+    )
       totalsChanged = true;
     if (cur) await tx.gradeItem.update({ where: { id: cur.id }, data });
     else
@@ -138,6 +154,15 @@ async function writeGrade(
     gradedById: meta.changedById ?? null,
     gradedAt: new Date(),
   };
+  // Nothing changed (totals are recomputed often): no write, no history, no webhook.
+  if (
+    existing &&
+    num(existing.rawGrade) === data.rawGrade &&
+    num(existing.finalGrade) === data.finalGrade &&
+    (existing.feedback ?? null) === data.feedback &&
+    existing.overridden === data.overridden
+  )
+    return existing;
   const g = existing
     ? await tx.grade.update({ where: { id: existing.id }, data })
     : await tx.grade.create({ data: { ...data, gradeItemId: item.id, userId } });
@@ -155,7 +180,9 @@ async function writeGrade(
   await tx.gradeHistory.create({
     data: {
       gradeId: g.id,
+      previousGrade: existing ? num(existing.finalGrade) : null,
       finalGrade: data.finalGrade,
+      overridden: data.overridden,
       feedback: data.feedback,
       source: meta.source,
       changedById: meta.changedById ?? null,
@@ -207,40 +234,62 @@ export async function recomputeCourseTotals(
 }
 
 type GradeRow = { gradeItemId: string; finalGrade: Prisma.Decimal | null; excluded: boolean };
+type TreeCategory = Pick<
+  GradeCategory,
+  'id' | 'parentId' | 'aggregation' | 'dropLowest' | 'keepHighest' | 'aggregateOnlyGraded'
+> & { weight?: GradeCategory['weight'] | number };
+type TreeItem = Pick<GradeItem, 'id' | 'categoryId' | 'gradeMin' | 'gradeMax' | 'weight'>;
+
+function itemsOf(cat: TreeCategory, items: TreeItem[]) {
+  return items.filter((i) => i.categoryId === cat.id || (!i.categoryId && !cat.parentId));
+}
+
+/**
+ * Points a category is worth inside its parent: with natural aggregation the sum of what
+ * it contains (as in Moodle), otherwise 100.
+ */
+export function categoryPoints(
+  cat: TreeCategory,
+  categories: TreeCategory[],
+  items: TreeItem[],
+): number {
+  if (cat.aggregation !== 'NATURAL') return 100;
+  const own = itemsOf(cat, items).reduce((s, i) => s + (num(i.gradeMax)! - num(i.gradeMin)!), 0);
+  return categories
+    .filter((c) => c.parentId === cat.id)
+    .reduce((s, c) => s + categoryPoints(c, categories, items), own);
+}
 
 /** Fraction (0..1) of a category (null = root) for one user's grades. */
 export function categoryFraction(
   categoryId: string | null,
-  categories: Pick<
-    GradeCategory,
-    'id' | 'parentId' | 'aggregation' | 'dropLowest' | 'keepHighest' | 'aggregateOnlyGraded'
-  >[],
-  items: Pick<GradeItem, 'id' | 'categoryId' | 'gradeMin' | 'gradeMax' | 'weight'>[],
+  categories: TreeCategory[],
+  items: TreeItem[],
   grades: GradeRow[],
 ): number | null {
   const cat = categoryId
     ? categories.find((c) => c.id === categoryId)
     : categories.find((c) => !c.parentId);
   if (!cat) return null;
-  const inputs = items
-    .filter((i) => i.categoryId === cat.id || (!i.categoryId && !cat.parentId))
-    .map((i) => {
-      const g = grades.find((x) => x.gradeItemId === i.id);
-      return {
-        value: num(g?.finalGrade),
-        min: num(i.gradeMin)!,
-        max: num(i.gradeMax)!,
-        weight: num(i.weight)!,
-        excluded: g?.excluded,
-      };
-    });
+  const inputs = itemsOf(cat, items).map((i) => {
+    const g = grades.find((x) => x.gradeItemId === i.id);
+    return {
+      value: num(g?.finalGrade),
+      min: num(i.gradeMin)!,
+      max: num(i.gradeMax)!,
+      weight: num(i.weight)!,
+      excluded: g?.excluded,
+    };
+  });
+  // A subcategory counts like an item worth its points, with its own weight.
   for (const child of categories.filter((c) => c.parentId === cat.id)) {
     const f = categoryFraction(child.id, categories, items, grades);
+    const points = categoryPoints(child, categories, items);
     inputs.push({
-      value: f === null ? null : f * 100,
+      value: f === null ? null : f * points,
       min: 0,
-      max: 100,
-      weight: 1,
+      max: points,
+      weight: num(child.weight as never) ?? 1,
       excluded: false,
     });
   }
@@ -250,6 +299,15 @@ export function categoryFraction(
     dropLowest: cat.dropLowest,
     keepHighest: cat.keepHighest,
   });
+}
+
+/** Every category's fraction (0..1) for one user: the totals shown in the grader report. */
+export function categoryFractions(
+  categories: TreeCategory[],
+  items: TreeItem[],
+  grades: GradeRow[],
+): Map<string, number | null> {
+  return new Map(categories.map((c) => [c.id, categoryFraction(c.id, categories, items, grades)]));
 }
 
 /** Module-facing grade writer (via ModuleCtx.grades.setGrades). */
@@ -323,6 +381,8 @@ export const overrideGrade = defineOperation({
         value: [`Grade must be between ${num(item.gradeMin)} and ${num(item.gradeMax)}`],
       });
     }
+    if (value !== null && item.gradeType === 'SCALE' && !Number.isInteger(value))
+      throw new ValidationError({ value: ['Choose a grade of the scale'] });
     const enrolled = await ctx.tx.enrolment.findFirst({
       where: { courseId: item.courseId, userId },
     });
@@ -336,24 +396,16 @@ export const overrideGrade = defineOperation({
         { source: 'grader', changedById: ctx.perm.userId },
       );
     } else {
-      // Overriding a module grade freezes it until the override is cleared (value null + clear).
+      // Overriding a module grade freezes it; clearing it (null) brings back the module's grade.
       await writeGrade(
         ctx.tx,
         item,
         userId,
-        { finalGrade: value, overridden: value !== null, feedback },
+        value === null
+          ? { overridden: false, feedback }
+          : { finalGrade: value, overridden: true, feedback },
         { source: 'override', changedById: ctx.perm.userId },
       );
-      if (value === null) {
-        const g = await ctx.tx.grade.findUnique({
-          where: { gradeItemId_userId: { gradeItemId: item.id, userId } },
-        });
-        if (g)
-          await ctx.tx.grade.update({
-            where: { id: g.id },
-            data: { finalGrade: g.rawGrade, overridden: false },
-          });
-      }
     }
     await recomputeCourseTotals(ctx.tx, item.courseId, [userId]);
     await logEvent(ctx.tx, {
@@ -385,6 +437,12 @@ export const ManualItemInput = z.object({
   weight: z.coerce.number().min(0).max(1000).default(1),
   display: z.enum(['REAL', 'PERCENT', 'LETTER']).default('REAL'),
   idNumber: optionalText(100),
+  /** Grade on this scale instead of points. */
+  scaleId: z
+    .string()
+    .uuid()
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
 });
 
 /** Grade categories are addressed by id from forms: they must belong to the same course. */
@@ -401,6 +459,9 @@ export const createManualItem = defineOperation({
   async handler(ctx, input) {
     const { root } = await ensureCourseGradebook(ctx.tx, input.courseId);
     if (input.categoryId) await requireGradeCategory(ctx.tx, input.courseId, input.categoryId);
+    const scale = input.scaleId
+      ? await requireScaleFor(ctx.tx, input.courseId, input.scaleId)
+      : null;
     const count = await ctx.tx.gradeItem.count({ where: { courseId: input.courseId } });
     const item = await ctx.tx.gradeItem.create({
       data: {
@@ -408,10 +469,13 @@ export const createManualItem = defineOperation({
         categoryId: input.categoryId ?? root.id,
         kind: 'MANUAL',
         name: input.name,
-        gradeMax: input.gradeMax,
+        gradeType: scale ? 'SCALE' : 'VALUE',
+        scaleId: scale?.id ?? null,
+        gradeMin: scale ? 1 : 0,
+        gradeMax: scale ? scale.items.length : input.gradeMax,
         gradePass: input.gradePass ?? null,
         weight: input.weight,
-        display: input.display,
+        display: scale ? 'REAL' : input.display,
         idNumber: input.idNumber,
         sortOrder: count,
       },
@@ -472,52 +536,155 @@ export const deleteManualItem = defineOperation({
   },
 });
 
+const AGGREGATIONS = ['NATURAL', 'MEAN', 'WEIGHTED_MEAN', 'HIGHEST', 'LOWEST', 'MEDIAN'] as const;
+
+async function recomputeEveryone(tx: Tx, courseId: string) {
+  const users = await tx.enrolment.findMany({ where: { courseId }, select: { userId: true } });
+  await recomputeCourseTotals(tx, courseId, [...new Set(users.map((u) => u.userId))]);
+}
+
+/** Ids of a category and everything below it. */
+async function subtreeIds(tx: Tx, courseId: string, rootId: string): Promise<Set<string>> {
+  const all = await tx.gradeCategory.findMany({
+    where: { courseId },
+    select: { id: true, parentId: true },
+  });
+  const out = new Set([rootId]);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const c of all)
+      if (c.parentId && out.has(c.parentId) && !out.has(c.id)) {
+        out.add(c.id);
+        grew = true;
+      }
+  }
+  return out;
+}
+
 export const saveGradeCategory = defineOperation({
   name: 'grade.category.save',
   input: z.object({
     courseId: z.string().uuid(),
     id: z.string().uuid().optional(),
+    /** Parent category; new categories go under the root by default. */
+    parentId: z.string().uuid().optional(),
     name: z.string().trim().max(255).default(''),
-    aggregation: z.enum(['NATURAL', 'MEAN', 'WEIGHTED_MEAN', 'HIGHEST', 'LOWEST', 'MEDIAN']),
+    aggregation: z.enum(AGGREGATIONS),
     dropLowest: z.coerce.number().int().min(0).max(100).default(0),
+    keepHighest: z.coerce.number().int().min(0).max(100).default(0),
     aggregateOnlyGraded: z.boolean().default(true),
+    weight: z.coerce.number().min(0).max(1000).default(1),
   }),
   authorize: (ctx, i) => ctx.perm.require('grade:manage', i.courseId),
   async handler(ctx, input) {
     const { root } = await ensureCourseGradebook(ctx.tx, input.courseId);
+    const current = input.id ? await requireGradeCategory(ctx.tx, input.courseId, input.id) : null;
+    const isRoot = current?.id === root.id;
+    if (!isRoot && !input.id && !input.name)
+      throw new ValidationError({ name: ['Name the category'] });
+    let parentId = isRoot ? null : (input.parentId ?? current?.parentId ?? root.id);
+    if (parentId) {
+      await requireGradeCategory(ctx.tx, input.courseId, parentId);
+      if (current && (await subtreeIds(ctx.tx, input.courseId, current.id)).has(parentId))
+        throw new ValidationError({ parentId: ['A category cannot go inside itself'] });
+    } else parentId = null;
     const data = {
       name: input.name,
       aggregation: input.aggregation,
       dropLowest: input.dropLowest,
+      keepHighest: input.keepHighest,
       aggregateOnlyGraded: input.aggregateOnlyGraded,
+      weight: input.weight,
+      parentId,
     };
-    if (input.id) await requireGradeCategory(ctx.tx, input.courseId, input.id);
-    const cat = input.id
-      ? await ctx.tx.gradeCategory.update({ where: { id: input.id }, data })
-      : await ctx.tx.gradeCategory.create({
-          data: { ...data, courseId: input.courseId, parentId: root.id },
-        });
-    const users = await ctx.tx.enrolment.findMany({
-      where: { courseId: input.courseId },
-      select: { userId: true },
-    });
-    await recomputeCourseTotals(ctx.tx, input.courseId, [...new Set(users.map((u) => u.userId))]);
+    let cat: GradeCategory;
+    if (current) cat = await ctx.tx.gradeCategory.update({ where: { id: current.id }, data });
+    else {
+      const last = await ctx.tx.gradeCategory.aggregate({
+        where: { courseId: input.courseId, parentId },
+        _max: { sortOrder: true },
+      });
+      cat = await ctx.tx.gradeCategory.create({
+        data: { ...data, courseId: input.courseId, sortOrder: (last._max.sortOrder ?? 0) + 1 },
+      });
+    }
+    await recomputeEveryone(ctx.tx, input.courseId);
     return { id: cat.id };
   },
 });
 
-// ── reports ───────────────────────────────────────────────────────────────────
+/** Deletes a category; its items and subcategories move up to its parent. */
+export const deleteGradeCategory = defineOperation({
+  name: 'grade.category.delete',
+  input: z.object({ courseId: z.string().uuid(), id: z.string().uuid() }),
+  authorize: (ctx, i) => ctx.perm.require('grade:manage', i.courseId),
+  async handler(ctx, { courseId, id }) {
+    const cat = await requireGradeCategory(ctx.tx, courseId, id);
+    if (!cat.parentId) throw new ValidationError({ id: ['The course category cannot be deleted'] });
+    await ctx.tx.gradeItem.updateMany({
+      where: { categoryId: id },
+      data: { categoryId: cat.parentId },
+    });
+    await ctx.tx.gradeCategory.updateMany({
+      where: { parentId: id },
+      data: { parentId: cat.parentId },
+    });
+    await ctx.tx.gradeCategory.delete({ where: { id } });
+    await recomputeEveryone(ctx.tx, courseId);
+    return { id };
+  },
+});
 
-export async function courseLetters(
-  db: Tx,
-  courseId: string,
-  locale: 'ru' | 'en',
-): Promise<LetterBoundary[]> {
-  const rows = await db.gradeLetter.findMany({ where: { contextId: courseId } });
-  return rows.length
-    ? rows.map((r) => ({ lowerBound: num(r.lowerBound)!, letter: r.letter }))
-    : defaultLetters[locale];
-}
+/** Moves a category or an item one place up or down among its siblings. */
+export const moveGradebookEntry = defineOperation({
+  name: 'grade.move',
+  input: z.object({
+    courseId: z.string().uuid(),
+    kind: z.enum(['category', 'item']),
+    id: z.string().uuid(),
+    direction: z.enum(['up', 'down']),
+  }),
+  authorize: (ctx, i) => ctx.perm.require('grade:manage', i.courseId),
+  async handler(ctx, { courseId, kind, id, direction }) {
+    const { root } = await ensureCourseGradebook(ctx.tx, courseId);
+    const order = [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }];
+    let siblings: { id: string }[];
+    if (kind === 'category') {
+      const cat = await requireGradeCategory(ctx.tx, courseId, id);
+      if (!cat.parentId) return { ok: true };
+      siblings = await ctx.tx.gradeCategory.findMany({
+        where: { courseId, parentId: cat.parentId },
+        orderBy: order,
+        select: { id: true },
+      });
+    } else {
+      const item = await ctx.tx.gradeItem.findFirst({ where: { id, courseId } });
+      if (!item || item.kind === 'COURSE') throw new NotFoundError('Grade item');
+      const categoryId = item.categoryId ?? root.id;
+      siblings = await ctx.tx.gradeItem.findMany({
+        where: {
+          courseId,
+          kind: { not: 'COURSE' },
+          OR: [{ categoryId }, ...(categoryId === root.id ? [{ categoryId: null }] : [])],
+        },
+        orderBy: order,
+        select: { id: true },
+      });
+    }
+    const i = siblings.findIndex((x) => x.id === id);
+    const j = direction === 'up' ? i - 1 : i + 1;
+    if (i < 0 || j < 0 || j >= siblings.length) return { ok: true };
+    [siblings[i], siblings[j]] = [siblings[j]!, siblings[i]!];
+    for (const [n, x] of siblings.entries()) {
+      if (kind === 'category')
+        await ctx.tx.gradeCategory.update({ where: { id: x.id }, data: { sortOrder: n + 1 } });
+      else await ctx.tx.gradeItem.update({ where: { id: x.id }, data: { sortOrder: n + 1 } });
+    }
+    return { ok: true };
+  },
+});
+
+// ── reports ───────────────────────────────────────────────────────────────────
 
 export async function gradebookStructure(db: Tx, courseId: string) {
   await ensureCourseGradebook(db, courseId);
@@ -597,30 +764,128 @@ export function csvEscape(v: string): string {
   return /[",;\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export async function exportGradesCsv(ctx: RequestContext, courseId: string): Promise<string> {
+/** Rows of the grade export (header first): points as numbers, scale grades by name. */
+export async function gradeExportRows(
+  ctx: RequestContext,
+  courseId: string,
+): Promise<(string | number | null)[][]> {
   await ctx.perm.require('grade:export', courseId);
   const r = await graderReport(ctx, courseId);
-  const items = r.items.filter((i) => i.kind !== 'CATEGORY');
+  const items = [
+    ...r.items.filter((i) => i.kind !== 'CATEGORY' && i.kind !== 'COURSE'),
+    ...r.items.filter((i) => i.kind === 'COURSE'),
+  ];
   const header = [
     'firstname lastname',
     'email',
     'username',
     ...items.map((i) => (i.kind === 'COURSE' ? 'Course total' : i.name)),
   ];
-  const lines = [header.map(csvEscape).join(',')];
-  for (const u of r.users) {
-    const row = [
+  return [
+    header,
+    ...r.users.map((u) => [
       u.name,
       u.emailPlaceholder ? '' : u.email,
       u.username ?? '',
       ...items.map((i) => {
         const v = num(r.cell.get(`${u.id}:${i.id}`)?.finalGrade);
-        return v === null ? '' : String(Math.round(v * 100) / 100);
+        if (v === null) return null;
+        if (i.scale) return i.scale.items[Math.round(v) - 1] ?? null;
+        return Math.round(v * 100) / 100;
       }),
-    ];
-    lines.push(row.map(csvEscape).join(','));
-  }
-  return `﻿${lines.join('\r\n')}\r\n`;
+    ]),
+  ];
+}
+
+export async function exportGradesCsv(ctx: RequestContext, courseId: string): Promise<string> {
+  const rows = await gradeExportRows(ctx, courseId);
+  const lines = rows.map((r) => r.map((v) => csvEscape(v === null ? '' : String(v))).join(','));
+  return `\uFEFF${lines.join('\r\n')}\r\n`;
+}
+
+export async function exportGradesXlsx(ctx: RequestContext, courseId: string): Promise<Uint8Array> {
+  return writeXlsx(await gradeExportRows(ctx, courseId), 'Grades');
+}
+
+// ── history ───────────────────────────────────────────────────────────────────
+
+export const GradeHistoryQuery = z.object({
+  userId: z.string().uuid().optional(),
+  itemId: z.string().uuid().optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(200).default(50),
+});
+
+/** Changes of grades in a course, newest first (course totals only when asked for). */
+export async function gradeHistory(
+  ctx: RequestContext,
+  courseId: string,
+  raw: z.input<typeof GradeHistoryQuery>,
+) {
+  await ctx.perm.require('grade:viewall', courseId);
+  const q = GradeHistoryQuery.parse(raw);
+  const where: Prisma.GradeHistoryWhereInput = {
+    grade: {
+      item: { courseId, ...(q.itemId ? { id: q.itemId } : { kind: { not: 'COURSE' } }) },
+      ...(q.userId ? { userId: q.userId } : {}),
+    },
+    ...(q.from || q.to
+      ? { changedAt: { ...(q.from ? { gte: q.from } : {}), ...(q.to ? { lt: q.to } : {}) } }
+      : {}),
+  };
+  const [total, rows] = await Promise.all([
+    ctx.db.gradeHistory.count({ where }),
+    ctx.db.gradeHistory.findMany({
+      where,
+      orderBy: { changedAt: 'desc' },
+      skip: (q.page - 1) * q.pageSize,
+      take: q.pageSize,
+      include: {
+        grade: {
+          select: {
+            user: { select: { id: true, name: true } },
+            item: {
+              select: {
+                id: true,
+                name: true,
+                kind: true,
+                gradeMin: true,
+                gradeMax: true,
+                decimals: true,
+                display: true,
+                scale: { select: { items: true } },
+              },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+  const changers = await ctx.db.user.findMany({
+    where: {
+      id: { in: [...new Set(rows.flatMap((r) => (r.changedById ? [r.changedById] : [])))] },
+    },
+    select: { id: true, name: true },
+  });
+  return {
+    total,
+    page: q.page,
+    pageSize: q.pageSize,
+    rows: rows.map((r) => ({
+      id: r.id,
+      changedAt: r.changedAt,
+      source: r.source,
+      overridden: r.overridden,
+      previousGrade: num(r.previousGrade),
+      finalGrade: num(r.finalGrade),
+      feedback: r.feedback,
+      user: r.grade.user,
+      item: r.grade.item,
+      changedBy: changers.find((c) => c.id === r.changedById) ?? null,
+    })),
+  };
 }
 
 /** Imports grades for MANUAL items by column name; users matched by email or username. */
@@ -636,13 +901,16 @@ export const importGradesCsv = defineOperation({
     const userCol = idx('username');
     if (emailCol < 0 && userCol < 0)
       throw new ValidationError({ csv: ['Header must contain email or username'] });
-    const items = await ctx.tx.gradeItem.findMany({ where: { courseId, kind: 'MANUAL' } });
+    const items = await ctx.tx.gradeItem.findMany({
+      where: { courseId, kind: 'MANUAL' },
+      include: { scale: true },
+    });
     const cols = header
       .map((h, i) => ({
         i,
         item: items.find((it) => it.name.toLowerCase() === h.trim().toLowerCase()),
       }))
-      .filter((c): c is { i: number; item: GradeItem } => !!c.item);
+      .filter((c): c is { i: number; item: (typeof items)[number] } => !!c.item);
     if (!cols.length) throw new ValidationError({ csv: ['No columns match manual grade items'] });
     const errors: { line: number; message: string }[] = [];
     let updated = 0;
@@ -659,9 +927,13 @@ export const importGradesCsv = defineOperation({
         continue;
       }
       for (const c of cols) {
-        const raw = (r[c.i] ?? '').trim().replace(',', '.');
-        if (raw === '') continue;
-        const v = Number(raw);
+        const cellText = (r[c.i] ?? '').trim();
+        if (cellText === '') continue;
+        const raw = cellText.replace(',', '.');
+        // scale grades by their name (as exported) or position
+        const v = c.item.scale
+          ? (scaleValue(c.item.scale.items, cellText) ?? Number.NaN)
+          : Number(raw);
         if (Number.isNaN(v) || v < num(c.item.gradeMin)! || v > num(c.item.gradeMax)!) {
           errors.push({ line: n + 2, message: `${c.item.name}: invalid grade ${raw}` });
           continue;

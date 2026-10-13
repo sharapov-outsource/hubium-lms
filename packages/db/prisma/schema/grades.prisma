@@ -30,6 +30,8 @@ enum GradeDisplay {
   LETTER
 }
 
+/// A named list of grades, worst first (stored grades are 1-based positions in it).
+/// Site-wide when courseId is null.
 model Scale {
   id        String   @id @default(uuid(7)) @db.Uuid
   courseId  String?  @db.Uuid
@@ -37,14 +39,20 @@ model Scale {
   items     String[]
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 
+  course     Course?     @relation(fields: [courseId], references: [id], onDelete: Cascade)
   gradeItems GradeItem[]
+
+  @@index([courseId])
 }
 
+/// Letter boundaries of the site (system context) or of one course.
 model GradeLetter {
   id         String  @id @default(uuid(7)) @db.Uuid
   contextId  String  @db.Uuid
   lowerBound Decimal @db.Decimal(6, 2)
   letter     String
+
+  context Context @relation(fields: [contextId], references: [id], onDelete: Cascade)
 
   @@unique([contextId, lowerBound])
 }
@@ -59,6 +67,8 @@ model GradeCategory {
   keepHighest         Int              @default(0)
   aggregateOnlyGraded Boolean          @default(true)
   hidden              Boolean          @default(false)
+  /// Weight of the category in its parent's weighted mean.
+  weight              Decimal          @default(1) @db.Decimal(12, 5)
   sortOrder           Int              @default(0)
   createdAt           DateTime         @default(now()) @db.Timestamptz(3)
 
@@ -131,13 +141,15 @@ model Grade {
 }
 
 model GradeHistory {
-  id          String   @id @default(uuid(7)) @db.Uuid
-  gradeId     String   @db.Uuid
-  finalGrade  Decimal? @db.Decimal(12, 5)
-  feedback    String?
-  source      String
-  changedById String?  @db.Uuid
-  changedAt   DateTime @default(now()) @db.Timestamptz(3)
+  id            String   @id @default(uuid(7)) @db.Uuid
+  gradeId       String   @db.Uuid
+  previousGrade Decimal? @db.Decimal(12, 5)
+  finalGrade    Decimal? @db.Decimal(12, 5)
+  overridden    Boolean  @default(false)
+  feedback      String?
+  source        String
+  changedById   String?  @db.Uuid
+  changedAt     DateTime @default(now()) @db.Timestamptz(3)
 
   grade Grade @relation(fields: [gradeId], references: [id], onDelete: Cascade)
 

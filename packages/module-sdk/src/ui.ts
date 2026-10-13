@@ -9,6 +9,8 @@ export interface SettingsFieldsProps<S = Record<string, unknown>> {
   courseId: string;
   /** Existing files in module file areas (for edit forms). */
   files?: Record<string, { id: string; name: string; url: string }[]>;
+  /** Grade scales the course can use (the site's and its own). */
+  scales?: { id: string; name: string; items: string[] }[];
 }
 
 export interface ViewProps<S = Record<string, unknown>> {

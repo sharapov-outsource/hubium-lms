@@ -362,7 +362,8 @@
     "ai": "AI",
     "policies": "Policies",
     "webhooks": "Webhooks",
-    "profileFields": "Profile fields"
+    "profileFields": "Profile fields",
+    "grades": "Grades"
   },
   "email": {
     "footer": "You received this email because you have an account on this site.",
@@ -825,7 +826,60 @@
       "MANUAL": "Manual",
       "COURSE": "Total",
       "CATEGORY": "Category"
-    }
+    },
+    "scalesLetters": "Scales and letters",
+    "history": "History",
+    "exportXlsx": "Export XLSX",
+    "structure": "Gradebook structure",
+    "structureHint": "Categories group items; a category total counts in its parent with its weight.",
+    "newCategory": "New category",
+    "category": "Category",
+    "parent": "Inside",
+    "wholeCourse": "Whole course",
+    "categoryWeight": "Weight in parent",
+    "keepHighest": "Keep only the best",
+    "editCategory": "Edit",
+    "deleteCategoryConfirm": "Delete the category “{name}”? Its items and subcategories move one level up.",
+    "categoryTotal": "Total: {name}",
+    "emptyCategory": "No items in this category yet",
+    "scale": "Scale",
+    "points": "Points",
+    "scales": "Scales",
+    "siteScales": "Site scales",
+    "courseScales": "Course scales",
+    "scaleItems": "Grades of the scale from worst to best, one per line",
+    "newScale": "New scale",
+    "scaleUsed": "{count, plural, =0 {not used} one {used by # item} other {used by # items}}",
+    "deleteScaleConfirm": "Delete the scale “{name}”?",
+    "noScales": "No scales yet",
+    "letters": "Letter grades",
+    "lettersHint": "A letter is given when the percentage is at or above its boundary.",
+    "lettersFrom": {
+      "course": "Own for the course",
+      "site": "As on the site",
+      "builtin": "Built-in"
+    },
+    "inherit": "Use the site settings",
+    "bound": "From, %",
+    "letter": "Letter",
+    "lettersSaved": "Letter grades saved",
+    "historyEmpty": "No changes",
+    "when": "When",
+    "was": "Before",
+    "became": "After",
+    "source": "Source",
+    "by": "By",
+    "sources": {
+      "module": "Activity",
+      "grader": "Gradebook",
+      "override": "Changed by hand",
+      "import": "Import",
+      "aggregation": "Total recalculated"
+    },
+    "all": "All",
+    "from": "From",
+    "to": "To",
+    "apply": "Show"
   },
   "qbank": {
     "title": "Question bank",
@@ -1383,5 +1437,9 @@
     "deleteConfirm": "Delete the “{name}” field together with its values for every user?",
     "section": "More details",
     "csvHint": "profile_field_<short name> columns fill profile fields: {names}."
+  },
+  "adminGrades": {
+    "title": "Scales and letter grades",
+    "description": "Site scales are available in every course. Site letter grades apply to courses without their own."
   }
 }
