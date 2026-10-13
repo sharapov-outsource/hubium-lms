@@ -102,6 +102,32 @@ describe('.mbz import', () => {
     expect(slots[2]!.categoryId).toBe(cat.id);
   });
 
+  it('a failed import leaves no course or question bank behind', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const before = await t.db.course.count();
+    const categoriesBefore = await t.db.questionCategory.count();
+    // fail half-way: the course, its sections and question categories already exist
+    const db = new Proxy(t.db, {
+      get: (o, p) =>
+        p === 'question'
+          ? new Proxy(o.question, {
+              get: (q, k) =>
+                k === 'create'
+                  ? async () => {
+                      throw new Error('boom');
+                    }
+                  : Reflect.get(q, k),
+            })
+          : Reflect.get(o, p),
+    });
+    const category = await t.db.category.findFirstOrThrow();
+    await expect(
+      importMbz({ ...admin, db }, await readMbz(await mbzFixture()), { categoryId: category.id }),
+    ).rejects.toThrow('boom');
+    expect(await t.db.course.count()).toBe(before);
+    expect(await t.db.questionCategory.count()).toBe(categoriesBefore);
+  });
+
   it('rejects archives that are not Moodle backups', async () => {
     await expect(readMbz(Buffer.from('nope'))).rejects.toThrow();
   });

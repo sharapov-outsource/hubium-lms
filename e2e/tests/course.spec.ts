@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { sql } from './db';
+import { deleteCourse, sql } from './db';
 import { chooseOption, DEMO_PASSWORD, expectAccessible, login, pickDateTime } from './helpers';
 
 const stamp = `${Date.now().toString(36).slice(-5)}${Math.random().toString(36).slice(2, 5)}`;
@@ -14,6 +14,21 @@ test.describe
       await sql(`DELETE FROM "CalendarEvent" WHERE title LIKE 'Вебинар %' AND scope = 'COURSE'`);
     });
 
+    // The course (with its enrolments and webinar) and the teacher's site role go again,
+    // so every run starts from the seeded data.
+    test.afterAll(async () => {
+      const [c] = await sql<{ id: string }>(`SELECT id FROM "Course" WHERE "shortName" = $1`, [
+        shortName,
+      ]);
+      if (c) await deleteCourse(c.id);
+      await sql(
+        `DELETE FROM "RoleAssignment" ra USING "User" u, "Role" r
+          WHERE ra."userId" = u.id AND ra."roleId" = r.id AND u.username = 'teacher'
+            AND r."shortName" = 'coursecreator'
+            AND ra."contextId" = '00000000-0000-7000-8000-000000000001'`,
+      );
+    });
+
     test('teacher (course creator) creates a course with a page and self-enrolment key', async ({
       page,
     }) => {
@@ -22,7 +37,9 @@ test.describe
         `INSERT INTO "RoleAssignment"(id, "userId", "roleId", "contextId", component, "createdAt")
        SELECT gen_random_uuid(), u.id, r.id, '00000000-0000-7000-8000-000000000001', 'MANUAL', now()
          FROM "User" u, "Role" r WHERE u.username='teacher' AND r."shortName"='coursecreator'
-       ON CONFLICT DO NOTHING`,
+          AND NOT EXISTS (SELECT 1 FROM "RoleAssignment" x
+                           WHERE x."userId" = u.id AND x."roleId" = r.id
+                             AND x."contextId" = '00000000-0000-7000-8000-000000000001')`,
       );
       await login(page, 'teacher', DEMO_PASSWORD);
       await page.goto('/course/new');

@@ -119,8 +119,13 @@ test.describe
       const name = `E2E-${Date.now().toString(36)}`;
       await page.locator('#f-gift').fill(`::${name}:: 2 + 2 = ? {=4 ~5 ~22}`);
       await page.locator('form:has(#f-gift) button[type=submit]').click();
-      await expect(page.getByText('Импортировано вопросов: 1. Ошибок: 0.')).toBeVisible();
-      await expect(page.getByText(name)).toBeVisible();
-      await expectAccessible(page);
+      try {
+        await expect(page.getByText('Импортировано вопросов: 1. Ошибок: 0.')).toBeVisible();
+        await expect(page.getByText(name)).toBeVisible();
+        await expectAccessible(page);
+      } finally {
+        // the demo bank is copied by backups and duplicates: keep it as seeded
+        await sql(`DELETE FROM "Question" WHERE name = $1`, [name]);
+      }
     });
   });
