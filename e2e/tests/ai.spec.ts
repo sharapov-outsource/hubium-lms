@@ -165,6 +165,7 @@ test.describe
     });
 
     test('the tutor answers from an uploaded PDF', async ({ page }) => {
+      test.setTimeout(120_000);
       await login(page, 'teacher', DEMO_PASSWORD);
       const [section] = await sql<{ id: string }>(
         `SELECT id FROM "CourseSection" WHERE "courseId" = $1 ORDER BY rank LIMIT 1`,
@@ -200,7 +201,8 @@ test.describe
                 [fileActivityId],
               )
             )[0]?.text ?? '',
-          { timeout: 30_000 },
+          // the worker may still be indexing activities of courses other specs created
+          { timeout: 60_000 },
         )
         .toMatch(/The get method returns None\s+when the key is missing/);
       await logout(page);

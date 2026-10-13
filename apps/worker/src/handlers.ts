@@ -129,6 +129,9 @@ export const coreHandlers: JobHandlerDef[] = [
   },
   {
     name: INDEX_JOB,
+    // Course copies and restores queue an index job per activity; take them ten at a time
+    // instead of one per polling interval.
+    batchSize: 10,
     async handler(data: { activityId: string }, { db }) {
       return indexActivity(db, data.activityId);
     },
