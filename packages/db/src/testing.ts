@@ -7,7 +7,12 @@ import { createDb, type Db } from './client.ts';
 // Integration-test databases. A template DB is migrated once per test run (globalSetup),
 // then each test file clones it with CREATE DATABASE … TEMPLATE, which takes milliseconds.
 
-const TEMPLATE = 'hubium_test_template';
+// One template per package: `pnpm test` runs several packages' suites at once, and each
+// globalSetup recreates its template. globalSetup and the test workers share the cwd.
+const TEMPLATE = `hubium_test_template_${path
+  .basename(process.cwd())
+  .toLowerCase()
+  .replace(/[^a-z0-9]/g, '_')}`;
 const pkgRoot = path.resolve(import.meta.dirname, '..');
 
 function baseUrl(): URL {
