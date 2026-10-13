@@ -45,9 +45,12 @@ export default async function ActivityPage({
     course,
     access,
     canOpen,
+    listed,
     missing,
   } = await getActivityAccess(ctx, activityId).catch(() => notFound());
   if (a.courseId !== courseId || a.deletedAt) notFound();
+  // Activities hidden from the viewer are not found rather than shown by name as restricted.
+  if (!canOpen && !listed && !access.canManageActivities) notFound();
   const [t, tm] = await Promise.all([getTranslations('course'), getTranslations('mod')]);
   const m = getModule(a.moduleKey);
   const ui = getModuleUI(a.moduleKey);

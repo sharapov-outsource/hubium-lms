@@ -245,7 +245,7 @@ describe('courses domain', () => {
     const names = outline.flatMap((s) => s.activities.map((a) => a.activity.name));
     expect(names).toEqual(['Упражнения', 'Введение']);
     const hidden = await getActivityAccess(ctx, ids.hidden!);
-    expect(hidden.canOpen).toBe(false);
+    expect(hidden).toMatchObject({ canOpen: false, listed: false, missing: [] });
     const outsider = await ctxFor(t.db, 'student3@hubium.local');
     expect((await getCourseAccess(outsider, ids.course!)).canView).toBe(false);
   });
@@ -286,7 +286,7 @@ describe('courses domain', () => {
     const s1 = await getActivityAccess(await ctxFor(t.db, 'student1@hubium.local'), id);
     const s2 = await getActivityAccess(await ctxFor(t.db, 'student2@hubium.local'), id);
     expect(s1.canOpen).toBe(true);
-    expect(s2.canOpen).toBe(false);
+    expect(s2).toMatchObject({ canOpen: false, listed: true });
     expect(s2.missing[0]).toMatchObject({ type: 'completion' });
     await updateActivity.run(teacher, {
       id,
@@ -303,9 +303,11 @@ describe('courses domain', () => {
       ids.course!,
     );
     expect(outline.flatMap((s) => s.activities).some((a) => a.activity.id === id)).toBe(false);
-    expect(
-      (await getActivityAccess(await ctxFor(t.db, 'student2@hubium.local'), id)).missing,
-    ).toEqual([]);
+    expect(await getActivityAccess(await ctxFor(t.db, 'student2@hubium.local'), id)).toMatchObject({
+      canOpen: false,
+      listed: false,
+      missing: [],
+    });
   });
 
   it('stealth activities opened by link still obey restrictions and hidden sections', async () => {
@@ -322,14 +324,17 @@ describe('courses domain', () => {
         c: [{ type: 'completion', activityId: ids.manual!, state: 'complete' }],
       },
     });
-    const open = async (email: string) =>
-      (await getActivityAccess(await ctxFor(t.db, email), id)).canOpen;
-    expect(await open('student1@hubium.local')).toBe(true);
-    expect(await open('student2@hubium.local')).toBe(false);
+    const access = async (email: string) => getActivityAccess(await ctxFor(t.db, email), id);
+    expect(await access('student1@hubium.local')).toMatchObject({ canOpen: true });
+    // whoever holds the link is told what the activity still waits for
+    expect(await access('student2@hubium.local')).toMatchObject({ canOpen: false, listed: true });
     await t.db.courseSection.update({ where: { id: ids.s1! }, data: { visible: false } });
     try {
-      expect(await open('student1@hubium.local')).toBe(false);
-      expect(await open('teacher@hubium.local')).toBe(true);
+      expect(await access('student1@hubium.local')).toMatchObject({
+        canOpen: false,
+        listed: false,
+      });
+      expect(await access('teacher@hubium.local')).toMatchObject({ canOpen: true });
     } finally {
       await t.db.courseSection.update({ where: { id: ids.s1! }, data: { visible: true } });
     }

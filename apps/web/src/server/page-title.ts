@@ -38,8 +38,9 @@ export const courseName = cache(async (courseId: string): Promise<string | null>
 });
 
 /**
- * The activity name, for those who can open the activity or see it listed with unmet
- * conditions; activities hidden from the viewer keep their names to themselves.
+ * The activity name, for those who can open the activity or have it listed (the same viewers
+ * the activity page shows it to); activities hidden from the viewer keep their names to
+ * themselves.
  */
 export const activityName = cache(
   async (courseId: string, activityId: string): Promise<string | null> => {
@@ -47,6 +48,6 @@ export const activityName = cache(
     const ctx = await getContext();
     const r = await getActivityAccess(ctx, activityId).catch(() => null);
     if (!r || r.activity.courseId !== courseId || r.activity.deletedAt) return null;
-    return r.canOpen || r.missing.length || r.access.canManageActivities ? r.activity.name : null;
+    return r.canOpen || r.listed || r.access.canManageActivities ? r.activity.name : null;
   },
 );

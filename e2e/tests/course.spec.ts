@@ -119,11 +119,38 @@ test('restricted activity shows its condition and unlocks after completion', asy
   await page.goto(`/course/${c!.id}`);
   await expect(page.getByText(/Доступно, если|Available when/).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Условия: if, elif, else' })).toHaveCount(0);
+  // opened by its URL, a listed activity still names itself and its conditions
+  const [locked] = await sql<{ id: string }>(
+    `SELECT id FROM "Activity" WHERE "courseId"=$1 AND name='Условия: if, elif, else'`,
+    [c!.id],
+  );
+  await page.goto(`/course/${c!.id}/a/${locked!.id}`);
+  await expect(page.getByRole('heading', { name: 'Условия: if, elif, else' })).toBeVisible();
+  await expect(page.getByText(/Доступно, если/)).toBeVisible();
+  await page.goto(`/course/${c!.id}`);
   await page.getByRole('link', { name: 'Что такое Python' }).click();
   await page.waitForURL(/\/a\//);
   await expect(page.getByRole('heading', { name: 'Почему Python' })).toBeVisible();
   await page.goto(`/course/${c!.id}`);
   await expect(page.getByRole('link', { name: 'Условия: if, elif, else' })).toBeVisible();
+});
+
+test('an activity hidden from students is not found by its URL', async ({ page }) => {
+  const [a] = await sql<{ id: string; courseId: string }>(
+    `SELECT a.id, a."courseId" FROM "Activity" a JOIN "Course" c ON c.id = a."courseId"
+      WHERE c."shortName"='DEMO-PY' AND a.name='Функции и аргументы'`,
+  );
+  await sql(`UPDATE "Activity" SET visibility='HIDDEN' WHERE id=$1`, [a!.id]);
+  try {
+    await login(page, 'student3', DEMO_PASSWORD);
+    const res = await page.goto(`/course/${a!.courseId}/a/${a!.id}`);
+    expect(res?.status()).toBe(404);
+    await expect(page.getByRole('heading', { name: 'Страница не найдена' })).toBeVisible();
+    await expect(page.getByText('Функции и аргументы')).toHaveCount(0);
+    await expect(page).not.toHaveTitle(/Функции и аргументы/);
+  } finally {
+    await sql(`UPDATE "Activity" SET visibility='SHOWN' WHERE id=$1`, [a!.id]);
+  }
 });
 
 test('view as student hides teacher controls', async ({ page }) => {
