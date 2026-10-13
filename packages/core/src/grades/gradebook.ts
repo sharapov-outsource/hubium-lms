@@ -9,6 +9,7 @@ import { provideModuleServices, toActivityRef } from '../modules/module-ctx.ts';
 import { getModule } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
 import { parseCsv } from '../users/users.ts';
+import { emitWebhook } from '../webhooks/events.ts';
 import { type Aggregation, aggregate, defaultLetters, type LetterBoundary } from './aggregate.ts';
 
 type Tx = Prisma.TransactionClient | Db;
@@ -140,6 +141,17 @@ async function writeGrade(
   const g = existing
     ? await tx.grade.update({ where: { id: existing.id }, data })
     : await tx.grade.create({ data: { ...data, gradeItemId: item.id, userId } });
+  if (!existing || num(existing.finalGrade) !== data.finalGrade)
+    await emitWebhook(tx, 'grade.updated', {
+      userId,
+      courseId: item.courseId,
+      activityId: item.activityId,
+      actorId: meta.changedById ?? null,
+      extra: {
+        gradeItem: { id: item.id, name: item.name, kind: item.kind, gradeMax: num(item.gradeMax) },
+        grade: data.finalGrade,
+      },
+    });
   await tx.gradeHistory.create({
     data: {
       gradeId: g.id,

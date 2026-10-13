@@ -237,6 +237,63 @@ describe('REST API v1', () => {
     }
   });
 
+  it('manages webhooks for administrators', async () => {
+    type Hook = { id: string; secret?: string; enabled: boolean };
+    const read = async <T>(r: Response | Promise<Response>) => (await (await r).json()) as T;
+    const events = await read<{ items: string[] }>(call(tokens.admin!, '/webhook-events'));
+    expect(events.items).toContain('enrolment.created');
+
+    const body = JSON.stringify({
+      name: 'HR',
+      url: 'https://hr.example.org/hook',
+      events: ['user.created', 'enrolment.created'],
+    });
+    expect((await call(tokens.teacher!, '/webhooks', { method: 'POST', body })).status).toBe(403);
+    expect((await call(tokens.readonly!, '/webhooks', { method: 'POST', body })).status).toBe(403);
+    const created = await call(tokens.admin!, '/webhooks', { method: 'POST', body });
+    expect(created.status).toBe(201);
+    const w = await read<Hook>(created);
+    expect(w).toMatchObject({
+      name: 'HR',
+      enabled: true,
+      events: ['user.created', 'enrolment.created'],
+    });
+    expect(w.secret).toMatch(/^whsec_/);
+
+    const one = await read<Hook>(call(tokens.admin!, `/webhooks/${w.id}`));
+    expect(one.secret).toBeUndefined();
+    const bad = await call(tokens.admin!, `/webhooks/${w.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ url: 'http://10.0.0.5/hook' }),
+    });
+    expect(bad.status).toBe(400);
+    const patched = await call(tokens.admin!, `/webhooks/${w.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ enabled: false }),
+    });
+    expect(await patched.json()).toMatchObject({ enabled: false });
+
+    const rotated = await read<{ secret: string }>(
+      call(tokens.admin!, `/webhooks/${w.id}/rotate-secret`, { method: 'POST' }),
+    );
+    expect(rotated.secret).not.toBe(w.secret);
+    const ping = await read<{ deliveryId: string }>(
+      call(tokens.admin!, `/webhooks/${w.id}/ping`, { method: 'POST' }),
+    );
+    const log = await read<unknown>(call(tokens.admin!, `/webhooks/${w.id}/deliveries`));
+    expect(log).toMatchObject({
+      total: 1,
+      items: [{ id: ping.deliveryId, event: 'ping', status: 'PENDING' }],
+    });
+    const again = await call(tokens.admin!, `/webhooks/deliveries/${ping.deliveryId}/redeliver`, {
+      method: 'POST',
+    });
+    expect(again.status).toBe(200);
+
+    expect((await call(tokens.admin!, `/webhooks/${w.id}`, { method: 'DELETE' })).status).toBe(200);
+    expect((await call(tokens.admin!, `/webhooks/${w.id}`)).status).toBe(404);
+  });
+
   it('rate-limits per token', async () => {
     const small = createApi({ db: t.db, rateLimitPerMinute: 2 });
     const go = () =>

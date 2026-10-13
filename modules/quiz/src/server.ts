@@ -250,6 +250,15 @@ export async function finishAttempt(
     data: { state, finishedAt: ctx.now, sumGrades: sum, needsManualGrading: manual },
   });
   if (!at.preview) await updateQuizGrade(ctx, a, at.userId);
+  // Here rather than in the "finish" action: time-outs and the overdue sweep close attempts too.
+  if (state === 'FINISHED')
+    await ctx.log('quiz.attempt.finished', {
+      activityId: a.id,
+      attemptId: at.id,
+      userId: at.userId,
+      sumGrades: sum,
+      preview: at.preview,
+    });
   return at;
 }
 
@@ -593,7 +602,6 @@ export const quiz = defineModule<QuizSettingsT>({
         const late = at.dueAt && ctx.now.getTime() > at.dueAt.getTime() + GRACE_MS;
         if (!late) await saveResponses(ctx, at.id, input.answers);
         await finishAttempt(ctx, a as ActivityRef<QuizSettingsT>, at.id);
-        await ctx.log('quiz.attempt.finished', { activityId: a.id, attemptId: at.id });
         if (!at.preview) {
           const graders = await ctx.perm.usersWithCap('mod.quiz:grade', a.id);
           const needs = await ctx.db.quizAttempt.findUnique({

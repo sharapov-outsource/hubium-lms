@@ -3,7 +3,7 @@ import { symmetricDecrypt, symmetricEncrypt } from 'better-auth/crypto';
 import { decryptSecret, encryptSecret } from '../crypto.ts';
 
 // APP_SECRET rotation: re-encrypts every secret envelope stored in the database with the
-// new secret, including the TOTP secrets better-auth encrypts with it (otherwise every
+// new secret (AI keys, webhook signing secrets), including the TOTP secrets better-auth encrypts with it (otherwise every
 // two-factor user would be locked out). Signed links (unsubscribe, content tokens, LTI
 // hints) simply expire; the LTI platform key should be rotated from Admin → LTI afterwards.
 
@@ -21,6 +21,10 @@ export async function rotateAppSecret(db: Db, oldSecret: string, newSecret: stri
         where: { id: e.id },
         data: { apiKeyEnc: re(e.apiKeyEnc!) },
       });
+      count++;
+    }
+    for (const w of await tx.webhook.findMany({ select: { id: true, secretEnc: true } })) {
+      await tx.webhook.update({ where: { id: w.id }, data: { secretEnc: re(w.secretEnc) } });
       count++;
     }
     for (const t of await tx.twoFactor.findMany({ select: { id: true, secret: true } })) {

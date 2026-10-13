@@ -189,6 +189,8 @@ export async function erasePersonalData(
   await tx.notification.deleteMany({ where: { userId } });
   await tx.notificationPreference.deleteMany({ where: { userId } });
   await tx.calendarEvent.deleteMany({ where: { userId, scope: 'USER' } });
+  // Webhook deliveries carry the person's name and email until they are pruned.
+  await tx.$executeRaw`DELETE FROM "WebhookDelivery" WHERE payload -> 'user' ->> 'id' = ${userId}`;
   await tx.message.updateMany({
     where: { senderId: userId, deletedAt: null },
     data: { body: '', deletedAt: ctx.now },

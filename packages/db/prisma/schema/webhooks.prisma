@@ -1,0 +1,48 @@
+// Outgoing webhooks: an administrator subscribes a URL to event types; every matching
+// event becomes a signed delivery that the worker sends and retries.
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model Webhook {
+  id                  String    @id @default(uuid(7)) @db.Uuid
+  name                String
+  url                 String
+  /// HMAC secret, sealed with APP_SECRET (shown to the administrator once).
+  secretEnc           String
+  /// Subscribed event types, e.g. "enrolment.created".
+  events              String[]
+  enabled             Boolean   @default(true)
+  /// Deliveries that failed for good in a row; reaching the limit switches the webhook off.
+  consecutiveFailures Int       @default(0)
+  disabledReason      String?
+  lastDeliveryAt      DateTime? @db.Timestamptz(3)
+  createdById         String?   @db.Uuid
+  createdAt           DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(3)
+
+  deliveries WebhookDelivery[]
+}
+
+model WebhookDelivery {
+  id             String                @id @default(uuid(7)) @db.Uuid
+  webhookId      String                @db.Uuid
+  event          String
+  /// The event's `data` object; the envelope is built when sending.
+  payload        Json
+  status         WebhookDeliveryStatus @default(PENDING)
+  attempts       Int                   @default(0)
+  responseStatus Int?
+  /// The start of the receiver's answer (or the network error), for the administrator.
+  responseBody   String?
+  createdAt      DateTime              @default(now()) @db.Timestamptz(3)
+  lastAttemptAt  DateTime?             @db.Timestamptz(3)
+
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId, createdAt])
+  @@index([createdAt])
+}

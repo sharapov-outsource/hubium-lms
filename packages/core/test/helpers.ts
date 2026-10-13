@@ -49,6 +49,7 @@ import { ltiModules } from '@hubium/mod-lti/server';
 import { type CapturedJob, setJobSink } from '../src/jobs/jobs.ts';
 import { setMailTransport } from '../src/mail/mail.ts';
 import { invalidateSettingsCache } from '../src/settings/settings.ts';
+import { invalidateWebhookCache } from '../src/webhooks/events.ts';
 
 /** Jobs enqueued during tests (pg-boss is not used). */
 export const capturedJobs: CapturedJob[] = [];
@@ -77,6 +78,7 @@ export function useTestDb(opts: { profile?: 'minimal' | 'demo' } = {}) {
     state.db = state.tdb.db;
     invalidatePermissionCaches();
     invalidateSettingsCache();
+    invalidateWebhookCache();
     await seed(state.db, {
       profile: opts.profile ?? 'demo',
       courses: false,
@@ -87,6 +89,7 @@ export function useTestDb(opts: { profile?: 'minimal' | 'demo' } = {}) {
   afterAll(async () => {
     invalidatePermissionCaches();
     invalidateSettingsCache();
+    invalidateWebhookCache();
     await state.tdb?.drop();
   });
   return state;

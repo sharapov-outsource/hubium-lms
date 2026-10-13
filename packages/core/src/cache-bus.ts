@@ -3,18 +3,20 @@ import pg from 'pg';
 import { invalidatePermissionCaches } from './access/permissions.ts';
 import { dispatchRealtime, RT_CHANNEL } from './realtime.ts';
 import { invalidateSettingsCache } from './settings/settings.ts';
+import { invalidateWebhookCache } from './webhooks/events.ts';
 
 // Cross-process cache invalidation over Postgres LISTEN/NOTIFY. Every web and worker
 // instance listens on `hubium_cache`; NOTIFY inside a transaction is delivered on commit.
 // The same connection listens on `hubium_rt` for realtime events (see realtime.ts).
 
-export type CacheTopic = 'settings' | 'roles' | 'contexts';
+export type CacheTopic = 'settings' | 'roles' | 'contexts' | 'webhooks';
 export const CACHE_CHANNEL = 'hubium_cache';
 
 function applyLocal(topic: string): void {
   if (topic === 'settings') invalidateSettingsCache();
   else if (topic === 'roles') invalidatePermissionCaches('roles');
   else if (topic === 'contexts') invalidatePermissionCaches('contexts');
+  else if (topic === 'webhooks') invalidateWebhookCache();
 }
 
 export async function publishInvalidation(
@@ -46,6 +48,7 @@ export async function startCacheListener(
     // Anything may have changed while disconnected.
     invalidateSettingsCache();
     invalidatePermissionCaches();
+    invalidateWebhookCache();
     setTimeout(() => void startCacheListener(connectionString), 2000);
   });
   try {

@@ -5,12 +5,15 @@ import {
   authenticateApiToken,
   createCourse,
   createUser,
+  createWebhook,
+  deleteWebhook,
   enrolUsers,
   flattenTree,
   getActivityAccess,
   getCategoryTree,
   getCourseAccess,
   getCourseOutline,
+  getWebhook,
   graderReport,
   listApiTokens,
   listConversations,
@@ -21,13 +24,20 @@ import {
   listParticipants,
   listUserEvents,
   listUsers,
+  listWebhookDeliveries,
+  listWebhooks,
   markNotificationsRead,
+  pingWebhook,
   type RequestContext,
+  redeliverWebhook,
   revokeApiToken,
+  rotateWebhookSecret,
   runModuleAction,
   sendMessage,
   toActionError,
+  updateWebhook,
   userReport,
+  WEBHOOK_EVENTS,
 } from '@hubium/core';
 import type { Db } from '@hubium/db';
 import { Scalar } from '@scalar/hono-api-reference';
@@ -239,6 +249,57 @@ const GradesReport = z
   })
   .openapi('GradesReport');
 
+const WebhookEvent = z.enum(WEBHOOK_EVENTS).openapi('WebhookEvent');
+
+const Webhook = z
+  .object({
+    id: Id,
+    name: z.string(),
+    url: z.string(),
+    events: z.array(WebhookEvent),
+    enabled: z.boolean(),
+    disabledReason: z.string().nullable(),
+    consecutiveFailures: z.number().int(),
+    lastDeliveryAt: z.string().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .openapi('Webhook');
+
+const WebhookWithSecret = Webhook.extend({
+  secret: z.string().openapi({ description: 'Signing secret. Shown only in this response.' }),
+}).openapi('WebhookWithSecret');
+
+const WebhookInput = z
+  .object({
+    name: z.string(),
+    url: z.string().openapi({ example: 'https://hr.example.org/hubium-events' }),
+    events: z.array(WebhookEvent).min(1),
+    enabled: z.boolean().optional(),
+  })
+  .openapi('WebhookInput');
+
+const WebhookDelivery = z
+  .object({
+    id: Id,
+    event: z.string(),
+    status: z.enum(['PENDING', 'SUCCESS', 'FAILED']),
+    attempts: z.number().int(),
+    responseStatus: z.number().int().nullable(),
+    responseBody: z.string().nullable(),
+    createdAt: z.string(),
+    lastAttemptAt: z.string().nullable(),
+  })
+  .openapi('WebhookDelivery');
+
+const webhookJson = (w: Awaited<ReturnType<typeof getWebhook>>) => ({
+  ...w,
+  events: w.events as (typeof WEBHOOK_EVENTS)[number][],
+  lastDeliveryAt: iso(w.lastDeliveryAt),
+  createdAt: w.createdAt.toISOString(),
+  updatedAt: w.updatedAt.toISOString(),
+});
+
 const Page = <T extends z.ZodType>(item: T) =>
   z.object({ items: z.array(item), total: z.number().int(), page: z.number().int() });
 
@@ -327,6 +388,9 @@ export function createApi(opts: ApiOptions) {
     '/notifications/*',
     '/tokens',
     '/tokens/*',
+    '/webhooks',
+    '/webhooks/*',
+    '/webhook-events',
   ])
     app.use(p, auth);
 
@@ -1018,6 +1082,180 @@ export function createApi(opts: ApiOptions) {
       responses: { 200: ok(z.object({ id: Id })), ...errors },
     }),
     async (c) => c.json(await revokeApiToken(ctxOf(c), c.req.valid('param').id), 200),
+  );
+
+  // ── /webhooks (administrators) ──
+  const json = { body: { content: { 'application/json': { schema: WebhookInput } } } };
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/webhook-events',
+      tags: ['Webhooks'],
+      summary: 'Event types a webhook can subscribe to',
+      security,
+      responses: { 200: ok(z.object({ items: z.array(WebhookEvent) })), ...errors },
+    }),
+    (c) => c.json({ items: [...WEBHOOK_EVENTS] }, 200),
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/webhooks',
+      tags: ['Webhooks'],
+      summary: 'List webhooks (administrators)',
+      security,
+      responses: { 200: ok(z.object({ items: z.array(Webhook) })), ...errors },
+    }),
+    async (c) => c.json({ items: (await listWebhooks(ctxOf(c))).map(webhookJson) }, 200),
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/webhooks',
+      tags: ['Webhooks'],
+      summary: 'Create a webhook; the response carries its signing secret once',
+      security,
+      request: json,
+      responses: { 201: ok(WebhookWithSecret, 'Created'), ...errors },
+    }),
+    async (c) => {
+      const w = await createWebhook.run(ctxOf(c), c.req.valid('json'));
+      return c.json({ ...webhookJson(w), secret: w.secret }, 201);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/webhooks/{id}',
+      tags: ['Webhooks'],
+      summary: 'One webhook',
+      security,
+      request: { params: IdParam },
+      responses: { 200: ok(Webhook), ...errors },
+    }),
+    async (c) => c.json(webhookJson(await getWebhook(ctxOf(c), c.req.valid('param').id)), 200),
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'patch',
+      path: '/webhooks/{id}',
+      tags: ['Webhooks'],
+      summary: 'Change a webhook (switching it on again resets its failure count)',
+      security,
+      request: {
+        params: IdParam,
+        body: { content: { 'application/json': { schema: WebhookInput.partial() } } },
+      },
+      responses: { 200: ok(Webhook), ...errors },
+    }),
+    async (c) => {
+      const w = await updateWebhook.run(ctxOf(c), {
+        ...c.req.valid('json'),
+        id: c.req.valid('param').id,
+      });
+      return c.json(webhookJson(w), 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'delete',
+      path: '/webhooks/{id}',
+      tags: ['Webhooks'],
+      summary: 'Delete a webhook and its delivery log',
+      security,
+      request: { params: IdParam },
+      responses: { 200: ok(z.object({ id: Id })), ...errors },
+    }),
+    async (c) => c.json(await deleteWebhook.run(ctxOf(c), { id: c.req.valid('param').id }), 200),
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/webhooks/{id}/rotate-secret',
+      tags: ['Webhooks'],
+      summary: 'Replace the signing secret; the response carries the new one once',
+      security,
+      request: { params: IdParam },
+      responses: { 200: ok(z.object({ id: Id, secret: z.string() })), ...errors },
+    }),
+    async (c) =>
+      c.json(await rotateWebhookSecret.run(ctxOf(c), { id: c.req.valid('param').id }), 200),
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/webhooks/{id}/ping',
+      tags: ['Webhooks'],
+      summary: 'Send a test "ping" event now (one attempt)',
+      security,
+      request: { params: IdParam },
+      responses: { 200: ok(z.object({ deliveryId: Id })), ...errors },
+    }),
+    async (c) => c.json(await pingWebhook.run(ctxOf(c), { id: c.req.valid('param').id }), 200),
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/webhooks/{id}/deliveries',
+      tags: ['Webhooks'],
+      summary: 'Delivery log, newest first (kept for 30 days)',
+      security,
+      request: {
+        params: IdParam,
+        query: z.object({
+          page: z.coerce.number().int().min(1).default(1),
+          pageSize: z.coerce.number().int().min(1).max(100).default(50),
+        }),
+      },
+      responses: { 200: ok(Page(WebhookDelivery)), ...errors },
+    }),
+    async (c) => {
+      const r = await listWebhookDeliveries(
+        ctxOf(c),
+        c.req.valid('param').id,
+        c.req.valid('query'),
+      );
+      return c.json(
+        {
+          items: r.items.map((d) => ({
+            id: d.id,
+            event: d.event,
+            status: d.status,
+            attempts: d.attempts,
+            responseStatus: d.responseStatus,
+            responseBody: d.responseBody,
+            createdAt: d.createdAt.toISOString(),
+            lastAttemptAt: iso(d.lastAttemptAt),
+          })),
+          total: r.total,
+          page: r.page,
+        },
+        200,
+      );
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/webhooks/deliveries/{id}/redeliver',
+      tags: ['Webhooks'],
+      summary: 'Send a past delivery again (as a new delivery)',
+      security,
+      request: { params: IdParam },
+      responses: { 200: ok(z.object({ deliveryId: Id })), ...errors },
+    }),
+    async (c) =>
+      c.json(await redeliverWebhook.run(ctxOf(c), { deliveryId: c.req.valid('param').id }), 200),
   );
 
   // ── spec + docs (public) ──

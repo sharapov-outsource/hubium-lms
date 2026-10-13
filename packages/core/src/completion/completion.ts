@@ -7,6 +7,7 @@ import { logEvent } from '../events/log.ts';
 import { buildModuleCtx, provideModuleServices, toActivityRef } from '../modules/module-ctx.ts';
 import { getModule } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
+import { emitWebhook } from '../webhooks/events.ts';
 
 type Tx = Prisma.TransactionClient | Db;
 
@@ -45,6 +46,12 @@ export async function recomputeCourseProgress(
     create: { courseId, userId, progressPercent: percent, startedAt: now, completedAt },
     update: { progressPercent: percent, completedAt },
   });
+  if (completedAt && !existing?.completedAt)
+    await emitWebhook(tx, 'course.completed', {
+      userId,
+      courseId,
+      extra: { completedAt: completedAt.toISOString() },
+    });
   return percent;
 }
 
@@ -55,6 +62,10 @@ async function writeState(
   state: CompletionState,
   extra: { overriddenById?: string | null } = {},
 ) {
+  const before = await tx.activityCompletion.findUnique({
+    where: { activityId_userId: { activityId, userId } },
+    select: { state: true },
+  });
   await tx.activityCompletion.upsert({
     where: { activityId_userId: { activityId, userId } },
     create: {
@@ -66,6 +77,13 @@ async function writeState(
     },
     update: { state, completedAt: state === 'INCOMPLETE' ? null : new Date(), ...extra },
   });
+  if (state !== 'INCOMPLETE' && (before?.state ?? 'INCOMPLETE') === 'INCOMPLETE')
+    await emitWebhook(tx, 'activity.completed', {
+      userId,
+      activityId,
+      actorId: extra.overriddenById ?? null,
+      extra: { state },
+    });
 }
 
 /** Evaluates automatic completion rules (view + module rules) and stores the result. */

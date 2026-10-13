@@ -1,16 +1,19 @@
 import {
   COMPLETION_RECOMPUTE_JOB,
+  deliverWebhook,
   expireEnrolments,
   INDEX_COURSE_JOB,
   INDEX_JOB,
   indexActivity,
   indexCourse,
   PUSH_JOB,
+  pruneWebhookDeliveries,
   QUIZGEN_JOB,
   recomputeActivityForAll,
   recordHeartbeat,
   runQuizGeneration,
   sendPushNotifications,
+  WEBHOOK_JOB,
 } from '@hubium/core';
 import { publishDueAnnouncements } from '@hubium/core/announcements/announcements';
 import { sendCalendarReminders } from '@hubium/core/calendar/calendar';
@@ -148,6 +151,20 @@ export const coreHandlers: JobHandlerDef[] = [
     async handler(data: { taskId: string }, { db }) {
       const report = await runImportTask(db, data.taskId);
       return { ok: report !== null };
+    },
+  },
+  {
+    // One at a time: a slow receiver must not hold back a batch of other deliveries.
+    name: WEBHOOK_JOB,
+    async handler(data: { deliveryId: string }, { db }) {
+      return deliverWebhook(db, data.deliveryId);
+    },
+  },
+  {
+    name: 'webhooks.prune',
+    cron: '29 4 * * *',
+    async handler(_data: never, { db }) {
+      return { deleted: await pruneWebhookDeliveries(db) };
     },
   },
   {

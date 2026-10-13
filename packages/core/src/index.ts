@@ -37,3 +37,4 @@ export * from './realtime.ts';
 export * from './settings/settings.ts';
 export * from './system/health.ts';
 export * from './users/users.ts';
+export * from './webhooks/webhooks.ts';
