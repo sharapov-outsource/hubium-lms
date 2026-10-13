@@ -1,6 +1,6 @@
-# Hubium — architecture and technical design
+# Hubium LMS — architecture and technical design
 
-Hubium is an open-source LMS (AGPL-3.0), a modern alternative to Moodle. This document is the technical design behind the phased plan in [PLAN.md](PLAN.md). It was written before any code existed. Library APIs it mentions (Prisma 7, Better Auth, Next 16, the Anthropic SDK, scorm-again, etc.) must be verified against the installed versions during implementation.
+Hubium LMS is an open-source learning management system (AGPL-3.0), a modern alternative to Moodle. This document is the technical design behind the phased plan in [PLAN.md](PLAN.md). It was written before any code existed. Library APIs it mentions (Prisma 7, Better Auth, Next 16, the Anthropic SDK, scorm-again, etc.) must be verified against the installed versions during implementation.
 
 ---
 

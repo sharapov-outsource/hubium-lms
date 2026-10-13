@@ -1024,7 +1024,7 @@ export function createApi(opts: ApiOptions) {
   app.doc31('/openapi.json', {
     openapi: '3.1.0',
     info: {
-      title: 'Hubium REST API',
+      title: 'Hubium LMS REST API',
       version: '1.0.0',
       description:
         'Authenticate with `Authorization: Bearer <token>`. Tokens act as their user, limited by scopes (`read`, `write`). Versioning: breaking changes go to /api/v2; deprecated endpoints carry a `Deprecation` header for at least 6 months.',
@@ -1032,6 +1032,6 @@ export function createApi(opts: ApiOptions) {
     },
     servers: [{ url: opts.origin ?? '/' }],
   });
-  app.get('/docs', Scalar({ url: '/api/v1/openapi.json', pageTitle: 'Hubium API' }));
+  app.get('/docs', Scalar({ url: '/api/v1/openapi.json', pageTitle: 'Hubium LMS API' }));
   return app;
 }

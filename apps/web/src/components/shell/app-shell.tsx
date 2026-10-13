@@ -73,7 +73,7 @@ export async function AppShell({
               className="px-2 text-xs tabular-nums text-muted-foreground"
               title={builtAt ? t('common.buildDate', { date: builtAt }) : undefined}
             >
-              Hubium {buildInfo.version}
+              Hubium LMS {buildInfo.version}
               {buildInfo.commit ? ` · ${buildInfo.commit}` : null}
             </p>
           </aside>

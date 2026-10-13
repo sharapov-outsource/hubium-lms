@@ -222,7 +222,7 @@ async function idTokenClaims(ctx: ModuleCtx, hint: NonNullable<ReturnType<typeof
   const found = await loadLti(ctx.db, hint.a);
   if (!found) throw new Error('Unknown activity');
   const { act, settings: s, tool } = found;
-  const [course, user, roles] = await Promise.all([
+  const [course, user, roles, siteName] = await Promise.all([
     ctx.db.course.findUniqueOrThrow({
       where: { id: act.courseId },
       select: { id: true, shortName: true, fullName: true },
@@ -240,6 +240,10 @@ async function idTokenClaims(ctx: ModuleCtx, hint: NonNullable<ReturnType<typeof
       },
     }),
     lisRoles(ctx.db, hint.u, act.courseId),
+    // Tools show the platform name to users: the site's, not the engine's.
+    ctx.db.siteSetting
+      .findUnique({ where: { key: 'site.name' } })
+      .then((r) => (typeof r?.value === 'string' && r.value.trim() ? r.value : 'Hubium LMS')),
   ]);
   const returnUrl = `${appUrl()}/course/${course.id}/a/${act.id}`;
   const custom = {
@@ -260,7 +264,7 @@ async function idTokenClaims(ctx: ModuleCtx, hint: NonNullable<ReturnType<typeof
     },
     [LTI.claim('tool_platform')]: {
       guid: sha(appUrl()).slice(0, 32),
-      name: 'Hubium',
+      name: siteName,
       product_family_code: 'hubium',
       url: appUrl(),
     },

@@ -1,4 +1,4 @@
-# Contributing to Hubium
+# Contributing to Hubium LMS
 
 Thanks for helping! A few rules keep the codebase healthy.
 

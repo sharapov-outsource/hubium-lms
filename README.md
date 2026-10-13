@@ -1,6 +1,6 @@
-# Hubium
+# Hubium LMS
 
-**Hubium** — открытая система дистанционного обучения (LMS), современная альтернатива Moodle: спокойный интерфейс, тёмная тема, русский и английский языки, удобная работа с телефона.
+**Hubium LMS** — открытая система дистанционного обучения, современная альтернатива Moodle: спокойный интерфейс, тёмная тема, русский и английский языки, удобная работа с телефона.
 
 [English version below](#english)
 
@@ -72,7 +72,7 @@ docker compose -f docker/compose.yml --env-file .env up -d --build
 
 ## English
 
-**Hubium** is an open-source learning management system — a modern alternative to Moodle with a calm interface, dark mode, Russian and English UI, and a mobile-friendly layout.
+**Hubium LMS** is an open-source learning management system — a modern alternative to Moodle with a calm interface, dark mode, Russian and English UI, and a mobile-friendly layout.
 
 ### Quick start
 

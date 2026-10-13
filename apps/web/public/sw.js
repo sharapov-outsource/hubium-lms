@@ -33,10 +33,11 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: 'Hubium', body: event.data ? event.data.text() : '' };
+    data = { body: event.data ? event.data.text() : '' };
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Hubium', {
+    // The server always sends a title; the host name stands in for a malformed message.
+    self.registration.showNotification(data.title || self.location.hostname, {
       body: data.body || '',
       tag: data.tag,
       icon: '/icons/icon-192.png',

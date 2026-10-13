@@ -1,3 +1,4 @@
+import { getAllSettings } from '@hubium/core';
 import {
   Alert,
   Badge,
@@ -12,6 +13,7 @@ import { getFormatter, getTranslations } from 'next-intl/server';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { changePasswordAction } from '@/server/actions/account';
 import { auth } from '@/server/auth';
+import { db } from '@/server/db';
 import { titled } from '@/server/page-title';
 import { getSession, requireUser } from '@/server/session';
 import { RevokeButtons } from './revoke-buttons';
@@ -53,12 +55,13 @@ export default async function SecuritySettings({
 }) {
   const user = await requireUser();
   const { required } = await searchParams;
-  const [t, ta, tc, format, session] = await Promise.all([
+  const [t, ta, tc, format, session, settings] = await Promise.all([
     getTranslations('settings'),
     getTranslations('auth'),
     getTranslations('common'),
     getFormatter(),
     getSession(),
+    getAllSettings(db),
   ]);
   const sessions = await auth.api.listSessions({ headers: await headers() });
   return (
@@ -115,7 +118,7 @@ export default async function SecuritySettings({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <TwoFactorPanel enabled={user.twoFactorEnabled} />
+          <TwoFactorPanel enabled={user.twoFactorEnabled} issuer={settings['site.name']} />
         </CardContent>
       </Card>
       <Card>

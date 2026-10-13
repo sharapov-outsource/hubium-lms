@@ -8,7 +8,7 @@ import { ValidationError } from '../errors.ts';
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Expected a #rrggbb colour');
 
 export const settingDefs = {
-  'site.name': z.string().min(1).max(100).default('Hubium'),
+  'site.name': z.string().min(1).max(100).default('Hubium LMS'),
   'site.defaultLocale': z.enum(['ru', 'en']).default('ru'),
   'site.defaultTimezone': z.string().default('Europe/Moscow'),
   'branding.accent': hex.default('#4f46e5'),
@@ -20,7 +20,7 @@ export const settingDefs = {
   'auth.oauth.yandex': z.boolean().default(false),
   'auth.oauth.vk': z.boolean().default(false),
   'auth.require2faForAdmins': z.boolean().default(false),
-  'email.fromName': z.string().default('Hubium'),
+  'email.fromName': z.string().default('Hubium LMS'),
   'course.creatorRole': z.string().default('editingteacher'),
   'mentors.enabled': z.boolean().default(false),
   'ai.enabled': z.boolean().default(false),

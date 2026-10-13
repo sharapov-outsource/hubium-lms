@@ -7,8 +7,10 @@ import { useTranslations } from 'next-intl';
 import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
 import { authClient } from '@/lib/auth-client';
+import { withIssuer } from '@/lib/totp-uri';
 
-export function TwoFactorPanel({ enabled }: { enabled: boolean }) {
+/** `issuer`: the site name, shown for the account in authenticator apps. */
+export function TwoFactorPanel({ enabled, issuer }: { enabled: boolean; issuer: string }) {
   const t = useTranslations('settings');
   const ta = useTranslations('auth');
   const tc = useTranslations('common');
@@ -35,7 +37,7 @@ export function TwoFactorPanel({ enabled }: { enabled: boolean }) {
     const r = await authClient.twoFactor.enable({ password });
     setPending(false);
     if (r.error || !r.data || r.data.method !== 'totp') return setError(ta('invalidCredentials'));
-    setSetup({ uri: r.data.totpURI, codes: r.data.backupCodes });
+    setSetup({ uri: withIssuer(r.data.totpURI, issuer), codes: r.data.backupCodes });
     setStep('verify');
   }
 

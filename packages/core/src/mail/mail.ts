@@ -20,7 +20,7 @@ export async function deliverMail(m: {
   text: string;
   headers?: Record<string, string>;
 }) {
-  const from = process.env.MAIL_FROM ?? 'Hubium <no-reply@hubium.local>';
+  const from = process.env.MAIL_FROM ?? 'Hubium LMS <no-reply@hubium.local>';
   return getTransport().sendMail({ from, ...m });
 }
 

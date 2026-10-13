@@ -18,7 +18,7 @@ x-app-env: &app-env
   S3_ACCESS_KEY: ${S3_ACCESS_KEY:-hubium}
   S3_SECRET_KEY: ${S3_SECRET_KEY:?S3_SECRET_KEY is required}
   SMTP_URL: ${SMTP_URL:-smtp://mailpit:1025}
-  MAIL_FROM: ${MAIL_FROM:-Hubium <no-reply@hubium.local>}
+  MAIL_FROM: ${MAIL_FROM:-Hubium LMS <no-reply@hubium.local>}
   SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@hubium.local}
   SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Admin12345!}
   AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID:-}

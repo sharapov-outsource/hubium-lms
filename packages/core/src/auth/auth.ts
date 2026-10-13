@@ -52,7 +52,7 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
   };
 
   return betterAuth({
-    appName: 'Hubium',
+    appName: 'Hubium LMS',
     baseURL,
     secret,
     database: prismaAdapter(db, { provider: 'postgresql' }),
@@ -180,7 +180,8 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
     },
     plugins: [
       username({ minUsernameLength: 3, maxUsernameLength: 50 }),
-      twoFactor({ issuer: 'Hubium' }),
+      // The settings page swaps in the site name before showing the QR code.
+      twoFactor({ issuer: 'Hubium LMS' }),
       admin({ defaultRole: 'user', adminRoles: [] }),
       ...(generic.length ? [genericOAuth({ config: generic })] : []),
       ...extraPlugins,
