@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Уязвимость · Security vulnerability
+    url: https://github.com/sharapov-outsource/hubium/security/advisories/new
+    about: Сообщайте об уязвимостях приватно, не в публичных issue (см. SECURITY.md).
+  - name: Документация · Documentation
+    url: https://github.com/sharapov-outsource/hubium/tree/main/docs
+    about: Установка, эксплуатация, REST API и разработка модулей.
