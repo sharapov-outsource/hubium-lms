@@ -20,6 +20,7 @@
     "db:migrate": "pnpm --filter @hubium/db migrate:deploy",
     "db:migrate:dev": "pnpm --filter @hubium/db migrate:dev",
     "db:seed": "pnpm --filter @hubium/core seed",
+    "storage:init": "pnpm --filter @hubium/core storage:init",
     "postinstall": "pnpm --filter @hubium/db generate"
   },
   "devDependencies": {
