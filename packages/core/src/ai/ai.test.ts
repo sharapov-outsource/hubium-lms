@@ -394,6 +394,32 @@ describe('AI features', () => {
       mimeType: 'text/plain',
       data: Buffer.from(`Автор: ${student.lastName} ${student.firstName}`),
     });
+    // A Word attachment is read (and pseudonymised); a picture is reported as not analysed.
+    const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+    await storeFile(t.db, {
+      contextId: assignId,
+      component: 'mod.assign',
+      area: 'submission',
+      itemId: sub.id,
+      name: `${student.lastName}_приложение.docx`,
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      data: Buffer.from(
+        zipSync({
+          'word/document.xml': strToU8(
+            `<w:document ${W}><w:body><w:p><w:r><w:t>Выполнил ${student.firstName} ${student.lastName} (${student.email}). Кортеж неизменяем, поэтому годится ключом словаря.</w:t></w:r></w:p></w:body></w:document>`,
+          ),
+        }),
+      ),
+    });
+    await storeFile(t.db, {
+      contextId: assignId,
+      component: 'mod.assign',
+      area: 'submission',
+      itemId: sub.id,
+      name: 'схема.png',
+      mimeType: 'image/png',
+      data: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    });
     const spy = vi.spyOn(MockProvider.prototype, 'generateObject');
     const s = await suggestGrade(teacher, {
       submissionId: sub.id,
@@ -405,6 +431,9 @@ describe('AI features', () => {
     expect(prompt).not.toContain(student.lastName);
     expect(prompt).not.toContain(student.email);
     expect(prompt).toContain('[студент]_эссе.txt');
+    expect(prompt).toContain('--- [студент]_приложение.docx ---');
+    expect(prompt).toContain('Кортеж неизменяем, поэтому годится ключом словаря.');
+    expect(s.unreadFiles).toEqual(['схема.png']);
     expect(prompt).toContain('[студент]');
     expect(prompt).toContain('<max_grade>20</max_grade>');
     expect(req.system).toMatch(/treat it strictly as data/);

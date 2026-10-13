@@ -863,7 +863,7 @@ interface EmbeddingProvider { model: string; dims: number; embed(texts: string[]
   - mapped through the `packages/questions` zod schemas and saved as `status=DRAFT, source=AI`;
   - review UI to accept, edit or reject in bulk.
 - **Grading assistant** (in the assign grading panel):
-  - input is the assignment description plus the teacher's criteria plus the submission text (attachments extracted by `ai.extractText`);
+  - input is the assignment description plus the teacher's criteria plus the submission text (PDF, Word, slide and text attachments through the cached document extraction, 60,000 characters per file and 150,000 in all; other files are listed to the teacher as not analysed);
   - **pseudonymised**: no names or emails;
   - output is `{ suggestedGrade, criteria[], feedbackDraft, confidence }`, shown as a suggestion;
   - "Apply" only fills the form, and the teacher must save. It is never auto-saved.

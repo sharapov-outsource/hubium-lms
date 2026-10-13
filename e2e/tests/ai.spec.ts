@@ -28,6 +28,10 @@ test.describe
     // The demo course is shared by every spec: leave it as found.
     test.afterAll(async () => {
       if (fileActivityId) await sql(`DELETE FROM "Context" WHERE id = $1`, [fileActivityId]);
+      await sql(
+        `DELETE FROM "File" WHERE "contextId" = $1 AND area = 'submission' AND name = 'calculator.pdf'`,
+        [ids.assignId],
+      );
     });
 
     test.beforeAll(async () => {
@@ -128,6 +132,36 @@ test.describe
         [ids.assignId, ids.studentId],
       );
       expect(Number(g!.n)).toBe(0);
+    });
+
+    test('the grading assistant reads a PDF the student attached', async ({ page }) => {
+      const status = (value: string) =>
+        sql(
+          `UPDATE "AssignSubmission" SET status = $3::"AssignSubmissionStatus" WHERE "activityId" = $1 AND "userId" = $2`,
+          [ids.assignId, ids.studentId, value],
+        );
+      await status('DRAFT');
+      await login(page, STUDENT, DEMO_PASSWORD);
+      await page.goto(`/course/${ids.courseId}/a/${ids.assignId}`);
+      await page.locator('#assign-files').setInputFiles({
+        name: 'calculator.pdf',
+        mimeType: 'application/pdf',
+        buffer: Buffer.from(
+          samplePdf([['a = float(input()); b = float(input())', 'print(a + b, a - b, a * b)']]),
+        ),
+      });
+      await page.getByRole('button', { name: 'Сохранить черновик' }).click();
+      await expect(page.getByRole('link', { name: 'calculator.pdf' })).toBeVisible();
+      await status('SUBMITTED');
+      await logout(page);
+
+      await login(page, 'teacher', DEMO_PASSWORD);
+      await page.goto(`/course/${ids.courseId}/a/${ids.assignId}?grade=${ids.studentId}`);
+      await page.getByRole('button', { name: 'Предложить оценку' }).click();
+      await expect(page.getByText(/^Предложение: [\d.]+ из \d+/)).toBeVisible();
+      // The PDF was read in the web process; nothing is reported as not analysed.
+      await expect(page.getByText(/Не проанализированы вложения/)).toHaveCount(0);
+      await logout(page);
     });
 
     test('the tutor answers from an uploaded PDF', async ({ page }) => {

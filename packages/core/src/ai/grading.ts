@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { NotFoundError, ValidationError } from '../errors.ts';
 import { getStorage } from '../files/storage.ts';
+import { fileText, isTextDocument } from '../files/text.ts';
 import { provideModuleServices } from '../modules/module-ctx.ts';
 import { getSetting } from '../settings/settings.ts';
 import { featureEnabledForCourse } from './config.ts';
@@ -33,8 +34,12 @@ const SYSTEM = `You help a teacher grade an assignment submission.
 - The feedback draft is constructive, specific, in the language of the assignment, and never mentions that it was AI-generated.
 - If the submission is empty or off-topic, say so and give low confidence.`;
 
+// Other text-like attachments (source code, JSON, XML) are read as they are.
 const TEXT_TYPES = /^(text\/|application\/(json|xml))/;
 const MAX_FILE_BYTES = 200_000;
+/** Characters per attachment and for all of them, so one long file cannot crowd out the rest. */
+const MAX_FILE_CHARS = 60_000;
+const MAX_ATTACHMENT_CHARS = 150_000;
 
 async function readTextFile(storageKey: string): Promise<string> {
   const stream = await getStorage().getStream(storageKey);
@@ -90,14 +95,31 @@ export async function suggestGrade(
     u.email,
     u.email.split('@')[0],
   ];
-  // File names often carry the author's name ("Ivanov_essay.txt") too.
+  // Documents (PDF, Word, slides, text) are read like course files, through the cached
+  // extraction; their text is pseudonymised with the rest of the submission below. File
+  // names often carry the author's name ("Ivanov_essay.pdf") too.
   const notes: string[] = [];
   const fileTexts: string[] = [];
+  let budget = MAX_ATTACHMENT_CHARS;
   for (const file of files) {
     const name = pseudonymise(file.name, ids);
-    if (TEXT_TYPES.test(file.mimeType)) {
-      fileTexts.push(`--- ${name} ---\n${await readTextFile(file.blob.storageKey)}`);
-    } else notes.push(name);
+    const text =
+      budget <= 0
+        ? null
+        : isTextDocument(file)
+          ? await fileText(ctx.db, file.id)
+          : TEXT_TYPES.test(file.mimeType)
+            ? await readTextFile(file.blob.storageKey)
+            : null;
+    if (!text?.trim()) {
+      notes.push(name);
+      continue;
+    }
+    const limit = Math.min(MAX_FILE_CHARS, budget);
+    budget -= Math.min(text.length, limit);
+    fileTexts.push(
+      `--- ${name} ---\n${text.length > limit ? `${text.slice(0, limit)}\n[… the rest of this file is not included]` : text}`,
+    );
   }
   const submission = pseudonymise(
     [htmlToText(sub.onlineText), ...fileTexts].filter((s) => s.trim()).join('\n\n'),
@@ -111,7 +133,7 @@ export async function suggestGrade(
     `<max_grade>${gradeMax}</max_grade>`,
     `<criteria>\n${input.criteria?.trim() || 'Correctness, completeness and clarity.'}\n</criteria>`,
     notes.length
-      ? `Attached files that could not be read (judge only what is visible): ${notes.join(', ')}`
+      ? `Attached files that could not be read or did not fit (judge only what is visible): ${notes.join(', ')}`
       : '',
     `<submission>\n${submission}\n</submission>`,
   ]
