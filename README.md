@@ -20,11 +20,11 @@
 
 ## Быстрый старт (разработка)
 
-Нужны Node.js 22.12+ (рекомендуется 24), pnpm 10 и Docker.
+Нужны Node.js 22.12+ (рекомендуется 24 LTS), pnpm 12 (`npm install -g pnpm@12`) и Docker.
 
 ```bash
 cp .env.example .env                      # и задайте APP_SECRET: openssl rand -base64 32
-docker compose -f docker/compose.dev.yml up -d   # PostgreSQL, MinIO, Mailpit
+docker compose -f docker/compose.dev.yml up -d   # PostgreSQL, Mailpit, RustFS (S3)
 pnpm install
 pnpm db:migrate
 pnpm db:seed --profile demo
@@ -38,11 +38,11 @@ pnpm dev                                  # http://localhost:3000
 ## Продакшн
 
 ```bash
-cp .env.example .env   # APP_SECRET, APP_URL, пароли
+cp .env.production.example .env   # адреса, APP_SECRET, S3_SECRET_KEY, пароли
 docker compose -f docker/compose.yml --env-file .env up -d --build
 ```
 
-Поднимаются PostgreSQL (pgvector), MinIO, миграции, web, worker, worker-media и Caddy с HTTPS.
+Поднимаются PostgreSQL (pgvector), S3-хранилище RustFS, миграции, web, worker, worker-media и Caddy с HTTPS. Подробности — в [docs/operations.md](docs/operations.md).
 
 ## Разработка
 
@@ -51,8 +51,8 @@ docker compose -f docker/compose.yml --env-file .env up -d --build
 | `pnpm dev` | web и worker в режиме разработки |
 | `pnpm lint` / `pnpm format` | Biome |
 | `pnpm typecheck` | TypeScript во всех пакетах |
-| `pnpm test` | unit и интеграционные тесты (нужен PostgreSQL) |
-| `pnpm --filter @hubium/e2e e2e` | Playwright e2e против запущенного приложения |
+| `pnpm test` | unit и интеграционные тесты (нужен PostgreSQL; тесты S3 — с `S3_TEST_ENDPOINT`) |
+| `pnpm --filter @hubium/e2e e2e` | Playwright e2e против запущенного приложения (браузер: `pnpm --filter @hubium/e2e exec playwright install chromium`) |
 | `pnpm depcruise` | проверка архитектурных границ |
 
 Документация:
@@ -76,6 +76,8 @@ docker compose -f docker/compose.yml --env-file .env up -d --build
 
 ### Quick start
 
+Requires Node.js 22.12+ (24 LTS recommended), pnpm 12 (`npm install -g pnpm@12`) and Docker.
+
 ```bash
 cp .env.example .env            # set APP_SECRET (openssl rand -base64 32)
 docker compose -f docker/compose.dev.yml up -d
@@ -84,6 +86,8 @@ pnpm dev                        # http://localhost:3000
 ```
 
 Sign in as `admin@hubium.local` / `Admin12345!`. Demo users (`teacher`, `student1`, …) use `Demo12345!`.
+
+Production: `cp .env.production.example .env`, fill it in, then `docker compose -f docker/compose.yml --env-file .env up -d --build` (PostgreSQL, RustFS S3 storage, web, workers, Caddy with HTTPS).
 
 ### Features
 

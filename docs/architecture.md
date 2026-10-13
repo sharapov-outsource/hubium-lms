@@ -8,10 +8,10 @@ Hubium is an open-source LMS (AGPL-3.0), a modern alternative to Moodle. This do
 
 | Concern | Decision | Notes |
 |---|---|---|
-| Runtime | Node 24 LTS, pnpm 10.13 workspaces, ESM everywhere | `.nvmrc`, `packageManager` field in root `package.json` |
+| Runtime | Node 24 LTS, pnpm 12 workspaces, ESM everywhere | `.nvmrc`, `packageManager` field in root `package.json` |
 | Orchestration | Turborepo 2 (one `turbo.json`) | Gives a task graph and cache for CI. Nx would be too heavy. |
 | Lint/format | Biome 2, with its a11y rules on | No typescript-eslint, so nothing depends on the TS compiler API. This keeps a later TS 7 switch cheap. |
-| TypeScript | **Pin `typescript@~5.9`** | Run TS 7 (`tsgo`) as a non-blocking CI job. Switch when Next.js officially supports it. See risk R2. |
+| TypeScript | **`typescript@~7.0`** (native compiler) | Next.js 16.4 type-checks through the `tsc` CLI. dependency-cruiser still needs the compiler's JS API, so `tools/depcruise` pins TypeScript 6 for it alone. See risk R2. |
 | Web | next 16.4 (App Router, Turbopack, `output: 'standalone'`, `typedRoutes`), react 19.3 | **`cacheComponents` off in v1.** Nearly every LMS page is personalised and permission-dependent. |
 | DB | PostgreSQL 18 + pgvector 0.8 (`pgvector/pgvector:pg18`). Support PG >= 16 for external DBs. | Extensions: `vector`, `citext`, `pg_trgm`, `unaccent` |
 | ORM | prisma 7.10 + `@prisma/adapter-pg`. Multi-file schema. `prisma-client` generator outputs to `packages/db/src/generated/prisma`. | Not 8.0 RC. `prisma.config.ts` must load `.env` itself (`import 'dotenv/config'`). Run `generate` and seed explicitly; Prisma 7 no longer chains them. |
@@ -561,7 +561,7 @@ Two implementations:
 ### 6.5 Compose hostnames (Caddy)
 - `LMS_HOST` → web
 - `CONTENT_HOST` → web (`proxy.ts` only allows `/c/*` there; the LMS session cookie is host-only so it never reaches this host)
-- `FILES_HOST` → MinIO (presigned URLs only)
+- `S3_PUBLIC_URL` → the S3 service (RustFS in compose; presigned URLs only)
 
 In dev, `localhost:3000` versus `127.0.0.1:3000` gives two distinct origins for free.
 
@@ -629,7 +629,7 @@ In dev, `localhost:3000` versus `127.0.0.1:3000` gives two distinct origins for 
 4. next-intl without routing.
 
 **Deliverables**
-- **Repo:** workspace, Turbo, Biome, dependency-cruiser, `LICENSE` (AGPL-3.0), compose files (db, minio, mailpit, caddy, migrate, web, worker), multi-target Dockerfile (`turbo prune`), GitHub Actions.
+- **Repo:** workspace, Turbo, Biome, dependency-cruiser, `LICENSE` (AGPL-3.0), compose files (db, s3, mailpit, caddy, migrate, web, worker), multi-target Dockerfile (`turbo prune`), GitHub Actions.
 - **db:** `prisma.config.ts`, schema files `identity`, `site`, `access`, `files`. Initial migration creates the extensions and the GIN index. `createDb()`, seed (admin, demo users), Testcontainers template-DB helper.
 - **core:**
   - env (zod), `crypto` (AES-256-GCM envelope with `APP_SECRET` for stored secrets), `AppError`, the operation framework and transports, actor/context;
@@ -657,7 +657,7 @@ In dev, `localhost:3000` versus `127.0.0.1:3000` gives two distinct origins for 
 - Registration sends a verification mail visible in Mailpit. TOTP enrolment and login work. Google/Yandex/VK work with test credentials (manual).
 - Changing the accent colour and logo applies after reload, and a low-contrast colour gets auto-adjusted with a notice. Dark mode and ru/en switching persist on the profile.
 - At least 40 `can()` unit scenarios pass: overrides, prohibit, suspended or expired enrolment, admin exclusion, token scopes.
-- Integration tests cover the files ACL against both FS and MinIO.
+- Integration tests cover the files ACL against both FS and S3 (RustFS).
 - e2e covers login, 2FA, admin creating a user and assigning a role, and branding.
 
 ### Phase 2: Core LMS (size XL)
@@ -915,14 +915,14 @@ interface EmbeddingProvider { model: string; dims: number; embed(texts: string[]
 
 **Test layers**
 - **Unit** (vitest, node): permissions resolution, availability evaluator, grade aggregation (Moodle-parity fixtures), question grading and shuffle, GIFT/XML parsers, SCORM manifest and CMI mapping, LTI claim builder and JWT validation (including negative cases: wrong alg, kid, aud, nonce replay, expired), Tiptap JSON validator and sanitiser, fractional ranks, i18n key parity, capability registry consistency.
-- **Integration** (vitest + **Testcontainers** `pgvector/pgvector:pg18` + MinIO):
+- **Integration** (vitest + **Testcontainers** `pgvector/pgvector:pg18` + S3):
   - `globalSetup` migrates a template DB once; each test file runs `CREATE DATABASE … TEMPLATE` (about 50 ms), so parallel workers are fully isolated;
   - core operations run against real Prisma;
   - pg-boss is real, with a `drainJobs()` helper;
-  - storage drivers are tested against MinIO and FS.
+  - storage drivers are tested against RustFS (S3) and FS.
 - **Component tests:** minimal; happy-dom + Testing Library for complex client widgets only (grader table, quiz navigation).
 - **E2E** (Playwright):
-  - runs against `next build && next start` plus the worker on `compose.test.yml` (db, minio, mailpit) with seed profile `test`;
+  - runs against `next build && next start` plus the worker on `compose.test.yml` (db, s3, mailpit) with seed profile `test`;
   - auth state is stored per role;
   - Mailpit API asserts emails;
   - fixtures include a small MP4, Golf SCORM packages, `.mbz` files and the ltijs tool;
@@ -932,7 +932,7 @@ interface EmbeddingProvider { model: string; dims: number; embed(texts: string[]
 **GitHub Actions**
 - **PR pipeline:**
   - `lint` (Biome) and dependency-cruiser;
-  - `typecheck` (TS 5.9; a non-blocking `tsgo` job alongside);
+  - `typecheck` (TypeScript 7);
   - `unit`;
   - `integration` (Docker on ubuntu runners);
   - `migrations` (`prisma migrate diff --from-migrations --to-schema --exit-code` against a shadow DB);
@@ -951,7 +951,7 @@ interface EmbeddingProvider { model: string; dims: number; embed(texts: string[]
 | # | Risk | Mitigation |
 |---|---|---|
 | R1 | **v1 scope** (core plus every extra) | Phase gates each ship a usable 0.x release. Modules are runtime-toggleable. Phases 5–7 can reorder without touching core. Keep v2 items (calculated grades, workshop, H5P, multilang filter, collaborative editing) out. |
-| R2 | **Next 16 / TS 7 / React 19.3 tooling churn** | Pin TS 5.9 (Next's build-time typecheck and the TS plugin rely on the TS JS API). Biome avoids typescript-eslint. `cacheComponents` stays off. `proxy.ts` is used only for host split and optimistic redirect. Business logic lives in framework-free `core`, so framework upgrades touch only adapters. Don't put `server-only` in shared server entries, because it throws in the worker. |
+| R2 | **Next 16 / TS 7 / React 19.3 tooling churn** | TypeScript 7 since Next.js 16.4 type-checks through the `tsc` CLI; tools that still need the compiler's JS API get TypeScript 6 in their own workspace package. Biome avoids typescript-eslint. `cacheComponents` stays off. `proxy.ts` is used only for host split and optimistic redirect. Business logic lives in framework-free `core`, so framework upgrades touch only adapters. Don't put `server-only` in shared server entries, because it throws in the worker. |
 | R3 | **Prisma 7 newness**: pgvector unsupported, Better Auth adapter vs the new generator | Spike on day 1. Vector and tsvector access goes only through a small raw-SQL module in `packages/db` with zod-parsed results. Fallback: Better Auth's built-in Kysely adapter on the same `pg` pool. Extensions and GIN/HNSW indexes live in migration SQL. |
 | R4 | **Server actions vs REST duplication and security** | One `defineOperation` used by all three transports (§1.4). Authorisation always happens inside the operation, never through UI hiding. Every action is a public POST endpoint, so check this in code review. Cookie-authenticated route handlers check Origin. |
 | R5 | **SCORM runtime quirks**: API discovery, unload commits, oversized `suspend_data`, authoring-tool idiosyncrasies, XSS from uploaded HTML | Separate content origin with a same-origin runtime-host iframe. Lenient mode that doesn't enforce the SCORM 1.2 4,096-character limit. Keepalive commits. CMI debug view. Corpus of Rustici Golf, iSpring, Storyline and Captivate packages in CI. |
@@ -961,6 +961,6 @@ interface EmbeddingProvider { model: string; dims: number; embed(texts: string[]
 | R9 | **Realtime at scale**: NOTIFY 8 KB limit, proxy buffering, connection limits | Notify ids rather than payloads. Chunked fan-out jobs. Caddy `flush_interval -1`. One EventSource per browser via BroadcastChannel. Heartbeats. Refetch on reconnect. |
 | R10 | **Permission correctness and performance** | Code-defined capabilities with typed names. In-memory role definitions with NOTIFY invalidation. `usersWithCap` and `contextsWithCap` in SQL rather than `can()` loops. A large scenario test suite. The "check permissions" explainer. |
 | R11 | **AI availability and compliance in Russia** | Anthropic's API isn't offered in some regions, including Russia, and 152-ФЗ restricts cross-border transfer of personal data. Make the provider an explicit admin choice at setup. Keep the OpenAI-compatible adapter first-class (YandexGPT, vLLM, Ollama). Pseudonymise grading input, require consent, and degrade gracefully with no provider configured. Model IDs live in settings for deprecations. Prompt injection: submissions and course text are treated as data, outputs are structured, and a human confirms. |
-| R12 | **Infrastructure licensing and distribution** | MinIO's community distribution changed in 2025 (console features removed, image publishing curtailed), so pin a verified image and keep the driver generic. Garage, SeaweedFS, RustFS or a cloud S3 (Yandex Object Storage, VK Cloud, Selectel) should work through configuration alone. Use only MIT Tiptap extensions. ffmpeg runs as a separate binary. A CI licence allowlist protects AGPL compatibility. |
+| R12 | **Infrastructure licensing and distribution** | MinIO's community distribution changed in 2025 and its images are no longer published, so compose ships RustFS (Apache-2.0) and the driver stays generic. Garage, SeaweedFS, RustFS or a cloud S3 (Yandex Object Storage, VK Cloud, Selectel) should work through configuration alone. Use only MIT Tiptap extensions. ffmpeg runs as a separate binary. A CI licence allowlist protects AGPL compatibility. |
 | R13 | **Users without email** (schools) under Better Auth's required email | Placeholder email plus flag, username login, and notification routing that skips email for those users. |
 | R14 | **Timezones and deadlines** | Store UTC (`timestamptz`), render in the user's timezone, show a "your time / course time" hint on due dates, and have tests cover DST transitions. |
