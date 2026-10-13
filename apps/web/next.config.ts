@@ -20,6 +20,10 @@ const config: NextConfig = {
     '@hubium/mod-content',
   ],
   serverExternalPackages: ['pg', 'pg-boss', '@prisma/client', '@prisma/adapter-pg', 'nodemailer'],
+  // The SCORM runtime host reads scorm-again's browser bundles from disk.
+  outputFileTracingIncludes: {
+    '/c/**': ['../../node_modules/.pnpm/scorm-again@*/node_modules/scorm-again/dist/scorm*.min.js'],
+  },
   typedRoutes: false,
   poweredByHeader: false,
   async headers() {

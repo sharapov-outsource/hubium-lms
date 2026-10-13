@@ -10,6 +10,7 @@ next-env.d.ts
 .env
 .env.local
 .env.*.local
+.env.production
 !.env.example
 
 packages/db/src/generated/

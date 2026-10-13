@@ -1,32 +1,32 @@
 # syntax=docker/dockerfile:1.7
-# Multi-target image: `--target web`, `--target worker`, `--target migrate`.
+# Multi-target image: `--target web`, `--target worker`, `--target worker-media`, `--target migrate`.
 
-ARG NODE_VERSION=24-bookworm-slim
+ARG NODE_VERSION=24-trixie-slim
 
 FROM node:${NODE_VERSION} AS base
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH NEXT_TELEMETRY_DISABLED=1
-RUN corepack enable && apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
+# pnpm 12 is a native binary that corepack cannot set up; install the version pinned in
+# package.json ("packageManager") with npm instead.
+COPY package.json ./
+RUN npm install -g "$(node -p "require('./package.json').packageManager")" && pnpm --version
 
+# Downloads every package in the lockfile; this layer only changes with the lockfile.
 FROM base AS deps
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc* ./
-COPY apps/web/package.json apps/web/
-COPY apps/worker/package.json apps/worker/
-COPY packages/core/package.json packages/core/
-COPY packages/db/package.json packages/db/
-COPY packages/db/prisma packages/db/prisma
-COPY packages/db/prisma.config.ts packages/db/
-COPY packages/i18n/package.json packages/i18n/
-COPY packages/ui/package.json packages/ui/
-COPY packages/tooling/package.json packages/tooling/
-COPY e2e/package.json e2e/
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
-RUN pnpm --filter @hubium/db generate
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch --store-dir /pnpm/store
 
 FROM deps AS build
 COPY . .
-RUN pnpm --filter @hubium/db generate \
- && pnpm --filter @hubium/web build \
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --offline --frozen-lockfile --store-dir /pnpm/store
+# Server modules create their database and auth clients on import, which `next build` does
+# while collecting routes; nothing connects. These placeholders never reach the images.
+RUN DATABASE_URL=postgresql://build:build@127.0.0.1:1/build \
+    APP_SECRET=build-time-placeholder-not-used-at-runtime \
+    pnpm --filter @hubium/web build \
  && pnpm --filter @hubium/worker build
 
 # ── web: Next.js standalone server ──────────────────────────────────────────────
@@ -36,6 +36,7 @@ WORKDIR /app
 RUN useradd --system --uid 1001 hubium && mkdir -p /data && chown hubium /data
 COPY --from=build --chown=hubium /app/apps/web/.next/standalone ./
 COPY --from=build --chown=hubium /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=build --chown=hubium /app/apps/web/public ./apps/web/public
 USER hubium
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
@@ -63,7 +64,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -r
 USER hubium
 ENV WORKER_QUEUES=media
 
-# ── migrate: one-shot migrations + idempotent seed ──────────────────────────────
+# ── migrate: one-shot migrations, storage bucket and idempotent seed ────────────
 FROM build AS migrate
 WORKDIR /app
-CMD ["sh", "-c", "pnpm --filter @hubium/db migrate:deploy && pnpm db:seed --profile ${SEED_PROFILE:-minimal}"]
+CMD ["sh", "-c", "pnpm --filter @hubium/db migrate:deploy && pnpm storage:init && pnpm db:seed --profile ${SEED_PROFILE:-minimal}"]
