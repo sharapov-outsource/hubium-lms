@@ -27,15 +27,15 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 
 ### Courses and learning
 
-- Category tree, course formats (topics, weeks, single page), cover images, a catalog with search and a course landing page.
+- Category tree, course formats (topics, weeks, single page), cover images, a catalog with full-text search (word forms, prefixes, typos) and a course landing page.
 - Sections and activities you can reorder by drag and drop or with the keyboard ("Move to…"). Items can be shown, hidden or stealth, and deleted ones go to a recycle bin with restore.
-- Access restrictions by date, completion, grade, group and profile field, for activities and sections.
+- Access restrictions by date, completion, grade, group, grouping and profile field (custom fields included), for activities and sections.
 - Manual or automatic completion with a teacher override, a completion matrix and course progress.
 - Enrolment:
   - manual, self-enrolment with a course key, group keys, enrolment window and duration;
   - cohort sync and guest access;
   - expiry handled by a scheduled job.
-- Groups, site-wide cohorts, and a participants page with filters and bulk actions.
+- Groups and groupings (an activity can be limited to one), site-wide cohorts, and a participants page with filters and bulk actions.
 - A dashboard with "continue", a to-do list and upcoming deadlines, plus a course stream like Google Classroom.
 - Course reports: participation and an event log.
 
@@ -43,9 +43,9 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 
 | Module | What it does |
 |---|---|
-| Page, link, file, label | Rich-text pages with tables and images; links shown inline, in a new tab or embedded; multi-file resources; YouTube, RuTube and VK Video embeds |
-| Assignment | Online text and files, word limit, open, due and cut-off dates, per-student extensions, reopened attempts, feedback with files, download all submissions as a zip |
-| Quiz | A question bank with 7 types, random questions from a category, shuffling, a time limit enforced on the server (closes even if the browser is gone), autosave, grading methods, review options, manual essay grading, question statistics |
+| Page, link, file, label | Rich-text pages with tables, images and math formulas (KaTeX); links shown inline, in a new tab or embedded; multi-file resources; YouTube, RuTube and VK Video embeds |
+| Assignment | Online text and files, word limit, open, due and cut-off dates, per-student extensions, reopened attempts, grading in points or on a scale, feedback with files, download all submissions as a zip |
+| Quiz | A question bank with 7 types, random questions from a category, shuffling, a time limit enforced on the server (closes even if the browser is gone), autosave, grading methods, review options, dates, time and attempts per student or group, manual essay grading, regrading with a dry run, question statistics |
 | Forum | General and Q&A types, subscriptions (optional, auto, forced), group modes, pinned and locked threads, private replies, unread tracking, completion by posts |
 | Video | Resumable upload, HLS transcoding to 360/720/1080p (never above the source), poster and scrubbing previews, VTT/SRT captions, optional no-skip-ahead, completion at N% watched |
 | Live session | BigBlueButton (with recordings) and Jitsi, schedule in the calendar, moderator or attendee role from permissions, attendance |
@@ -54,11 +54,12 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 
 ### Assessment
 
-- Gradebook with six aggregation methods:
+- Gradebook with a category tree and six aggregation methods:
   - natural, mean, weighted mean, highest, lowest, median;
-  - weights, drop lowest, aggregate only graded items;
-  - display as points, percentage or letter.
-- Grader report with inline overrides, a user report, and CSV import and export.
+  - weights of items and categories, drop lowest, keep highest, aggregate only graded items;
+  - display as points, percentage or letter, with letter boundaries for the site and per course.
+- Scales of the site and of a course, for manual items and assignments.
+- Grader report with inline overrides and category totals, a user report, a grade history with filters, CSV import, and CSV and XLSX export.
 - Question bank:
   - multiple choice, true/false, short answer, numerical, matching, essay and description;
   - tags and drafts;
@@ -72,7 +73,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
   - typing indicator and attachments;
   - blocking and privacy settings.
 - **Announcements:** site and course announcements, pinned or scheduled.
-- **Calendar:** site, course, group and personal events, month and agenda views, reminders, and an iCal feed.
+- **Calendar:** site, course, group and personal events, month, week and agenda views, reminders, and an iCal feed.
 
 ### AI assistant
 
@@ -96,8 +97,8 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 
 ### Administration
 
-- Users: create and edit, suspend, upload from CSV, export personal data, delete with anonymisation.
-- Roles editor with a capability matrix, and a permission checker.
+- Users: create and edit, custom profile fields, suspend, log in as another user (and return), upload from CSV, export personal data, delete with anonymisation.
+- Roles editor with a capability matrix, permission overrides per category, course and activity, and a permission checker.
 - Categories and courses (with a recycle bin), cohorts, LTI tools, webhooks, the AI provider, site policies that people must accept, and site announcements.
 - Settings: general, branding (accent colour with automatic contrast correction, plus a logo), registration, sign-in methods, and email with a test send.
 - An environment page that checks the database, worker, job queue, storage, SMTP, content origin, Web Push, AI and ffmpeg.

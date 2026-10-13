@@ -72,6 +72,8 @@ Each token may make `API_RATE_LIMIT_PER_MIN` requests per minute (120 by default
 
 Webhook endpoints are for administrators (`site:config`) and need a token with the `write` scope to change anything.
 
+Users carry their custom profile fields (**Administration → Profile fields**) as `customFields`, an object keyed by each field's short name: text, a `YYYY-MM-DD` date, a menu option or `true`/`false`. `GET /me` and `GET /users` return them, and `POST /users` accepts them; values are validated by field type.
+
 ## Examples
 
 Enrol two users as students:
@@ -80,6 +82,14 @@ Enrol two users as students:
 curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"userIds":["0199…","0199…"],"roleId":"<student role id>"}' \
   https://lms.example.org/api/v1/courses/$COURSE/enrolments
+```
+
+Create a user with a custom profile field:
+
+```bash
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"username":"ivanov","email":"ivanov@example.org","firstName":"Иван","lastName":"Иванов","password":"…","customFields":{"faculty":"Физфак"}}' \
+  https://lms.example.org/api/v1/users
 ```
 
 Submit an assignment on behalf of the token owner:
