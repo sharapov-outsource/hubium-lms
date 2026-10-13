@@ -21,7 +21,7 @@ export async function generateMetadata() {
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ m?: string; view?: string }>;
+  searchParams: Promise<{ m?: string; w?: string; view?: string }>;
 }) {
   const user = await requireUser();
   const sp = await searchParams;
@@ -45,15 +45,20 @@ export default async function CalendarPage({
   const [y, m] = /^\d{4}-\d{2}$/.test(sp.m ?? '') ? sp.m!.split('-').map(Number) : [ty, tm];
   const start = monthStart(y!, m! - 1);
   const end = monthStart(y!, m!);
-  const view = sp.view === 'agenda' ? 'agenda' : 'month';
-  const events = await listUserEvents(
-    db,
-    user.id,
+  const view = sp.view === 'agenda' || sp.view === 'week' ? sp.view : 'month';
+  // week view: the Monday (a calendar date) of the week that contains ?w= or today
+  const anchor = /^\d{4}-\d{2}-\d{2}$/.test(sp.w ?? '') ? sp.w! : localDay(now);
+  const anchorDate = new Date(`${anchor}T00:00:00Z`);
+  const monday = new Date(anchorDate.getTime() - ((anchorDate.getUTCDay() + 6) % 7) * 86_400_000);
+  const weekDays = Array.from({ length: 7 }, (_, i) => new Date(monday.getTime() + i * 86_400_000));
+  const [from, to] =
     view === 'agenda'
-      ? { from: now, to: new Date(now.getTime() + 60 * 86_400_000) }
-      : // a day of margin on both sides covers every time zone
-        { from: new Date(start.getTime() - 86_400_000), to: new Date(end.getTime() + 86_400_000) },
-  );
+      ? [now, new Date(now.getTime() + 60 * 86_400_000)]
+      : view === 'week'
+        ? [new Date(monday.getTime() - 86_400_000), new Date(monday.getTime() + 8 * 86_400_000)]
+        : // a day of margin on both sides covers every time zone
+          [new Date(start.getTime() - 86_400_000), new Date(end.getTime() + 86_400_000)];
+  const events = await listUserEvents(db, user.id, { from, to });
   const prev = new Date(Date.UTC(y!, m! - 2, 1));
   const next = new Date(Date.UTC(y!, m!, 1));
   const key = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
@@ -90,6 +95,9 @@ export default async function CalendarPage({
           <div className="flex gap-1">
             <Button asChild size="sm" variant={view === 'month' ? 'secondary' : 'ghost'}>
               <Link href="/calendar">{t('month')}</Link>
+            </Button>
+            <Button asChild size="sm" variant={view === 'week' ? 'secondary' : 'ghost'}>
+              <Link href="/calendar?view=week">{t('week')}</Link>
             </Button>
             <Button asChild size="sm" variant={view === 'agenda' ? 'secondary' : 'ghost'}>
               <Link href="/calendar?view=agenda">{t('agenda')}</Link>
@@ -191,7 +199,30 @@ export default async function CalendarPage({
               </table>
             </>
           ) : null}
-          <ul className={cn('grid gap-2', view === 'month' && 'mt-4 md:hidden')}>
+          {view === 'week' ? (
+            <WeekView
+              days={weekDays}
+              events={events}
+              localDay={localDay}
+              today={today}
+              locale={locale}
+              timeZone={timeZone}
+              labels={{
+                prev: t('prevWeek'),
+                next: t('nextWeek'),
+                today: t('today'),
+                allDay: t('allDay'),
+                none: t('noEvents'),
+              }}
+            />
+          ) : null}
+          <ul
+            className={cn(
+              'grid gap-2',
+              view === 'month' && 'mt-4 md:hidden',
+              view === 'week' && 'hidden',
+            )}
+          >
             {listed.length === 0 ? (
               <li className="text-sm text-muted-foreground">{t('noEvents')}</li>
             ) : null}
@@ -262,5 +293,110 @@ export default async function CalendarPage({
         </div>
       </div>
     </>
+  );
+}
+
+type CalendarEvent = Awaited<ReturnType<typeof listUserEvents>>[number];
+
+/** Seven days from Monday: columns on wide screens, a list of days on phones. */
+function WeekView({
+  days,
+  events,
+  localDay,
+  today,
+  locale,
+  timeZone,
+  labels,
+}: {
+  days: Date[];
+  events: CalendarEvent[];
+  localDay: (d: Date) => string;
+  today: string;
+  locale: string;
+  timeZone: string;
+  labels: { prev: string; next: string; today: string; allDay: string; none: string };
+}) {
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const shift = (n: number) => iso(new Date(days[0]!.getTime() + n * 86_400_000));
+  const range = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).formatRange(days[0]!, days[6]!);
+  const dayName = new Intl.DateTimeFormat(locale, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
+  const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone });
+  return (
+    <div className="grid gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button asChild size="icon" variant="ghost" aria-label={labels.prev}>
+          <Link href={`/calendar?view=week&w=${shift(-7)}`}>
+            <ChevronLeft />
+          </Link>
+        </Button>
+        <h2 className="min-w-44 text-center text-lg font-semibold">{range}</h2>
+        <Button asChild size="icon" variant="ghost" aria-label={labels.next}>
+          <Link href={`/calendar?view=week&w=${shift(7)}`}>
+            <ChevronRight />
+          </Link>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/calendar?view=week">{labels.today}</Link>
+        </Button>
+      </div>
+      <ol className="grid gap-2 md:grid-cols-7">
+        {days.map((d) => {
+          const own = events
+            .filter((e) => localDay(e.startsAt) === iso(d))
+            .sort((a, b) => Number(b.allDay) - Number(a.allDay) || +a.startsAt - +b.startsAt);
+          const isToday = iso(d) === today;
+          return (
+            <li
+              key={iso(d)}
+              aria-label={dayName.format(d)}
+              className={cn(
+                'grid min-h-24 content-start gap-1.5 rounded-lg border border-border bg-card p-2 text-xs',
+                isToday && 'border-accent',
+              )}
+            >
+              <span
+                className={cn(
+                  'text-sm font-medium capitalize',
+                  isToday ? 'text-accent' : 'text-muted-foreground',
+                )}
+              >
+                {dayName.format(d)}
+              </span>
+              {own.length ? (
+                own.map((e) => (
+                  <div key={e.id} className="rounded bg-accent-soft px-1.5 py-1 text-accent">
+                    <span className="block text-[11px] font-semibold tabular-nums">
+                      {e.allDay ? labels.allDay : time.format(e.startsAt)}
+                    </span>
+                    {e.activityId && e.courseId ? (
+                      <Link
+                        href={`/course/${e.courseId}/a/${e.activityId}`}
+                        className="break-words hover:underline"
+                      >
+                        {e.title}
+                      </Link>
+                    ) : (
+                      <span className="break-words">{e.title}</span>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <span className="text-muted-foreground md:hidden">{labels.none}</span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }

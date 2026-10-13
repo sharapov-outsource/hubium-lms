@@ -92,6 +92,15 @@ test.describe
       await chooseOption(page.locator('#f-courseId'), { label: `E2E курс ${stamp}` });
       await page.getByRole('button', { name: /^Создать$|^Create$/ }).click();
       await expect(page.getByText(`Вебинар ${stamp}`).first()).toBeVisible();
+
+      // the week view puts it in its day, with its time (in the user's time zone)
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const day = `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}`;
+      await page.goto(`/calendar?view=week&w=${day}`);
+      const cell = page.getByRole('listitem').filter({ hasText: `Вебинар ${stamp}` });
+      await expect(cell).toHaveAccessibleName(new RegExp(`${when.getDate()}`));
+      await expect(cell).toContainText(/\d{2}:\d{2}/);
+      await expectAccessible(page);
     });
 
     test('student finds the course, enrols with the key, completes it', async ({ page }) => {

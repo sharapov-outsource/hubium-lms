@@ -748,7 +748,10 @@
       "SESSION": "Session",
       "CUSTOM": "Event"
     },
-    "deleteConfirm": "Delete this event?"
+    "deleteConfirm": "Delete this event?",
+    "week": "Week",
+    "prevWeek": "Previous week",
+    "nextWeek": "Next week"
   },
   "categories": {
     "title": "Course categories",

@@ -748,7 +748,10 @@
       "SESSION": "Занятие",
       "CUSTOM": "Событие"
     },
-    "deleteConfirm": "Удалить событие?"
+    "deleteConfirm": "Удалить событие?",
+    "week": "Неделя",
+    "prevWeek": "Предыдущая неделя",
+    "nextWeek": "Следующая неделя"
   },
   "categories": {
     "title": "Категории курсов",
