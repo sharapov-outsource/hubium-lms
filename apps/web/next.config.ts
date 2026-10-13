@@ -26,6 +26,9 @@ const config: NextConfig = {
   },
   typedRoutes: false,
   poweredByHeader: false,
+  // Render <title> and meta tags in <head> up front instead of streaming them into <body>:
+  // screen readers announce the title on load, and site settings are cached, so it is cheap.
+  htmlLimitedBots: /.*/,
   async headers() {
     return [
       {
