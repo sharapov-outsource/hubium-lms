@@ -8,6 +8,9 @@ export interface UiText {
   chooseFiles: string;
   noFile: string;
   noFiles: string;
+  /** Placeholder of the search box in long lists. */
+  search: string;
+  nothingFound: string;
 }
 
 const defaults: UiText = {
@@ -15,6 +18,8 @@ const defaults: UiText = {
   chooseFiles: 'Choose files',
   noFile: 'No file chosen',
   noFiles: 'No files chosen',
+  search: 'Search…',
+  nothingFound: 'Nothing found',
 };
 
 const UiTextContext = createContext<UiText>(defaults);

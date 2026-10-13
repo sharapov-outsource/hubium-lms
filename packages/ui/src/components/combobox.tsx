@@ -4,6 +4,7 @@ import { Command } from 'cmdk';
 import { Check, ChevronsUpDown, Search } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { cn } from '../lib/cn.ts';
+import { Highlight, matchScore } from '../lib/search.tsx';
 import { useFormReset } from '../lib/use-form-reset.ts';
 import { fieldClass } from './input.tsx';
 import { Popover, PopoverContent, PopoverTrigger } from './popover.tsx';
@@ -54,6 +55,7 @@ export function Combobox({
   const controlled = value !== undefined;
   const [inner, setInner] = useState(defaultValue ?? '');
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const trigger = useRef<HTMLButtonElement>(null);
   const field = useRef<HTMLInputElement>(null);
   useFormReset(field, () => setInner(defaultValue ?? ''));
@@ -62,7 +64,13 @@ export function Combobox({
 
   return (
     <div className={cn('relative', className)}>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={open}
+        onOpenChange={(o) => {
+          setOpen(o);
+          setSearch('');
+        }}
+      >
         <PopoverTrigger asChild>
           <button
             ref={trigger}
@@ -87,24 +95,22 @@ export function Combobox({
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-64 p-0">
           <Command
             loop
-            // Every word must match; hits in the value or label rank above keyword-only hits.
-            filter={(itemValue, search, keywords = []) => {
-              const norm = (t: string) => t.toLowerCase().replace(/[\s_/]+/g, ' ');
-              const words = norm(search).trim().split(' ');
-              const main = norm(`${itemValue} ${keywords[0] ?? ''}`);
-              const all = `${main} ${norm(keywords.slice(1).join(' '))}`;
-              if (!words.every((w) => all.includes(w))) return 0;
-              return words.every((w) => main.includes(w)) ? 1 : 0.5;
-            }}
+            // Substring search in the label; the value, hint and keywords count for less.
+            filter={(itemValue, q, keywords = []) =>
+              matchScore(q, keywords[0] ?? '', `${itemValue} ${keywords.slice(1).join(' ')}`)
+            }
           >
             <div className="flex items-center gap-2 border-b border-border px-3">
               <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               <Command.Input
+                value={search}
+                onValueChange={setSearch}
                 placeholder={searchPlaceholder}
+                aria-label={searchPlaceholder}
                 className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
             </div>
-            <Command.List className="max-h-72 overflow-y-auto overscroll-contain p-1">
+            <Command.List className="scrollbar-hairline max-h-72 overflow-y-auto overscroll-contain p-1">
               <Command.Empty className="px-2 py-6 text-center text-sm text-muted-foreground">
                 {emptyText}
               </Command.Empty>
@@ -112,7 +118,7 @@ export function Combobox({
                 <Command.Item
                   key={o.value}
                   value={o.value}
-                  keywords={[o.label, ...(o.keywords ?? [])]}
+                  keywords={[o.label, o.hint ?? '', ...(o.keywords ?? [])]}
                   onSelect={() => {
                     if (!controlled) setInner(o.value);
                     onChange?.(o.value);
@@ -123,7 +129,9 @@ export function Combobox({
                   {o.value === current ? (
                     <Check className="absolute left-2 size-4 text-accent" aria-hidden />
                   ) : null}
-                  <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                  <span className="min-w-0 flex-1 truncate">
+                    <Highlight text={o.label} search={search} />
+                  </span>
                   {o.hint ? (
                     <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                       {o.hint}

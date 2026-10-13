@@ -17,6 +17,8 @@ function CaptionDropdown({ options, value, onChange, 'aria-label': ariaLabel }: 
       value={value}
       onChange={onChange}
       aria-label={ariaLabel}
+      // Months and years are in order; typing a year jumps to it without a search box.
+      searchable={false}
       className="h-8 w-auto gap-1 border-transparent bg-transparent px-2 font-medium hover:bg-muted"
     >
       {options?.map((o) => (

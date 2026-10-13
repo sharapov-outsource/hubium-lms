@@ -41,13 +41,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     getAllSettings(db),
     getCurrentUser(),
     headers(),
-    getTranslations('common.file'),
+    getTranslations('common'),
   ]);
   const uiText = {
-    chooseFile: tf('chooseFile'),
-    chooseFiles: tf('chooseFiles'),
-    noFile: tf('noFile'),
-    noFiles: tf('noFiles'),
+    chooseFile: tf('file.chooseFile'),
+    chooseFiles: tf('file.chooseFiles'),
+    noFile: tf('file.noFile'),
+    noFiles: tf('file.noFiles'),
+    search: tf('searchPlaceholder'),
+    nothingFound: tf('nothingFound'),
   };
   const nonce = h.get('x-nonce') ?? undefined;
   const palette = generateAccentPalette(settings['branding.accent']);
