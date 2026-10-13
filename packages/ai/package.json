@@ -6,7 +6,9 @@
   "author": "Alexander S. <alexander@sharapov.biz>",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./extract": "./src/extract/index.ts",
+    "./fixtures": "./src/extract/fixtures.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
@@ -14,7 +16,9 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.133.0",
+    "fflate": "0.8.3",
     "openai": "7.32.0",
+    "unpdf": "1.8.1",
     "zod": "4.6.7"
   },
   "devDependencies": {

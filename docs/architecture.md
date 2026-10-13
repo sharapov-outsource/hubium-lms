@@ -520,7 +520,7 @@ The FK cascade policy: activity → module rows cascade on purge, user → conte
 | Assessment | `quiz.attempt.close` (scheduled at `dueAt`) + `quiz.overdue.sweep` (cron 1 min), `quiz.regrade`, `grades.recalc.course`, `grades.export`, `report.export` |
 | Completion | `completion.recalc` (debounced per course+user), `completion.cron` (date criteria) |
 | Reminders | `assign.dueSoon`, `calendar.reminders`, `enrol.expiry` (notify + end), `cohort.sync` |
-| AI | `ai.extractText` (PDF via unpdf, DOCX via mammoth), `ai.index.activity` (debounced singleton), `ai.quizgen`, `ai.gradingSuggest` |
+| AI | `ai.index.activity` (debounced singleton; reads document files through `ctx.files.text`: PDF via unpdf, DOCX/PPTX/ODT/ODP from their XML parts, text and HTML, cached per blob in `FileBlobText`), `ai.quizgen`, `ai.gradingSuggest` |
 | Live | `livesession.poll` (attendance while live), `livesession.recordings.sync` |
 | Housekeeping | `files.gc` (orphan blobs older than 24h), `uploads.cleanup`, `recyclebin.purge`, `eventlog.prune`, `auth.sessions.cleanup`, `lti.state.cleanup`, `user.anonymize` |
 

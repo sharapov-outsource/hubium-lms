@@ -17,8 +17,23 @@ model FileBlob {
 
   files    File[]
   variants FileVariant[]
+  text     FileBlobText?
 
   @@index([sha256])
+}
+
+/// Plain text of a document blob (PDF, DOCX, PPTX, ODT, ODP, text) for search and the AI
+/// tutor. Extracted once per blob and extractor version; a failed extraction keeps its error
+/// so the file is not retried on every re-index.
+model FileBlobText {
+  blobId    String   @id @db.Uuid
+  version   Int
+  text      String
+  truncated Boolean  @default(false)
+  error     String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  blob FileBlob @relation(fields: [blobId], references: [id], onDelete: Cascade)
 }
 
 model File {

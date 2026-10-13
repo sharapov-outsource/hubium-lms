@@ -1,8 +1,11 @@
 import { MockProvider, type ObjectReq } from '@hubium/ai';
+import { strToU8, zipSync } from 'fflate';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { capturedJobs, ctxFor, useTestDb } from '../../test/helpers.ts';
 import { setActivityVisibility } from '../courses/activities.ts';
+import { storeFile } from '../files/files.ts';
+import { FILE_TEXT_VERSION, fileText } from '../files/text.ts';
 import { ensureDefaultQuestionCategory } from '../questions/bank.ts';
 import { setSettings } from '../settings/settings.ts';
 import {
@@ -122,6 +125,55 @@ describe('AI features', () => {
     expect(Number(row!.n)).toBe(chunks.length);
     // unchanged text is not rewritten
     expect(await indexActivity(t.db, pageId)).toMatchObject({ changed: false });
+  });
+
+  it('indexes the documents of a file activity under their names', async () => {
+    const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+    const docx = zipSync({
+      'word/document.xml': strToU8(
+        `<w:document ${W}><w:body><w:p><w:r><w:t>Словарь хранит пары ключ и значение. Метод get возвращает значение по ключу или None.</w:t></w:r></w:p></w:body></w:document>`,
+      ),
+    });
+    const act = await f.addActivity('file', 'Конспект: словари', { display: 'list' });
+    const put = (name: string, mimeType: string, data: Uint8Array) =>
+      storeFile(t.db, {
+        contextId: act.id,
+        component: 'mod.file',
+        area: 'content',
+        name,
+        mimeType,
+        data: Buffer.from(data),
+      });
+    const doc = await put(
+      'словари.docx',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      docx,
+    );
+    await put('схема.png', 'image/png', new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]));
+    const broken = await put('повреждён.pdf', 'application/pdf', strToU8('%PDF-1.4 not really'));
+
+    await indexActivity(t.db, act.id);
+    const chunks = await t.db.contentChunk.findMany({ where: { activityId: act.id } });
+    expect(chunks.map((c) => c.title)).toEqual(['Конспект: словари › словари.docx']);
+    expect(chunks[0]!.text).toContain('Метод get возвращает значение');
+    const found = await retrieveChunks(t.db, f.courseId, 'что возвращает метод get словаря', {
+      activityIds: [act.id],
+    });
+    expect(found.map((c) => c.activityId)).toContain(act.id);
+
+    // One extraction per content: the result (or the failure) is kept with the blob.
+    const cached = await t.db.fileBlobText.findMany({
+      where: { blobId: { in: [doc.blobId, broken.blobId] } },
+    });
+    expect(cached).toHaveLength(2);
+    expect(cached.find((c) => c.blobId === broken.blobId)?.error).toBeTruthy();
+    await t.db.fileBlobText.update({ where: { blobId: doc.blobId }, data: { text: 'из кэша' } });
+    expect(await fileText(t.db, doc.id)).toBe('из кэша');
+    await t.db.fileBlobText.update({
+      where: { blobId: doc.blobId },
+      data: { version: FILE_TEXT_VERSION - 1 },
+    });
+    expect(await fileText(t.db, doc.id)).toContain('Метод get');
   });
 
   it('never retrieves hidden activities for students', async () => {

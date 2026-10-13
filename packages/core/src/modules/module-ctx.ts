@@ -8,6 +8,7 @@ import type { RequestContext } from '../context.ts';
 import { logEvent } from '../events/log.ts';
 import { deleteFiles, fileUrl, listFiles, storeFile, storeFileFromPath } from '../files/files.ts';
 import { getStorage } from '../files/storage.ts';
+import { fileText } from '../files/text.ts';
 import { consumeUpload } from '../files/uploads.ts';
 import { enqueue } from '../jobs/jobs.ts';
 import { publishRealtime } from '../realtime.ts';
@@ -187,6 +188,7 @@ export function buildModuleCtx(
           size: Number(f.size),
         };
       },
+      text: (fileId) => fileText(tx, fileId),
       async remove(activityId, area, ids, itemId) {
         await deleteFiles(tx, {
           contextId: activityId,

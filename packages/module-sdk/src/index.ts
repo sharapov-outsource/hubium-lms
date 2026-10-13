@@ -51,6 +51,11 @@ export interface ModuleFiles {
   ): Promise<ModuleFile>;
   /** Reads a stored file's bytes (worker jobs such as transcoding). */
   open(fileId: string): Promise<{ stream: Readable; name: string; mimeType: string; size: number }>;
+  /**
+   * Plain text of a document (PDF, DOCX, PPTX, ODT, ODP, text, HTML) for AI and search;
+   * null for other or unreadable files. Extracted once per file content, then cached.
+   */
+  text(fileId: string): Promise<string | null>;
 }
 
 /**

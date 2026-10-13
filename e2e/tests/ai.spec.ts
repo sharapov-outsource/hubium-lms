@@ -1,3 +1,4 @@
+import { samplePdf } from '@hubium/ai/fixtures';
 import { expect, test } from '@playwright/test';
 import { sql } from './db';
 import { ADMIN, DEMO_PASSWORD, expectAccessible, login, logout } from './helpers';
@@ -22,6 +23,12 @@ async function demo() {
 test.describe
   .serial('AI', () => {
     let ids: Awaited<ReturnType<typeof demo>>;
+    let fileActivityId = '';
+
+    // The demo course is shared by every spec: leave it as found.
+    test.afterAll(async () => {
+      if (fileActivityId) await sql(`DELETE FROM "Context" WHERE id = $1`, [fileActivityId]);
+    });
 
     test.beforeAll(async () => {
       ids = await demo();
@@ -121,5 +128,59 @@ test.describe
         [ids.assignId, ids.studentId],
       );
       expect(Number(g!.n)).toBe(0);
+    });
+
+    test('the tutor answers from an uploaded PDF', async ({ page }) => {
+      await login(page, 'teacher', DEMO_PASSWORD);
+      const [section] = await sql<{ id: string }>(
+        `SELECT id FROM "CourseSection" WHERE "courseId" = $1 ORDER BY rank LIMIT 1`,
+        [ids.courseId],
+      );
+      await page.goto(`/course/${ids.courseId}/a/new?module=file&section=${section!.id}`);
+      const name = `Handout ${Date.now().toString(36)}`;
+      await page.locator('#f-name').fill(name);
+      await page.locator('#f-files-content').setInputFiles({
+        name: 'dictionaries.pdf',
+        mimeType: 'application/pdf',
+        buffer: Buffer.from(
+          samplePdf([
+            ['Dictionaries map unique keys to values.', 'The get method returns None'],
+            ['when the key is missing from the dictionary.'],
+          ]),
+        ),
+      });
+      await page.getByRole('button', { name: /^Создать$/ }).click();
+      await page.waitForURL(/\?edit=1/);
+      const [act] = await sql<{ id: string }>(
+        `SELECT id FROM "Activity" WHERE "courseId" = $1 AND name = $2`,
+        [ids.courseId, name],
+      );
+      fileActivityId = act!.id;
+      // The worker extracts the PDF text while it indexes the new activity.
+      await expect
+        .poll(
+          async () =>
+            (
+              await sql<{ text: string }>(
+                `SELECT string_agg(text, ' ') AS text FROM "ContentChunk" WHERE "activityId" = $1`,
+                [fileActivityId],
+              )
+            )[0]?.text ?? '',
+          { timeout: 30_000 },
+        )
+        .toMatch(/The get method returns None\s+when the key is missing/);
+      await logout(page);
+
+      await login(page, STUDENT, DEMO_PASSWORD);
+      await page.goto(`/course/${ids.courseId}/tutor`);
+      await page.getByLabel('Ваш вопрос по курсу…').fill('dictionary get method missing key');
+      await page.getByRole('button', { name: 'Отправить' }).click();
+      await expect(
+        page
+          .locator('ol[aria-live] li')
+          .last()
+          .getByRole('link', { name: /dictionaries\.pdf/ }),
+      ).toBeVisible();
+      await logout(page);
     });
   });

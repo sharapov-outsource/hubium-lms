@@ -69,6 +69,18 @@ export const file = defineModule({
     // Anyone who can open the activity may download its files.
     content: { canRead: async () => true },
   },
+  ai: {
+    // The tutor and quiz generation read the documents themselves (PDF, Word, slides…),
+    // each under its file name.
+    async extract(ctx, a) {
+      const parts: { title: string; text: string }[] = [];
+      for (const f of await ctx.files.list(a.id, 'content')) {
+        const text = await ctx.files.text(f.id);
+        if (text?.trim()) parts.push({ title: f.name, text });
+      }
+      return parts;
+    },
+  },
 });
 
 export const contentModules = [page, url, label, file];
