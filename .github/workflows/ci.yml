@@ -92,14 +92,38 @@ jobs:
           name: playwright-report
           path: e2e/test-results
 
+  # Builds the production images, starts docker/compose.yml behind Caddy on *.localhost and
+  # runs the checks in e2e/stack against it.
   docker:
     runs-on: ubuntu-latest
     needs: check
+    env:
+      # compose reads these from the environment: replace the workflow's dev-server values
+      APP_URL: https://lms.localhost
+      CONTENT_HOST: https://content.localhost
+      SMTP_URL: smtp://mailpit:1025
+      APP_SECRET: ci-secret-ci-secret-ci-secret-ci-secret-0000
+      S3_SECRET_KEY: ci-s3-secret-ci-s3-secret
+      BUILD_COMMIT: ${{ github.sha }}
+      SEED_PROFILE: demo
     steps:
       - uses: actions/checkout@v7
       - name: Build images
-        env:
-          APP_SECRET: ci-secret-ci-secret-ci-secret-ci-secret-0000
-          S3_SECRET_KEY: ci-s3-secret-ci-s3-secret
-          BUILD_COMMIT: ${{ github.sha }}
         run: docker compose -f docker/compose.yml build
+      - name: Start the stack
+        run: docker compose -f docker/compose.yml up -d --wait --wait-timeout 300
+      - uses: pnpm/setup@v3
+        with: { runtime: node@24, cache: true, require-lockfile: true }
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      # Google Chrome from the runner image (it plays H.264), not Playwright's Chromium
+      - run: pnpm --filter @hubium/e2e stack
+      - name: Stack logs
+        if: failure()
+        run: docker compose -f docker/compose.yml logs --no-color > stack.log
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: stack-report
+          path: |
+            stack.log
+            e2e/test-results

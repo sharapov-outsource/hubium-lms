@@ -11,6 +11,12 @@ Thanks for helping! A few rules keep the codebase healthy.
    pnpm lint && pnpm typecheck && pnpm test && pnpm depcruise && pnpm licenses:check
    ```
 4. For UI changes, run the e2e suite against a running app (`pnpm --filter @hubium/e2e e2e`) and check light/dark themes, ru/en and a 375 px viewport.
+5. For changes to `docker/`, file uploads or the video pipeline, run the production stack check (CI runs it too). It needs ffmpeg and Google Chrome:
+   ```bash
+   SEED_PROFILE=demo APP_SECRET=$(openssl rand -base64 32) S3_SECRET_KEY=$(openssl rand -hex 20) \
+     docker compose -f docker/compose.yml up -d --build --wait
+   pnpm --filter @hubium/e2e stack
+   ```
 
 ## Architecture rules
 

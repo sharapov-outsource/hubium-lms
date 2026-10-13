@@ -82,6 +82,8 @@ services:
     environment:
       <<: *app-env
       HUBIUM_SERVICE: web
+    # Unfinished uploads are written here and the worker's cron removes abandoned ones.
+    volumes: [data:/data]
     depends_on:
       migrate: { condition: service_completed_successfully }
     restart: unless-stopped
@@ -92,6 +94,7 @@ services:
       <<: *app-env
       HUBIUM_SERVICE: worker
       WORKER_QUEUES: default
+    volumes: [data:/data]
     depends_on:
       migrate: { condition: service_completed_successfully }
     restart: unless-stopped
@@ -103,6 +106,7 @@ services:
       HUBIUM_SERVICE: worker-media
       WORKER_QUEUES: media
       WORKER_HEALTH_PORT: "3001"
+    volumes: [data:/data]
     depends_on:
       migrate: { condition: service_completed_successfully }
     deploy:
@@ -126,4 +130,6 @@ services:
 volumes:
   db:
   s3:
+  # local files of web and the workers (see the Dockerfile)
+  data:
   caddy:

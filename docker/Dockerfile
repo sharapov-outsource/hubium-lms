@@ -33,7 +33,11 @@ RUN BUILD_COMMIT="$BUILD_COMMIT" DATABASE_URL=postgresql://build:build@127.0.0.1
 
 # ── web: Next.js standalone server ──────────────────────────────────────────────
 FROM node:${NODE_VERSION} AS web
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
+# Local files live in /data, owned by the app user: unfinished uploads, and with
+# STORAGE_DRIVER=fs the files themselves. compose.yml shares one volume there between web
+# and the workers.
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 \
+    STORAGE_FS_ROOT=/data
 WORKDIR /app
 RUN useradd --system --uid 1001 hubium && mkdir -p /data && chown hubium /data
 COPY --from=build --chown=hubium /app/apps/web/.next/standalone ./
@@ -46,7 +50,7 @@ CMD ["node", "apps/web/server.js"]
 
 # ── worker: bundled pg-boss consumers ───────────────────────────────────────────
 FROM node:${NODE_VERSION} AS worker
-ENV NODE_ENV=production
+ENV NODE_ENV=production STORAGE_FS_ROOT=/data
 WORKDIR /app
 RUN useradd --system --uid 1001 hubium && mkdir -p /data && chown hubium /data
 COPY --from=build /app/node_modules ./node_modules

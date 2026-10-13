@@ -6,7 +6,8 @@
   "author": "Alexander S. <alexander@sharapov.biz>",
   "type": "module",
   "scripts": {
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "stack": "playwright test -c playwright.stack.config.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
