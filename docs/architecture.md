@@ -121,14 +121,14 @@ export const updateCourse = defineOperation({
   - builds the context from the session cookie (React `cache()` per request);
   - validates input and maps `AppError` to `{ ok:false, code, fieldErrors }`;
   - calls `revalidatePath` / `refresh()` as declared.
-- **REST.** `apps/web/src/app/api/v1/[[...route]]/route.ts` runs a Hono app. `toRoute(updateCourse, { method:'patch', path:'/courses/{courseId}' })` adds bearer auth, rate limiting, the same zod schemas, and the OpenAPI spec at `/api/v1/openapi.json`.
+- **REST.** `apps/web/src/app/api/v1/[[...route]]/route.ts` runs the Hono app from `packages/api` (`createApi`). Its routes are thin: bearer auth and rate limiting in front, zod schemas that also make the OpenAPI spec at `/api/v1/openapi.json`, then the same core operations and queries as the UI. The reference page `/api/v1/docs` serves Scalar's bundle from the app itself under its own CSP.
 - **Worker.** Jobs call the same operations with `actor: { kind:'system' }`, or on behalf of a user for audit purposes.
 - **RSC reads.** Plain query functions (`getCourseOutline(ctx, id)`) are called directly from server components. There is no action and no HTTP hop.
 - **Transactional side effects:**
   - pg-boss `send(..., { db: txAdapter })` enqueues jobs inside the Prisma transaction (outbox for free).
   - `pg_notify` inside the transaction delivers only on commit.
   - Non-transactional effects (S3 deletes) go through `afterCommit`.
-- **Module actions.** `ActivityModule.actions` are exposed through one generic server action, `runModuleAction({activityId, action, input})`, and one REST route, `POST /api/v1/activities/{id}/actions/{name}`. Mobile gets module features without per-module endpoints.
+- **Module actions.** `ActivityModule.actions` are exposed through one web endpoint (`/api/mod/action`) and one REST route, `POST /api/v1/activities/{id}/actions/{name}`; both take JSON or multipart with files. The OpenAPI spec documents every action from its zod input and `summary`. Mobile gets module features without per-module endpoints.
 
 ### 1.5 `ActivityModule` contract
 

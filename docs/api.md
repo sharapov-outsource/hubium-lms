@@ -1,9 +1,10 @@
 # REST API v1
 
-Hubium exposes a REST API for integrations (HR systems, reporting, mobile clients, scripts).
+Hubium LMS exposes a REST API for integrations (HR systems, reporting, mobile clients, scripts).
 
 - Base URL: `https://<your-site>/api/v1`
-- Interactive docs: `/api/v1/docs` (Scalar), machine-readable spec: `/api/v1/openapi.json` (OpenAPI 3.1)
+- Interactive reference: `/api/v1/docs`. The page is served by the site itself (no CDN, works without internet access) and lists every endpoint, schema and module action.
+- Machine-readable spec: `/api/v1/openapi.json` (OpenAPI 3.1)
 - Format: JSON in and out, UTF-8, timestamps in ISO 8601 (UTC)
 
 ## Authentication
@@ -14,18 +15,18 @@ Create a personal access token in **Settings → API tokens**. The token is show
 curl -H "Authorization: Bearer hub_XXXXXXXX…" https://lms.example.org/api/v1/me
 ```
 
-A token acts as its user and never exceeds the user's permissions. Scopes narrow it further:
+Every endpoint except the spec and the reference page needs a token. A token acts as its user and never exceeds the user's permissions. Scopes narrow it further:
 
 | Scope | Allows |
 |---|---|
 | `read` | `GET` endpoints |
 | `write` | `POST`/`PUT`/`PATCH`/`DELETE` endpoints |
 
-Tokens expire after 30/90/365 days or never; revoke them in the same settings page or with `DELETE /api/v1/tokens/{id}`. Administrators control who may create tokens with the `webservice:createtoken` capability.
+Tokens expire after 30/90/365 days or never; revoke them in the same settings page or with `DELETE /api/v1/tokens/{id}`. Administrators control who may create tokens with the `webservice:createtoken` capability. Taking that capability away also stops existing tokens.
 
 ## Rate limits
 
-Each token may make `API_RATE_LIMIT_PER_MIN` requests per minute (120 by default). Responses carry `X-RateLimit-Limit` and `X-RateLimit-Remaining`; over the limit the API answers `429` with `Retry-After`.
+Each token may make `API_RATE_LIMIT_PER_MIN` requests per minute (120 by default), counted by each web instance. Responses carry `X-RateLimit-Limit` and `X-RateLimit-Remaining`; over the limit the API answers `429` with `Retry-After`. Upload chunks count as requests.
 
 ## Errors
 
@@ -35,12 +36,18 @@ Each token may make `API_RATE_LIMIT_PER_MIN` requests per minute (120 by default
 
 | HTTP | `code` |
 |---|---|
-| 400 | `VALIDATION`, `BAD_REQUEST` |
+| 400 | `VALIDATION` (with `fieldErrors`), `BAD_REQUEST` (malformed JSON; a module refusing an action, e.g. "Already submitted") |
 | 401 | `UNAUTHENTICATED` (missing, unknown, revoked or expired token) |
 | 403 | `FORBIDDEN` (scope or capability) |
 | 404 | `NOT_FOUND` (also for things you may not see) |
-| 409 | `CONFLICT` |
+| 409 | `CONFLICT` (the value is already taken) |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` (a body that is neither JSON nor a form where one is expected) |
 | 429 | `RATE_LIMITED` |
+| 500 | `INTERNAL` (details stay in the server log) |
+
+## Lists
+
+Lists that can grow take `page` (from 1) and `pageSize` and answer `{ "items": […], "total": 123, "page": 1 }`: `/users`, `/catalog`, `/courses/{id}/enrolments`, `/webhooks/{id}/deliveries`. Shorter lists answer `{ "items": […] }`.
 
 ## Endpoints
 
@@ -49,14 +56,18 @@ Each token may make `API_RATE_LIMIT_PER_MIN` requests per minute (120 by default
 | GET | `/me` | the token owner |
 | GET, POST | `/users` | search and create users (administrators) |
 | GET | `/categories` | course categories |
+| GET | `/catalog?q&categoryId` | search the course catalog (word forms, prefixes, typos), best match first |
 | GET, POST | `/courses` | your courses; create a course |
 | GET | `/courses/{id}` | course details |
 | GET | `/courses/{id}/contents` | sections and the activities you can see |
 | GET, POST | `/courses/{id}/enrolments` | participants; manual enrolment |
 | GET | `/courses/{id}/groups` | groups |
+| GET | `/courses/{id}/groupings` | groupings and their groups |
 | GET | `/courses/{id}/grades` | your grades, `?userId=` for one student, `?all=1` for the grader report |
 | GET | `/activities/{id}` | an activity you can open |
 | POST | `/activities/{id}/actions/{name}` | run a module action, e.g. assignment `saveSubmission`, forum `reply` |
+| POST | `/uploads` | start a resumable upload of a large file |
+| GET, PATCH | `/uploads/{id}` | where an upload stands; append the next chunk |
 | GET | `/calendar/events?from&to` | events in a range (≤ 400 days) |
 | GET | `/conversations` | your conversations |
 | GET, POST | `/conversations/{id}/messages` | read and send messages |
@@ -72,7 +83,58 @@ Each token may make `API_RATE_LIMIT_PER_MIN` requests per minute (120 by default
 
 Webhook endpoints are for administrators (`site:config`) and need a token with the `write` scope to change anything.
 
+### Users
+
 Users carry their custom profile fields (**Administration → Profile fields**) as `customFields`, an object keyed by each field's short name: text, a `YYYY-MM-DD` date, a menu option or `true`/`false`. `GET /me` and `GET /users` return them, and `POST /users` accepts them; values are validated by field type.
+
+`POST /users` needs a username, an email or both: pupils without an email sign in with their username, and the API shows their `email` as `null`. It also takes `locale`, `timezone` and `mustChangePassword`.
+
+### Courses
+
+Courses carry `idNumber`, the key of the course in your other systems (unique; set it with `POST /courses`), plus `categoryId`, `startDate` and `endDate`. `/catalog` returns only visible courses, with the category name and the enabled ways to join (`self`, `guest`, …).
+
+### Grades
+
+`GET /courses/{id}/grades` describes the gradebook along with the grades:
+
+- `categories`: the category tree (`parentId` null for the course category), each with its aggregation and its weight in the parent.
+- `items`: grade items with `kind` (`MODULE`, `MANUAL`, `CATEGORY`, `COURSE`), `gradeType` and the range. For a scale item (`gradeType: "SCALE"`) `scale` lists the scale's grades, and `finalGrade` is the 1-based position in that list.
+- `grades`: one row per user and item that has a grade, with `overridden` and `excluded` flags.
+- `categoryTotals` (only with `?all=1`): every category's total per student in percent, as the grader report shows it. The course total is also the grade of the `COURSE` item.
+
+A learner's own report leaves out hidden items and categories.
+
+## Module actions
+
+What an activity can do depends on its module (`moduleKey` in `/courses/{id}/contents`). `POST /activities/{id}/actions/{name}` runs one action with the same checks as the web interface: the activity must be open to you and the action's capability is required. The reference page lists every action with its capability and input schema; the spec carries each schema as `Action.<module>.<action>`.
+
+Actions that take files (assignment `saveSubmission` and `grade`, forum posts, video captions) accept `multipart/form-data`: the JSON input in an `input` part and each file as a `files` part, up to 10 MB per request.
+
+```bash
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -F 'input={"text":"<p>See the report</p>","submit":true}' \
+  -F 'files=@report.pdf;type=application/pdf' \
+  https://lms.example.org/api/v1/activities/$ASSIGN/actions/saveSubmission
+```
+
+Larger files (a lecture video, a SCORM package) go through a resumable upload. The module action then takes the upload's id:
+
+```bash
+# 1. start: the answer has the id and the chunk size (5 MB)
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"lecture.mp4","size":734003200,"mimeType":"video/mp4"}' \
+  https://lms.example.org/api/v1/uploads
+# 2. send the chunks in order; Upload-Offset is the number of bytes already sent
+curl -X PATCH -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/octet-stream" \
+  -H "Upload-Offset: 0" --data-binary @chunk-000 \
+  https://lms.example.org/api/v1/uploads/$UPLOAD
+# 3. hand it to the activity
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d "{\"uploadId\":\"$UPLOAD\"}" \
+  https://lms.example.org/api/v1/activities/$VIDEO/actions/attachUpload
+```
+
+A chunk at the wrong offset answers `409` with `received`, the offset to continue from; `GET /uploads/{id}` tells the same after a lost connection. Unfinished uploads expire after 24 hours.
 
 ## Examples
 
@@ -92,12 +154,12 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/jso
   https://lms.example.org/api/v1/users
 ```
 
-Submit an assignment on behalf of the token owner:
+Allow one student three quiz attempts and a later deadline:
 
 ```bash
 curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"text":"<p>My answer</p>","submit":true}' \
-  https://lms.example.org/api/v1/activities/$ASSIGN/actions/saveSubmission
+  -d '{"userId":"0199…","attempts":3,"closeAt":"2026-12-20T21:00:00Z"}' \
+  https://lms.example.org/api/v1/activities/$QUIZ/actions/setOverride
 ```
 
 A typed client can be generated from the spec, e.g. `npx openapi-typescript https://lms.example.org/api/v1/openapi.json -o hubium.d.ts`.

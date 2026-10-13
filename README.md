@@ -105,7 +105,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 
 ### Integrations
 
-- REST API v1 with an OpenAPI 3.1 description and interactive docs at `/api/v1/docs`, plus personal access tokens with read or write scope.
+- REST API v1 with an OpenAPI 3.1 description and an interactive reference at `/api/v1/docs` (served by the site, works offline): users, courses and catalog search, enrolments, groups, gradebook, every module action with file uploads, calendar, messages, webhooks. Personal access tokens with read or write scope.
 - Webhooks for users, courses, enrolments, grades, completions, submissions and quiz attempts, signed with HMAC-SHA256 and retried with backoff.
 - `/api/health` and Prometheus metrics at `/api/metrics`.
 
