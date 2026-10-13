@@ -31,7 +31,8 @@
       "overview": "Overview",
       "edit": "Questions",
       "results": "Results",
-      "grading": "Manual grading"
+      "grading": "Manual grading",
+      "overrides": "User and group settings"
     },
     "info": {
       "attempts": "Attempts: {used} of {total}",
@@ -121,6 +122,31 @@
       "needsGradingTitle": "Manual grading needed: {name}",
       "gradedTitle": "Your quiz was graded: {name}"
     },
-    "timeWarning": "Attention: {minutes, plural, one {# minute} other {# minutes}} left"
+    "timeWarning": "Attention: {minutes, plural, one {# minute} other {# minutes}} left",
+    "overrides": {
+      "who": "For",
+      "choose": "Choose a participant or a group",
+      "group": "Group: {name}",
+      "openAt": "Opens",
+      "closeAt": "Closes",
+      "timeLimit": "Time, min (0 = no limit)",
+      "attempts": "Attempts (0 = unlimited)",
+      "hint": "Empty fields come from the quiz settings. A participant’s settings win over group settings; across several groups the most lenient apply.",
+      "save": "Save",
+      "saved": "Settings saved",
+      "new": "New setting",
+      "empty": "No user or group settings"
+    },
+    "regrade": {
+      "title": "Regrade",
+      "hint": "Recalculates finished attempts with the current questions and marks. Manual marks and essays are kept.",
+      "dryRun": "Dry run",
+      "run": "Regrade",
+      "confirm": "Regrade all finished attempts? Gradebook grades will change.",
+      "done": "Attempts regraded",
+      "wouldChange": "Attempts that would change: {n} of {total}",
+      "changed": "Attempts changed: {n} of {total}",
+      "skipped": "Not regraded (question type changed): {names}"
+    }
   }
 }

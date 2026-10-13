@@ -23,9 +23,10 @@ model QuizSlot {
   includeSubcats Boolean      @default(false)
   maxMark        Decimal      @default(1) @db.Decimal(12, 5)
 
-  activity Activity          @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  question Question?         @relation(fields: [questionId], references: [id], onDelete: Restrict)
-  category QuestionCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  activity  Activity          @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  question  Question?         @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  category  QuestionCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  attempted QuestionAttempt[]
 
   @@unique([activityId, slot])
 }
@@ -58,6 +59,8 @@ model QuestionAttempt {
   slot         Int
   page         Int      @default(1)
   questionId   String   @db.Uuid
+  /// The quiz slot the question came from (random slots included); used by regrading.
+  quizSlotId   String?  @db.Uuid
   snapshot     Json
   maxMark      Decimal  @db.Decimal(12, 5)
   response     Json?
@@ -71,6 +74,7 @@ model QuestionAttempt {
 
   attempt  QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
   question Question    @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  quizSlot QuizSlot?   @relation(fields: [quizSlotId], references: [id], onDelete: SetNull)
 
   @@unique([attemptId, slot])
   @@index([questionId])
@@ -79,13 +83,17 @@ model QuestionAttempt {
 model QuizOverride {
   id           String    @id @default(uuid(7)) @db.Uuid
   activityId   String    @db.Uuid
+  /// For one person, or (groupId) for the members of a group.
   userId       String?   @db.Uuid
+  groupId      String?   @db.Uuid
   openAt       DateTime? @db.Timestamptz(3)
   closeAt      DateTime? @db.Timestamptz(3)
   timeLimitSec Int?
   attempts     Int?
 
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  group    Group?   @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@unique([activityId, userId])
+  @@unique([activityId, groupId])
 }

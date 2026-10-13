@@ -93,6 +93,7 @@ export const coreCapabilities = {
   'mod.quiz:grade': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.quiz:preview': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.quiz:viewreports': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  'mod.quiz:manageoverrides': { level: 'ACTIVITY', archetypes: [M, ET] },
   // forum
   'mod.forum:post': { level: 'ACTIVITY', archetypes: [M, ET, T, S], excludeAdmin: false },
   'mod.forum:startdiscussion': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },

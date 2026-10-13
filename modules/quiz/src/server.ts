@@ -58,16 +58,59 @@ function uid(ctx: ModuleCtx): string {
   return ctx.actor.userId;
 }
 
+type OverrideFields = {
+  openAt: Date | null;
+  closeAt: Date | null;
+  timeLimitSec: number | null;
+  attempts: number | null;
+};
+
+/**
+ * Group overrides merged the way that favours the learner (as in Moodle): the earliest
+ * opening, the latest closing, the longest time and the most attempts (0 = unlimited).
+ */
+export function lenientOverride(list: OverrideFields[]): OverrideFields {
+  const pick = <T>(vals: (T | null)[], better: (a: T, b: T) => boolean): T | null =>
+    vals.reduce<T | null>(
+      (acc, v) => (v === null ? acc : acc === null || better(v, acc) ? v : acc),
+      null,
+    );
+  const unlimitedFirst = (a: number, b: number) => a === 0 || (b !== 0 && a > b);
+  return {
+    openAt: pick(
+      list.map((o) => o.openAt),
+      (a, b) => a < b,
+    ),
+    closeAt: pick(
+      list.map((o) => o.closeAt),
+      (a, b) => a > b,
+    ),
+    timeLimitSec: pick(
+      list.map((o) => o.timeLimitSec),
+      unlimitedFirst,
+    ),
+    attempts: pick(
+      list.map((o) => o.attempts),
+      unlimitedFirst,
+    ),
+  };
+}
+
+/** The quiz settings that apply to one learner: their own override, then their groups'. */
 export async function effectiveQuiz(db: Db, a: ActivityRef<QuizSettingsT>, userId: string) {
-  const o = await db.quizOverride.findUnique({
-    where: { activityId_userId: { activityId: a.id, userId } },
-  });
+  const [own, groups] = await Promise.all([
+    db.quizOverride.findUnique({ where: { activityId_userId: { activityId: a.id, userId } } }),
+    db.quizOverride.findMany({
+      where: { activityId: a.id, group: { members: { some: { userId } } } },
+    }),
+  ]);
+  const g = lenientOverride(groups);
   const d = (v: string | null | undefined) => (v ? new Date(v) : null);
   return {
-    openAt: o?.openAt ?? d(a.settings.openAt),
-    closeAt: o?.closeAt ?? d(a.settings.closeAt),
-    timeLimitSec: o?.timeLimitSec ?? a.settings.timeLimitMin * 60,
-    attempts: o?.attempts ?? a.settings.attempts,
+    openAt: own?.openAt ?? g.openAt ?? d(a.settings.openAt),
+    closeAt: own?.closeAt ?? g.closeAt ?? d(a.settings.closeAt),
+    timeLimitSec: own?.timeLimitSec ?? g.timeLimitSec ?? a.settings.timeLimitMin * 60,
+    attempts: own?.attempts ?? g.attempts ?? a.settings.attempts,
   };
 }
 
@@ -181,6 +224,7 @@ export async function startAttempt(
         slot: i + 1,
         page: Math.floor(i / perPage) + 1,
         questionId: q.id,
+        quizSlotId: s.id,
         snapshot: snap as unknown as Prisma.InputJsonValue,
         maxMark: q.type === 'DESCRIPTION' ? 0 : s.maxMark,
       },
@@ -301,6 +345,121 @@ export async function updateQuizGrade(
     ]);
   }
   await ctx.completion.recompute(a.id, userId);
+}
+
+export interface RegradeReport {
+  attempts: {
+    attemptId: string;
+    userId: string;
+    attemptNumber: number;
+    before: number;
+    after: number;
+    maxBefore: number;
+    maxAfter: number;
+  }[];
+  /** Questions whose type changed since the attempt: their marks were kept. */
+  skipped: string[];
+}
+
+/**
+ * Regrades finished attempts with the current version of each question and the current
+ * marks of the slots. Manually graded answers and essays keep their marks. With dryRun
+ * nothing is written.
+ */
+export async function regradeQuiz(
+  ctx: ModuleCtx,
+  a: ActivityRef<QuizSettingsT>,
+  dryRun: boolean,
+): Promise<RegradeReport> {
+  const attempts = await ctx.db.quizAttempt.findMany({
+    where: { activityId: a.id, state: 'FINISHED', preview: false },
+    orderBy: [{ userId: 'asc' }, { attemptNumber: 'asc' }],
+    include: { questions: true },
+  });
+  const ids = [...new Set(attempts.flatMap((x) => x.questions.map((q) => q.questionId)))];
+  const [questions, slots] = await Promise.all([
+    ctx.db.question.findMany({ where: { id: { in: ids } } }),
+    ctx.db.quizSlot.findMany({ where: { activityId: a.id } }),
+  ]);
+  const report: RegradeReport = { attempts: [], skipped: [] };
+  const touched = new Set<string>();
+  for (const at of attempts) {
+    let before = 0;
+    let after = 0;
+    let maxBefore = 0;
+    let maxAfter = 0;
+    const updates: { id: string; data: Prisma.QuestionAttemptUpdateInput }[] = [];
+    for (const qa of at.questions) {
+      const snap = qa.snapshot as unknown as QuestionSnapshot;
+      const mark = qa.mark === null ? 0 : Number(qa.mark);
+      before += mark;
+      maxBefore += Number(qa.maxMark);
+      const q = questions.find((x) => x.id === qa.questionId);
+      const slot = slots.find((x) => x.id === qa.quizSlotId);
+      const maxMark =
+        snap.type === 'DESCRIPTION' ? 0 : slot ? Number(slot.maxMark) : Number(qa.maxMark);
+      maxAfter += maxMark;
+      // a teacher's mark (essays, manual grading) is kept, scaled to a changed maximum
+      const manual = qa.gradedById !== null || snap.type === 'ESSAY';
+      if (manual || !q || q.type !== snap.type) {
+        if (q && q.type !== snap.type && !report.skipped.includes(q.name))
+          report.skipped.push(q.name);
+        const scaled = Number(qa.maxMark) > 0 ? (mark / Number(qa.maxMark)) * maxMark : 0;
+        after += qa.mark === null ? 0 : scaled;
+        if (maxMark !== Number(qa.maxMark))
+          updates.push({
+            id: qa.id,
+            data: { maxMark, ...(qa.mark === null ? {} : { mark: scaled }) },
+          });
+        continue;
+      }
+      // The current question, presented as the learner saw it (order of choices kept).
+      const fresh = { ...snap, ...snapshotOf(q) } as QuestionSnapshot;
+      const r = gradeResponse(fresh, qa.response);
+      const newMark = r.fraction === null ? null : r.fraction * maxMark;
+      after += newMark ?? 0;
+      updates.push({
+        id: qa.id,
+        data: {
+          snapshot: fresh as unknown as Prisma.InputJsonValue,
+          maxMark,
+          fraction: r.fraction,
+          mark: newMark,
+          needsGrading: r.needsGrading,
+        },
+      });
+    }
+    report.attempts.push({
+      attemptId: at.id,
+      userId: at.userId,
+      attemptNumber: at.attemptNumber,
+      before: Math.round(before * 1e5) / 1e5,
+      after: Math.round(after * 1e5) / 1e5,
+      maxBefore,
+      maxAfter,
+    });
+    if (dryRun) continue;
+    for (const u of updates)
+      await ctx.db.questionAttempt.update({ where: { id: u.id }, data: u.data });
+    const all = await ctx.db.questionAttempt.findMany({ where: { attemptId: at.id } });
+    await ctx.db.quizAttempt.update({
+      where: { id: at.id },
+      data: {
+        sumGrades: all.reduce((sum, x) => sum + Number(x.mark ?? 0), 0),
+        needsManualGrading: all.some((x) => x.needsGrading),
+      },
+    });
+    touched.add(at.userId);
+  }
+  for (const userId of touched) await updateQuizGrade(ctx, a, userId);
+  if (!dryRun)
+    await ctx.log('quiz.regraded', {
+      activityId: a.id,
+      attempts: report.attempts.length,
+      changed: report.attempts.filter((x) => x.before !== x.after || x.maxBefore !== x.maxAfter)
+        .length,
+    });
+  return report;
 }
 
 /** Can the learner see correct answers and feedback for this attempt now? */
@@ -621,6 +780,84 @@ export const quiz = defineModule<QuizSettingsT>({
         return { attemptId: at.id };
       },
     }),
+    setOverride: defineAction({
+      capability: 'mod.quiz:manageoverrides',
+      input: z
+        .object({
+          userId: z.string().uuid().optional(),
+          groupId: z.string().uuid().optional(),
+          openAt: z.string().datetime({ offset: true }).nullable().default(null),
+          closeAt: z.string().datetime({ offset: true }).nullable().default(null),
+          timeLimitMin: z
+            .number()
+            .int()
+            .min(0)
+            .max(24 * 60)
+            .nullable()
+            .default(null),
+          attempts: z.number().int().min(0).max(100).nullable().default(null),
+        })
+        .refine((v) => !!v.userId !== !!v.groupId, 'Choose a participant or a group')
+        .refine(
+          (v) => v.openAt || v.closeAt || v.timeLimitMin !== null || v.attempts !== null,
+          'Change at least one setting',
+        )
+        .refine(
+          (v) => !v.openAt || !v.closeAt || new Date(v.closeAt) > new Date(v.openAt),
+          'Close date must be after open date',
+        ),
+      async handler(ctx, a, input) {
+        if (input.userId) {
+          const enrolled = await ctx.db.enrolment.findFirst({
+            where: { courseId: a.courseId, userId: input.userId },
+          });
+          if (!enrolled) throw new Error('User is not enrolled');
+        } else {
+          const g = await ctx.db.group.findFirst({
+            where: { id: input.groupId, courseId: a.courseId },
+          });
+          if (!g) throw new Error('Unknown group');
+        }
+        const data = {
+          openAt: input.openAt ? new Date(input.openAt) : null,
+          closeAt: input.closeAt ? new Date(input.closeAt) : null,
+          timeLimitSec: input.timeLimitMin === null ? null : input.timeLimitMin * 60,
+          attempts: input.attempts,
+        };
+        const o = input.userId
+          ? await ctx.db.quizOverride.upsert({
+              where: { activityId_userId: { activityId: a.id, userId: input.userId } },
+              create: { activityId: a.id, userId: input.userId, ...data },
+              update: data,
+            })
+          : await ctx.db.quizOverride.upsert({
+              where: { activityId_groupId: { activityId: a.id, groupId: input.groupId! } },
+              create: { activityId: a.id, groupId: input.groupId!, ...data },
+              update: data,
+            });
+        await ctx.log('quiz.override.saved', {
+          activityId: a.id,
+          userId: input.userId ?? null,
+          groupId: input.groupId ?? null,
+        });
+        return { id: o.id };
+      },
+    }),
+    deleteOverride: defineAction({
+      capability: 'mod.quiz:manageoverrides',
+      input: z.object({ id: z.string().uuid() }),
+      async handler(ctx, a, { id }) {
+        await ctx.db.quizOverride.deleteMany({ where: { id, activityId: a.id } });
+        return { ok: true };
+      },
+    }),
+    regrade: defineAction({
+      capability: 'mod.quiz:grade',
+      input: z.object({ dryRun: z.boolean().default(true) }),
+      async handler(ctx, a, { dryRun }) {
+        return regradeQuiz(ctx, a as ActivityRef<QuizSettingsT>, dryRun);
+      },
+    }),
     gradeQuestion: defineAction({
       capability: 'mod.quiz:grade',
       input: z.object({
@@ -702,7 +939,12 @@ export const quiz = defineModule<QuizSettingsT>({
       const done = await ctx.db.quizAttempt.count({
         where: { activityId: a.id, userId, preview: false },
       });
-      const closeAt = s.data.closeAt ? new Date(s.data.closeAt) : null;
+      // the learner's own dates (overrides) decide what is still to do
+      const { closeAt } = await effectiveQuiz(
+        ctx.db,
+        { ...(a as never as ActivityRef<QuizSettingsT>), settings: s.data },
+        userId,
+      );
       if (done === 0 && (!closeAt || closeAt > ctx.now)) {
         out.push({
           activityId: a.id,

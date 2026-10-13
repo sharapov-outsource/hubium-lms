@@ -27,7 +27,14 @@ import {
   reviewAllowed,
   sumMaxMarks,
 } from '../server.ts';
-import { AttemptActions, GradeQuestionForm, SlotEditor } from './client.tsx';
+import {
+  AttemptActions,
+  DeleteOverrideButton,
+  GradeQuestionForm,
+  OverrideForm,
+  RegradePanel,
+  SlotEditor,
+} from './client.tsx';
 import { AttemptPlayer } from './player.tsx';
 
 type Props = ViewProps<QuizSettingsT>;
@@ -386,11 +393,20 @@ async function ReviewPage({ activity: a, ctx, attemptId }: Props & { attemptId: 
 async function TeacherView(props: Props) {
   const { activity: a, ctx, searchParams } = props;
   const t = await getTranslations('mod.quiz');
-  const tab = ['edit', 'results', 'grading'].includes(searchParams.tab ?? '')
+  const tab = ['edit', 'results', 'grading', 'overrides'].includes(searchParams.tab ?? '')
     ? searchParams.tab!
     : 'overview';
-  const canEdit = await ctx.perm.can('course:manageactivities', a.courseId);
-  const tabs = ['overview', ...(canEdit ? ['edit'] : []), 'results', 'grading'];
+  const [canEdit, canOverride] = await Promise.all([
+    ctx.perm.can('course:manageactivities', a.courseId),
+    ctx.perm.can('mod.quiz:manageoverrides', a.id),
+  ]);
+  const tabs = [
+    'overview',
+    ...(canEdit ? ['edit'] : []),
+    'results',
+    'grading',
+    ...(canOverride ? ['overrides'] : []),
+  ];
   return (
     <div className="grid gap-5">
       <nav className="flex flex-wrap gap-1" aria-label={t('tabs.overview')}>
@@ -411,9 +427,81 @@ async function TeacherView(props: Props) {
         <ResultsTab {...props} />
       ) : tab === 'grading' ? (
         <GradingTab {...props} />
+      ) : tab === 'overrides' && canOverride ? (
+        <OverridesTab {...props} />
       ) : (
         <OverviewTab {...props} />
       )}
+    </div>
+  );
+}
+
+async function OverridesTab({ activity: a, ctx }: Props) {
+  const [t, format] = await Promise.all([getTranslations('mod.quiz'), getFormatter()]);
+  const [overrides, users, groups] = await Promise.all([
+    ctx.db.quizOverride.findMany({
+      where: { activityId: a.id },
+      include: { group: { select: { name: true } } },
+    }),
+    ctx.db.user.findMany({
+      where: { deletedAt: null, enrolments: { some: { courseId: a.courseId } } },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      select: { id: true, name: true },
+    }),
+    ctx.db.group.findMany({
+      where: { courseId: a.courseId },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    }),
+  ]);
+  const when = (d: Date | null) =>
+    d ? format.dateTime(d, { dateStyle: 'short', timeStyle: 'short' }) : '—';
+  const nameOf = (o: (typeof overrides)[number]) =>
+    o.group
+      ? t('overrides.group', { name: o.group.name })
+      : (users.find((u) => u.id === o.userId)?.name ?? '—');
+  return (
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      {overrides.length ? (
+        <Table>
+          <THead>
+            <Tr>
+              <Th>{t('overrides.who')}</Th>
+              <Th>{t('overrides.openAt')}</Th>
+              <Th>{t('overrides.closeAt')}</Th>
+              <Th>{t('overrides.timeLimit')}</Th>
+              <Th>{t('overrides.attempts')}</Th>
+              <Th />
+            </Tr>
+          </THead>
+          <TBody>
+            {overrides.map((o) => (
+              <Tr key={o.id}>
+                <Td className="font-medium">{nameOf(o)}</Td>
+                <Td className="text-sm">{when(o.openAt)}</Td>
+                <Td className="text-sm">{when(o.closeAt)}</Td>
+                <Td className="tabular-nums">
+                  {o.timeLimitSec === null ? '—' : Math.round(o.timeLimitSec / 60)}
+                </Td>
+                <Td className="tabular-nums">{o.attempts ?? '—'}</Td>
+                <Td className="text-right">
+                  <DeleteOverrideButton activityId={a.id} id={o.id} />
+                </Td>
+              </Tr>
+            ))}
+          </TBody>
+        </Table>
+      ) : (
+        <EmptyState title={t('overrides.empty')} />
+      )}
+      <Card className="h-fit">
+        <CardHeader>
+          <CardTitle>{t('overrides.new')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <OverrideForm activityId={a.id} users={users} groups={groups} />
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -523,6 +611,7 @@ async function ResultsTab({ activity: a, ctx }: Props) {
     },
   });
   if (!attempts.length) return <EmptyState title={t('noAttempts')} />;
+  const canRegrade = await ctx.perm.can('mod.quiz:grade', a.id);
   const slots = [...new Set(attempts.flatMap((x) => x.questions.map((q) => q.slot)))].sort(
     (x, y) => x - y,
   );
@@ -535,6 +624,13 @@ async function ResultsTab({ activity: a, ctx }: Props) {
   });
   return (
     <div className="grid gap-3">
+      {canRegrade ? (
+        <RegradePanel
+          activityId={a.id}
+          gradeMax={a.settings.gradeMax}
+          names={Object.fromEntries(attempts.map((x) => [x.userId, x.user.name]))}
+        />
+      ) : null}
       <Table>
         <THead>
           <Tr>

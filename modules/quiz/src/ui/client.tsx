@@ -1,6 +1,6 @@
 'use client';
 
-import { callModuleAction } from '@hubium/module-sdk/form';
+import { callModuleAction, LocalDateTimeInput } from '@hubium/module-sdk/form';
 import {
   Badge,
   Button,
@@ -307,5 +307,188 @@ export function SlotEditor({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Dates, time limit or attempts for one participant or the members of one group. */
+export function OverrideForm({
+  activityId,
+  users,
+  groups,
+}: {
+  activityId: string;
+  users: { id: string; name: string }[];
+  groups: { id: string; name: string }[];
+}) {
+  const t = useTranslations('mod.quiz');
+  const { pending, run } = useRun(activityId);
+  const [who, setWho] = useState('');
+  const [openAt, setOpenAt] = useState('');
+  const [closeAt, setCloseAt] = useState('');
+  const [time, setTime] = useState('');
+  const [attempts, setAttempts] = useState('');
+  const iso = (v: string) => (v ? new Date(v).toISOString() : null);
+  const int = (v: string) => (v.trim() === '' ? null : Number(v));
+  const save = () => {
+    const [kind, id] = who.split(':');
+    run(
+      'setOverride',
+      {
+        ...(kind === 'g' ? { groupId: id } : { userId: id }),
+        openAt: iso(openAt),
+        closeAt: iso(closeAt),
+        timeLimitMin: int(time),
+        attempts: int(attempts),
+      },
+      () => {
+        toast.success(t('overrides.saved'));
+        setWho('');
+      },
+    );
+  };
+  return (
+    <div className="grid gap-3">
+      <Field label={t('overrides.who')} htmlFor="ov-who">
+        <Select id="ov-who" value={who} onChange={(e) => setWho(e.target.value)}>
+          <option value="">{t('overrides.choose')}</option>
+          {groups.map((g) => (
+            <option key={g.id} value={`g:${g.id}`}>
+              {t('overrides.group', { name: g.name })}
+            </option>
+          ))}
+          {users.map((u) => (
+            <option key={u.id} value={`u:${u.id}`}>
+              {u.name}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label={t('overrides.openAt')} htmlFor="ov-open">
+          <LocalDateTimeInput id="ov-open" value={openAt} onChange={setOpenAt} />
+        </Field>
+        <Field label={t('overrides.closeAt')} htmlFor="ov-close">
+          <LocalDateTimeInput id="ov-close" value={closeAt} onChange={setCloseAt} />
+        </Field>
+        <Field label={t('overrides.timeLimit')} htmlFor="ov-time">
+          <Input
+            id="ov-time"
+            inputMode="numeric"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+          />
+        </Field>
+        <Field label={t('overrides.attempts')} htmlFor="ov-attempts">
+          <Input
+            id="ov-attempts"
+            inputMode="numeric"
+            value={attempts}
+            onChange={(e) => setAttempts(e.target.value)}
+          />
+        </Field>
+      </div>
+      <p className="text-xs text-muted-foreground">{t('overrides.hint')}</p>
+      <Button className="w-fit" disabled={pending || !who} onClick={save}>
+        {t('overrides.save')}
+      </Button>
+    </div>
+  );
+}
+
+export function DeleteOverrideButton({ activityId, id }: { activityId: string; id: string }) {
+  const t = useTranslations('common');
+  const { pending, run } = useRun(activityId);
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      disabled={pending}
+      onClick={() => run('deleteOverride', { id })}
+    >
+      {t('delete')}
+    </Button>
+  );
+}
+
+interface RegradeReport {
+  attempts: {
+    attemptId: string;
+    userId: string;
+    attemptNumber: number;
+    before: number;
+    after: number;
+    maxBefore: number;
+    maxAfter: number;
+  }[];
+  skipped: string[];
+}
+
+/** Regrades attempts with the current questions; a dry run only shows what would change. */
+export function RegradePanel({
+  activityId,
+  names,
+  gradeMax,
+}: {
+  activityId: string;
+  names: Record<string, string>;
+  gradeMax: number;
+}) {
+  const t = useTranslations('mod.quiz');
+  const { pending, run } = useRun(activityId);
+  const [report, setReport] = useState<{ dry: boolean; data: RegradeReport } | null>(null);
+  const go = (dryRun: boolean) => {
+    if (!dryRun && !window.confirm(t('regrade.confirm'))) return;
+    run<RegradeReport>('regrade', { dryRun }, (data) => {
+      setReport({ dry: dryRun, data });
+      if (!dryRun) toast.success(t('regrade.done'));
+    });
+  };
+  const points = (v: number, max: number) =>
+    max ? `${Math.round((v / max) * gradeMax * 100) / 100}` : '—';
+  const changed = report?.data.attempts.filter(
+    (x) => x.before !== x.after || x.maxBefore !== x.maxAfter,
+  );
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('regrade.title')}</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        <p className="text-sm text-muted-foreground">{t('regrade.hint')}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" disabled={pending} onClick={() => go(true)}>
+            {t('regrade.dryRun')}
+          </Button>
+          <Button variant="outline" disabled={pending} onClick={() => go(false)}>
+            {t('regrade.run')}
+          </Button>
+        </div>
+        {report ? (
+          <div className="grid gap-2 text-sm" aria-live="polite">
+            <p className="font-medium">
+              {t(report.dry ? 'regrade.wouldChange' : 'regrade.changed', {
+                n: changed?.length ?? 0,
+                total: report.data.attempts.length,
+              })}
+            </p>
+            {changed?.length ? (
+              <ul className="grid gap-1">
+                {changed.map((x) => (
+                  <li key={x.attemptId} className="tabular-nums">
+                    {names[x.userId] ?? '—'} · {t('attempt', { n: x.attemptNumber })}:{' '}
+                    {points(x.before, x.maxBefore)} → {points(x.after, x.maxAfter)} / {gradeMax}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {report.data.skipped.length ? (
+              <p className="text-muted-foreground">
+                {t('regrade.skipped', { names: report.data.skipped.join(', ') })}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
