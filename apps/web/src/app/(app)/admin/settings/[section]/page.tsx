@@ -1,6 +1,8 @@
-import { getAllSettings } from '@hubium/core';
+import { getAllSettings, siteLocale } from '@hubium/core';
 import { configuredOAuthProviders } from '@hubium/core/auth/auth';
+import { languageInfo } from '@hubium/i18n/packs';
 import { Badge, Card, CardContent, Checkbox, Select, Textarea } from '@hubium/ui';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
@@ -53,16 +55,12 @@ export default async function SettingsSectionPage({
             defaultValue={s['site.name']}
             required
           />
-          <FormField name="defaultLocale" label={t('settings.defaultLocale')}>
-            <Select
-              id="f-defaultLocale"
-              name="defaultLocale"
-              defaultValue={s['site.defaultLocale']}
-            >
-              <option value="ru">Русский</option>
-              <option value="en">English</option>
-            </Select>
-          </FormField>
+          <p className="text-sm text-muted-foreground">
+            {t('settings.defaultLocale')}: {languageInfo(siteLocale(s)).name} ·{' '}
+            <Link href="/admin/languages" className="text-accent hover:underline">
+              {t('languages')}
+            </Link>
+          </p>
           <FormField
             name="defaultTimezone"
             label={t('settings.defaultTimezone')}

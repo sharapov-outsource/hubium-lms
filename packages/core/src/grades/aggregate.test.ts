@@ -54,23 +54,27 @@ describe('aggregate', () => {
 
 describe('display', () => {
   it('maps percents to Russian marks and Latin letters', () => {
-    expect(letterFor(86, defaultLetters.ru)).toBe('5');
-    expect(letterFor(69.9, defaultLetters.ru)).toBe('3');
-    expect(letterFor(10, defaultLetters.ru)).toBe('2');
-    expect(letterFor(91, defaultLetters.en)).toBe('A');
+    expect(letterFor(86, defaultLetters('ru'))).toBe('5');
+    expect(letterFor(69.9, defaultLetters('ru'))).toBe('3');
+    expect(letterFor(10, defaultLetters('ru'))).toBe('2');
+    expect(letterFor(91, defaultLetters('en'))).toBe('A');
   });
   it('formats real, percent, letter and scale grades', () => {
     const base = { min: 0, max: 20, decimals: 1 };
-    expect(formatGrade(15.25, { ...base, display: 'REAL' }, defaultLetters.ru, 'en')).toBe('15.3');
-    expect(formatGrade(15, { ...base, display: 'PERCENT' }, defaultLetters.ru, 'en')).toBe('75%');
-    expect(formatGrade(18, { ...base, display: 'LETTER' }, defaultLetters.ru)).toBe('5');
+    expect(formatGrade(15.25, { ...base, display: 'REAL' }, defaultLetters('ru'), 'en')).toBe(
+      '15.3',
+    );
+    expect(formatGrade(15, { ...base, display: 'PERCENT' }, defaultLetters('ru'), 'en')).toBe(
+      '75%',
+    );
+    expect(formatGrade(18, { ...base, display: 'LETTER' }, defaultLetters('ru'))).toBe('5');
     expect(
       formatGrade(
         2,
         { ...base, display: 'REAL', scale: ['Не зачтено', 'Зачтено'] },
-        defaultLetters.ru,
+        defaultLetters('ru'),
       ),
     ).toBe('Зачтено');
-    expect(formatGrade(null, { ...base, display: 'REAL' }, defaultLetters.ru)).toBe('—');
+    expect(formatGrade(null, { ...base, display: 'REAL' }, defaultLetters('ru'))).toBe('—');
   });
 });

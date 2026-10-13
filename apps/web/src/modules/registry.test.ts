@@ -1,7 +1,8 @@
 import { listModules } from '@hubium/core';
+import { BASE_LOCALE, locales } from '@hubium/i18n';
+import { createTranslator, packReport } from '@hubium/i18n/packs';
 import { describe, expect, it } from 'vitest';
 import './server';
-import { moduleMessages } from './messages';
 import { moduleUIKeys } from './ui';
 
 describe('module registries', () => {
@@ -12,14 +13,13 @@ describe('module registries', () => {
         .sort(),
     );
   });
-  it('every module has ru/en name and description', () => {
+  it('every module has a name and a description in every language', () => {
+    const t = createTranslator(BASE_LOCALE);
     for (const m of listModules()) {
-      for (const l of ['ru', 'en'] as const) {
-        const msgs = (moduleMessages[l] as Record<string, { name?: string; description?: string }>)[
-          m.key
-        ];
-        expect(msgs?.name, `${l}.${m.key}.name`).toBeTruthy();
-        expect(msgs?.description, `${l}.${m.key}.description`).toBeTruthy();
+      for (const field of ['name', 'description']) {
+        const key = `mod.${m.key}.${field}`;
+        expect(t(key), key).not.toBe(key);
+        for (const l of locales) expect(packReport(l).missing, `${l}: ${key}`).not.toContain(key);
       }
     }
   });

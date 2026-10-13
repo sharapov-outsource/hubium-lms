@@ -1,0 +1,41 @@
+{
+  "livesession": {
+    "name": "Session en direct",
+    "description": "Webinaire BigBlueButton ou Jitsi avec suivi des présences et enregistrements",
+    "provider": "Plateforme",
+    "startsAt": "Début",
+    "durationMin": "Durée, en minutes",
+    "joinEarlyMin": "Ouverture de la salle avant le début, en minutes",
+    "welcome": "Message d’accueil de la salle",
+    "record": "Autoriser l’enregistrement (BigBlueButton)",
+    "completionAttended": "L’étudiant a rejoint la session",
+    "status": {
+      "SCHEDULED": "Programmée",
+      "LIVE": "En direct",
+      "ENDED": "Terminée"
+    },
+    "notConfigured": "Le serveur BigBlueButton n’a pas été configuré par l’administrateur.",
+    "join": "Rejoindre",
+    "startOrJoin": "Démarrer / rejoindre",
+    "waitingTeacher": "Vous pourrez rejoindre la session dès que l’enseignant l’aura démarrée.",
+    "opensAt": "La salle ouvre {time}",
+    "over": "La session est terminée.",
+    "end": "Terminer la session",
+    "ended": "Session terminée",
+    "syncRecordings": "Actualiser les enregistrements",
+    "synced": "Enregistrements actualisés",
+    "recordings": "Enregistrements",
+    "min": "min",
+    "attendance": "Présences",
+    "participant": "Participant",
+    "firstJoin": "Première connexion",
+    "joins": "Connexions",
+    "minutes": "Minutes",
+    "moderator": "animateur",
+    "noAttendance": "Personne n’a encore rejoint la session",
+    "notify": {
+      "starting": "Session en direct sur le point de commencer",
+      "startingTitle": "« {name} » commence dans 15 minutes"
+    }
+  }
+}

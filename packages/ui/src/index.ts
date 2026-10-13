@@ -1,7 +1,7 @@
 export * from './components/alert.tsx';
 export * from './components/badge.tsx';
 export * from './components/button.tsx';
-export { Calendar, type CalendarLocale } from './components/calendar.tsx';
+export { Calendar, type CalendarLabels, type CalendarLocale } from './components/calendar.tsx';
 export * from './components/card.tsx';
 export { Combobox, type ComboboxOption, type ComboboxProps } from './components/combobox.tsx';
 export {

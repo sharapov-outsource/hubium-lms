@@ -1,14 +1,82 @@
 'use client';
 
 import { DayPicker, type DropdownProps, type PropsBase, type PropsSingle } from '@daypicker/react';
-import { enUS, ru } from '@daypicker/react/locale';
+import { enUS } from '@daypicker/react/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useMemo } from 'react';
 import { cn } from '../lib/cn.ts';
 import { Select } from './select.tsx';
 
-export type CalendarLocale = 'ru' | 'en';
+/** A BCP-47 language tag or code; any language Intl knows works without extra data. */
+export type CalendarLocale = string;
 
-const LOCALES = { ru, en: enUS } as const;
+/** Texts of the navigation that Intl cannot supply (screen-reader labels). */
+export interface CalendarLabels {
+  previousMonth: string;
+  nextMonth: string;
+  month: string;
+  year: string;
+}
+
+const EN_LABELS: CalendarLabels = {
+  previousMonth: 'Previous month',
+  nextMonth: 'Next month',
+  month: 'Month',
+  year: 'Year',
+};
+
+/** Monday-first unless the language's region starts the week on another day. */
+function firstDayOfWeek(locale: string): 0 | 1 | 2 | 3 | 4 | 5 | 6 {
+  try {
+    const l = new Intl.Locale(locale) as Intl.Locale & {
+      getWeekInfo?: () => { firstDay: number };
+      weekInfo?: { firstDay: number };
+    };
+    const first = l.getWeekInfo?.().firstDay ?? l.weekInfo?.firstDay;
+    if (first) return (first % 7) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  } catch {}
+  return 1;
+}
+
+const capitalise = (s: string, locale: string) =>
+  s.charAt(0).toLocaleUpperCase(locale) + s.slice(1);
+
+/** Day names, months and labels from Intl in `locale` (DayPicker's own data is English). */
+function useIntlCalendar(locale: string, text: CalendarLabels) {
+  return useMemo(() => {
+    const fmt = (o: Intl.DateTimeFormatOptions) => {
+      try {
+        return new Intl.DateTimeFormat(locale, o);
+      } catch {
+        return new Intl.DateTimeFormat('en', o);
+      }
+    };
+    const caption = fmt({ month: 'long', year: 'numeric' });
+    const month = fmt({ month: 'long' });
+    const weekdayShort = fmt({ weekday: 'short' });
+    const weekdayLong = fmt({ weekday: 'long' });
+    const full = fmt({ dateStyle: 'full' });
+    return {
+      weekStartsOn: firstDayOfWeek(locale),
+      formatters: {
+        formatCaption: (d: Date) => capitalise(caption.format(d), locale),
+        formatMonthDropdown: (d: Date) => capitalise(month.format(d), locale),
+        formatYearDropdown: (d: Date) => String(d.getFullYear()),
+        formatWeekdayName: (d: Date) => weekdayShort.format(d),
+        formatDay: (d: Date) => String(d.getDate()),
+      },
+      labels: {
+        labelDayButton: (d: Date) => full.format(d),
+        labelGrid: (d: Date) => capitalise(caption.format(d), locale),
+        labelWeekday: (d: Date) => weekdayLong.format(d),
+        labelNext: () => text.nextMonth,
+        labelPrevious: () => text.previousMonth,
+        labelMonthDropdown: () => text.month,
+        labelYearDropdown: () => text.year,
+      },
+    };
+  }, [locale, text]);
+}
 
 /** Month and year pickers in the caption use our listbox instead of native selects. */
 function CaptionDropdown({ options, value, onChange, 'aria-label': ariaLabel }: DropdownProps) {
@@ -31,17 +99,25 @@ function CaptionDropdown({ options, value, onChange, 'aria-label': ariaLabel }: 
 }
 
 export function Calendar({
-  locale = 'ru',
+  locale = 'en',
+  labels = EN_LABELS,
   className,
   classNames,
   ...props
-}: Omit<PropsBase, 'locale' | 'mode' | 'required'> &
-  Pick<PropsSingle, 'selected' | 'onSelect'> & { locale?: CalendarLocale }) {
+}: Omit<PropsBase, 'locale' | 'mode' | 'required' | 'labels'> &
+  Pick<PropsSingle, 'selected' | 'onSelect'> & {
+    locale?: CalendarLocale;
+    labels?: CalendarLabels;
+  }) {
   const year = new Date().getFullYear();
+  const intl = useIntlCalendar(locale, labels);
   return (
     <DayPicker
       mode="single"
-      locale={LOCALES[locale]}
+      locale={enUS}
+      weekStartsOn={intl.weekStartsOn}
+      formatters={intl.formatters}
+      labels={intl.labels}
       showOutsideDays
       captionLayout="dropdown"
       startMonth={new Date(year - 80, 0)}

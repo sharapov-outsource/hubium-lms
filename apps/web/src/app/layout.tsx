@@ -1,4 +1,5 @@
 import { getAllSettings } from '@hubium/core';
+import { languageInfo } from '@hubium/i18n/packs';
 import { generateAccentPalette, paletteCss } from '@hubium/ui/palette';
 import { ThemeProvider, Toaster } from '@hubium/ui/theme';
 import { UiTextProvider } from '@hubium/ui/ui-text';
@@ -54,7 +55,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const nonce = h.get('x-nonce') ?? undefined;
   const palette = generateAccentPalette(settings['branding.accent']);
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang={locale} dir={languageInfo(locale).dir} suppressHydrationWarning>
       <head>
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: generated from a validated hex colour */}
         <style id="hubium-brand" dangerouslySetInnerHTML={{ __html: paletteCss(palette) }} />

@@ -1,5 +1,11 @@
 import { readFile } from 'node:fs/promises';
-import { loadUserAccess, Permissions, type RequestContext } from '@hubium/core';
+import {
+  getAllSettings,
+  loadUserAccess,
+  Permissions,
+  type RequestContext,
+  userLocale,
+} from '@hubium/core';
 import { consumeUpload } from '@hubium/core/files/uploads';
 import { enqueue } from '@hubium/core/jobs/jobs';
 import type { Db, Prisma } from '@hubium/db';
@@ -35,7 +41,7 @@ async function userCtx(db: Db, userId: string): Promise<RequestContext> {
     actor: { kind: 'user', userId, isSiteAdmin: user.isSiteAdmin },
     perm: new Permissions(db, await loadUserAccess(db, user)),
     now: new Date(),
-    locale: user.locale === 'en' ? 'en' : 'ru',
+    locale: userLocale(await getAllSettings(db), user.locale),
     origin: 'WORKER',
   };
 }

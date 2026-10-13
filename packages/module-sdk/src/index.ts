@@ -182,7 +182,8 @@ export interface ModuleCtx {
   db: Prisma.TransactionClient;
   actor: ModuleActor;
   now: Date;
-  locale: 'ru' | 'en';
+  /** Language of the request: a code of an installed language pack. */
+  locale: string;
   perm: ModulePermissions;
   files: ModuleFiles;
   grades: ModuleGrades;

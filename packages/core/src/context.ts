@@ -1,5 +1,8 @@
 import type { Db, Prisma } from '@hubium/db';
+import type { Locale } from '@hubium/i18n';
 import type { Permissions } from './access/permissions.ts';
+
+export type { Locale };
 
 export type Actor =
   | { kind: 'system' }
@@ -11,8 +14,6 @@ export type Actor =
       /** Set while impersonating ("log in as"). */
       realUserId?: string;
     };
-
-export type Locale = 'ru' | 'en';
 
 export interface RequestContext {
   db: Db;

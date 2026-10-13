@@ -1,0 +1,25 @@
+{
+  "lti": {
+    "name": "Externes Tool (LTI)",
+    "description": "LTI-1.3-Tools mit Rückübertragung der Bewertungen",
+    "tool": "Tool",
+    "chooseTool": "Tool auswählen",
+    "noTools": "Die Administration hat noch keine LTI-Tools registriert.",
+    "container": "Öffnen in",
+    "containers": {
+      "iframe": "Diese Seite",
+      "window": "Neues Fenster"
+    },
+    "height": "Höhe, px",
+    "customParams": "Eigene Parameter",
+    "customHint": "Einer pro Zeile: Schlüssel=Wert",
+    "sendGrades": "Bewertungen vom Tool übernehmen",
+    "gradeMax": "Maximale Bewertung",
+    "gradePass": "Bestehensgrenze",
+    "toolMissing": "Das Tool wurde nicht gefunden; möglicherweise wurde es von der Administration gelöscht.",
+    "toolDisabled": "Das Tool wurde von der Administration deaktiviert.",
+    "openNewWindow": "In neuem Fenster öffnen",
+    "selectContent": "Inhalt auswählen",
+    "launch": "Tool öffnen"
+  }
+}

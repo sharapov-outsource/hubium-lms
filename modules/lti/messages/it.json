@@ -1,0 +1,25 @@
+{
+  "lti": {
+    "name": "Strumento esterno (LTI)",
+    "description": "Strumenti LTI 1.3 con restituzione delle valutazioni",
+    "tool": "Strumento",
+    "chooseTool": "Scegli uno strumento",
+    "noTools": "Un amministratore non ha ancora registrato strumenti LTI.",
+    "container": "Apri in",
+    "containers": {
+      "iframe": "Questa pagina",
+      "window": "Una nuova finestra"
+    },
+    "height": "Altezza, px",
+    "customParams": "Parametri personalizzati",
+    "customHint": "Uno per riga: chiave=valore",
+    "sendGrades": "Accetta le valutazioni dallo strumento",
+    "gradeMax": "Valutazione massima",
+    "gradePass": "Sufficienza",
+    "toolMissing": "Lo strumento non è stato trovato: potrebbe essere stato eliminato da un amministratore.",
+    "toolDisabled": "Lo strumento è stato disabilitato da un amministratore.",
+    "openNewWindow": "Apri in una nuova finestra",
+    "selectContent": "Seleziona contenuto",
+    "launch": "Apri lo strumento"
+  }
+}

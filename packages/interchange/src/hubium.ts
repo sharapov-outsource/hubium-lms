@@ -15,6 +15,7 @@ import { storeFile } from '@hubium/core/files/files';
 import { getStorage } from '@hubium/core/files/storage';
 import { type Prisma, uuidv7 } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
+import { isLocale } from '@hubium/i18n';
 import { parseSettings } from '@hubium/module-sdk';
 import { type QuestionType, questionDataSchemas, questionTypes } from '@hubium/questions';
 import { strFromU8, strToU8, zipSync } from 'fflate';
@@ -478,7 +479,8 @@ export async function restoreCourse(
     sections: src.format === 'SINGLE' ? 0 : Math.min(MAX_NEW_SECTIONS, sectionsCount),
     startDate: src.startDate ?? undefined,
     endDate: src.endDate ?? undefined,
-    lang: (src.lang as 'ru' | 'en' | null) ?? null,
+    // a language this site does not have is dropped, not an error
+    lang: isLocale(src.lang) ? src.lang : null,
     enableCompletion: src.enableCompletion,
     groupMode: src.groupMode,
     groupModeForced: src.groupModeForced,

@@ -24,17 +24,21 @@ export function UserForm({
   canSetAdmin,
   mode,
   profileFields = [],
+  languages,
 }: {
   action: (fd: FormData) => Promise<ActionResult<unknown>>;
   values?: UserFormValues;
   canSetAdmin: boolean;
   mode: 'create' | 'edit';
   profileFields?: ProfileFieldView[];
+  /** Enabled languages, by their own names. */
+  languages: { code: string; name: string }[];
 }) {
   const t = useTranslations('admin.user');
   const tp = useTranslations('profileFields');
   const ta = useTranslations('auth');
   const tc = useTranslations('common');
+  const ts = useTranslations('settings');
   return (
     <ActionForm
       action={action}
@@ -77,13 +81,16 @@ export function UserForm({
         <FormField name="locale" label={tc('language')}>
           <Select id="f-locale" name="locale" defaultValue={values.locale ?? ''}>
             <option value="">—</option>
-            <option value="ru">Русский</option>
-            <option value="en">English</option>
+            {languages.map((l) => (
+              <option key={l.code} value={l.code} lang={l.code}>
+                {l.name}
+              </option>
+            ))}
           </Select>
         </FormField>
         <FormField
           name="timezone"
-          label="Timezone"
+          label={ts('timezone')}
           defaultValue={values.timezone ?? ''}
           placeholder="Europe/Moscow"
         />

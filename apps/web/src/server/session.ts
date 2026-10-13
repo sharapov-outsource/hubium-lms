@@ -40,7 +40,7 @@ export const getContext = cache(async (): Promise<RequestContext> => {
   const user = await getCurrentUser();
   const h = await headers();
   const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
-  const locale = (await getLocale()) as 'ru' | 'en';
+  const locale = await getLocale();
   if (!user) {
     return {
       db,

@@ -1,0 +1,33 @@
+{
+  "page": {
+    "name": "Pagina",
+    "description": "Testo formattato con immagini, tabelle e video",
+    "content": "Contenuto"
+  },
+  "url": {
+    "name": "Link",
+    "description": "Un link a un sito esterno o un video incorporato",
+    "url": "URL",
+    "display": "Apri in",
+    "displayLink": "Stessa finestra",
+    "displayNewtab": "Nuova scheda",
+    "displayEmbed": "Incorpora nella pagina (YouTube, RuTube, VK Video)",
+    "open": "Apri il link"
+  },
+  "label": {
+    "name": "Blocco di testo",
+    "description": "Testo mostrato direttamente nella pagina del corso",
+    "content": "Testo"
+  },
+  "file": {
+    "name": "File",
+    "description": "Un singolo file o una cartella di materiali",
+    "files": "File",
+    "addFiles": "Aggiungi file",
+    "remove": "Rimuovi",
+    "display": "Visualizzazione",
+    "displayList": "Elenco dei file",
+    "displayDownload": "Scarica direttamente il file singolo",
+    "empty": "Ancora nessun file caricato"
+  }
+}

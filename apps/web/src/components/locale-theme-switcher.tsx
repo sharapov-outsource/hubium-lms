@@ -16,16 +16,19 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useState, useTransition } from 'react';
 import { setLocaleAction, setThemeAction } from '@/server/actions/preferences';
 
-const LOCALES = [
-  { code: 'ru', label: 'Русский' },
-  { code: 'en', label: 'English' },
-] as const;
+/** An enabled language: its code and its own name (from the language pack). */
+export interface LanguageOption {
+  code: string;
+  name: string;
+}
 
-export function LocaleSwitcher() {
+/** Hidden when the site offers a single language. */
+export function LocaleSwitcher({ languages }: { languages: LanguageOption[] }) {
   const t = useTranslations('common');
   const locale = useLocale();
   const router = useRouter();
   const [, start] = useTransition();
+  if (languages.length < 2) return null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -35,7 +38,7 @@ export function LocaleSwitcher() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>{t('language')}</DropdownMenuLabel>
-        {LOCALES.map((l) => (
+        {languages.map((l) => (
           <DropdownMenuItem
             key={l.code}
             lang={l.code}
@@ -46,7 +49,7 @@ export function LocaleSwitcher() {
               })
             }
           >
-            <span className="flex-1">{l.label}</span>
+            <span className="flex-1">{l.name}</span>
             {l.code === locale ? <Check /> : null}
           </DropdownMenuItem>
         ))}
@@ -93,10 +96,10 @@ export function ThemeSwitcher() {
   );
 }
 
-export function LocaleThemeSwitcher() {
+export function LocaleThemeSwitcher({ languages }: { languages: LanguageOption[] }) {
   return (
     <div className="flex items-center gap-1">
-      <LocaleSwitcher />
+      <LocaleSwitcher languages={languages} />
       <ThemeSwitcher />
     </div>
   );

@@ -12,12 +12,15 @@ import {
   listProfileFields,
   logEvent,
   profileValuesFromForm,
+  saveLanguageSettings,
   setRoleCapability,
   setRoleOverride,
   setSettings,
   setUserSuspended,
+  siteLocale,
   updateRole,
   updateUser,
+  userLocale,
   ValidationError,
   validateProfileValues,
 } from '@hubium/core';
@@ -25,7 +28,7 @@ import { BRANDING_CONTEXT, storeFile } from '@hubium/core/files/files';
 import { enqueue } from '@hubium/core/jobs/jobs';
 import { renderActionEmail } from '@hubium/core/mail/mail';
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
-import { createTranslator } from '@hubium/i18n';
+import { createTranslator } from '@hubium/i18n/packs';
 import { generateAccentPalette } from '@hubium/ui/palette';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
@@ -185,7 +188,6 @@ export async function saveSettingsAction(fd: FormData) {
       case 'general':
         Object.assign(values, {
           'site.name': v.siteName,
-          'site.defaultLocale': v.defaultLocale,
           'site.defaultTimezone': v.defaultTimezone,
           'course.creatorRole': v.creatorRole,
         });
@@ -212,6 +214,21 @@ export async function saveSettingsAction(fd: FormData) {
         throw new ValidationError({ _section: ['Unknown section'] });
     }
     await setSettings(db, values, ctx.perm.userId);
+    revalidatePath('/', 'layout');
+    return null;
+  });
+}
+
+/** Administration → Languages. The site language is always kept enabled. */
+export async function saveLanguagesAction(fd: FormData) {
+  return runAction(async () => {
+    const defaultLocale = String(fd.get('defaultLocale') ?? '');
+    const enabled = [...new Set([defaultLocale, ...fd.getAll('enabled').map(String)])];
+    await saveLanguageSettings.run(await getContext(), {
+      defaultLocale,
+      enabled,
+      detectBrowser: fd.get('detectBrowser') === 'on',
+    });
     revalidatePath('/', 'layout');
     return null;
   });
@@ -254,9 +271,10 @@ export async function sendTestEmailAction() {
     await requireConfig();
     const user = await requireUser();
     const settings = await getAllSettings(db);
-    const locale = user.locale === 'en' ? 'en' : 'ru';
-    const t = createTranslator(locale);
+    const locale = userLocale(settings, user.locale);
+    const t = createTranslator(locale, siteLocale(settings));
     const { html, text } = renderActionEmail({
+      locale,
       siteName: settings['site.name'],
       heading: t('email.test.heading'),
       intro: t('email.test.intro'),

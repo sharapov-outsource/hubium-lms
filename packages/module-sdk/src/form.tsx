@@ -1,6 +1,6 @@
 'use client';
 
-import { type CalendarLocale, DatePicker, DateTimePicker, useHydrated } from '@hubium/ui';
+import { DatePicker, DateTimePicker, useHydrated } from '@hubium/ui';
 import { useLocale, useTranslations } from 'next-intl';
 import { createContext, useContext, useState } from 'react';
 
@@ -22,7 +22,7 @@ function toLocalValue(iso: string | null | undefined): string {
 /** Locale and texts of the date pickers, from the app's messages. */
 function usePickerText() {
   const t = useTranslations('common.datePicker');
-  const locale: CalendarLocale = useLocale() === 'en' ? 'en' : 'ru';
+  const locale = useLocale();
   return {
     locale,
     labels: {
@@ -31,6 +31,12 @@ function usePickerText() {
       today: t('today'),
       time: t('time'),
       timePlaceholder: t('timePlaceholder'),
+      calendar: {
+        previousMonth: t('previousMonth'),
+        nextMonth: t('nextMonth'),
+        month: t('month'),
+        year: t('year'),
+      },
     },
   };
 }

@@ -1,3 +1,4 @@
+import { enabledLanguages } from '@hubium/core';
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import {
   Alert,
@@ -76,6 +77,7 @@ export default async function EditUserPage({
               action={updateUserAction}
               mode="edit"
               canSetAdmin={ctx.perm.isSiteAdmin}
+              languages={await enabledLanguages(db)}
               profileFields={await profileFieldViews(locale)}
               values={{
                 id: user.id,

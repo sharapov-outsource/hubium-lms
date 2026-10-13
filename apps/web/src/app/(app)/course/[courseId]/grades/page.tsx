@@ -73,7 +73,7 @@ export default async function GradesPage({
   const ctx = await getContext();
   const access = await getCourseAccess(ctx, courseId);
   if (!access.canView) forbidden();
-  const locale = (await getLocale()) as 'ru' | 'en';
+  const locale = await getLocale();
   const [t, letters] = await Promise.all([
     getTranslations('grades'),
     courseLetters(ctx.db, courseId),

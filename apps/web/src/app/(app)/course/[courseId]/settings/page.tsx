@@ -1,4 +1,10 @@
-import { AI_FEATURES, categoriesWhereCan, getCourseAccess, resolveFeature } from '@hubium/core';
+import {
+  AI_FEATURES,
+  categoriesWhereCan,
+  enabledLanguages,
+  getCourseAccess,
+  resolveFeature,
+} from '@hubium/core';
 import { Card, CardContent } from '@hubium/ui';
 import { forbidden } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
@@ -46,6 +52,7 @@ export default async function CourseSettingsPage({
       <CourseForm
         action={updateCourseAction}
         categories={cats.map((x) => ({ id: x.id, name: x.name, depth: x.depth }))}
+        languages={await enabledLanguages(ctx.db)}
         values={{
           id: c.id,
           categoryId: c.categoryId,

@@ -23,7 +23,8 @@
     "db:migrate:dev": "pnpm --filter @hubium/db migrate:dev",
     "db:seed": "pnpm --filter @hubium/core seed",
     "storage:init": "pnpm --filter @hubium/core storage:init",
-    "postinstall": "pnpm --filter @hubium/db generate"
+    "postinstall": "node scripts/i18n-index.mjs && pnpm --filter @hubium/db generate",
+    "i18n:index": "node scripts/i18n-index.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

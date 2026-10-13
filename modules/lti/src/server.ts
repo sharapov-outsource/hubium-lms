@@ -271,7 +271,7 @@ async function idTokenClaims(ctx: ModuleCtx, hint: NonNullable<ReturnType<typeof
     [LTI.claim('launch_presentation')]: {
       document_target: s.container,
       return_url: returnUrl,
-      locale: user.locale ?? 'ru',
+      locale: user.locale || ctx.locale,
     },
     ...(Object.keys(custom).length ? { [LTI.claim('custom')]: custom } : {}),
     ...(tool.sendName

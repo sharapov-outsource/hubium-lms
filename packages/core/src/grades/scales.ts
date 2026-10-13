@@ -4,7 +4,7 @@ import type { RequestContext } from '../context.ts';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { defineOperation } from '../operation.ts';
-import { getSetting } from '../settings/settings.ts';
+import { getAllSettings, siteLocale } from '../settings/settings.ts';
 import { defaultLetters, type LetterBoundary } from './aggregate.ts';
 
 // Scales (named grade lists, worst first) and letter boundaries, each for the site or for
@@ -118,9 +118,9 @@ async function lettersOf(db: Tx, contextId: string): Promise<LetterBoundary[]> {
   return rows.map((r) => ({ lowerBound: num(r.lowerBound)!, letter: r.letter }));
 }
 
-/** Built-in boundaries in the site's default language. */
+/** Built-in boundaries of the site language's pack. */
 export async function builtInLetters(db: Db): Promise<LetterBoundary[]> {
-  return defaultLetters[await getSetting(db, 'site.defaultLocale')];
+  return defaultLetters(siteLocale(await getAllSettings(db)));
 }
 
 /** The site's letters (its own, or the built-in ones). */

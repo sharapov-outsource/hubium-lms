@@ -1,48 +1,74 @@
-import en from '../messages/en.json' with { type: 'json' };
-import ru from '../messages/ru.json' with { type: 'json' };
+import { LOCALE_CODES } from './generated/locales.ts';
 
-export const locales = ['ru', 'en'] as const;
-export type Locale = (typeof locales)[number];
-export const defaultLocale: Locale = 'ru';
+// Languages are data: a language exists when packages/i18n/messages/<code>.json does
+// (see docs/i18n.md). This entry point is light — it never loads message files; the
+// packs, their checks and translators live in `@hubium/i18n/packs`.
+
+/** A language code of an installed pack, e.g. `de` or `pt-BR`. */
+export type Locale = string;
+
+/** Every installed language, by code. */
+export const locales: readonly Locale[] = LOCALE_CODES;
+/** The last fallback: complete by test, and what a missing or broken string falls back to. */
+export const BASE_LOCALE: Locale = 'en';
+/** The site language of a fresh installation. */
+export const DEFAULT_SITE_LOCALE: Locale = 'ru';
 export const LOCALE_COOKIE = 'hubium-locale';
 
-export type Messages = typeof ru;
-export const messages: Record<Locale, Messages> = { ru, en };
+export type Messages = Omit<typeof import('../messages/en.json'), '$language'>;
 
 export function isLocale(v: unknown): v is Locale {
   return typeof v === 'string' && (locales as readonly string[]).includes(v);
 }
 
-/** Picks the best supported locale from an Accept-Language header. */
-export function fromAcceptLanguage(header: string | null | undefined): Locale | undefined {
+/** Picks the best of `allowed` from an Accept-Language header: `de-AT` matches `de`. */
+export function fromAcceptLanguage(
+  header: string | null | undefined,
+  allowed: readonly Locale[] = locales,
+): Locale | undefined {
   if (!header) return undefined;
   const ranked = header
     .split(',')
     .map((part) => {
       const [tag, ...params] = part.trim().split(';');
       const q = params.find((p) => p.trim().startsWith('q='));
-      return { tag: (tag ?? '').toLowerCase(), q: q ? Number(q.split('=')[1]) : 1 };
+      return { tag: (tag ?? '').trim(), q: q ? Number(q.split('=')[1]) : 1 };
     })
-    .filter((x) => x.tag && !Number.isNaN(x.q))
+    .filter((x) => x.tag && !Number.isNaN(x.q) && x.q > 0)
     .sort((a, b) => b.q - a.q);
+  const byLower = new Map(allowed.map((l) => [l.toLowerCase(), l]));
   for (const { tag } of ranked) {
-    const base = tag.split('-')[0];
-    if (isLocale(base)) return base;
+    const t = tag.toLowerCase();
+    const hit = byLower.get(t) ?? byLower.get(t.split('-')[0]!);
+    if (hit) return hit;
   }
   return undefined;
 }
 
-/** Locale order: user profile → cookie → course forced lang → site default → Accept-Language. */
+/**
+ * The language of a request: a course's forced language, the user's choice (profile, then
+ * the cookie of guests), the browser's languages when detection is on, the site language,
+ * then the base. Codes that are not installed or not enabled are skipped.
+ */
 export function resolveLocale(opts: {
+  course?: string | null;
   user?: string | null;
   cookie?: string | null;
-  course?: string | null;
-  site?: string | null;
   acceptLanguage?: string | null;
+  site?: string | null;
+  /** Languages offered to users; all installed ones when omitted. */
+  enabled?: readonly Locale[];
+  detectBrowser?: boolean;
 }): Locale {
-  for (const c of [opts.user, opts.cookie, opts.course]) if (isLocale(c)) return c;
+  const enabled = (opts.enabled ?? locales).filter(isLocale);
+  const ok = (c: string | null | undefined): c is Locale => !!c && enabled.includes(c);
+  for (const c of [opts.course, opts.user, opts.cookie]) if (ok(c)) return c;
+  if (opts.detectBrowser !== false) {
+    const fromBrowser = fromAcceptLanguage(opts.acceptLanguage, enabled);
+    if (fromBrowser) return fromBrowser;
+  }
   if (isLocale(opts.site)) return opts.site;
-  return fromAcceptLanguage(opts.acceptLanguage) ?? defaultLocale;
+  return ok(BASE_LOCALE) ? BASE_LOCALE : (enabled[0] ?? BASE_LOCALE);
 }
 
 type Leaves<T, P extends string = ''> = {
@@ -50,40 +76,10 @@ type Leaves<T, P extends string = ''> = {
 }[keyof T & string];
 export type MessageKey = Leaves<Messages>;
 
-function lookup(obj: unknown, key: string): string | undefined {
-  let cur: unknown = obj;
-  for (const p of key.split('.')) {
-    if (cur && typeof cur === 'object' && p in cur) cur = (cur as Record<string, unknown>)[p];
-    else return undefined;
-  }
-  return typeof cur === 'string' ? cur : undefined;
-}
-
-const extra: Record<Locale, Record<string, unknown>> = { ru: {}, en: {} };
-
-/** Adds module messages (namespace `mod`) to the server-side translator. */
-export function registerModuleMessages(m: Record<Locale, Record<string, unknown>>): void {
-  for (const l of locales) Object.assign(extra[l], m[l]);
-}
-
 /**
- * Minimal server-side translator for the worker (emails, notifications).
- * Supports {var} interpolation and ICU-style {n, plural, one{..} few{..} many{..} other{..}}.
+ * {var} interpolation and ICU-style plurals:
+ * {n, plural, =0{..} one{..} few{..} many{..} other{..}} with # for the number.
  */
-export function createTranslator(locale: Locale) {
-  const plural = new Intl.PluralRules(locale);
-  return function t(
-    key: MessageKey | (string & {}),
-    values: Record<string, string | number> = {},
-  ): string {
-    const raw =
-      (key.startsWith('mod.')
-        ? (lookup(extra[locale], key.slice(4)) ?? lookup(extra[defaultLocale], key.slice(4)))
-        : (lookup(messages[locale], key) ?? lookup(messages[defaultLocale], key))) ?? key;
-    return format(raw, values, plural);
-  };
-}
-
 export function format(
   raw: string,
   values: Record<string, string | number>,

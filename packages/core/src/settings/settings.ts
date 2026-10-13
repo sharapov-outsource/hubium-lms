@@ -1,4 +1,5 @@
 import { type Db, Prisma } from '@hubium/db';
+import { BASE_LOCALE, DEFAULT_SITE_LOCALE, isLocale, type Locale, locales } from '@hubium/i18n';
 import { z } from 'zod';
 import { ValidationError } from '../errors.ts';
 
@@ -9,7 +10,14 @@ const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Expected a #rrggbb colour');
 
 export const settingDefs = {
   'site.name': z.string().min(1).max(100).default('Hubium LMS'),
-  'site.defaultLocale': z.enum(['ru', 'en']).default('ru'),
+  'site.defaultLocale': z
+    .string()
+    .refine(isLocale, 'Unknown language')
+    .default(isLocale(DEFAULT_SITE_LOCALE) ? DEFAULT_SITE_LOCALE : BASE_LOCALE),
+  /** Installed languages users may not choose; new languages are enabled by default. */
+  'i18n.disabledLocales': z.array(z.string()).default([]),
+  /** Show guests the site in their browser's language when it is enabled. */
+  'i18n.detectBrowser': z.boolean().default(true),
   'site.defaultTimezone': z.string().default('Europe/Moscow'),
   'branding.accent': hex.default('#4f46e5'),
   'branding.logoFileId': z.string().uuid().nullable().default(null),
@@ -92,4 +100,21 @@ export async function setSettings(
   }
   invalidateSettingsCache();
   await db.$executeRaw`SELECT pg_notify('hubium_cache', 'settings')`;
+}
+
+/** The site language; the base language when the stored one is no longer installed. */
+export function siteLocale(s: AllSettings): Locale {
+  return isLocale(s['site.defaultLocale']) ? s['site.defaultLocale'] : BASE_LOCALE;
+}
+
+/** Languages users can choose: installed and not disabled; the site language always. */
+export function enabledLocales(s: AllSettings): Locale[] {
+  const site = siteLocale(s);
+  const off = new Set(s['i18n.disabledLocales']);
+  return locales.filter((l) => l === site || !off.has(l));
+}
+
+/** A user's own language when it can be used, else the site language. */
+export function userLocale(s: AllSettings, preferred: string | null | undefined): Locale {
+  return preferred && enabledLocales(s).includes(preferred) ? preferred : siteLocale(s);
 }

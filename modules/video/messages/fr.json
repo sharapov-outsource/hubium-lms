@@ -1,0 +1,47 @@
+{
+  "video": {
+    "name": "Vidéo",
+    "description": "Vidéo déposée avec qualité adaptative, ou vidéo YouTube, RuTube ou VK Video intégrée",
+    "source": "Source",
+    "sources": {
+      "upload": "Déposer un fichier",
+      "embed": "Lien YouTube / RuTube / VK Video"
+    },
+    "embedUrl": "Lien de la vidéo",
+    "embedHint": "Par exemple, https://youtu.be/… ou https://rutube.ru/video/…",
+    "uploadAfterSave": "Déposez le fichier sur la page de la vidéo après l’enregistrement.",
+    "deleteSource": "Supprimer le fichier source après le transcodage",
+    "noSeekAhead": "Empêcher d’avancer au-delà de la partie déjà regardée",
+    "minPercent": "Visionnage minimal, %",
+    "minPercentHint": "Par exemple, 90",
+    "watched": "Regardée à {percent} %",
+    "processing": "La vidéo est en cours de traitement et sera bientôt disponible.",
+    "notReady": "Aucune vidéo déposée pour l’instant.",
+    "manage": "Gestion de la vidéo",
+    "status": {
+      "UPLOADED": "En attente",
+      "PROCESSING": "En cours de traitement",
+      "READY": "Prête",
+      "FAILED": "Échec"
+    },
+    "retranscode": "Transcoder à nouveau",
+    "uploadVideo": "Déposer une vidéo",
+    "replaceVideo": "Remplacer la vidéo",
+    "uploadHint": "Le dépôt reprend après une coupure de connexion. Jusqu’à 4 Go.",
+    "uploading": "Envoi : {percent} %",
+    "uploaded": "Vidéo déposée et mise en file d’attente de traitement",
+    "cancel": "Annuler",
+    "captions": "Sous-titres",
+    "captionLang": "Langue",
+    "captionLabel": "Libellé",
+    "captionFile": "Fichier VTT ou SRT",
+    "addCaption": "Ajouter",
+    "captionAdded": "Sous-titres ajoutés",
+    "remove": "Retirer",
+    "report": "Visionnages",
+    "student": "Étudiant",
+    "progress": "Visionnage",
+    "lastWatched": "Dernier visionnage",
+    "noStudents": "Aucun étudiant"
+  }
+}

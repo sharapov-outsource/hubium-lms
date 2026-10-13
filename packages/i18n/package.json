@@ -7,11 +7,15 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./packs": "./src/packs.ts",
     "./messages/*": "./messages/*"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@formatjs/icu-messageformat-parser": "3.5.21"
   },
   "devDependencies": {
     "@hubium/tooling": "workspace:*",

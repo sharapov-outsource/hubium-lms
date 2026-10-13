@@ -273,6 +273,8 @@ const jsonScript = (v: unknown) =>
     .replace(/[\u2028\u2029]/g, ' ');
 
 function playerHtml(o: {
+  /** Language of the learner, for the page's lang attribute. */
+  lang: string;
   title: string;
   version: Manifest['version'];
   cmi: Record<string, unknown>;
@@ -288,7 +290,7 @@ function playerHtml(o: {
     is12,
   };
   return `<!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="${esc(o.lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(o.title)}</title>
 <style>html,body{margin:0;height:100%;background:#fff}iframe{border:0;width:100%;height:100%;display:block}</style>
 <script src="${script}"></script>
@@ -544,7 +546,7 @@ export const scorm = defineModule<ScormSettingsT>({
       }
       const user = await ctx.db.user.findUniqueOrThrow({
         where: { id: grant.userId },
-        select: { name: true, lastName: true, firstName: true },
+        select: { name: true, lastName: true, firstName: true, locale: true },
       });
       // SCORM 1.2 expects "Last, First"
       const name =
@@ -557,6 +559,7 @@ export const scorm = defineModule<ScormSettingsT>({
       });
       return new Response(
         playerHtml({
+          lang: user.locale || ctx.locale,
           title: sco.title,
           version: pkg.version,
           cmi,

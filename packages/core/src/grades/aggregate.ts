@@ -1,3 +1,5 @@
+import { languageInfo } from '@hubium/i18n/packs';
+
 // Pure gradebook arithmetic. Grades are normalised to 0..1 against their item's range
 // before aggregation; the result is a fraction of the category's maximum.
 
@@ -70,21 +72,10 @@ export interface LetterBoundary {
   letter: string;
 }
 
-export const defaultLetters: Record<'ru' | 'en', LetterBoundary[]> = {
-  ru: [
-    { lowerBound: 85, letter: '5' },
-    { lowerBound: 70, letter: '4' },
-    { lowerBound: 50, letter: '3' },
-    { lowerBound: 0, letter: '2' },
-  ],
-  en: [
-    { lowerBound: 90, letter: 'A' },
-    { lowerBound: 80, letter: 'B' },
-    { lowerBound: 70, letter: 'C' },
-    { lowerBound: 60, letter: 'D' },
-    { lowerBound: 0, letter: 'F' },
-  ],
-};
+/** Built-in letter grades of a language (its pack's "$language.letters", else the base's). */
+export function defaultLetters(locale: string): LetterBoundary[] {
+  return languageInfo(locale).letters.map((l) => ({ ...l }));
+}
 
 export function letterFor(percent: number, letters: LetterBoundary[]): string {
   const sorted = [...letters].sort((a, b) => b.lowerBound - a.lowerBound);
@@ -101,7 +92,7 @@ export function formatGrade(
     scale?: string[] | null;
   },
   letters: LetterBoundary[],
-  locale = 'ru',
+  locale?: string,
 ): string {
   if (value === null || value === undefined) return '—';
   if (item.scale?.length) return item.scale[Math.round(value) - 1] ?? '—';

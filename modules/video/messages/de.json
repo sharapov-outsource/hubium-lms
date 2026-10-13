@@ -1,0 +1,47 @@
+{
+  "video": {
+    "name": "Video",
+    "description": "Hochgeladenes Video mit adaptiver Qualität oder eingebettetes Video von YouTube, RuTube oder VK Video",
+    "source": "Quelle",
+    "sources": {
+      "upload": "Datei hochladen",
+      "embed": "Link zu YouTube / RuTube / VK Video"
+    },
+    "embedUrl": "Video-Link",
+    "embedHint": "Zum Beispiel https://youtu.be/… oder https://rutube.ru/video/…",
+    "uploadAfterSave": "Laden Sie die Datei nach dem Speichern auf der Videoseite hoch.",
+    "deleteSource": "Quelldatei nach dem Transkodieren löschen",
+    "noSeekAhead": "Vorspulen über den bereits angesehenen Teil hinaus verhindern",
+    "minPercent": "Mindestens angesehen, %",
+    "minPercentHint": "Zum Beispiel 90",
+    "watched": "{percent}% angesehen",
+    "processing": "Das Video wird verarbeitet und ist bald verfügbar.",
+    "notReady": "Noch kein Video hochgeladen.",
+    "manage": "Videoverwaltung",
+    "status": {
+      "UPLOADED": "In Warteschlange",
+      "PROCESSING": "In Verarbeitung",
+      "READY": "Bereit",
+      "FAILED": "Fehlgeschlagen"
+    },
+    "retranscode": "Erneut transkodieren",
+    "uploadVideo": "Video hochladen",
+    "replaceVideo": "Video ersetzen",
+    "uploadHint": "Uploads werden nach einem Verbindungsabbruch fortgesetzt. Bis zu 4 GB.",
+    "uploading": "{percent}% hochgeladen",
+    "uploaded": "Video hochgeladen und zur Verarbeitung eingereiht",
+    "cancel": "Abbrechen",
+    "captions": "Untertitel",
+    "captionLang": "Sprache",
+    "captionLabel": "Bezeichnung",
+    "captionFile": "VTT- oder SRT-Datei",
+    "addCaption": "Hinzufügen",
+    "captionAdded": "Untertitel hinzugefügt",
+    "remove": "Entfernen",
+    "report": "Aufrufe",
+    "student": "Teilnehmer/in",
+    "progress": "Angesehen",
+    "lastWatched": "Zuletzt angesehen",
+    "noStudents": "Keine Teilnehmer/innen"
+  }
+}

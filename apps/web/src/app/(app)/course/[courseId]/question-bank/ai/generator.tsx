@@ -36,12 +36,17 @@ export function QuizGenerator({
   categories,
   defaultCategory,
   activities,
+  languages,
+  defaultLanguage,
 }: {
   courseId: string;
   generationId: string | null;
   categories: { id: string; name: string }[];
   defaultCategory: string;
   activities: { id: string; name: string }[];
+  /** Languages the questions can be written in, by their own names. */
+  languages: { code: string; name: string }[];
+  defaultLanguage: string;
 }) {
   const t = useTranslations('ai.quizgen');
   const tq = useTranslations('qbank');
@@ -130,9 +135,12 @@ export function QuizGenerator({
                 </Select>
               </Field>
               <Field label={t('language')} htmlFor="qg-language">
-                <Select id="qg-language" name="language" defaultValue="ru">
-                  <option value="ru">Русский</option>
-                  <option value="en">English</option>
+                <Select id="qg-language" name="language" defaultValue={defaultLanguage}>
+                  {languages.map((l) => (
+                    <option key={l.code} value={l.code} lang={l.code}>
+                      {l.name}
+                    </option>
+                  ))}
                 </Select>
               </Field>
             </div>

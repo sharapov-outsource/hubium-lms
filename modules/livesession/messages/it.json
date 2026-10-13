@@ -1,0 +1,41 @@
+{
+  "livesession": {
+    "name": "Sessione dal vivo",
+    "description": "Webinar BigBlueButton o Jitsi con presenze e registrazioni",
+    "provider": "Piattaforma",
+    "startsAt": "Inizio",
+    "durationMin": "Durata, minuti",
+    "joinEarlyMin": "Apertura della stanza prima dell’inizio, minuti",
+    "welcome": "Messaggio di benvenuto nella stanza",
+    "record": "Consenti la registrazione (BigBlueButton)",
+    "completionAttended": "Lo studente ha partecipato alla sessione",
+    "status": {
+      "SCHEDULED": "Programmata",
+      "LIVE": "In corso",
+      "ENDED": "Terminata"
+    },
+    "notConfigured": "Il server BigBlueButton non è stato configurato dall’amministratore.",
+    "join": "Partecipa",
+    "startOrJoin": "Avvia / partecipa",
+    "waitingTeacher": "Sarà possibile partecipare quando il docente avvierà la sessione.",
+    "opensAt": "La stanza si apre {time}",
+    "over": "La sessione è terminata.",
+    "end": "Termina la sessione",
+    "ended": "Sessione terminata",
+    "syncRecordings": "Aggiorna le registrazioni",
+    "synced": "Registrazioni aggiornate",
+    "recordings": "Registrazioni",
+    "min": "min",
+    "attendance": "Presenze",
+    "participant": "Partecipante",
+    "firstJoin": "Primo ingresso",
+    "joins": "Ingressi",
+    "minutes": "Minuti",
+    "moderator": "moderatore",
+    "noAttendance": "Ancora nessun partecipante",
+    "notify": {
+      "starting": "Sessione dal vivo in arrivo",
+      "startingTitle": "«{name}» inizia tra 15 minuti"
+    }
+  }
+}

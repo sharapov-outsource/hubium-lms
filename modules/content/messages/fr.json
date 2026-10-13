@@ -1,0 +1,33 @@
+{
+  "page": {
+    "name": "Page",
+    "description": "Texte mis en forme avec images, tableaux et vidéos",
+    "content": "Contenu"
+  },
+  "url": {
+    "name": "Lien",
+    "description": "Un lien vers un site externe ou une vidéo intégrée",
+    "url": "URL",
+    "display": "Affichage",
+    "displayLink": "Dans la même fenêtre",
+    "displayNewtab": "Dans un nouvel onglet",
+    "displayEmbed": "Intégré à la page (YouTube, RuTube, VK Video)",
+    "open": "Ouvrir le lien"
+  },
+  "label": {
+    "name": "Zone de texte",
+    "description": "Texte affiché directement sur la page du cours",
+    "content": "Texte"
+  },
+  "file": {
+    "name": "Fichiers",
+    "description": "Un fichier unique ou un dossier de documents",
+    "files": "Fichiers",
+    "addFiles": "Ajouter des fichiers",
+    "remove": "Retirer",
+    "display": "Affichage",
+    "displayList": "Liste des fichiers",
+    "displayDownload": "Télécharger directement le fichier unique",
+    "empty": "Aucun fichier déposé pour l’instant"
+  }
+}

@@ -48,7 +48,7 @@ import {
   WEBHOOK_EVENTS,
 } from '@hubium/core';
 import type { Db, Grade } from '@hubium/db';
-import { fromAcceptLanguage, locales } from '@hubium/i18n';
+import { fromAcceptLanguage, isLocale } from '@hubium/i18n';
 import { log } from '@hubium/log';
 import type { Context, MiddlewareHandler } from 'hono';
 import { HTTPException } from 'hono/http-exception';
@@ -594,7 +594,7 @@ export function createApi(opts: ApiOptions) {
                   firstName: z.string(),
                   lastName: z.string(),
                   password: z.string().min(8),
-                  locale: z.enum(locales).optional(),
+                  locale: z.string().refine(isLocale, 'Unknown language').optional(),
                   timezone: z.string().optional().openapi({ example: 'Europe/Moscow' }),
                   mustChangePassword: z.boolean().optional(),
                   customFields: CustomFields.optional(),

@@ -1,12 +1,13 @@
 'use server';
 
-import { isLocale, LOCALE_COOKIE } from '@hubium/i18n';
+import { enabledLocales, getAllSettings } from '@hubium/core';
+import { LOCALE_COOKIE } from '@hubium/i18n';
 import { cookies } from 'next/headers';
 import { db } from '../db';
 import { getCurrentUser } from '../session';
 
 export async function setLocaleAction(locale: string): Promise<void> {
-  if (!isLocale(locale)) return;
+  if (!enabledLocales(await getAllSettings(db)).includes(locale)) return;
   (await cookies()).set(LOCALE_COOKIE, locale, {
     path: '/',
     maxAge: 60 * 60 * 24 * 365,

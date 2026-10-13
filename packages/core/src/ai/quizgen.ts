@@ -1,10 +1,13 @@
 import { estimateTokens } from '@hubium/ai';
 import type { Db, Prisma } from '@hubium/db';
+import { BASE_LOCALE } from '@hubium/i18n';
+import { languageInfo } from '@hubium/i18n/packs';
 import { draftToQuestion, draftTypes, QuestionDraftList } from '@hubium/questions';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { NotFoundError, ValidationError } from '../errors.ts';
 import { enqueue } from '../jobs/jobs.ts';
+import { localeCode } from '../lib/zod.ts';
 import { ensureDefaultQuestionCategory, saveQuestion } from '../questions/bank.ts';
 import { resolveFeature } from './config.ts';
 import { indexActivity } from './indexing.ts';
@@ -27,7 +30,7 @@ export const QuizGenInput = z.object({
   types: z.array(z.enum(draftTypes)).min(1).default(['MULTICHOICE']),
   count: z.coerce.number().int().min(1).max(20).default(5),
   difficulty: z.enum(['easy', 'medium', 'hard']).default('medium'),
-  language: z.enum(['ru', 'en']).default('ru'),
+  language: localeCode.default(BASE_LOCALE),
 });
 export type QuizGenInput = z.infer<typeof QuizGenInput>;
 
@@ -144,7 +147,7 @@ export async function runQuizGeneration(db: Db, generationId: string) {
     const prompt = [
       ...sources.map(sourceBlock),
       `<spec>${JSON.stringify(spec)}</spec>`,
-      `Write exactly ${input.count} questions in ${input.language === 'ru' ? 'Russian' : 'English'}.`,
+      `Write exactly ${input.count} questions in ${languageInfo(input.language).englishName}.`,
       `Use these question types, spread evenly: ${input.types.join(', ')}.`,
       `Difficulty — ${difficultyText[input.difficulty]}.`,
     ].join('\n\n');

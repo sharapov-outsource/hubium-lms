@@ -1,4 +1,9 @@
-import { getAllSettings, unreadConversationCount, unreadNotificationCount } from '@hubium/core';
+import {
+  enabledLanguages,
+  getAllSettings,
+  unreadConversationCount,
+  unreadNotificationCount,
+} from '@hubium/core';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { LiveCountsProvider } from '@/components/comms/live-counts';
@@ -24,12 +29,13 @@ export async function AppShell({
   children: ReactNode;
   topbarExtra?: ReactNode;
 }) {
-  const [settings, t, format, notifications, messages] = await Promise.all([
+  const [settings, t, format, notifications, messages, languages] = await Promise.all([
     getAllSettings(db),
     getTranslations(),
     getFormatter(),
     unreadNotificationCount(db, user.id),
     unreadConversationCount(db, user.id),
+    enabledLanguages(db),
   ]);
   const primary = items.filter((i) => i.mobile);
   const builtAt = buildInfo.builtAt
@@ -89,7 +95,7 @@ export async function AppShell({
               <div className="flex-1" />
               {topbarExtra}
               <NotificationBell />
-              <LocaleSwitcher />
+              <LocaleSwitcher languages={languages} />
               <ThemeSwitcher />
               <UserMenu
                 user={{ id: user.id, name: user.name, email: user.email, image: user.image }}

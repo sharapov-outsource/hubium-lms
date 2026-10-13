@@ -1,0 +1,25 @@
+{
+  "lti": {
+    "name": "Outil externe (LTI)",
+    "description": "Outils LTI 1.3 avec renvoi des notes",
+    "tool": "Outil",
+    "chooseTool": "Choisir un outil",
+    "noTools": "Aucun outil LTI n’a encore été enregistré par un administrateur.",
+    "container": "Ouvrir dans",
+    "containers": {
+      "iframe": "Cette page",
+      "window": "Une nouvelle fenêtre"
+    },
+    "height": "Hauteur, px",
+    "customParams": "Paramètres personnalisés",
+    "customHint": "Un par ligne : clé=valeur",
+    "sendGrades": "Accepter les notes de l’outil",
+    "gradeMax": "Note maximale",
+    "gradePass": "Note pour passer",
+    "toolMissing": "L’outil est introuvable ; un administrateur l’a peut-être supprimé.",
+    "toolDisabled": "L’outil a été désactivé par un administrateur.",
+    "openNewWindow": "Ouvrir dans une nouvelle fenêtre",
+    "selectContent": "Sélectionner du contenu",
+    "launch": "Ouvrir l’outil"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "livesession": {
+    "name": "Live-Sitzung",
+    "description": "Webinar mit BigBlueButton oder Jitsi, mit Anwesenheit und Aufzeichnungen",
+    "provider": "Plattform",
+    "startsAt": "Beginn",
+    "durationMin": "Dauer, Minuten",
+    "joinEarlyMin": "Raum öffnet vor Beginn, Minuten",
+    "welcome": "Begrüßungstext im Raum",
+    "record": "Aufzeichnung erlauben (BigBlueButton)",
+    "completionAttended": "Teilnehmer/in ist der Sitzung beigetreten",
+    "status": {
+      "SCHEDULED": "Geplant",
+      "LIVE": "Live",
+      "ENDED": "Beendet"
+    },
+    "notConfigured": "Der BigBlueButton-Server wurde von der Administration nicht konfiguriert.",
+    "join": "Beitreten",
+    "startOrJoin": "Starten / beitreten",
+    "waitingTeacher": "Sie können beitreten, sobald der/die Trainer/in die Sitzung startet.",
+    "opensAt": "Der Raum öffnet {time}",
+    "over": "Die Sitzung ist beendet.",
+    "end": "Sitzung beenden",
+    "ended": "Sitzung beendet",
+    "syncRecordings": "Aufzeichnungen aktualisieren",
+    "synced": "Aufzeichnungen aktualisiert",
+    "recordings": "Aufzeichnungen",
+    "min": "Min.",
+    "attendance": "Anwesenheit",
+    "participant": "Teilnehmer/in",
+    "firstJoin": "Beigetreten",
+    "joins": "Beitritte",
+    "minutes": "Minuten",
+    "moderator": "Moderator/in",
+    "noAttendance": "Bisher ist niemand beigetreten",
+    "notify": {
+      "starting": "Live-Sitzung beginnt bald",
+      "startingTitle": "„{name}“ beginnt in 15 Minuten"
+    }
+  }
+}

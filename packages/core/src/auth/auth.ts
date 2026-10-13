@@ -1,12 +1,11 @@
 import { type Db, uuidv7 } from '@hubium/db';
-import { isLocale } from '@hubium/i18n';
 import { type BetterAuthOptions, type BetterAuthPlugin, betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { admin, twoFactor, username } from 'better-auth/plugins';
 import { genericOAuth, yandex } from 'better-auth/plugins/generic-oauth';
 import { sendAuthEmail } from '../mail/mail.ts';
-import { getAllSettings } from '../settings/settings.ts';
+import { getAllSettings, userLocale } from '../settings/settings.ts';
 import { impersonatedBy, loginAs } from './login-as.ts';
 
 // Better Auth instance. Authentication only — authorization is Hubium's own (can()).
@@ -65,10 +64,8 @@ const CREDENTIAL_PATHS = new Set([
 export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAuthOptions) {
   const { social, generic } = oauthProviders();
   const siteName = async () => (await getAllSettings(db))['site.name'];
-  const localeOf = (u: object) => {
-    const l = (u as { locale?: unknown }).locale;
-    return isLocale(l) ? l : 'ru';
-  };
+  const localeOf = async (u: object) =>
+    userLocale(await getAllSettings(db), (u as { locale?: string | null }).locale);
 
   return betterAuth({
     appName: 'Hubium LMS',
@@ -116,7 +113,7 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
           kind: 'reset',
           to: user.email,
           url,
-          locale: localeOf(user),
+          locale: await localeOf(user),
           siteName: await siteName(),
           name: user.name,
         });
@@ -130,7 +127,7 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
           kind: 'verify',
           to: user.email,
           url,
-          locale: localeOf(user),
+          locale: await localeOf(user),
           siteName: await siteName(),
           name: user.name,
         });

@@ -1,5 +1,6 @@
 import { type Db, type EmailMode, type Prisma, uuidv7 } from '@hubium/db';
-import { createTranslator, isLocale, type Locale } from '@hubium/i18n';
+import type { Locale } from '@hubium/i18n';
+import { createTranslator } from '@hubium/i18n/packs';
 import { log } from '@hubium/log';
 import { z } from 'zod';
 import { sign, verifySignature } from '../crypto.ts';
@@ -10,7 +11,7 @@ import { provideModuleServices } from '../modules/module-ctx.ts';
 import { getModule } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
 import { publishRealtime } from '../realtime.ts';
-import { getAllSettings } from '../settings/settings.ts';
+import { getAllSettings, siteLocale, userLocale } from '../settings/settings.ts';
 import { PUSH_JOB, pushConfig } from './push.ts';
 
 const logger = log('notifications');
@@ -127,9 +128,9 @@ export async function deliverNotifications(
     const inApp = p?.inApp ?? def.inApp ?? true;
     const email: EmailMode = u.emailPlaceholder ? 'OFF' : (p?.email ?? def.email);
     if (!inApp && email === 'OFF') continue;
-    const locale = isLocale(u.locale) ? u.locale : settings['site.defaultLocale'];
+    const locale = userLocale(settings, u.locale);
     let t = translators.get(locale);
-    if (!t) translators.set(locale, (t = createTranslator(locale)));
+    if (!t) translators.set(locale, (t = createTranslator(locale, siteLocale(settings))));
     rows.push({
       id: uuidv7(),
       userId: u.id,
@@ -353,11 +354,12 @@ export async function sendNotificationEmails(db: Db, ids: string[]): Promise<num
       await db.notification.update({ where: { id: n.id }, data: { emailState: 'NONE' } });
       continue;
     }
-    const locale = isLocale(n.user.locale) ? n.user.locale : settings['site.defaultLocale'];
-    const t = createTranslator(locale);
+    const locale = userLocale(settings, n.user.locale);
+    const t = createTranslator(locale, siteLocale(settings));
     const unsub = unsubscribeUrl(n.userId, n.type);
     const header = unsubscribeHeaderUrl(n.userId, n.type);
     const { html, text } = renderActionEmail({
+      locale,
       siteName: settings['site.name'],
       heading: n.title,
       intro: n.body || n.title,
@@ -443,11 +445,12 @@ export async function sendDigests(
       });
       continue;
     }
-    const locale = isLocale(user.locale) ? user.locale : settings['site.defaultLocale'];
-    const t = createTranslator(locale);
+    const locale = userLocale(settings, user.locale);
+    const t = createTranslator(locale, siteLocale(settings));
     const unsub = unsubscribeUrl(userId, '*');
     const header = unsubscribeHeaderUrl(userId, '*');
     const { html, text } = renderDigestEmail({
+      locale,
       siteName: settings['site.name'],
       heading: t('notifications.digest.heading', { n: items.length }),
       items: items.map((i) => ({

@@ -6,7 +6,7 @@ import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { rankBetween } from '../lib/rank.ts';
-import { optionalText } from '../lib/zod.ts';
+import { localeCode, optionalText } from '../lib/zod.ts';
 import { defineOperation } from '../operation.ts';
 import { getAllSettings } from '../settings/settings.ts';
 
@@ -36,8 +36,8 @@ export const CourseInput = z.object({
   startDate: dateish,
   endDate: dateish,
   visible: z.boolean().default(true),
-  lang: z
-    .enum(['ru', 'en'])
+  /** Forced language of the course pages; null lets each user's language apply. */
+  lang: localeCode
     .nullable()
     .optional()
     .or(z.literal('').transform(() => null)),

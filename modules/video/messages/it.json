@@ -1,0 +1,47 @@
+{
+  "video": {
+    "name": "Video",
+    "description": "Video caricato con qualità adattiva oppure incorporato da YouTube, RuTube o VK Video",
+    "source": "Origine",
+    "sources": {
+      "upload": "Carica un file",
+      "embed": "Link YouTube / RuTube / VK Video"
+    },
+    "embedUrl": "Link al video",
+    "embedHint": "Ad esempio, https://youtu.be/… o https://rutube.ru/video/…",
+    "uploadAfterSave": "Il file si carica nella pagina del video dopo il salvataggio.",
+    "deleteSource": "Elimina il file originale dopo la transcodifica",
+    "noSeekAhead": "Impedisci di avanzare oltre la parte già vista",
+    "minPercent": "Visto almeno, %",
+    "minPercentHint": "Ad esempio, 90",
+    "watched": "Visto al {percent}%",
+    "processing": "Il video è in elaborazione e sarà presto disponibile.",
+    "notReady": "Ancora nessun video caricato.",
+    "manage": "Gestione video",
+    "status": {
+      "UPLOADED": "In coda",
+      "PROCESSING": "In elaborazione",
+      "READY": "Pronto",
+      "FAILED": "Non riuscito"
+    },
+    "retranscode": "Transcodifica di nuovo",
+    "uploadVideo": "Carica video",
+    "replaceVideo": "Sostituisci video",
+    "uploadHint": "Il caricamento riprende dopo un’interruzione della connessione. Fino a 4 GB.",
+    "uploading": "Caricato al {percent}%",
+    "uploaded": "Video caricato e messo in coda per l’elaborazione",
+    "cancel": "Annulla",
+    "captions": "Sottotitoli",
+    "captionLang": "Lingua",
+    "captionLabel": "Etichetta",
+    "captionFile": "File VTT o SRT",
+    "addCaption": "Aggiungi",
+    "captionAdded": "Sottotitoli aggiunti",
+    "remove": "Rimuovi",
+    "report": "Visualizzazioni",
+    "student": "Studente",
+    "progress": "Visto",
+    "lastWatched": "Ultima visualizzazione",
+    "noStudents": "Nessuno studente"
+  }
+}

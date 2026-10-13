@@ -54,10 +54,13 @@ export function CourseForm({
   action,
   values = {},
   categories,
+  languages,
 }: {
   action: (fd: FormData) => Promise<ActionResult<unknown>>;
   values?: CourseFormValues;
   categories: { id: string; name: string; depth: number }[];
+  /** Enabled languages, by their own names. */
+  languages: { code: string; name: string }[];
 }) {
   const t = useTranslations('course');
   const tc = useTranslations('common');
@@ -141,8 +144,11 @@ export function CourseForm({
             <FormField name="lang" label={t('lang')}>
               <Select id="f-lang" name="lang" defaultValue={values.lang ?? ''}>
                 <option value="">{t('langAuto')}</option>
-                <option value="ru">Русский</option>
-                <option value="en">English</option>
+                {languages.map((l) => (
+                  <option key={l.code} value={l.code} lang={l.code}>
+                    {l.name}
+                  </option>
+                ))}
               </Select>
             </FormField>
             <FormField name="groupMode" label={t('groupMode')}>

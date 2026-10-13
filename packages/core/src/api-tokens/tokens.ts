@@ -1,11 +1,12 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Db } from '@hubium/db';
-import { defaultLocale, isLocale, type Locale } from '@hubium/i18n';
+import type { Locale } from '@hubium/i18n';
 import { z } from 'zod';
 import { loadUserAccess, Permissions } from '../access/permissions.ts';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { enabledLocales, getAllSettings, siteLocale } from '../settings/settings.ts';
 
 // Personal access tokens for the REST API. The secret is shown once; only its SHA-256 is
 // stored. A token acts as its user, narrowed by scopes:
@@ -118,6 +119,9 @@ export async function authenticateApiToken(
   const perm = new Permissions(db, await loadUserAccess(db, u));
   // Losing API access (e.g. a PROHIBIT on the role) disables existing tokens too.
   if (!(await perm.can('webservice:createtoken'))) return null;
+  const settings = await getAllSettings(db);
+  const enabled = enabledLocales(settings);
+  const locale = [meta.locale, u.locale].find((l): l is Locale => !!l && enabled.includes(l));
   return {
     tokenId: t.id,
     scopes: t.scopes.filter((s): s is ApiScope => (API_SCOPES as readonly string[]).includes(s)),
@@ -126,7 +130,7 @@ export async function authenticateApiToken(
       actor: { kind: 'user', userId: u.id, isSiteAdmin: u.isSiteAdmin },
       perm,
       now,
-      locale: meta.locale ?? (isLocale(u.locale) ? u.locale : defaultLocale),
+      locale: locale ?? siteLocale(settings),
       ip: meta.ip ?? null,
       origin: 'API',
     },

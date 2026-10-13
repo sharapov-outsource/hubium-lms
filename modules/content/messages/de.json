@@ -1,0 +1,33 @@
+{
+  "page": {
+    "name": "Textseite",
+    "description": "Formatierter Text mit Bildern, Tabellen und Videos",
+    "content": "Inhalt"
+  },
+  "url": {
+    "name": "Link",
+    "description": "Ein Link zu einer externen Website oder ein eingebettetes Video",
+    "url": "URL",
+    "display": "Öffnen in",
+    "displayLink": "Gleiches Fenster",
+    "displayNewtab": "Neuer Tab",
+    "displayEmbed": "In die Seite einbetten (YouTube, RuTube, VK Video)",
+    "open": "Link öffnen"
+  },
+  "label": {
+    "name": "Textfeld",
+    "description": "Text, der direkt auf der Kursseite angezeigt wird",
+    "content": "Text"
+  },
+  "file": {
+    "name": "Dateien",
+    "description": "Eine einzelne Datei oder ein Ordner mit Materialien",
+    "files": "Dateien",
+    "addFiles": "Dateien hinzufügen",
+    "remove": "Entfernen",
+    "display": "Anzeige",
+    "displayList": "Dateiliste",
+    "displayDownload": "Einzelne Datei direkt herunterladen",
+    "empty": "Noch keine Dateien hochgeladen"
+  }
+}

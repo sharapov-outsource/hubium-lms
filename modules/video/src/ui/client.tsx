@@ -21,7 +21,7 @@ import {
   MediaVolumeRange,
 } from 'media-chrome/react';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { type EmbedProvider, type Interval, mergeIntervals } from '../media.ts';
 
@@ -525,6 +525,19 @@ export function RetranscodeButton({ activityId }: { activityId: string }) {
   );
 }
 
+/** Common caption languages; the interface language is always offered. */
+const CAPTION_LANGS = ['ru', 'en', 'de', 'fr', 'it', 'es', 'pt', 'uk', 'zh', 'ja', 'ar'];
+
+/** A language's name in that language, e.g. "Deutsch" for de. */
+function ownName(code: string): string {
+  try {
+    const n = new Intl.DisplayNames([code], { type: 'language' }).of(code) ?? code;
+    return n.charAt(0).toLocaleUpperCase(code) + n.slice(1);
+  } catch {
+    return code;
+  }
+}
+
 export function CaptionsManager({
   activityId,
   captions,
@@ -533,7 +546,12 @@ export function CaptionsManager({
   captions: { lang: string; label: string; url: string }[];
 }) {
   const t = useTranslations('mod.video');
+  const locale = useLocale().split('-')[0]!;
   const { pending, run } = useAction(activityId);
+  const codes = CAPTION_LANGS.includes(locale) ? CAPTION_LANGS : [locale, ...CAPTION_LANGS];
+  const [lang, setLang] = useState(locale);
+  // the label follows the language until someone types their own
+  const [label, setLabel] = useState<string | null>(null);
   return (
     <div className="grid gap-3">
       {captions.length ? (
@@ -569,20 +587,27 @@ export function CaptionsManager({
             t('captionAdded'),
           );
           e.currentTarget.reset();
+          setLabel(null);
         }}
       >
         <Field label={t('captionLang')} htmlFor="cap-lang">
-          <Select id="cap-lang" name="lang" defaultValue="ru">
-            <option value="ru">ru</option>
-            <option value="en">en</option>
-            <option value="de">de</option>
-            <option value="fr">fr</option>
-            <option value="es">es</option>
-            <option value="zh">zh</option>
+          <Select id="cap-lang" name="lang" value={lang} onChange={(e) => setLang(e.target.value)}>
+            {codes.map((c) => (
+              <option key={c} value={c} lang={c}>
+                {ownName(c)} ({c})
+              </option>
+            ))}
           </Select>
         </Field>
         <Field label={t('captionLabel')} htmlFor="cap-label">
-          <Input id="cap-label" name="label" required maxLength={60} defaultValue="Русский" />
+          <Input
+            id="cap-label"
+            name="label"
+            required
+            maxLength={60}
+            value={label ?? ownName(lang)}
+            onChange={(e) => setLabel(e.target.value)}
+          />
         </Field>
         <Field label={t('captionFile')} htmlFor="cap-file">
           <Input id="cap-file" name="file" type="file" accept=".vtt,.srt,text/vtt" required />

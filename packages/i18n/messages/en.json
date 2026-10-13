@@ -1,4 +1,11 @@
 {
+  "$language": {
+    "name": "English",
+    "englishName": "English",
+    "tag": "en-GB",
+    "fts": "english",
+    "letters": [["A", 90], ["B", 80], ["C", 70], ["D", 60], ["F", 0]]
+  },
   "common": {
     "save": "Save",
     "saved": "Saved",
@@ -63,7 +70,11 @@
       "clear": "Clear",
       "today": "Today",
       "time": "Time",
-      "timePlaceholder": "hh:mm"
+      "timePlaceholder": "hh:mm",
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "month": "Month",
+      "year": "Year"
     },
     "nothingFound": "Nothing found",
     "file": {
@@ -363,7 +374,8 @@
     "policies": "Policies",
     "webhooks": "Webhooks",
     "profileFields": "Profile fields",
-    "grades": "Grades"
+    "grades": "Grades",
+    "languages": "Languages"
   },
   "email": {
     "footer": "You received this email because you have an account on this site.",
@@ -420,7 +432,7 @@
     "undo": "Undo",
     "redo": "Redo",
     "formula": "Formula",
-    "formulaLatex": "Formula in LaTeX, for example \\frac{a}{b}",
+    "formulaLatex": "Formula in LaTeX, for example \\frac'{a}{b}'",
     "formulaBlock": "On a line of its own",
     "formulaPreview": "Preview",
     "insert": "Insert",
@@ -1428,7 +1440,7 @@
     "new": "New field",
     "empty": "No fields yet.",
     "shortName": "Short name",
-    "shortNameHint": "Latin letters, digits and _; the CSV column is profile_field_<short name>",
+    "shortNameHint": "Latin letters, digits and _; the CSV column is profile_field_‹short name›",
     "nameRu": "Name (Russian)",
     "nameEn": "Name (English)",
     "type": "Type",
@@ -1446,10 +1458,33 @@
     "saved": "Field saved",
     "deleteConfirm": "Delete the “{name}” field together with its values for every user?",
     "section": "More details",
-    "csvHint": "profile_field_<short name> columns fill profile fields: {names}."
+    "csvHint": "profile_field_‹short name› columns fill profile fields: {names}."
   },
   "adminGrades": {
     "title": "Scales and letter grades",
     "description": "Site scales are available in every course. Site letter grades apply to courses without their own."
+  },
+  "adminLanguages": {
+    "title": "Languages",
+    "description": "Language packs of the site. Users choose among the enabled languages; a string missing from a pack is shown in the site language, then in English.",
+    "packs": "Installed languages",
+    "howToAdd": "A language is a set of files in the repository; docs/i18n.md explains how to add one.",
+    "language": "Language",
+    "translated": "Translated",
+    "users": "Users",
+    "enabled": "Enabled",
+    "siteLanguage": "Site language",
+    "base": "Fallback language",
+    "complete": "Complete",
+    "missing": "{n, plural, one {# string missing} other {# strings missing}}",
+    "invalid": "{n, plural, one {# broken string} other {# broken strings}}",
+    "unknown": "{n, plural, one {# unknown key} other {# unknown keys}}",
+    "missingKey": "missing",
+    "unknownKey": "not in the base language",
+    "more": "and {n} more",
+    "siteAlwaysEnabled": "The site language is always enabled. Users who chose a disabled language see the site language.",
+    "orphaned": "{n, plural, one {# user has} other {# users have}} chosen a language that is disabled.",
+    "detectBrowser": "Detect the language of guests",
+    "detectBrowserHint": "Until they choose a language, guests and users without a language of their own see the site in their browser’s language when it is enabled."
   }
 }

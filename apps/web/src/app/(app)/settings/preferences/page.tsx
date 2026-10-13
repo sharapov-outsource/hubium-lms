@@ -1,21 +1,23 @@
+import { enabledLanguages } from '@hubium/core';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@hubium/ui';
 import { getTranslations } from 'next-intl/server';
 import { LocaleSwitcher, ThemeSwitcher } from '@/components/locale-theme-switcher';
+import { db } from '@/server/db';
 import { titled } from '@/server/page-title';
 
 export const generateMetadata = titled('settings', 'preferences');
 
 export default async function PreferencesPage() {
-  const tc = await getTranslations('common');
+  const [tc, languages] = await Promise.all([getTranslations('common'), enabledLanguages(db)]);
   return (
     <div className="grid gap-6 sm:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle>{tc('language')}</CardTitle>
-          <CardDescription>Русский / English</CardDescription>
+          <CardDescription>{languages.map((l) => l.name).join(' / ')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <LocaleSwitcher />
+          <LocaleSwitcher languages={languages} />
         </CardContent>
       </Card>
       <Card>

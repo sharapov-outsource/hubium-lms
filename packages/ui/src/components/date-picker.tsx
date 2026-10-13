@@ -4,7 +4,7 @@ import { CalendarDays, X } from 'lucide-react';
 import { type ChangeEvent, useRef, useState } from 'react';
 import { cn } from '../lib/cn.ts';
 import { useFormReset } from '../lib/use-form-reset.ts';
-import { Calendar, type CalendarLocale } from './calendar.tsx';
+import { Calendar, type CalendarLabels, type CalendarLocale } from './calendar.tsx';
 import { fieldClass } from './input.tsx';
 import { Popover, PopoverContent, PopoverTrigger } from './popover.tsx';
 
@@ -47,9 +47,9 @@ export interface DatePickerLabels {
   placeholder: string;
   clear: string;
   today: string;
+  /** Screen-reader labels of the month navigation; English when left out. */
+  calendar?: CalendarLabels;
 }
-
-const LOCALE_TAGS: Record<CalendarLocale, string> = { ru: 'ru-RU', en: 'en-US' };
 
 /** Hidden field that submits the value; focusing it (validation errors) focuses the picker. */
 function ValueField({
@@ -113,7 +113,7 @@ export function DatePicker({
   value,
   defaultValue,
   onChange,
-  locale = 'ru',
+  locale = 'en',
   labels,
   required,
   disabled,
@@ -139,7 +139,7 @@ export function DatePicker({
   }
 
   const shown = date
-    ? new Intl.DateTimeFormat(LOCALE_TAGS[locale], { dateStyle: 'long' }).format(date)
+    ? new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(date)
     : labels.placeholder;
 
   return (
@@ -171,6 +171,7 @@ export function DatePicker({
         <PopoverContent aria-label={labels.placeholder} className="w-auto p-0">
           <Calendar
             locale={locale}
+            labels={labels.calendar}
             selected={date}
             defaultMonth={date ?? minDate}
             disabled={[

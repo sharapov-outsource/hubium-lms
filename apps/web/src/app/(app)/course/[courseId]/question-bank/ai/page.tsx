@@ -1,13 +1,14 @@
 import {
   aiFeaturesFor,
   consentStatus,
+  enabledLanguages,
   getModule,
   getSetting,
   listQuestionCategories,
 } from '@hubium/core';
 import { PageHeader } from '@hubium/ui';
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { AiConsentCard } from '@/components/ai/consent-card';
 import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
@@ -31,13 +32,16 @@ export default async function AiQuestionsPage({
   const consent = await consentStatus(ctx.db, ctx.actor.userId, 'QUIZGEN');
   if (!consent.accepted)
     return <AiConsentCard feature="QUIZGEN" notice={await getSetting(ctx.db, 'ai.notice')} />;
-  const [categories, activities] = await Promise.all([
+  const [categories, activities, languages, course, locale] = await Promise.all([
     listQuestionCategories(ctx, courseId),
     ctx.db.activity.findMany({
       where: { courseId, deletedAt: null },
       orderBy: [{ section: { rank: 'asc' } }, { rank: 'asc' }],
       select: { id: true, name: true, moduleKey: true },
     }),
+    enabledLanguages(ctx.db),
+    ctx.db.course.findUnique({ where: { id: courseId }, select: { lang: true } }),
+    getLocale(),
   ]);
   const usable = activities.filter(
     (a) => (getModule(a.moduleKey)?.ai?.tutorPolicy ?? 'include') === 'include',
@@ -51,6 +55,8 @@ export default async function AiQuestionsPage({
         categories={categories.map((c) => ({ id: c.id, name: c.name }))}
         defaultCategory={sp.category ?? categories[0]?.id ?? ''}
         activities={usable.map((a) => ({ id: a.id, name: a.name }))}
+        languages={languages}
+        defaultLanguage={course?.lang ?? locale}
       />
     </div>
   );

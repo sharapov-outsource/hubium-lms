@@ -41,6 +41,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     { key: 'ai', href: '/admin/ai', label: t('ai'), show: config },
     { key: 'policies', href: '/admin/policies', label: t('policies'), show: config },
     { key: 'announcements', href: '/admin/announcements', label: t('announcements'), show: config },
+    { key: 'languages', href: '/admin/languages', label: t('languages'), show: config },
     { key: 'settings', href: '/admin/settings/general', label: t('siteSettings'), show: config },
     { key: 'environment', href: '/admin/environment', label: t('environment'), show: config },
   ].filter((i) => i.show);

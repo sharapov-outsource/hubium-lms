@@ -5,6 +5,7 @@ import type { RequestContext } from '../context.ts';
 import { assertCanAssignRole } from '../enrol/enrol.ts';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { localeCode, optionalLocale } from '../lib/zod.ts';
 import { defineOperation } from '../operation.ts';
 import { erasePersonalData } from '../privacy/privacy.ts';
 import {
@@ -39,10 +40,7 @@ export const UserCreateInput = z
     firstName: z.string().trim().min(1).max(100),
     lastName: z.string().trim().min(1).max(100),
     password: z.string().min(8).max(128),
-    locale: z
-      .enum(['ru', 'en'])
-      .optional()
-      .or(z.literal('').transform(() => undefined)),
+    locale: optionalLocale,
     timezone: z
       .string()
       .trim()
@@ -193,7 +191,7 @@ export const UserUpdateInput = z.object({
   firstName: z.string().trim().min(1).max(100).optional(),
   lastName: z.string().trim().min(1).max(100).optional(),
   email: z.string().trim().toLowerCase().email().optional(),
-  locale: z.enum(['ru', 'en']).nullable().optional(),
+  locale: localeCode.nullable().optional(),
   timezone: z.string().nullable().optional(),
   isSiteAdmin: z.boolean().optional(),
   password: z
@@ -453,7 +451,7 @@ export const bulkUploadUsers = defineOperation({
             firstName: get('firstname') ?? '',
             lastName: get('lastname') ?? '',
             password: get('password') ?? '',
-            locale: (get('lang') || undefined) as 'ru' | 'en' | undefined,
+            locale: get('lang') || undefined,
             emailVerified: true,
             mustChangePassword: get('mustchangepassword') === '1',
             customFields,
