@@ -464,12 +464,15 @@ export interface MyCourse {
   fullName: string;
   shortName: string;
   summary: string;
+  idNumber: string | null;
   imageFileId: string | null;
+  categoryId: string;
   categoryName: string;
   visible: boolean;
   progress: number | null;
   lastAccessAt: Date | null;
   role: string | null;
+  startDate: Date | null;
   endDate: Date | null;
 }
 
@@ -512,7 +515,9 @@ export async function listMyCourses(db: Tx, userId: string, now = new Date()): P
       fullName: c.fullName,
       shortName: c.shortName,
       summary: c.summary,
+      idNumber: c.idNumber,
       imageFileId: c.imageFileId,
+      categoryId: c.categoryId,
       categoryName: c.category.name,
       visible: c.visible,
       progress:
@@ -521,6 +526,7 @@ export async function listMyCourses(db: Tx, userId: string, now = new Date()): P
           : null,
       lastAccessAt: accesses.find((a) => a.courseId === c.id)?.lastAccessAt ?? null,
       role: roleRows[0]?.role.shortName ?? null,
+      startDate: c.startDate,
       endDate: c.endDate,
     });
   }
@@ -612,7 +618,7 @@ export async function searchCatalog(ctx: RequestContext, raw: z.input<typeof Cat
   };
   const include = {
     category: { select: { id: true, name: true } },
-    enrolmentMethods: { where: { enabled: true }, select: { type: true, key: true } },
+    enrolmentMethods: { where: { enabled: true }, select: { type: true } },
   } satisfies Prisma.CourseInclude;
   if (matched) {
     // relevance order comes from the search; filters may drop some of the matches

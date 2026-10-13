@@ -5,6 +5,7 @@ import {
   actionInputFromForm,
   appendUploadChunk,
   authenticateApiToken,
+  categoryFractions,
   createCourse,
   createUpload,
   createUser,
@@ -18,9 +19,11 @@ import {
   getCourseOutline,
   getUpload,
   getWebhook,
+  type gradebookStructure,
   graderReport,
   listApiTokens,
   listConversations,
+  listGroupings,
   listGroups,
   listMessages,
   listMyCourses,
@@ -37,13 +40,14 @@ import {
   revokeApiToken,
   rotateWebhookSecret,
   runModuleAction,
+  searchCatalog,
   sendMessage,
   toActionError,
   updateWebhook,
   userReport,
   WEBHOOK_EVENTS,
 } from '@hubium/core';
-import type { Db } from '@hubium/db';
+import type { Db, Grade } from '@hubium/db';
 import { fromAcceptLanguage, locales } from '@hubium/i18n';
 import { log } from '@hubium/log';
 import type { Context, MiddlewareHandler } from 'hono';
@@ -148,13 +152,57 @@ const Course = z
     id: Id,
     fullName: z.string(),
     shortName: z.string(),
+    idNumber: z.string().nullable(),
     summary: z.string(),
-    categoryId: Id.optional(),
+    categoryId: Id,
     visible: z.boolean(),
-    progress: z.number().nullable().optional(),
-    role: z.string().nullable().optional(),
+    startDate: z.string().nullable(),
+    endDate: z.string().nullable(),
+    progress: z.number().nullable().optional().openapi({ description: 'Your completion, %' }),
+    role: z.string().nullable().optional().openapi({ description: 'Your role in the course' }),
   })
   .openapi('Course');
+
+const courseJson = (x: {
+  id: string;
+  fullName: string;
+  shortName: string;
+  idNumber: string | null;
+  summary: string;
+  categoryId: string;
+  visible: boolean;
+  startDate: Date | null;
+  endDate: Date | null;
+}) => ({
+  id: x.id,
+  fullName: x.fullName,
+  shortName: x.shortName,
+  idNumber: x.idNumber,
+  summary: x.summary,
+  categoryId: x.categoryId,
+  visible: x.visible,
+  startDate: iso(x.startDate),
+  endDate: iso(x.endDate),
+});
+
+const CatalogCourse = Course.omit({ progress: true, role: true })
+  .extend({
+    categoryName: z.string(),
+    enrolmentMethods: z
+      .array(z.string())
+      .openapi({ description: 'Enabled ways to join, e.g. `self`, `guest`' }),
+  })
+  .openapi('CatalogCourse');
+
+const Grouping = z
+  .object({
+    id: Id,
+    name: z.string(),
+    description: z.string(),
+    groupIds: z.array(Id),
+    activityCount: z.number().int(),
+  })
+  .openapi('Grouping');
 
 const Activity = z
   .object({
@@ -244,17 +292,41 @@ const Token = z
   })
   .openapi('Token');
 
+const GradeCategory = z
+  .object({
+    id: Id,
+    parentId: Id.nullable().openapi({ description: 'Null for the course category (the root)' }),
+    name: z.string(),
+    aggregation: z.string().openapi({ example: 'WEIGHTED_MEAN' }),
+    weight: z.number(),
+    dropLowest: z.number().int(),
+    keepHighest: z.number().int(),
+    aggregateOnlyGraded: z.boolean(),
+  })
+  .openapi('GradeCategory');
+
+const GradeItem = z
+  .object({
+    id: Id,
+    name: z.string(),
+    kind: z.enum(['MODULE', 'MANUAL', 'CATEGORY', 'COURSE']),
+    activityId: Id.nullable(),
+    categoryId: Id.nullable(),
+    gradeType: z.enum(['VALUE', 'SCALE', 'TEXT', 'NONE']),
+    gradeMin: z.number(),
+    gradeMax: z.number(),
+    gradePass: z.number().nullable(),
+    scale: z.array(z.string()).nullable().openapi({
+      description: 'For scale items: the grade is the 1-based position in this list',
+    }),
+    hidden: z.boolean(),
+  })
+  .openapi('GradeItem');
+
 const GradesReport = z
   .object({
-    items: z.array(
-      z.object({
-        id: Id,
-        name: z.string(),
-        kind: z.string(),
-        gradeMax: z.number(),
-        categoryId: Id.nullable(),
-      }),
-    ),
+    categories: z.array(GradeCategory),
+    items: z.array(GradeItem),
     users: z.array(z.object({ id: Id, name: z.string() })).optional(),
     grades: z.array(
       z.object({
@@ -262,8 +334,18 @@ const GradesReport = z
         itemId: Id,
         finalGrade: z.number().nullable(),
         feedback: z.string().nullable(),
+        overridden: z.boolean(),
+        excluded: z.boolean(),
+        gradedAt: z.string().nullable(),
       }),
     ),
+    categoryTotals: z
+      .array(z.object({ userId: Id, categoryId: Id, percent: z.number().nullable() }))
+      .optional()
+      .openapi({
+        description:
+          "With ?all=1: every category's total per student, as shown in the grader report",
+      }),
   })
   .openapi('GradesReport');
 
@@ -415,28 +497,9 @@ export function createApi(opts: ApiOptions) {
     c.set('scopes', r.scopes);
     await next();
   };
-  for (const p of [
-    '/me',
-    '/users/*',
-    '/users',
-    '/categories',
-    '/courses',
-    '/courses/*',
-    '/activities/*',
-    '/calendar/*',
-    '/conversations',
-    '/conversations/*',
-    '/notifications',
-    '/notifications/*',
-    '/tokens',
-    '/tokens/*',
-    '/webhooks',
-    '/webhooks/*',
-    '/webhook-events',
-    '/uploads',
-    '/uploads/*',
-  ])
-    app.use(p, auth);
+  // Everything but the spec and its reference page needs a token, new routes included.
+  const PUBLIC = /^\/api\/v1\/(openapi\.json|docs(\/scalar\.js)?)$/;
+  app.use('*', (c, next) => (PUBLIC.test(c.req.path) ? next() : auth(c, next)));
 
   const ctxOf = (c: Context<Env>) => c.get('ctx');
   const uid = (c: Context<Env>) => {
@@ -588,15 +651,7 @@ export function createApi(opts: ApiOptions) {
       const items = await listMyCourses(opts.db, uid(c));
       return c.json(
         {
-          items: items.map((x) => ({
-            id: x.id,
-            fullName: x.fullName,
-            shortName: x.shortName,
-            summary: x.summary,
-            visible: x.visible,
-            progress: x.progress,
-            role: x.role,
-          })),
+          items: items.map((x) => ({ ...courseJson(x), progress: x.progress, role: x.role })),
         },
         200,
       );
@@ -618,7 +673,10 @@ export function createApi(opts: ApiOptions) {
                 categoryId: Id,
                 fullName: z.string(),
                 shortName: z.string(),
+                idNumber: z.string().optional().openapi({ description: "Your system's key" }),
                 summary: z.string().optional(),
+                startDate: z.string().datetime({ offset: true }).optional(),
+                endDate: z.string().datetime({ offset: true }).optional(),
                 visible: z.boolean().optional(),
               }),
             },
@@ -636,6 +694,41 @@ export function createApi(opts: ApiOptions) {
   app.openapi(
     createRoute({
       method: 'get',
+      path: '/catalog',
+      tags: ['Courses'],
+      summary: 'Search the course catalog: word forms, prefixes and typos, best match first',
+      security,
+      request: {
+        query: z.object({
+          q: z.string().max(100).optional(),
+          categoryId: Id.optional().openapi({ description: 'Also its subcategories' }),
+          page: z.coerce.number().int().min(1).default(1),
+          pageSize: z.coerce.number().int().min(1).max(60).default(12),
+        }),
+      },
+      responses: { 200: ok(Page(CatalogCourse)), ...errors },
+    }),
+    async (c) => {
+      const r = await searchCatalog(ctxOf(c), c.req.valid('query'));
+      return c.json(
+        {
+          items: r.items.map((x) => ({
+            ...courseJson(x),
+            categoryName: x.category.name,
+            // the methods' keys (enrolment passwords) stay out
+            enrolmentMethods: [...new Set(x.enrolmentMethods.map((m) => m.type.toLowerCase()))],
+          })),
+          total: r.total,
+          page: r.page,
+        },
+        200,
+      );
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
       path: '/courses/{id}',
       tags: ['Courses'],
       summary: 'A course',
@@ -644,20 +737,12 @@ export function createApi(opts: ApiOptions) {
       responses: { 200: ok(Course), ...errors },
     }),
     async (c) => {
-      const access = await getCourseAccess(ctxOf(c), c.req.valid('param').id);
-      if (!access.canView) throw new AppError('NOT_FOUND', 'Course not found');
-      const x = access.course;
-      return c.json(
-        {
-          id: x.id,
-          fullName: x.fullName,
-          shortName: x.shortName,
-          summary: x.summary,
-          categoryId: x.categoryId,
-          visible: x.visible,
-        },
-        200,
-      );
+      const ctx = ctxOf(c);
+      const access = await getCourseAccess(ctx, c.req.valid('param').id);
+      // a course in the recycle bin is gone for everyone but site administrators
+      if (!access.canView || (access.course.deletedAt && !ctx.perm.isSiteAdmin))
+        throw new AppError('NOT_FOUND', 'Course not found');
+      return c.json(courseJson(access.course), 200);
     },
   );
 
@@ -792,6 +877,33 @@ export function createApi(opts: ApiOptions) {
   app.openapi(
     createRoute({
       method: 'get',
+      path: '/courses/{id}/groupings',
+      tags: ['Enrolment'],
+      summary: 'Groupings of a course: sets of groups an activity can be limited to',
+      security,
+      request: { params: IdParam },
+      responses: { 200: ok(z.object({ items: z.array(Grouping) })), ...errors },
+    }),
+    async (c) => {
+      const items = await listGroupings(ctxOf(c), c.req.valid('param').id);
+      return c.json(
+        {
+          items: items.map((g) => ({
+            id: g.id,
+            name: g.name,
+            description: g.description,
+            groupIds: g.groups.map((x) => x.groupId),
+            activityCount: g._count.activities,
+          })),
+        },
+        200,
+      );
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
       path: '/courses/{id}/grades',
       tags: ['Grades'],
       summary: 'Grades: own report, another user (?userId) or the whole course (?all=1)',
@@ -805,45 +917,77 @@ export function createApi(opts: ApiOptions) {
     async (c) => {
       const id = c.req.valid('param').id;
       const q = c.req.valid('query');
+      const ctx = ctxOf(c);
       const dec = (v: unknown) => (v === null || v === undefined ? null : Number(v));
-      const itemOut = (i: {
-        id: string;
-        name: string;
-        kind: string;
-        gradeMax: unknown;
-        categoryId: string | null;
-      }) => ({
+      const itemOut = (i: Awaited<ReturnType<typeof gradebookStructure>>['items'][number]) => ({
         id: i.id,
         name: i.name,
         kind: i.kind,
-        gradeMax: Number(i.gradeMax),
+        activityId: i.activityId,
         categoryId: i.categoryId,
+        gradeType: i.gradeType,
+        gradeMin: Number(i.gradeMin),
+        gradeMax: Number(i.gradeMax),
+        gradePass: dec(i.gradePass),
+        scale: i.gradeType === 'SCALE' ? (i.scale?.items ?? []) : null,
+        hidden: i.hidden,
       });
-      const gradeOut = (g: {
-        userId: string;
-        gradeItemId: string;
-        finalGrade: unknown;
-        feedback: string | null;
-      }) => ({
+      const gradeOut = (g: Grade) => ({
         userId: g.userId,
         itemId: g.gradeItemId,
         finalGrade: dec(g.finalGrade),
         feedback: g.feedback,
+        overridden: g.overridden,
+        excluded: g.excluded,
+        gradedAt: iso(g.gradedAt),
+      });
+      const categoryOut = (
+        k: Awaited<ReturnType<typeof gradebookStructure>>['categories'][number],
+      ) => ({
+        id: k.id,
+        parentId: k.parentId,
+        name: k.name,
+        aggregation: k.aggregation,
+        weight: Number(k.weight),
+        dropLowest: k.dropLowest,
+        keepHighest: k.keepHighest,
+        aggregateOnlyGraded: k.aggregateOnlyGraded,
       });
       if (q.all === '1') {
-        const r = await graderReport(ctxOf(c), id);
+        const r = await graderReport(ctx, id);
+        // category totals are worked out on display, like the grader report does
+        const counted = r.items.filter(
+          (i) =>
+            (i.kind === 'MODULE' || i.kind === 'MANUAL') &&
+            (i.gradeType === 'VALUE' || i.gradeType === 'SCALE'),
+        );
+        const categoryTotals = r.users.flatMap((u) => {
+          const own = counted.flatMap((i) => r.cell.get(`${u.id}:${i.id}`) ?? []);
+          return [...categoryFractions(r.categories, counted, own)].map(([categoryId, f]) => ({
+            userId: u.id,
+            categoryId,
+            percent: f === null ? null : Math.round(f * 1e7) / 1e5,
+          }));
+        });
         return c.json(
           {
+            categories: r.categories.map(categoryOut),
             items: r.items.map(itemOut),
             users: r.users.map((u) => ({ id: u.id, name: u.name })),
             grades: [...r.cell.values()].map(gradeOut),
+            categoryTotals,
           },
           200,
         );
       }
-      const r = await userReport(ctxOf(c), id, q.userId ?? uid(c));
+      const r = await userReport(ctx, id, q.userId ?? uid(c));
+      const all = await ctx.perm.can('grade:viewall', id);
       return c.json(
-        { items: r.items.map(itemOut), grades: [...r.grades.values()].map(gradeOut) },
+        {
+          categories: r.categories.filter((k) => all || !k.hidden).map(categoryOut),
+          items: r.items.map(itemOut),
+          grades: [...r.grades.values()].map(gradeOut),
+        },
         200,
       );
     },

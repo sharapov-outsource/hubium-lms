@@ -1,8 +1,15 @@
 import {
   createApiToken,
+  createGroup,
+  createGrouping,
+  createManualItem,
+  overrideGrade,
   revokeApiToken,
+  saveGradeCategory,
   saveProfileField,
+  saveScale,
   setActivityVisibility,
+  setGroupingGroups,
 } from '@hubium/core';
 import { ctxFor, useTestDb } from '@hubium/core/testing';
 import { courseFixture } from '@hubium/core/testing/course-fixture';
@@ -59,6 +66,17 @@ describe('REST API v1', () => {
   });
 
   it('rejects missing, unknown, revoked and expired tokens', async () => {
+    // every documented route but the spec itself, whatever the method
+    const spec = (await (await api.request('/api/v1/openapi.json')).json()) as {
+      paths: Record<string, Record<string, unknown>>;
+    };
+    const uuid = '00000000-0000-7000-8000-000000000000';
+    for (const [path, ops] of Object.entries(spec.paths))
+      for (const method of Object.keys(ops)) {
+        const url = path.replace(/\{[^}]+\}/g, uuid);
+        const r = await api.request(url, { method: method.toUpperCase() });
+        expect(`${method} ${path} ${r.status}`).toBe(`${method} ${path} 401`);
+      }
     expect((await call(null, '/me')).status).toBe(401);
     expect((await call('hub_nope', '/me')).status).toBe(401);
     const ctx = await ctxFor(t.db, f.users.student3!);
@@ -339,6 +357,97 @@ describe('REST API v1', () => {
     };
     expect(Array.isArray(g.items) && g.items.length > 0).toBe(true);
     expect(Array.isArray(g.grades)).toBe(true);
+  });
+
+  it('returns course keys and dates, the catalog, groupings and the gradebook tree', async () => {
+    const admin = tokens.admin!;
+    const made = await call(admin, '/courses', {
+      method: 'POST',
+      body: JSON.stringify({
+        categoryId: (await t.db.course.findUniqueOrThrow({ where: { id: f.courseId } })).categoryId,
+        fullName: 'Термодинамика',
+        shortName: 'THERMO-API',
+        idNumber: 'HR-4711',
+        startDate: '2026-09-01T00:00:00+03:00',
+      }),
+    });
+    expect(made.status).toBe(201);
+    const { id: courseId } = (await made.json()) as { id: string };
+    expect(await (await call(admin, `/courses/${courseId}`)).json()).toMatchObject({
+      idNumber: 'HR-4711',
+      startDate: '2026-08-31T21:00:00.000Z',
+      endDate: null,
+    });
+    const mine = (await (await call(tokens.student!, '/courses')).json()) as {
+      items: Record<string, unknown>[];
+    };
+    expect(mine.items[0]).toHaveProperty('categoryId');
+
+    // the catalog finds word forms and never shows enrolment keys
+    const found = (await (await call(tokens.student!, '/catalog?q=термодинамики')).json()) as {
+      items: { id: string; enrolmentMethods: string[] }[];
+      total: number;
+    };
+    expect(found.items.map((x) => x.id)).toEqual([courseId]);
+    expect(JSON.stringify(found)).not.toContain('"key"');
+
+    // groupings with their groups
+    const teacher = await ctxFor(t.db, f.users.teacher!);
+    const g = await createGroup.run(teacher, { courseId: f.courseId, name: 'Поток А' });
+    const gr = await createGrouping.run(teacher, { courseId: f.courseId, name: 'Лекции' });
+    await setGroupingGroups.run(teacher, { groupingId: gr.id, groupIds: [g.id] });
+    const groupings = (await (
+      await call(tokens.teacher!, `/courses/${f.courseId}/groupings`)
+    ).json()) as { items: unknown[] };
+    expect(groupings.items).toEqual([
+      expect.objectContaining({ name: 'Лекции', groupIds: [g.id], activityCount: 0 }),
+    ]);
+
+    // a subcategory and a scale item: the report says how to read them
+    const { id: labs } = await saveGradeCategory.run(teacher, {
+      courseId: f.courseId,
+      name: 'Лабораторные',
+      aggregation: 'NATURAL',
+    });
+    const { id: scaleId } = await saveScale.run(teacher, {
+      courseId: f.courseId,
+      name: 'Зачёт',
+      items: ['Не зачтено', 'Зачтено'],
+    });
+    const lab = await createManualItem.run(teacher, {
+      courseId: f.courseId,
+      name: 'Лаба 1',
+      gradeMax: 10,
+      categoryId: labs,
+    });
+    const pass = await createManualItem.run(teacher, {
+      courseId: f.courseId,
+      name: 'Допуск',
+      scaleId,
+    });
+    const s1 = f.users.student1!;
+    await overrideGrade.run(teacher, { itemId: lab.id, userId: s1, value: 7 });
+    await overrideGrade.run(teacher, { itemId: pass.id, userId: s1, value: 2 });
+    type Report = {
+      categories: { id: string; parentId: string | null }[];
+      items: { id: string; gradeType: string; scale: string[] | null }[];
+      grades: { userId: string; itemId: string; finalGrade: number | null }[];
+      categoryTotals?: { userId: string; categoryId: string; percent: number | null }[];
+    };
+    const all = (await (
+      await call(tokens.teacher!, `/courses/${f.courseId}/grades?all=1`)
+    ).json()) as Report;
+    expect(all.categories.find((k) => k.id === labs)?.parentId).toEqual(expect.any(String));
+    expect(all.items.find((i) => i.id === pass.id)).toMatchObject({
+      gradeType: 'SCALE',
+      scale: ['Не зачтено', 'Зачтено'],
+    });
+    expect(all.categoryTotals).toContainEqual({ userId: s1, categoryId: labs, percent: 70 });
+    const own = (await (
+      await call(tokens.student!, `/courses/${f.courseId}/grades`)
+    ).json()) as Report;
+    expect(own.categoryTotals).toBeUndefined();
+    expect(own.grades).toContainEqual(expect.objectContaining({ itemId: pass.id, finalGrade: 2 }));
   });
 
   it('stops honouring tokens once API access is prohibited', async () => {
