@@ -551,7 +551,47 @@ export const CatalogQuery = z.object({
   pageSize: z.coerce.number().int().min(1).max(60).default(12),
 });
 
-/** Visible courses for the catalog (search by name, short name and summary). */
+/** Words of a search query, normalised for to_tsquery (letters and digits only, ё → е). */
+export function searchTerms(q: string): string[] {
+  return (
+    q
+      .toLowerCase()
+      .replaceAll('ё', 'е')
+      .match(/[\p{L}\p{N}]+/gu) ?? []
+  ).slice(0, 8);
+}
+
+/**
+ * Ids of catalog courses matching `q`, best first: full text in Russian and English with
+ * prefixes (every word must match), or the name containing the query, or a name close to
+ * it (typos).
+ */
+async function matchCourses(db: Db, q: string): Promise<string[]> {
+  const terms = searchTerms(q);
+  const query = terms.length
+    ? Prisma.join(
+        terms.map(
+          (t) =>
+            Prisma.sql`(to_tsquery('russian', ${`${t}:*`}) || to_tsquery('english', ${`${t}:*`}) || to_tsquery('simple', ${`${t}:*`}))`,
+        ),
+        ' && ',
+      )
+    : null;
+  const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+  const rows = await db.$queryRaw<{ id: string }[]>`
+    SELECT c.id
+      FROM "Course" c
+     WHERE c."deletedAt" IS NULL AND c.visible
+       AND (${query ? Prisma.sql`c.tsv @@ (${query})` : Prisma.sql`false`}
+            OR c."fullName" ILIKE ${like} OR c."shortName"::text ILIKE ${like}
+            OR c."fullName" % ${q})
+     ORDER BY ${query ? Prisma.sql`ts_rank_cd(c.tsv, ${query})` : Prisma.sql`0`}
+              + similarity(c."fullName", ${q}) DESC, c."fullName"
+     LIMIT 500`;
+  return rows.map((r) => r.id);
+}
+
+/** Visible courses for the catalog: full-text search, or newest first without a query. */
 export async function searchCatalog(ctx: RequestContext, raw: z.input<typeof CatalogQuery>) {
   const { q, categoryId, page, pageSize } = CatalogQuery.parse(raw);
   let categoryIds: string[] | undefined;
@@ -562,21 +602,30 @@ export async function searchCatalog(ctx: RequestContext, raw: z.input<typeof Cat
     });
     categoryIds = descendants.map((d) => d.id);
   }
+  const matched = q ? await matchCourses(ctx.db, q) : null;
   const where: Prisma.CourseWhereInput = {
     deletedAt: null,
     visible: true,
     category: { visible: true },
     ...(categoryIds ? { categoryId: { in: categoryIds } } : {}),
-    ...(q
-      ? {
-          OR: [
-            { fullName: { contains: q, mode: 'insensitive' } },
-            { shortName: { contains: q, mode: 'insensitive' } },
-            { summary: { contains: q, mode: 'insensitive' } },
-          ],
-        }
-      : {}),
+    ...(matched ? { id: { in: matched } } : {}),
   };
+  const include = {
+    category: { select: { id: true, name: true } },
+    enrolmentMethods: { where: { enabled: true }, select: { type: true, key: true } },
+  } satisfies Prisma.CourseInclude;
+  if (matched) {
+    // relevance order comes from the search; filters may drop some of the matches
+    const found = await ctx.db.course.findMany({ where, include });
+    const rank = new Map(matched.map((id, i) => [id, i]));
+    found.sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
+    return {
+      total: found.length,
+      items: found.slice((page - 1) * pageSize, page * pageSize),
+      page,
+      pageSize,
+    };
+  }
   const [total, items] = await Promise.all([
     ctx.db.course.count({ where }),
     ctx.db.course.findMany({
@@ -584,10 +633,7 @@ export async function searchCatalog(ctx: RequestContext, raw: z.input<typeof Cat
       orderBy: [{ startDate: 'desc' }, { fullName: 'asc' }],
       skip: (page - 1) * pageSize,
       take: pageSize,
-      include: {
-        category: { select: { id: true, name: true } },
-        enrolmentMethods: { where: { enabled: true }, select: { type: true, key: true } },
-      },
+      include,
     }),
   ]);
   return { total, items, page, pageSize };

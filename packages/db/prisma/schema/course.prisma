@@ -45,29 +45,31 @@ model Category {
 }
 
 model Course {
-  id                 String       @id @db.Uuid
-  categoryId         String       @db.Uuid
+  id                 String                   @id @db.Uuid
+  categoryId         String                   @db.Uuid
   fullName           String
-  shortName          String       @unique @db.Citext
-  idNumber           String?      @unique
-  summary            String       @default("")
-  imageFileId        String?      @db.Uuid
-  format             CourseFormat @default(TOPICS)
-  formatOptions      Json         @default("{}")
-  startDate          DateTime?    @db.Timestamptz(3)
-  endDate            DateTime?    @db.Timestamptz(3)
-  visible            Boolean      @default(true)
+  shortName          String                   @unique @db.Citext
+  idNumber           String?                  @unique
+  summary            String                   @default("")
+  /// Catalog search document, kept up to date by triggers on Course and Category.
+  tsv                Unsupported("tsvector")?
+  imageFileId        String?                  @db.Uuid
+  format             CourseFormat             @default(TOPICS)
+  formatOptions      Json                     @default("{}")
+  startDate          DateTime?                @db.Timestamptz(3)
+  endDate            DateTime?                @db.Timestamptz(3)
+  visible            Boolean                  @default(true)
   lang               String?
-  enableCompletion   Boolean      @default(true)
-  completionSettings Json         @default("{}")
-  groupMode          GroupMode    @default(NONE)
-  groupModeForced    Boolean      @default(false)
-  guestAccess        Boolean      @default(false)
-  settings           Json         @default("{}")
-  createdById        String?      @db.Uuid
-  deletedAt          DateTime?    @db.Timestamptz(3)
-  createdAt          DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt          DateTime     @updatedAt @db.Timestamptz(3)
+  enableCompletion   Boolean                  @default(true)
+  completionSettings Json                     @default("{}")
+  groupMode          GroupMode                @default(NONE)
+  groupModeForced    Boolean                  @default(false)
+  guestAccess        Boolean                  @default(false)
+  settings           Json                     @default("{}")
+  createdById        String?                  @db.Uuid
+  deletedAt          DateTime?                @db.Timestamptz(3)
+  createdAt          DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime                 @updatedAt @db.Timestamptz(3)
 
   category          Category           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   context           Context            @relation("CourseContext", fields: [id], references: [id], onDelete: Cascade)
@@ -94,6 +96,8 @@ model Course {
 
   @@index([categoryId])
   @@index([deletedAt])
+  @@index([tsv], type: Gin)
+  @@index([fullName(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model CourseSection {
