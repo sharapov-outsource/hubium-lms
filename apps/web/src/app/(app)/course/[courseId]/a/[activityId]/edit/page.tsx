@@ -1,6 +1,7 @@
 import { getCourseAccess, getModule, parseAvailability, toActivityRef } from '@hubium/core';
 import { fileUrl } from '@hubium/core/files/files';
-import { PageHeader } from '@hubium/ui';
+import { Button, PageHeader } from '@hubium/ui';
+import Link from 'next/link';
 import { forbidden, notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { safePath } from '@/lib/safe-path';
@@ -40,7 +41,12 @@ export default async function EditActivityPage({
   const m = getModule(a.moduleKey);
   const ui = getModuleUI(a.moduleKey);
   if (!m || !ui) notFound();
-  const [t, tc] = await Promise.all([getTranslations('activity'), getTranslations('common')]);
+  const [t, tc, tp, canReviewPermissions] = await Promise.all([
+    getTranslations('activity'),
+    getTranslations('common'),
+    getTranslations('permissions'),
+    ctx.perm.can('role:review', activityId),
+  ]);
   const [activities, groups, files] = await Promise.all([
     db.activity.findMany({
       where: { courseId, deletedAt: null, completionMode: { not: 'NONE' }, id: { not: a.id } },
@@ -66,7 +72,16 @@ export default async function EditActivityPage({
   const returnTo = safePath(sp.returnTo, `/course/${courseId}/a/${a.id}`);
   return (
     <>
-      <PageHeader title={t('edit', { name: a.name })} />
+      <PageHeader
+        title={t('edit', { name: a.name })}
+        actions={
+          canReviewPermissions ? (
+            <Button asChild variant="outline">
+              <Link href={`/course/${courseId}/a/${a.id}/permissions`}>{tp('open')}</Link>
+            </Button>
+          ) : null
+        }
+      />
       <ActivityForm
         action={updateActivityAction}
         hidden={{ id: a.id, returnTo }}

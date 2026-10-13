@@ -11,6 +11,7 @@ import {
   getAllSettings,
   logEvent,
   setRoleCapability,
+  setRoleOverride,
   setSettings,
   setUserSuspended,
   updateRole,
@@ -129,6 +130,17 @@ export async function deleteRoleAction(id: string) {
   const res = await runAction(async () => deleteRole.run(await getContext(), { id }));
   if (res.ok) redirect('/admin/roles');
   return res;
+}
+
+export async function setRoleOverrideAction(
+  contextId: string,
+  roleId: string,
+  capability: string,
+  permission: 'ALLOW' | 'DENY' | 'PROHIBIT' | 'INHERIT',
+) {
+  return runAction(async () =>
+    setRoleOverride.run(await getContext(), { contextId, roleId, capability, permission }),
+  );
 }
 
 export async function setRoleCapabilityAction(

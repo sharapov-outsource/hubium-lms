@@ -2,12 +2,13 @@ import { capabilities, capabilityComponent } from '@hubium/core';
 import { Card, CardContent, CardHeader, CardTitle, PageHeader } from '@hubium/ui';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
+import { CapabilityMatrix } from '@/components/permissions/capability-matrix';
 import { updateRoleAction } from '@/server/actions/admin';
 import { db } from '@/server/db';
 import { viewerCan } from '@/server/page-title';
 import { requireCapability } from '@/server/session';
 import { RoleForm } from '../role-form';
-import { CapabilityMatrix, DeleteRoleButton } from './matrix';
+import { DeleteRoleButton } from './matrix';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -68,7 +69,11 @@ export default async function RolePage({ params }: { params: Promise<{ id: strin
             <CardTitle>{t('capabilities')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <CapabilityMatrix roleId={role.id} groups={[...groups.entries()]} current={current} />
+            <CapabilityMatrix
+              target={{ kind: 'role', roleId: role.id }}
+              groups={[...groups.entries()]}
+              current={current}
+            />
           </CardContent>
         </Card>
       </div>

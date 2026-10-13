@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { setSetting, sql } from './db';
-import { ADMIN, chooseOption, expectAccessible, login } from './helpers';
+import { ADMIN, chooseOption, DEMO_PASSWORD, expectAccessible, login } from './helpers';
 
 const stamp = Date.now();
 
@@ -51,6 +51,37 @@ test('admin logs in as a student and returns', async ({ page }) => {
     [student!.id],
   );
   expect(event!.n).toBeGreaterThan(0);
+});
+
+test('a course override takes a permission away from students', async ({ page }) => {
+  const [c] = await sql<{ id: string; forum: string; student: string }>(
+    `SELECT c.id, (SELECT id FROM "Activity" WHERE "courseId" = c.id AND "moduleKey" = 'forum'
+       AND "deletedAt" IS NULL LIMIT 1) AS forum,
+       (SELECT id FROM "Role" WHERE "shortName" = 'student') AS student
+     FROM "Course" c WHERE c."shortName" = 'DEMO-PY'`,
+  );
+  const cap = 'mod.forum:startdiscussion';
+  // the demo course is shared by every spec: leave it as found
+  const reset = () =>
+    sql(`DELETE FROM "RoleOverride" WHERE "contextId" = $1 AND capability = $2`, [c!.id, cap]);
+  try {
+    await login(page, ADMIN.login, ADMIN.password);
+    await page.goto(`/course/${c!.id}`);
+    await page.getByRole('link', { name: 'Права' }).click();
+    await page.waitForURL(/\/permissions/);
+    await page.getByRole('link', { name: /^Студент/ }).click();
+    await expectAccessible(page);
+    await chooseOption(page.getByLabel(cap, { exact: true }), 'DENY');
+    await expect(page.getByText(/Сохранено/).first()).toBeVisible();
+
+    await page.context().clearCookies();
+    await login(page, 'student1', DEMO_PASSWORD);
+    await page.goto(`/course/${c!.id}/a/${c!.forum}`);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Новая тема' })).toHaveCount(0);
+  } finally {
+    await reset();
+  }
 });
 
 test('role matrix change applies and permission checker explains it', async ({ page }) => {

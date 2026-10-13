@@ -482,7 +482,8 @@
       "enrolment": "Enrolment",
       "questionBank": "Question bank",
       "stream": "Stream",
-      "tutor": "AI tutor"
+      "tutor": "AI tutor",
+      "permissions": "Permissions"
     },
     "editMode": "Edit mode",
     "editOn": "Edit",
@@ -1330,5 +1331,18 @@
     "title": "You are offline",
     "text": "Check your connection — the page will reload when you are back online.",
     "retry": "Retry"
+  },
+  "permissions": {
+    "title": "Permissions",
+    "courseDescription": "Role permissions in this course and all its activities",
+    "activityDescription": "Role permissions in “{name}”",
+    "categoryDescription": "Role permissions in the “{name}” category, its subcategories and courses",
+    "role": "Role",
+    "inherit": "Inherit",
+    "roleDefault": "role: {value}",
+    "notSet": "not set",
+    "hint": "“Deny” removes the permission here, but it can be allowed again further down. “Prohibit” applies everywhere below and beats any allow.",
+    "readOnly": "You can view but not change these: overriding permissions is not allowed for you.",
+    "open": "Permissions"
   }
 }

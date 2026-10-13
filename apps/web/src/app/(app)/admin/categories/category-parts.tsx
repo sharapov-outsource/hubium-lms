@@ -83,6 +83,7 @@ export function CategoryRowActions({ id, name }: { id: string; name: string }) {
   const tc = useTranslations('common');
   const tco = useTranslations('course');
   const tca = useTranslations('categories');
+  const tp = useTranslations('permissions');
   const router = useRouter();
   const [pending, start] = useTransition();
   const run = (cmd: 'up' | 'down' | 'delete') =>
@@ -110,6 +111,9 @@ export function CategoryRowActions({ id, name }: { id: string; name: string }) {
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href={`/course/new?category=${id}`}>{tco('new')}</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/admin/categories/${id}/permissions`}>{tp('open')}</Link>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => run('up')}>{tco('moveUp')}</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => run('down')}>{tco('moveDown')}</DropdownMenuItem>

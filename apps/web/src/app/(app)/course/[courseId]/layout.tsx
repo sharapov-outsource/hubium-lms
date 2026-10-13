@@ -93,6 +93,12 @@ export default async function CourseLayout({
           show: access.canManageEnrolments,
         },
         {
+          key: 'permissions',
+          href: `${base}/permissions`,
+          label: t('tabs.permissions'),
+          show: !access.isGuest && (await ctx.perm.can('role:review', courseId)),
+        },
+        {
           key: 'settings',
           href: `${base}/settings`,
           label: t('tabs.settings'),

@@ -1,9 +1,9 @@
 import type { Prisma } from '@hubium/db';
 import { z } from 'zod';
-import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { defineOperation } from '../operation.ts';
-import { isCapability } from './capabilities.ts';
+import { type Capability, capabilities, isCapability, type Level } from './capabilities.ts';
 import { invalidatePermissionCaches } from './permissions.ts';
 
 async function notifyRoles(tx: Prisma.TransactionClient): Promise<void> {
@@ -150,6 +150,57 @@ export const setRoleCapability = defineOperation({
   },
 });
 
+const LEVEL_DEPTH: Record<Level, number> = { SYSTEM: 0, CATEGORY: 1, COURSE: 2, ACTIVITY: 3 };
+
+/**
+ * Capabilities a context of `level` can override: those that apply at that level or below.
+ * An activity gets the generic activity capabilities and those of its own module.
+ */
+export function overridableCapabilities(level: Level, moduleKey?: string | null): Capability[] {
+  const out: Capability[] = [];
+  for (const [cap, def] of capabilities) {
+    if (LEVEL_DEPTH[def.level] < LEVEL_DEPTH[level]) continue;
+    if (level === 'ACTIVITY' && cap.startsWith('mod.') && !cap.startsWith(`mod.${moduleKey}:`))
+      continue;
+    out.push(cap);
+  }
+  return out;
+}
+
+/** Level of a context and, for an activity, its module. */
+export async function overrideScope(db: Prisma.TransactionClient, contextId: string) {
+  const c = await db.context.findUnique({
+    where: { id: contextId },
+    select: { level: true, activity: { select: { moduleKey: true, courseId: true } } },
+  });
+  if (!c) throw new NotFoundError('Context');
+  return {
+    level: c.level as Level,
+    moduleKey: c.activity?.moduleKey ?? null,
+    courseId: c.level === 'COURSE' ? contextId : (c.activity?.courseId ?? null),
+  };
+}
+
+/** Overrides set directly in one context (for the "Permissions" pages). */
+export const listRoleOverrides = defineOperation({
+  name: 'role.listOverrides',
+  input: z.object({ contextId: z.string().uuid() }),
+  authorize: (ctx, i) => ctx.perm.require('role:review', i.contextId),
+  mutation: false,
+  async handler(ctx, { contextId }) {
+    const scope = await overrideScope(ctx.tx, contextId);
+    const overrides = await ctx.tx.roleOverride.findMany({
+      where: { contextId },
+      select: { roleId: true, capability: true, permission: true },
+    });
+    return {
+      ...scope,
+      capabilities: overridableCapabilities(scope.level, scope.moduleKey),
+      overrides,
+    };
+  },
+});
+
 export const setRoleOverride = defineOperation({
   name: 'role.setOverride',
   input: z.object({
@@ -160,6 +211,18 @@ export const setRoleOverride = defineOperation({
   }),
   authorize: (ctx, i) => ctx.perm.require('role:override', i.contextId),
   async handler(ctx, { contextId, roleId, capability, permission }) {
+    const scope = await overrideScope(ctx.tx, contextId);
+    if (!overridableCapabilities(scope.level, scope.moduleKey).includes(capability as Capability))
+      throw new ValidationError({ capability: ['This permission cannot be changed here'] });
+    // As in Moodle: nobody grants others more than they have themselves.
+    if (
+      permission === 'ALLOW' &&
+      !ctx.perm.isSiteAdmin &&
+      !(await ctx.perm.can(capability as Capability, contextId))
+    )
+      throw new ForbiddenError('You can only allow permissions you have yourself');
+    if (!(await ctx.tx.role.findUnique({ where: { id: roleId }, select: { id: true } })))
+      throw new NotFoundError('Role');
     if (permission === 'INHERIT') {
       await ctx.tx.roleOverride.deleteMany({ where: { contextId, roleId, capability } });
     } else {
@@ -169,6 +232,16 @@ export const setRoleOverride = defineOperation({
         update: { permission },
       });
     }
+    await logEvent(ctx.tx, {
+      name: 'role.override.changed',
+      actorId: ctx.perm.userId,
+      contextId,
+      courseId: scope.courseId,
+      objectType: 'role',
+      objectId: roleId,
+      data: { capability, permission },
+      origin: ctx.origin,
+    });
     await notifyRoles(ctx.tx);
     return { ok: true };
   },
