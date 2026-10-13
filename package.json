@@ -2,6 +2,7 @@
   "name": "hubium",
   "private": true,
   "license": "AGPL-3.0-only",
+  "author": "Alexander S. <alexander@sharapov.biz>",
   "type": "module",
   "packageManager": "pnpm@10.28.0",
   "engines": {
