@@ -322,7 +322,13 @@ export const video = defineModule<VideoSettingsT>({
         create: { activityId: a.id, sourceFileId: source.id },
         update: { sourceFileId: source.id, status: 'UPLOADED' },
       });
-      await ctx.jobs.enqueue('video.transcode', { assetId: asset.id }, { singletonKey: asset.id });
+      // A restored or duplicated course may bring dozens of videos: they wait behind
+      // uploads people are watching the progress of.
+      await ctx.jobs.enqueue(
+        'video.transcode',
+        { assetId: asset.id },
+        { singletonKey: asset.id, priority: -1 },
+      );
     },
   },
   settings: {
@@ -355,6 +361,9 @@ export const video = defineModule<VideoSettingsT>({
       name: 'video.transcode',
       queue: 'media',
       async handler(ctx, data: { assetId: string }) {
+        // Deleted before its turn (with its activity or course): skip instead of retrying.
+        if (!(await ctx.db.videoAsset.findUnique({ where: { id: data.assetId } })))
+          return { skipped: 'video deleted' };
         return transcodeAsset(ctx, data.assetId);
       },
     },

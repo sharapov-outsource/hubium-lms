@@ -13,6 +13,12 @@ import { chooseOption, DEMO_PASSWORD, expectAccessible, login, logout } from './
 test.describe
   .serial('SCORM', () => {
     let url = '';
+    let activityId = '';
+
+    // The demo course is shared by every spec (backups duplicate it): leave it as found.
+    test.afterAll(async () => {
+      if (activityId) await sql(`DELETE FROM "Context" WHERE id = $1`, [activityId]);
+    });
 
     test('teacher uploads a package', async ({ page }) => {
       const [c] = await sql<{ id: string }>(
@@ -33,6 +39,7 @@ test.describe
         `SELECT id FROM "Activity" WHERE "courseId" = $1 AND "moduleKey" = 'scorm' ORDER BY "createdAt" DESC LIMIT 1`,
         [c!.id],
       );
+      activityId = act!.id;
       url = `/course/${c!.id}/a/${act!.id}`;
       await page.goto(url);
       const file = path.join(mkdtempSync(path.join(tmpdir(), 'scorm-')), 'course.zip');

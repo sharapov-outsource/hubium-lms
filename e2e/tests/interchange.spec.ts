@@ -5,6 +5,12 @@ import { ADMIN, expectAccessible, login } from './helpers';
 // The admin downloads a course backup, restores it through the import page (the worker
 // does the restore), duplicates the course, and round-trips the bank via Moodle XML.
 
+// Courses created here are removed again, so the demo data does not grow with every run.
+const created: string[] = [];
+test.afterAll(async () => {
+  for (const id of created) await sql(`DELETE FROM "Context" WHERE id = $1`, [id]);
+});
+
 test('course backup, restore, duplicate and Moodle XML', async ({ page }, info) => {
   test.slow();
   const [c] = await sql<{ id: string }>(`SELECT id FROM "Course" WHERE "shortName" = 'DEMO-PY'`);
@@ -29,6 +35,7 @@ test('course backup, restore, duplicate and Moodle XML', async ({ page }, info) 
   });
   await page.getByRole('link', { name: 'Открыть курс' }).click();
   await page.waitForURL(/\/course\/[0-9a-f-]{36}$/);
+  created.push(new URL(page.url()).pathname.split('/').at(-1)!);
   await expect(page.getByRole('heading', { name: /Python/ }).first()).toBeVisible();
 
   // duplicate
@@ -39,10 +46,11 @@ test('course backup, restore, duplicate and Moodle XML', async ({ page }, info) 
   await page.waitForURL(
     (u) => !u.pathname.includes(c!.id) && /\/course\/[0-9a-f-]{36}$/.test(u.pathname),
   );
-  const [dup] = await sql<{ fullName: string }>(
-    `SELECT "fullName" FROM "Course" WHERE "shortName" = $1`,
+  const [dup] = await sql<{ id: string; fullName: string }>(
+    `SELECT id, "fullName" FROM "Course" WHERE "shortName" = $1`,
     [short],
   );
+  created.push(dup!.id);
   expect(dup!.fullName).toMatch(/\(копия\)$/);
 
   // question bank Moodle XML export

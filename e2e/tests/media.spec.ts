@@ -13,7 +13,13 @@ test.describe
   .serial('media', () => {
     let courseId = '';
     let videoUrl = '';
+    let videoId = '';
     let clip = '';
+
+    // The demo course is shared by every spec (backups duplicate it): leave it as found.
+    test.afterAll(async () => {
+      if (videoId) await sql(`DELETE FROM "Context" WHERE id = $1`, [videoId]);
+    });
 
     test.beforeAll(async () => {
       const [c] = await sql<{ id: string }>(
@@ -61,6 +67,7 @@ test.describe
         `SELECT id FROM "Activity" WHERE "courseId" = $1 AND "moduleKey" = 'video' ORDER BY "createdAt" DESC LIMIT 1`,
         [courseId],
       );
+      videoId = act!.id;
       videoUrl = `/course/${courseId}/a/${act!.id}`;
       await page.goto(videoUrl);
       await page.locator('#video-file').setInputFiles(clip);

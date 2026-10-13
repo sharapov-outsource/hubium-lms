@@ -5,8 +5,16 @@ import { ADMIN, chooseOption, DEMO_PASSWORD, expectAccessible, login, logout } f
 // The admin registers an LTI 1.3 tool; a teacher adds it to a course; opening the
 // activity starts the OIDC login initiation towards the tool.
 
+// What the test creates is removed again, so the shared demo course does not grow.
+const cleanup: { activityId?: string; tool?: string } = {};
+test.afterAll(async () => {
+  if (cleanup.activityId) await sql(`DELETE FROM "Context" WHERE id = $1`, [cleanup.activityId]);
+  if (cleanup.tool) await sql(`DELETE FROM "LtiTool" WHERE name = $1`, [cleanup.tool]);
+});
+
 test('LTI tool registration and launch initiation', async ({ page }) => {
   const name = `Tool ${Date.now().toString(36)}`;
+  cleanup.tool = name;
   await login(page, ADMIN.login, ADMIN.password);
   await page.goto('/admin/lti');
   await expect(page.getByText('/api/mod/lti/jwks')).toBeVisible();
@@ -35,6 +43,7 @@ test('LTI tool registration and launch initiation', async ({ page }) => {
     `SELECT id FROM "Activity" WHERE "courseId" = $1 AND "moduleKey" = 'lti' ORDER BY "createdAt" DESC LIMIT 1`,
     [c!.id],
   );
+  cleanup.activityId = act!.id;
   // the launch endpoint redirects to the tool's OIDC login with signed hints
   const r = await page.request.get(`/api/mod/lti/launch/${act!.id}`, { maxRedirects: 0 });
   expect(r.status()).toBe(302);

@@ -97,6 +97,7 @@ describe.skipIf(!hasFfmpeg)('mod-video: upload, transcode, stream, progress', ()
       uploadId: up.id,
     })) as { assetId: string };
     expect(capturedJobs.map((j) => j.name)).toEqual(['video.transcode']);
+    expect(capturedJobs[0]!.opts.priority ?? 0).toBe(0);
     expect(await getUpload(t.db, teacher, up.id)).toMatchObject({ done: true });
 
     // run the job as the worker would
@@ -115,6 +116,23 @@ describe.skipIf(!hasFfmpeg)('mod-video: upload, transcode, stream, progress', ()
     const asset = await t.db.videoAsset.findUniqueOrThrow({ where: { id: r.assetId } });
     expect(asset).toMatchObject({ status: 'READY', progress: 100, width: 1280, height: 720 });
     expect(asset.durationSec).toBeGreaterThan(7.5);
+
+    // a restored or duplicated course re-encodes in the background, behind uploads
+    capturedJobs.length = 0;
+    const act = await t.db.activity.findUniqueOrThrow({ where: { id: videoId } });
+    const { toActivityRef } = await import('./module-ctx.ts');
+    await getModule('video')!.backup!.import!(
+      sys,
+      toActivityRef(act) as never,
+      undefined,
+      () => undefined,
+    );
+    expect(capturedJobs).toEqual([
+      expect.objectContaining({
+        name: 'video.transcode',
+        opts: expect.objectContaining({ priority: -1 }),
+      }),
+    ]);
   }, 120_000);
 
   it('serves HLS only to people who can open the activity', async () => {
