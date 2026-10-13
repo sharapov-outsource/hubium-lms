@@ -44,7 +44,7 @@ export default async function NewActivityPage({
     getTranslations('mod'),
     getTranslations('common'),
   ]);
-  const [activities, groups] = await Promise.all([
+  const [activities, groups, groupings, course] = await Promise.all([
     db.activity.findMany({
       where: { courseId, deletedAt: null, completionMode: { not: 'NONE' } },
       select: { id: true, name: true },
@@ -54,6 +54,15 @@ export default async function NewActivityPage({
       where: { courseId },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
+    }),
+    db.grouping.findMany({
+      where: { courseId },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+    db.course.findUniqueOrThrow({
+      where: { id: courseId },
+      select: { groupMode: true, groupModeForced: true },
     }),
   ]);
   const Settings = ui.SettingsFields;
@@ -72,6 +81,8 @@ export default async function NewActivityPage({
         supportsGroups={!!m.supports.groups}
         activities={activities}
         groups={groups}
+        groupings={groupings}
+        forcedGroupMode={course.groupModeForced ? course.groupMode : null}
         profileFields={await profileConditionFields(await getLocale())}
         submitLabel={tc('create')}
       />

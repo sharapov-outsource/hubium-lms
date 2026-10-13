@@ -5,12 +5,18 @@ import {
   qandaLocked,
   subscribers,
   subscriptionState,
+  userGroupIds,
 } from '@hubium/mod-forum/server';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { getActivityAccess, updateActivity } from '../courses/activities.ts';
-import { createGroup, setGroupMembers } from '../groups/groups.ts';
+import {
+  createGroup,
+  createGrouping,
+  setGroupingGroups,
+  setGroupMembers,
+} from '../groups/groups.ts';
 import { runModuleAction } from './actions.ts';
 import { buildModuleCtx, toActivityRef } from './module-ctx.ts';
 
@@ -246,6 +252,37 @@ describe('mod-forum', () => {
         message: '<p>b</p>',
       }),
     ).rejects.toThrow('Discussion not found');
+  });
+
+  it('a grouping limits the forum to its groups', async () => {
+    const sys = await ctxFor(t.db, 'system');
+    const { id: g1 } = await createGroup.run(sys, { courseId: f.courseId, name: 'C' });
+    const { id: g2 } = await createGroup.run(sys, { courseId: f.courseId, name: 'D' });
+    await setGroupMembers.run(sys, { groupId: g1, add: [f.users.student3!] });
+    await setGroupMembers.run(sys, { groupId: g2, add: [f.users.student3!] });
+    const { id: grouping } = await createGrouping.run(sys, { courseId: f.courseId, name: 'CD' });
+    await setGroupingGroups.run(sys, { groupingId: grouping, groupIds: [g2] });
+    const { id } = await f.addActivity(
+      'forum',
+      'Поток',
+      {},
+      { groupMode: 'SEPARATE', groupingId: grouping },
+    );
+    const forum = { courseId: f.courseId, groupingId: grouping };
+    expect(await userGroupIds(t.db, forum, f.users.student3!)).toEqual([g2]);
+    const d = (await runModuleAction(await as(f.users.student3!), id, 'startDiscussion', {
+      title: 'В группе потока',
+      message: '<p>x</p>',
+    })) as Started;
+    const disc = await t.db.forumDiscussion.findUniqueOrThrow({ where: { id: d.discussionId } });
+    expect(disc.groupId).toBe(g2);
+    await expect(
+      runModuleAction(await as(f.users.student3!), id, 'startDiscussion', {
+        title: 'Чужая группа',
+        message: '<p>x</p>',
+        groupId: g1,
+      }),
+    ).rejects.toThrow('Not a member of this group');
   });
 
   it('forced subscription notifies every participant', async () => {

@@ -57,6 +57,7 @@ const ActivityRow = z.object({
   completionRules: z.record(z.string(), z.unknown()),
   completionExpectedAt: z.string().nullable(),
   groupMode: z.enum(['NONE', 'SEPARATE', 'VISIBLE']),
+  groupingId: z.string().nullable().default(null),
   idNumber: z.string().nullable(),
   settings: z.record(z.string(), z.unknown()),
   module: z.unknown().optional(),
@@ -89,6 +90,16 @@ const CourseJson = z.object({
       idNumber: z.string().nullable(),
     }),
   ),
+  groupings: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        description: z.string(),
+        groupIds: z.array(z.string()),
+      }),
+    )
+    .default([]),
   questionCategories: z.array(
     z.object({
       id: z.string(),
@@ -154,8 +165,9 @@ export async function exportCourse(ctx: RequestContext, courseId: string): Promi
   activities.sort(
     (a, b) => order.get(a.sectionId)! - order.get(b.sectionId)! || a.rank.localeCompare(b.rank),
   );
-  const [groups, categories] = await Promise.all([
+  const [groups, groupings, categories] = await Promise.all([
     db.group.findMany({ where: { courseId } }),
+    db.grouping.findMany({ where: { courseId }, include: { groups: true } }),
     db.questionCategory.findMany({ where: { contextId: courseId } }),
   ]);
   const questions = await db.question.findMany({
@@ -181,6 +193,7 @@ export async function exportCourse(ctx: RequestContext, courseId: string): Promi
       completionRules: (a.completionRules ?? {}) as Record<string, unknown>,
       completionExpectedAt: a.completionExpectedAt?.toISOString() ?? null,
       groupMode: a.groupMode,
+      groupingId: a.groupingId,
       idNumber: a.idNumber,
       settings: (a.settings ?? {}) as Record<string, unknown>,
       module,
@@ -247,6 +260,12 @@ export async function exportCourse(ctx: RequestContext, courseId: string): Promi
       name: g.name,
       description: g.description,
       idNumber: g.idNumber,
+    })),
+    groupings: groupings.map((g) => ({
+      id: g.id,
+      name: g.name,
+      description: g.description,
+      groupIds: g.groups.map((x) => x.groupId),
     })),
     questionCategories: categories.map((c) => ({
       id: c.id,
@@ -396,6 +415,21 @@ export async function restoreCourse(
         data: { id, courseId, name: g.name, description: g.description, idNumber: g.idNumber },
       });
     }
+    for (const g of b.course.groupings) {
+      const id = uuidv7();
+      map.set(g.id, id);
+      await db.grouping.create({
+        data: {
+          id,
+          courseId,
+          name: g.name,
+          description: g.description,
+          groups: {
+            create: g.groupIds.flatMap((gid) => (map.has(gid) ? [{ groupId: map.get(gid)! }] : [])),
+          },
+        },
+      });
+    }
 
     // question bank: parents first
     const pending = [...b.course.questionCategories];
@@ -479,6 +513,7 @@ export async function restoreCourse(
           completionRules: a.completionRules,
           completionExpectedAt: a.completionExpectedAt,
           groupMode: a.groupMode,
+          groupingId: a.groupingId ? (map.get(a.groupingId) ?? null) : null,
           settings: rewriteJson(a.settings, map),
         });
         map.set(a.id, id);

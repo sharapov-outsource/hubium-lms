@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import {
   type ForumSettingsT,
+  forumGroupsWhere,
   isModerator,
   postVisible,
   qandaLocked,
@@ -88,12 +89,12 @@ async function ForumIndex({ activity: a, ctx, searchParams }: Props) {
       ? []
       : moderator
         ? await ctx.db.group.findMany({
-            where: { courseId: a.courseId },
+            where: forumGroupsWhere(a),
             select: { id: true, name: true },
             orderBy: { name: 'asc' },
           })
         : await ctx.db.group.findMany({
-            where: { id: { in: await userGroupIds(ctx.db, a.courseId, me) } },
+            where: { id: { in: await userGroupIds(ctx.db, a, me) } },
             select: { id: true, name: true },
             orderBy: { name: 'asc' },
           });
@@ -210,7 +211,7 @@ async function DiscussionView({
     qandaLocked(ctx, a, d.id, me),
     subscriptionState(ctx, a, me, d.id),
   ]);
-  const myGroups = d.groupId && !moderator ? await userGroupIds(ctx.db, a.courseId, me) : [];
+  const myGroups = d.groupId && !moderator ? await userGroupIds(ctx.db, a, me) : [];
   const inGroup = !d.groupId || moderator || myGroups.includes(d.groupId);
   const rows = await ctx.db.forumPost.findMany({
     where: { discussionId: d.id },

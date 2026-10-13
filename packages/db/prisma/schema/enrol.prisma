@@ -101,8 +101,9 @@ model Grouping {
   description String   @default("")
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
 
-  course Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  groups GroupingGroup[]
+  course     Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  groups     GroupingGroup[]
+  activities Activity[]
 
   @@unique([courseId, name])
 }

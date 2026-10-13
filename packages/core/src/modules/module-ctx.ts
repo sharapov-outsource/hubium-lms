@@ -68,6 +68,7 @@ export function toActivityRef<S = unknown>(a: Activity): ActivityRef<S> {
     completionMode: a.completionMode,
     completionRules: (a.completionRules ?? {}) as Record<string, unknown>,
     groupMode: a.groupMode,
+    groupingId: a.groupingId,
     visibility: a.visibility,
   };
 }

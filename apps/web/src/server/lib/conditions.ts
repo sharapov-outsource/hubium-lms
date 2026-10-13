@@ -11,6 +11,13 @@ export async function describeConditions(conditions: Condition[]): Promise<strin
     c.type === 'completion' || c.type === 'grade' ? [c.activityId] : [],
   );
   const groupIds = conditions.flatMap((c) => (c.type === 'group' && c.groupId ? [c.groupId] : []));
+  const groupingIds = conditions.flatMap((c) => (c.type === 'grouping' ? [c.groupingId] : []));
+  const groupings = groupingIds.length
+    ? await db.grouping.findMany({
+        where: { id: { in: groupingIds } },
+        select: { id: true, name: true },
+      })
+    : [];
   const custom = conditions.some((c) => c.type === 'profile' && c.field.startsWith('cf:'))
     ? await listProfileFields(db)
     : [];
@@ -45,6 +52,10 @@ export async function describeConditions(conditions: Condition[]): Promise<strin
         return c.groupId
           ? t('condGroup', { name: groups.find((g) => g.id === c.groupId)?.name ?? '…' })
           : t('condAnyGroup');
+      case 'grouping':
+        return t('condGrouping', {
+          name: groupings.find((g) => g.id === c.groupingId)?.name ?? '…',
+        });
       case 'grade':
         return t('condGrade', {
           name: name(c.activityId),

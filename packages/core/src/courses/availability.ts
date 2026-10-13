@@ -17,6 +17,8 @@ export const ConditionSchema = z.discriminatedUnion('type', [
     state: z.enum(['complete', 'incomplete', 'pass', 'fail']),
   }),
   z.object({ type: z.literal('group'), groupId: z.string().uuid().optional() }),
+  /** Member of any group of the grouping. */
+  z.object({ type: z.literal('grouping'), groupingId: z.string().uuid() }),
   z.object({
     type: z.literal('grade'),
     activityId: z.string().uuid(),
@@ -57,6 +59,8 @@ export interface AvailabilityFacts {
   now: Date;
   completion: ReadonlyMap<string, CompletionFact>;
   groupIds: ReadonlySet<string>;
+  /** Groupings that contain one of the user's groups. */
+  groupingIds?: ReadonlySet<string>;
   /** activityId → grade in percent (0..100). */
   grades: ReadonlyMap<string, number>;
   /** Standard fields by name and custom ones as `cf:<shortName>`, all as text. */
@@ -102,6 +106,8 @@ export function evaluateCondition(c: Condition, f: AvailabilityFacts): boolean {
       return completionMatches(c, f.completion.get(c.activityId));
     case 'group':
       return c.groupId ? f.groupIds.has(c.groupId) : f.groupIds.size > 0;
+    case 'grouping':
+      return f.groupingIds?.has(c.groupingId) ?? false;
     case 'grade': {
       const g = f.grades.get(c.activityId);
       if (g === undefined) return false;

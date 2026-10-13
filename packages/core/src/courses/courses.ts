@@ -177,6 +177,12 @@ export const updateCourse = defineOperation({
         guestAccess: input.guestAccess,
       },
     });
+    // A forced group mode applies to every activity of the course.
+    if (input.groupModeForced)
+      await ctx.tx.activity.updateMany({
+        where: { courseId: course.id },
+        data: { groupMode: input.groupMode },
+      });
     await logEvent(ctx.tx, {
       name: 'course.updated',
       actorId: ctx.perm.userId,

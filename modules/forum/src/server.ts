@@ -42,10 +42,22 @@ export async function isModerator(ctx: ModuleCtx, a: { id: string }): Promise<bo
   return ctx.perm.can('mod.forum:moderate', a.id);
 }
 
-/** Groups of the user in the forum's course. */
-export async function userGroupIds(db: Db, courseId: string, userId: string): Promise<string[]> {
+/** The forum's groups: those of its grouping when it has one, else all of the course. */
+export function forumGroupsWhere(a: { courseId: string; groupingId: string | null }) {
+  return {
+    courseId: a.courseId,
+    ...(a.groupingId ? { groupings: { some: { groupingId: a.groupingId } } } : {}),
+  };
+}
+
+/** Groups of the user among the forum's groups. */
+export async function userGroupIds(
+  db: Db,
+  a: { courseId: string; groupingId: string | null },
+  userId: string,
+): Promise<string[]> {
   const rows = await db.groupMember.findMany({
-    where: { userId, group: { courseId } },
+    where: { userId, group: forumGroupsWhere(a) },
     select: { groupId: true },
   });
   return rows.map((r) => r.groupId);
@@ -61,7 +73,7 @@ export async function visibleGroupFilter(
   userId: string,
 ): Promise<string[] | null> {
   if (a.groupMode !== 'SEPARATE' || (await isModerator(ctx, a))) return null;
-  return userGroupIds(ctx.db, a.courseId, userId);
+  return userGroupIds(ctx.db, a, userId);
 }
 
 export async function canSeeDiscussion(
@@ -317,13 +329,15 @@ export const forum = defineModule<ForumSettingsT>({
         if (isEmptyRichText(html)) throw new Error('The message is empty');
         let groupId = input.groupId ?? null;
         if (a.groupMode !== 'NONE' && !moderator) {
-          const mine = await userGroupIds(ctx.db, a.courseId, me);
+          const mine = await userGroupIds(ctx.db, a, me);
           if (groupId && !mine.includes(groupId)) throw new Error('Not a member of this group');
           if (!groupId && mine.length) groupId = mine[0]!;
         }
         if (groupId) {
-          const g = await ctx.db.group.findUnique({ where: { id: groupId } });
-          if (!g || g.courseId !== a.courseId) throw new Error('Unknown group');
+          const g = await ctx.db.group.findFirst({
+            where: { id: groupId, ...forumGroupsWhere(a) },
+          });
+          if (!g) throw new Error('Unknown group');
         }
         const d = await ctx.db.forumDiscussion.create({
           data: {
@@ -366,7 +380,7 @@ export const forum = defineModule<ForumSettingsT>({
         if (d.locked && !moderator) throw new Error('The discussion is locked');
         if (!postVisible(parent, me, moderator)) throw new Error('Post not found');
         if (a.groupMode !== 'NONE' && d.groupId && !moderator) {
-          const mine = await userGroupIds(ctx.db, a.courseId, me);
+          const mine = await userGroupIds(ctx.db, a, me);
           if (!mine.includes(d.groupId)) throw new Error('Not a member of this group');
         }
         let privateTo: string | null = null;

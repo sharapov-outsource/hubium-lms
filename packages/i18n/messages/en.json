@@ -564,7 +564,8 @@
       "completion": "Activity completion",
       "group": "Group",
       "grade": "Grade",
-      "profile": "Profile"
+      "profile": "Profile",
+      "grouping": "Grouping"
     },
     "dateFrom": "from",
     "dateUntil": "until",
@@ -603,7 +604,11 @@
       "firstName": "First name",
       "lastName": "Last name",
       "username": "Username"
-    }
+    },
+    "grouping": "Grouping",
+    "noGrouping": "All groups of the course",
+    "groupModeForced": "The group mode is set for the whole course",
+    "condGrouping": "member of grouping {name}"
   },
   "participants": {
     "title": "Participants",
@@ -669,7 +674,14 @@
     "deleteConfirm": "Delete group “{name}”?",
     "empty": "No groups yet",
     "membersCount": "{count, plural, one {# member} other {# members}}",
-    "choose": "Choose participants"
+    "choose": "Choose participants",
+    "groupings": "Groupings",
+    "groupingsHint": "A grouping brings several groups together. An activity limited to a grouping uses only its groups in group mode.",
+    "newGrouping": "New grouping",
+    "groupingGroups": "Groups in the grouping",
+    "groupingDeleteConfirm": "Delete the grouping “{name}”? Its groups stay.",
+    "groupingsEmpty": "No groupings yet",
+    "usedBy": "{count, plural, one {used by # activity} other {used by # activities}}"
   },
   "completionReport": {
     "title": "Completion",

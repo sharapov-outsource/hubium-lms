@@ -181,3 +181,29 @@ test('view as student hides teacher controls', async ({ page }) => {
   await page.getByRole('button', { name: /Вернуться к своей роли|Return to my role/ }).click();
   await expect(page.getByRole('link', { name: /Редактировать|^Edit$/ })).toBeVisible();
 });
+
+test('teacher puts groups into a grouping', async ({ page }) => {
+  const [c] = await sql<{ id: string }>(`SELECT id FROM "Course" WHERE "shortName" = 'DEMO-PY'`);
+  const group = `Группа ${stamp}`;
+  const grouping = `Поток ${stamp}`;
+  // the demo course is shared by every spec: leave it as found
+  try {
+    await login(page, 'teacher', DEMO_PASSWORD);
+    await page.goto(`/course/${c!.id}/groups`);
+    await page.locator('#f-name').fill(group);
+    await page.getByRole('button', { name: 'Создать' }).first().click();
+    await expect(page.getByRole('heading', { name: group })).toBeVisible();
+    await page.locator('#f-grouping-name').fill(grouping);
+    await page.getByRole('button', { name: 'Создать' }).last().click();
+    const card = page.getByRole('region', { name: grouping });
+    await card.getByLabel(group).check();
+    await card.getByRole('button', { name: 'Сохранить' }).click();
+    await expect(page.getByText('Сохранено').first()).toBeVisible();
+    await expectAccessible(page);
+    await page.reload();
+    await expect(page.getByRole('region', { name: grouping }).getByLabel(group)).toBeChecked();
+  } finally {
+    await sql(`DELETE FROM "Grouping" WHERE "courseId" = $1 AND name = $2`, [c!.id, grouping]);
+    await sql(`DELETE FROM "Group" WHERE "courseId" = $1 AND name = $2`, [c!.id, group]);
+  }
+});

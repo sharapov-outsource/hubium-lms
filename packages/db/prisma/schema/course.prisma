@@ -138,6 +138,8 @@ model Activity {
 
   course             Course               @relation(fields: [courseId], references: [id], onDelete: Cascade)
   section            CourseSection        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  /// Group mode works with the groups of this grouping only.
+  grouping           Grouping?            @relation(fields: [groupingId], references: [id], onDelete: SetNull)
   context            Context              @relation("ActivityContext", fields: [id], references: [id], onDelete: Cascade)
   completions        ActivityCompletion[]
   gradeItems         GradeItem[]

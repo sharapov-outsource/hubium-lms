@@ -48,7 +48,7 @@ export default async function EditActivityPage({
     getTranslations('permissions'),
     ctx.perm.can('role:review', activityId),
   ]);
-  const [activities, groups, files] = await Promise.all([
+  const [activities, groups, groupings, course, files] = await Promise.all([
     db.activity.findMany({
       where: { courseId, deletedAt: null, completionMode: { not: 'NONE' }, id: { not: a.id } },
       select: { id: true, name: true },
@@ -58,6 +58,15 @@ export default async function EditActivityPage({
       where: { courseId },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
+    }),
+    db.grouping.findMany({
+      where: { courseId },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+    db.course.findUniqueOrThrow({
+      where: { id: courseId },
+      select: { groupMode: true, groupModeForced: true },
     }),
     db.file.findMany({
       where: { contextId: a.id, component: `mod.${a.moduleKey}` },
@@ -97,6 +106,7 @@ export default async function EditActivityPage({
           completionView: !!rules.view,
           completionExpectedAt: a.completionExpectedAt?.toISOString().slice(0, 10),
           groupMode: a.groupMode,
+          groupingId: a.groupingId,
           availability: parseAvailability(a.availability) as never,
         }}
         settingsFields={
@@ -112,6 +122,8 @@ export default async function EditActivityPage({
         supportsGroups={!!m.supports.groups}
         activities={activities}
         groups={groups}
+        groupings={groupings}
+        forcedGroupMode={course.groupModeForced ? course.groupMode : null}
         profileFields={await profileConditionFields(await getLocale())}
         submitLabel={tc('save')}
       />

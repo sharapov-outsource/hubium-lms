@@ -24,6 +24,7 @@ type Cond =
   | { type: 'date'; op: '>=' | '<'; at: string }
   | { type: 'completion'; activityId: string; state: 'complete' | 'incomplete' | 'pass' | 'fail' }
   | { type: 'group'; groupId?: string }
+  | { type: 'grouping'; groupingId: string }
   | { type: 'grade'; activityId: string; min?: number; max?: number }
   | {
       type: 'profile';
@@ -45,6 +46,7 @@ export interface ActivityFormValues {
   completionView?: boolean;
   completionExpectedAt?: string;
   groupMode?: string;
+  groupingId?: string | null;
   availability?: { op: '&' | '|'; hidden?: boolean; c: Cond[] } | null;
 }
 
@@ -59,11 +61,13 @@ function AvailabilityEditor({
   initial,
   activities,
   groups,
+  groupings,
   profileFields,
 }: {
   initial: ActivityFormValues['availability'];
   activities: { id: string; name: string }[];
   groups: { id: string; name: string }[];
+  groupings: { id: string; name: string }[];
   /** Custom profile fields: `cf:<shortName>` and their labels. */
   profileFields: { key: string; label: string }[];
 }) {
@@ -91,9 +95,11 @@ function AvailabilityEditor({
           ? { type, activityId: first, state: 'complete' }
           : type === 'group'
             ? { type }
-            : type === 'grade'
-              ? { type, activityId: first, min: 50 }
-              : { type, field: 'email', op: 'endsWith', value: '' };
+            : type === 'grouping'
+              ? { type, groupingId: groupings[0]?.id ?? '' }
+              : type === 'grade'
+                ? { type, activityId: first, min: 50 }
+                : { type, field: 'email', op: 'endsWith', value: '' };
     setConds((cs) => [...cs, next]);
   };
   return (
@@ -196,6 +202,20 @@ function AvailabilityEditor({
               ))}
             </Select>
           ) : null}
+          {c.type === 'grouping' ? (
+            <Select
+              aria-label={t('conditionTypes.grouping')}
+              className="min-w-48"
+              value={c.groupingId}
+              onChange={(e) => update(i, { groupingId: e.target.value })}
+            >
+              {groupings.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </Select>
+          ) : null}
           {c.type === 'profile' ? (
             <>
               <Select
@@ -249,9 +269,13 @@ function AvailabilityEditor({
         </div>
       ))}
       <div className="flex flex-wrap gap-2">
-        {(['date', 'completion', 'group', 'grade', 'profile'] as const)
+        {(['date', 'completion', 'group', 'grouping', 'grade', 'profile'] as const)
           .filter((type) =>
-            type === 'completion' || type === 'grade' ? activities.length > 0 : true,
+            type === 'completion' || type === 'grade'
+              ? activities.length > 0
+              : type === 'grouping'
+                ? groupings.length > 0
+                : true,
           )
           .map((type) => (
             <Button key={type} type="button" variant="outline" size="sm" onClick={() => add(type)}>
@@ -282,6 +306,8 @@ export function ActivityForm({
   supportsGroups,
   activities,
   groups,
+  groupings = [],
+  forcedGroupMode = null,
   profileFields = [],
   submitLabel,
 }: {
@@ -295,6 +321,9 @@ export function ActivityForm({
   supportsGroups: boolean;
   activities: { id: string; name: string }[];
   groups: { id: string; name: string }[];
+  groupings?: { id: string; name: string }[];
+  /** The course's group mode when it is forced on every activity. */
+  forcedGroupMode?: string | null;
   profileFields?: { key: string; label: string }[];
   submitLabel: string;
 }) {
@@ -348,11 +377,32 @@ export function ActivityForm({
             </Select>
           </FormField>
           {supportsGroups ? (
-            <FormField name="groupMode" label={t('groupMode')}>
-              <Select id="f-groupMode" name="groupMode" defaultValue={values.groupMode ?? 'NONE'}>
+            <FormField
+              name="groupMode"
+              label={t('groupMode')}
+              hint={forcedGroupMode ? t('groupModeForced') : undefined}
+            >
+              <Select
+                id="f-groupMode"
+                name="groupMode"
+                defaultValue={forcedGroupMode ?? values.groupMode ?? 'NONE'}
+                disabled={!!forcedGroupMode}
+              >
                 {(['NONE', 'SEPARATE', 'VISIBLE'] as const).map((g) => (
                   <option key={g} value={g}>
                     {tc(`groupModes.${g}`)}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+          ) : null}
+          {supportsGroups && groupings.length ? (
+            <FormField name="groupingId" label={t('grouping')}>
+              <Select id="f-groupingId" name="groupingId" defaultValue={values.groupingId ?? ''}>
+                <option value="">{t('noGrouping')}</option>
+                {groupings.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
                   </option>
                 ))}
               </Select>
@@ -420,6 +470,7 @@ export function ActivityForm({
             initial={values.availability}
             activities={activities}
             groups={groups}
+            groupings={groupings}
             profileFields={profileFields}
           />
         </CardContent>

@@ -137,6 +137,102 @@ export async function visibleGroupIds(
   return rows.map((r) => r.groupId);
 }
 
+// ── groupings (sets of groups an activity can be limited to) ─────────────────
+
+const GroupingInput = z.object({
+  courseId: z.string().uuid(),
+  name: z.string().trim().min(1).max(255),
+  description: z.string().max(5000).default(''),
+});
+
+async function requireGroupingManager(ctx: RequestContext, id: string) {
+  const g = await ctx.db.grouping.findUnique({ where: { id }, select: { courseId: true } });
+  if (!g) throw new NotFoundError('Grouping');
+  await ctx.perm.require('group:manage', g.courseId);
+}
+
+export const createGrouping = defineOperation({
+  name: 'grouping.create',
+  input: GroupingInput,
+  authorize: (ctx, i) => ctx.perm.require('group:manage', i.courseId),
+  async handler(ctx, input) {
+    if (await ctx.tx.grouping.findFirst({ where: { courseId: input.courseId, name: input.name } }))
+      throw new ValidationError({ name: ['A grouping with this name already exists'] });
+    const g = await ctx.tx.grouping.create({ data: input });
+    await logEvent(ctx.tx, {
+      name: 'grouping.created',
+      actorId: ctx.perm.userId,
+      courseId: input.courseId,
+      objectType: 'grouping',
+      objectId: g.id,
+      origin: ctx.origin,
+    });
+    return { id: g.id };
+  },
+});
+
+export const updateGrouping = defineOperation({
+  name: 'grouping.update',
+  input: GroupingInput.omit({ courseId: true }).extend({ id: z.string().uuid() }),
+  authorize: (ctx, i) => requireGroupingManager(ctx, i.id),
+  async handler(ctx, input) {
+    const g = await ctx.tx.grouping.findUniqueOrThrow({ where: { id: input.id } });
+    const dupe = await ctx.tx.grouping.findFirst({
+      where: { courseId: g.courseId, name: input.name, id: { not: g.id } },
+    });
+    if (dupe) throw new ValidationError({ name: ['A grouping with this name already exists'] });
+    await ctx.tx.grouping.update({
+      where: { id: g.id },
+      data: { name: input.name, description: input.description },
+    });
+    return { id: g.id };
+  },
+});
+
+export const deleteGrouping = defineOperation({
+  name: 'grouping.delete',
+  input: z.object({ id: z.string().uuid() }),
+  authorize: (ctx, i) => requireGroupingManager(ctx, i.id),
+  async handler(ctx, { id }) {
+    // activities limited to it go back to all groups (Activity.groupingId is SET NULL)
+    await ctx.tx.grouping.delete({ where: { id } });
+    return { id };
+  },
+});
+
+/** Sets exactly which groups of the course belong to the grouping. */
+export const setGroupingGroups = defineOperation({
+  name: 'grouping.groups',
+  input: z.object({
+    groupingId: z.string().uuid(),
+    groupIds: z.array(z.string().uuid()).max(1000),
+  }),
+  authorize: (ctx, i) => requireGroupingManager(ctx, i.groupingId),
+  async handler(ctx, { groupingId, groupIds }) {
+    const g = await ctx.tx.grouping.findUniqueOrThrow({ where: { id: groupingId } });
+    const ok = await ctx.tx.group.count({ where: { id: { in: groupIds }, courseId: g.courseId } });
+    if (ok !== new Set(groupIds).size)
+      throw new ValidationError({ groupIds: ['Groups must belong to the same course'] });
+    await ctx.tx.groupingGroup.deleteMany({
+      where: { groupingId, groupId: { notIn: groupIds } },
+    });
+    await ctx.tx.groupingGroup.createMany({
+      data: groupIds.map((groupId) => ({ groupingId, groupId })),
+      skipDuplicates: true,
+    });
+    return { groupingId };
+  },
+});
+
+export async function listGroupings(ctx: RequestContext, courseId: string) {
+  await ctx.perm.require('course:viewparticipants', courseId);
+  return ctx.db.grouping.findMany({
+    where: { courseId },
+    orderBy: { name: 'asc' },
+    include: { groups: { select: { groupId: true } }, _count: { select: { activities: true } } },
+  });
+}
+
 // ── cohorts (site-wide groups) ────────────────────────────────────────────────
 
 const CohortInput = z.object({

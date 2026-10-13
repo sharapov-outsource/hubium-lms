@@ -9,11 +9,13 @@ import {
   createCohort,
   createCourse,
   createGroup,
+  createGrouping,
   deleteActivity,
   deleteCategory,
   deleteCohort,
   deleteCourse,
   deleteGroup,
+  deleteGrouping,
   deleteSection,
   duplicateActivity,
   enrolUsers,
@@ -34,6 +36,7 @@ import {
   setCourseImage,
   setCourseRoles,
   setEnrolmentStatus,
+  setGroupingGroups,
   setGroupMembers,
   setSectionVisible,
   toggleManualCompletion,
@@ -43,6 +46,7 @@ import {
   updateCategory,
   updateCourse,
   updateGroup,
+  updateGrouping,
   updateSection,
   updateSelfEnrolment,
   ValidationError,
@@ -242,6 +246,7 @@ function activityValues(fd: FormData) {
     completionRules: collectCompletionRules(fd),
     completionExpectedAt: v.completionExpectedAt || null,
     groupMode: (v.groupMode || 'NONE') as 'NONE',
+    groupingId: v.groupingId || null,
     availability: v.availability || null,
     idNumber: v.idNumber,
     settings: collectSettings(fd),
@@ -507,6 +512,39 @@ export async function groupMembersAction(
 ) {
   return runAction(async () => {
     await setGroupMembers.run(await getContext(), { groupId, add, remove });
+    revalidatePath(`/course/${courseId}/groups`);
+    return null;
+  });
+}
+
+export async function saveGroupingAction(fd: FormData) {
+  return runAction(async () => {
+    const v = formToObject(fd);
+    const ctx = await getContext();
+    const input = { name: v.name, description: v.description ?? '' };
+    const r = v.id
+      ? await updateGrouping.run(ctx, { id: v.id, ...input })
+      : await createGrouping.run(ctx, { courseId: v.courseId, ...input });
+    revalidatePath(`/course/${v.courseId}/groups`);
+    return r;
+  });
+}
+
+export async function deleteGroupingAction(courseId: string, id: string) {
+  return runAction(async () => {
+    await deleteGrouping.run(await getContext(), { id });
+    revalidatePath(`/course/${courseId}/groups`);
+    return null;
+  });
+}
+
+export async function groupingGroupsAction(
+  courseId: string,
+  groupingId: string,
+  groupIds: string[],
+) {
+  return runAction(async () => {
+    await setGroupingGroups.run(await getContext(), { groupingId, groupIds });
     revalidatePath(`/course/${courseId}/groups`);
     return null;
   });

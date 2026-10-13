@@ -50,11 +50,35 @@ export const ActivityInput = z.object({
   completionRules: CompletionRules,
   completionExpectedAt: dateOrNull,
   groupMode: z.enum(['NONE', 'SEPARATE', 'VISIBLE']).default('NONE'),
+  /** Limits group mode to the groups of one grouping of the course. */
+  groupingId: z.string().uuid().nullable().optional(),
   availability: z.unknown().optional(),
   idNumber: optionalText(100),
   settings: z.record(z.string(), z.unknown()).default({}),
 });
 export type ActivityInputType = z.input<typeof ActivityInput>;
+
+/**
+ * Group mode and grouping to store: a course with a forced group mode imposes its own, and
+ * the grouping must belong to the course.
+ */
+async function groupSetup(
+  tx: Prisma.TransactionClient,
+  courseId: string,
+  input: { groupMode: 'NONE' | 'SEPARATE' | 'VISIBLE'; groupingId?: string | null },
+) {
+  const course = await tx.course.findUniqueOrThrow({
+    where: { id: courseId },
+    select: { groupMode: true, groupModeForced: true },
+  });
+  const groupingId = input.groupingId ?? null;
+  if (groupingId && !(await tx.grouping.findFirst({ where: { id: groupingId, courseId } })))
+    throw new ValidationError({ groupingId: ['Unknown grouping'] });
+  return {
+    groupMode: course.groupModeForced ? course.groupMode : input.groupMode,
+    groupingId,
+  };
+}
 
 function validateSettings(moduleKey: string, raw: Record<string, unknown>) {
   const m = requireModule(moduleKey);
@@ -174,6 +198,7 @@ export const createActivity = defineOperation({
       input.completionRules,
     );
     const availability = validateAvailability(input.availability);
+    const groups = await groupSetup(ctx.tx, input.courseId, input);
     const id = uuidv7();
     await createContext(ctx.tx, id, 'ACTIVITY', input.courseId);
     const a = await ctx.tx.activity.create({
@@ -190,7 +215,7 @@ export const createActivity = defineOperation({
         completionMode: input.completionMode,
         completionRules: completionRules as Prisma.InputJsonValue,
         completionExpectedAt: input.completionExpectedAt,
-        groupMode: input.groupMode,
+        ...groups,
         availability,
         idNumber: input.idNumber,
         settings,
@@ -235,6 +260,7 @@ export const updateActivity = defineOperation({
       input.completionRules,
     );
     const availability = validateAvailability(input.availability);
+    const groups = await groupSetup(ctx.tx, prev.courseId, input);
     const a = await ctx.tx.activity.update({
       where: { id: prev.id },
       data: {
@@ -245,7 +271,7 @@ export const updateActivity = defineOperation({
         completionMode: input.completionMode,
         completionRules: completionRules as Prisma.InputJsonValue,
         completionExpectedAt: input.completionExpectedAt,
-        groupMode: input.groupMode,
+        ...groups,
         availability,
         idNumber: input.idNumber ?? null,
         settings,
@@ -484,11 +510,15 @@ export async function loadAvailabilityFacts(
       profile: {},
     };
   }
-  const [completions, groups, user] = await Promise.all([
+  const [completions, groups, groupings, user] = await Promise.all([
     ctx.db.activityCompletion.findMany({ where: { userId, activity: { courseId } } }),
     ctx.db.groupMember.findMany({
       where: { userId, group: { courseId } },
       select: { groupId: true },
+    }),
+    ctx.db.groupingGroup.findMany({
+      where: { group: { courseId, members: { some: { userId } } } },
+      select: { groupingId: true },
     }),
     ctx.db.user.findUnique({
       where: { id: userId },
@@ -523,6 +553,7 @@ export async function loadAvailabilityFacts(
     now: ctx.now,
     completion: new Map(completions.map((c) => [c.activityId, toFact(c.state)])),
     groupIds: new Set(groups.map((g) => g.groupId)),
+    groupingIds: new Set(groupings.map((g) => g.groupingId)),
     grades,
     profile: {
       email: user?.email ?? '',

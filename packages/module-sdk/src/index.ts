@@ -208,6 +208,8 @@ export interface ActivityRef<S = unknown> {
   completionMode: 'NONE' | 'MANUAL' | 'AUTO';
   completionRules: Record<string, unknown>;
   groupMode: 'NONE' | 'SEPARATE' | 'VISIBLE';
+  /** When set, group mode uses only the groups of this grouping. */
+  groupingId: string | null;
   visibility: 'SHOWN' | 'HIDDEN' | 'STEALTH';
 }
 

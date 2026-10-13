@@ -58,7 +58,14 @@ describe('.hubium backup and restore', () => {
     quizId = (await f.addActivity('quiz', 'Тест', { gradeMax: 10 })).id;
     const qs = await t.db.question.findMany({ where: { category: { contextId: f.courseId } } });
     await runModuleAction(sys, quizId, 'addQuestions', { questionIds: qs.map((q) => q.id) });
-    await t.db.group.create({ data: { courseId: f.courseId, name: 'Группа А' } });
+    const group = await t.db.group.create({ data: { courseId: f.courseId, name: 'Группа А' } });
+    const grouping = await t.db.grouping.create({
+      data: { courseId: f.courseId, name: 'Поток 1', groups: { create: [{ groupId: group.id }] } },
+    });
+    await t.db.activity.updateMany({
+      where: { courseId: f.courseId, name: 'Эссе' },
+      data: { groupMode: 'SEPARATE', groupingId: grouping.id },
+    });
   });
 
   it('exports a self-describing archive without learners’ data', async () => {
@@ -114,6 +121,13 @@ describe('.hubium backup and restore', () => {
       await t.db.gradeItem.count({ where: { activityId: { in: [assign.id, quiz.id] } } }),
     ).toBe(2);
     expect(await t.db.group.count({ where: { courseId: r.courseId, name: 'Группа А' } })).toBe(1);
+    // the grouping comes along with its group, and the assignment stays limited to it
+    const grouping = await t.db.grouping.findFirstOrThrow({
+      where: { courseId: r.courseId, name: 'Поток 1' },
+      include: { groups: { include: { group: true } } },
+    });
+    expect(grouping.groups.map((g) => g.group.name)).toEqual(['Группа А']);
+    expect(assign).toMatchObject({ groupMode: 'SEPARATE', groupingId: grouping.id });
   });
 
   it('duplicates a course with a new name', async () => {
