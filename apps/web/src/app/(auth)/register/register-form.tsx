@@ -50,6 +50,11 @@ export function RegisterForm({
       setFormError(res.error.message ?? t('invalidCredentials'));
       return;
     }
+    // signed in at once when the site does not require email verification
+    if (res.data?.token) {
+      window.location.assign('/dashboard');
+      return;
+    }
     setSentTo(v.email!.trim());
   }
 

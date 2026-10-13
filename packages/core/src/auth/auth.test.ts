@@ -30,4 +30,30 @@ describe('auth', () => {
       await setSettings(t.db, { 'auth.oauth.google': false });
     }
   });
+
+  it('follows the "require email verification" setting', async () => {
+    const signUp = (email: string) =>
+      auth.api.signUpEmail({ body: { email, password: 'Secret12345!', name: 'Ann Lee' } });
+    const signIn = (email: string) =>
+      auth.api.signInEmail({ body: { email, password: 'Secret12345!' } });
+    await setSettings(t.db, { 'registration.enabled': true });
+    try {
+      await setSettings(t.db, { 'registration.requireEmailVerification': true });
+      expect((await signUp('strict@example.org')).token).toBeNull();
+      await expect(signIn('strict@example.org')).rejects.toMatchObject({
+        body: { code: 'EMAIL_NOT_VERIFIED' },
+      });
+
+      await setSettings(t.db, { 'registration.requireEmailVerification': false });
+      expect((await signUp('relaxed@example.org')).token).toEqual(expect.any(String));
+      expect((await signIn('relaxed@example.org')).token).toEqual(expect.any(String));
+      // the switch also lets in people who registered while it was on
+      expect((await signIn('strict@example.org')).token).toEqual(expect.any(String));
+    } finally {
+      await setSettings(t.db, {
+        'registration.enabled': false,
+        'registration.requireEmailVerification': true,
+      });
+    }
+  });
 });

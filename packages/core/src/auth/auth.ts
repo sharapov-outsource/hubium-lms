@@ -43,6 +43,8 @@ export function configuredOAuthProviders(): ('google' | 'yandex' | 'vk')[] {
   return out;
 }
 
+const EMAIL_SIGN_IN_PATHS = new Set(['/sign-up/email', '/sign-in/email', '/sign-in/username']);
+
 export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAuthOptions) {
   const { social, generic } = oauthProviders();
   const siteName = async () => (await getAllSettings(db))['site.name'];
@@ -89,6 +91,7 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
     emailAndPassword: {
       enabled: true,
       minPasswordLength: 8,
+      // replaced per request from registration.requireEmailVerification (hooks.before)
       requireEmailVerification: true,
       revokeSessionsOnPasswordReset: true,
       async sendResetPassword({ user, url }) {
@@ -118,8 +121,22 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
     },
     socialProviders: social,
     hooks: {
-      // Providers switched off in Admin → Settings stay off even when their keys are set.
       before: createAuthMiddleware(async (c) => {
+        // "Require email verification" is a site setting: Better Auth reads the option on
+        // each call, so this request's copy of the context gets the current value.
+        if (EMAIL_SIGN_IN_PATHS.has(c.path)) {
+          const settings = await getAllSettings(db);
+          c.context.options = {
+            ...c.context.options,
+            emailAndPassword: {
+              ...c.context.options.emailAndPassword,
+              enabled: true,
+              requireEmailVerification: settings['registration.requireEmailVerification'],
+            },
+          };
+          return;
+        }
+        // Providers switched off in Admin → Settings stay off even when their keys are set.
         const body = (c.body ?? {}) as { provider?: string; providerId?: string };
         const params = (c.params ?? {}) as { id?: string; providerId?: string };
         const provider =
