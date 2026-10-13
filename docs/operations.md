@@ -9,7 +9,7 @@
 | `web` | Next.js: интерфейс, server actions, REST API `/api/v1`, SSE |
 | `worker` | фоновые задачи (`WORKER_QUEUES=default`): почта, уведомления, расписание, AI, импорт курсов |
 | `worker-media` | перекодирование видео ffmpeg (`WORKER_QUEUES=media`), можно вынести на отдельную машину |
-| `db` | PostgreSQL 16+ с расширениями `pgvector`, `pg_trgm`, `citext` (образ `pgvector/pgvector:0.8.7-pg18-bookworm`) |
+| `db` | PostgreSQL 18 с расширениями `pgvector`, `pg_trgm`, `citext`, `unaccent` (образ `pgvector/pgvector:0.8.7-pg18-bookworm`) |
 | `s3` | S3-совместимое хранилище файлов [RustFS](https://github.com/rustfs/rustfs) (подойдёт любое S3: Yandex Object Storage, VK Cloud, Selectel) |
 | `mailpit` | перехватывает почту, пока не задан `SMTP_URL`; интерфейс только на `127.0.0.1:8025` сервера |
 | `caddy` | HTTPS-прокси для основного домена, домена контента и домена файлов |
