@@ -28,7 +28,7 @@ test('gradebook: category, scale, history and XLSX export', async ({ page }) => 
     await page.locator('#sc-name-new').fill(scale);
     await page.locator('#sc-items-new').fill('Не зачтено\nЗачтено');
     await page.getByRole('button', { name: 'Создать' }).click();
-    await expect(page.locator('input[value="' + scale + '"]')).toBeVisible();
+    await expect(page.locator(`input[value="${scale}"]`)).toBeVisible();
 
     await page.goto(`${base}?view=setup`);
     await page.locator('#f-name').fill(item);

@@ -302,7 +302,8 @@ export function LettersForm({
         {Array.from({ length: rows }, (_, i) => {
           const l = letters[i];
           return (
-            <div key={`${i}-${l?.letter ?? ''}`} className="contents">
+            // biome-ignore lint/suspicious/noArrayIndexKey: rows are positions in the form
+            <div key={i} className="contents">
               <input
                 aria-label={`${t('letter')} ${i + 1}`}
                 name={`letter-${i}`}
