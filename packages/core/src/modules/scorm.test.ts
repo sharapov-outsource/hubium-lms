@@ -197,6 +197,22 @@ describe('mod-scorm', () => {
     );
   });
 
+  it('jobs for packages deleted in the meantime are skipped, not retried', async () => {
+    const sys = buildModuleCtx(await ctxFor(t.db, 'system'));
+    const job = getModule('scorm')!.jobs!.find((j) => j.name === 'scorm.extract')!;
+    expect(
+      await job.handler(sys, { packageId: '0190a8f0-0000-7000-8000-000000000123' } as never),
+    ).toEqual({
+      skipped: 'package deleted',
+    });
+    const video = getModule('video')!.jobs!.find((j) => j.name === 'video.transcode')!;
+    expect(
+      await video.handler(sys, { assetId: '0190a8f0-0000-7000-8000-000000000124' } as never),
+    ).toEqual({
+      skipped: 'video deleted',
+    });
+  });
+
   it('serves files whose names have spaces and Cyrillic letters', async () => {
     const { id } = await f.addActivity('scorm', 'Имена файлов', {});
     const pkg = await upload(

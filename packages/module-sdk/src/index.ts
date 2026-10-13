@@ -69,7 +69,8 @@ export interface ModuleJobs {
   enqueue(
     name: string,
     data: object,
-    opts?: { startAfter?: Date; singletonKey?: string },
+    /** `priority`: higher runs first (0 by default; negative for bulk background work). */
+    opts?: { startAfter?: Date; singletonKey?: string; priority?: number },
   ): Promise<void>;
 }
 

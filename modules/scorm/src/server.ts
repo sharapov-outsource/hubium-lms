@@ -405,6 +405,10 @@ export const scorm = defineModule<ScormSettingsT>({
     {
       name: 'scorm.extract',
       async handler(ctx, data: { packageId: string }) {
+        // The activity (or its course) may be deleted before the job runs: nothing to
+        // do then, and a failure would only be retried for nothing.
+        if (!(await ctx.db.scormPackage.findUnique({ where: { id: data.packageId } })))
+          return { skipped: 'package deleted' };
         const m = await extractPackage(ctx, data.packageId);
         return { scos: m.scos.length, version: m.version };
       },
