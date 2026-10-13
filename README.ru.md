@@ -254,6 +254,7 @@ pnpm dev                                          # http://localhost:3000
 - [docs/security.md](docs/security.md) — встроенная защита и чек-лист администратора (на английском).
 - [docs/architecture.md](docs/architecture.md) — техническое устройство (на английском).
 - [docs/PLAN.md](docs/PLAN.md) — план и статус.
+- [docs/moodle-comparison.md](docs/moodle-comparison.md) — сравнение возможностей с Moodle 5.3 LTS.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — как участвовать в разработке.
 - [SECURITY.md](SECURITY.md) — как сообщить об уязвимости.
 

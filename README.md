@@ -202,6 +202,7 @@ The stack is Node.js 24, Next.js 16, React 19, PostgreSQL 18 with pgvector, Pris
 - [docs/modules.md](docs/modules.md): writing an activity module.
 - [docs/security.md](docs/security.md): built-in protections and an operator checklist.
 - [docs/architecture.md](docs/architecture.md): technical design. [docs/PLAN.md](docs/PLAN.md): roadmap and status (in Russian).
+- [docs/moodle-comparison.md](docs/moodle-comparison.md): feature comparison with Moodle 5.3 LTS (in Russian).
 - [CONTRIBUTING.md](CONTRIBUTING.md): how to contribute. [SECURITY.md](SECURITY.md): how to report a vulnerability.
 
 ## License
