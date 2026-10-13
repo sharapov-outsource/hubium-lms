@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { sql } from './db';
-import { DEMO_PASSWORD, expectAccessible, login } from './helpers';
+import { chooseOption, DEMO_PASSWORD, expectAccessible, login, pickDateTime } from './helpers';
 
 const stamp = `${Date.now().toString(36).slice(-5)}${Math.random().toString(36).slice(2, 5)}`;
 const shortName = `E2E-${stamp}`;
@@ -50,7 +50,7 @@ test.describe
         .first()
         .click();
       await page.keyboard.type('Привет, это первый урок.');
-      await page.locator('#f-completionMode').selectOption('MANUAL');
+      await chooseOption(page.locator('#f-completionMode'), 'MANUAL');
       await page.getByRole('button', { name: /^Создать$|^Create$/ }).click();
       await page.waitForURL(/\?edit=1/);
       await expect(page.getByRole('link', { name: 'Первый урок' })).toBeVisible();
@@ -69,12 +69,10 @@ test.describe
       await page.goto('/calendar');
       await page.locator('#f-title').fill(`Вебинар ${stamp}`);
       const when = new Date(Date.now() + 2 * 86_400_000);
-      const local = new Date(when.getTime() - when.getTimezoneOffset() * 60_000)
-        .toISOString()
-        .slice(0, 16);
-      await page.locator('#f-startsAt').fill(local);
-      await page.locator('#f-scope').selectOption('COURSE');
-      await page.locator('#f-courseId').selectOption({ label: `E2E курс ${stamp}` });
+      when.setHours(15, 30, 0, 0);
+      await pickDateTime(page, 'f-startsAt', when);
+      await chooseOption(page.locator('#f-scope'), 'COURSE');
+      await chooseOption(page.locator('#f-courseId'), { label: `E2E курс ${stamp}` });
       await page.getByRole('button', { name: /^Создать$|^Create$/ }).click();
       await expect(page.getByText(`Вебинар ${stamp}`).first()).toBeVisible();
     });

@@ -1,5 +1,6 @@
 'use client';
 
+import { DateInput } from '@hubium/module-sdk/form';
 import { Button, Checkbox, Input, Label, Select } from '@hubium/ui';
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogTrigger } from '@hubium/ui/dialog';
 import {
@@ -103,7 +104,7 @@ export function EnrolDialog({
         </ul>
         {picked.size ? <p className="text-sm">{[...picked.values()].join(', ')}</p> : null}
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="grid gap-1.5">
+          <div className="grid content-start gap-1.5">
             <Label htmlFor="enrol-role">{t('role')}</Label>
             <Select id="enrol-role" value={roleId} onChange={(e) => setRoleId(e.target.value)}>
               {roles.map((r) => (
@@ -113,14 +114,9 @@ export function EnrolDialog({
               ))}
             </Select>
           </div>
-          <div className="grid gap-1.5">
+          <div className="grid content-start gap-1.5">
             <Label htmlFor="enrol-ends">{t('endsAt')}</Label>
-            <Input
-              id="enrol-ends"
-              type="date"
-              value={endsAt}
-              onChange={(e) => setEndsAt(e.target.value)}
-            />
+            <DateInput id="enrol-ends" value={endsAt} onChange={setEndsAt} />
           </div>
         </div>
         <DialogFooter>

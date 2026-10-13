@@ -1,4 +1,5 @@
 import { getCourseAccess } from '@hubium/core';
+import { DateInput } from '@hubium/module-sdk/form';
 import {
   Alert,
   Card,
@@ -86,18 +87,16 @@ export default async function EnrolmentPage({ params }: { params: Promise<{ cour
               {t('useGroupKeys')}
             </label>
             <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                name="startsAt"
-                type="date"
-                label={t('startsAt')}
-                defaultValue={d(self?.startsAt ?? null)}
-              />
-              <FormField
-                name="endsAt"
-                type="date"
-                label={t('endsAt')}
-                defaultValue={d(self?.endsAt ?? null)}
-              />
+              <FormField name="startsAt" label={t('startsAt')}>
+                <DateInput
+                  id="f-startsAt"
+                  name="startsAt"
+                  defaultValue={d(self?.startsAt ?? null)}
+                />
+              </FormField>
+              <FormField name="endsAt" label={t('endsAt')}>
+                <DateInput id="f-endsAt" name="endsAt" defaultValue={d(self?.endsAt ?? null)} />
+              </FormField>
               <FormField
                 name="durationDays"
                 type="number"

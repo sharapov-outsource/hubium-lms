@@ -64,6 +64,7 @@ export function QuizSettingsFields({ settings }: SettingsFieldsProps<QuizSetting
           <DateTimeInput
             id="qs-closeAt"
             name="settings.closeAt"
+            defaultTime="23:59"
             defaultValue={settings.closeAt}
             ariaInvalid={!!closeError}
           />

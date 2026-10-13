@@ -1,5 +1,7 @@
 'use client';
 
+import { type CalendarLocale, DatePicker, DateTimePicker, useHydrated } from '@hubium/ui';
+import { useLocale, useTranslations } from 'next-intl';
 import { createContext, useContext, useState } from 'react';
 
 /** Field errors of the surrounding form, keyed by input name (e.g. "settings.url"). */
@@ -17,37 +19,130 @@ function toLocalValue(iso: string | null | undefined): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/** Locale and texts of the date pickers, from the app's messages. */
+function usePickerText() {
+  const t = useTranslations('common.datePicker');
+  const locale: CalendarLocale = useLocale() === 'en' ? 'en' : 'ru';
+  return {
+    locale,
+    labels: {
+      placeholder: t('placeholder'),
+      clear: t('clear'),
+      today: t('today'),
+      time: t('time'),
+      timePlaceholder: t('timePlaceholder'),
+    },
+  };
+}
+
+interface PickerFieldProps {
+  name?: string;
+  id?: string;
+  required?: boolean;
+  ariaInvalid?: boolean;
+  className?: string;
+  'aria-label'?: string;
+  'aria-describedby'?: string;
+}
+
+/** Calendar date field; submits "YYYY-MM-DD" in `name`, like a native date input. */
+export function DateInput({
+  name,
+  id,
+  value,
+  defaultValue,
+  onChange,
+  min,
+  max,
+  ariaInvalid,
+  ...rest
+}: PickerFieldProps & {
+  value?: string;
+  defaultValue?: string | null;
+  onChange?: (value: string) => void;
+  min?: string;
+  max?: string;
+}) {
+  const { locale, labels } = usePickerText();
+  const errors = useFieldErrors(name ?? '');
+  return (
+    <DatePicker
+      id={id}
+      name={name}
+      value={value}
+      defaultValue={defaultValue}
+      onChange={onChange}
+      min={min}
+      max={max}
+      locale={locale}
+      labels={labels}
+      invalid={ariaInvalid ?? !!errors?.length}
+      {...rest}
+    />
+  );
+}
+
+/** Date and time in the browser's zone; submits "YYYY-MM-DDTHH:mm" like datetime-local. */
+export function LocalDateTimeInput({
+  name,
+  id,
+  value,
+  defaultValue,
+  onChange,
+  defaultTime,
+  ariaInvalid,
+  ...rest
+}: PickerFieldProps & {
+  value?: string;
+  defaultValue?: string | null;
+  onChange?: (value: string) => void;
+  defaultTime?: string;
+}) {
+  const { locale, labels } = usePickerText();
+  const errors = useFieldErrors(name ?? '');
+  return (
+    <DateTimePicker
+      id={id}
+      name={name}
+      value={value}
+      defaultValue={defaultValue}
+      onChange={onChange}
+      defaultTime={defaultTime}
+      locale={locale}
+      labels={labels}
+      invalid={ariaInvalid ?? !!errors?.length}
+      {...rest}
+    />
+  );
+}
+
 /**
- * A datetime-local input that submits an ISO timestamp in `name`, converting from the
- * browser's time zone (datetime-local values have no zone of their own).
+ * Date and time picker that submits an ISO timestamp in `name`. The value is shown in the
+ * browser's time zone, which only the client knows, so it appears after hydration; an
+ * untouched value is submitted exactly as it came.
  */
 export function DateTimeInput({
   name,
   id,
   defaultValue,
-  className,
+  defaultTime,
   ariaInvalid,
-}: {
-  name: string;
-  id: string;
-  defaultValue?: string | null;
-  className?: string;
-  ariaInvalid?: boolean;
-}) {
-  const [local, setLocal] = useState(() => toLocalValue(defaultValue));
-  const iso = local ? new Date(local).toISOString() : '';
+  ...rest
+}: PickerFieldProps & { name: string; defaultValue?: string | null; defaultTime?: string }) {
+  const hydrated = useHydrated();
+  const errors = useFieldErrors(name);
+  const [edited, setEdited] = useState<string | null>(null);
+  const local = edited ?? (hydrated ? toLocalValue(defaultValue) : '');
+  const iso = edited === null ? (defaultValue ?? '') : edited ? new Date(edited).toISOString() : '';
   return (
     <>
-      <input
+      <LocalDateTimeInput
         id={id}
-        type="datetime-local"
         value={local}
-        onChange={(e) => setLocal(e.target.value)}
-        aria-invalid={ariaInvalid}
-        className={
-          className ??
-          'h-9 w-full rounded-md border border-input bg-background px-3 text-sm aria-[invalid=true]:border-destructive'
-        }
+        onChange={setEdited}
+        defaultTime={defaultTime}
+        ariaInvalid={ariaInvalid ?? !!errors?.length}
+        {...rest}
       />
       <input type="hidden" name={name} value={iso} />
     </>

@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 export const ADMIN = {
   login: process.env.SEED_ADMIN_EMAIL ?? 'admin@hubium.local',
@@ -26,4 +26,35 @@ export async function expectAccessible(page: Page) {
   expect(bad.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual(
     [],
   );
+}
+
+/**
+ * Picks an option of a Hubium Select (a listbox, not a native <select>): by value, or by
+ * visible label with `{ label }`.
+ */
+export async function chooseOption(trigger: Locator, option: string | { label: string }) {
+  await trigger.click();
+  const listbox = trigger.page().getByRole('listbox');
+  const item =
+    typeof option === 'string'
+      ? listbox.locator(`[role="option"][data-value="${option}"]`)
+      : listbox.getByRole('option', { name: option.label, exact: true });
+  await item.click();
+  await expect(listbox).toBeHidden();
+}
+
+/** Sets a Hubium date-time picker (trigger `#id`, time field `#id-time`) to a local time. */
+export async function pickDateTime(page: Page, id: string, when: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const day = `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}`;
+  await page.locator(`#${id}`).click();
+  const dialog = page.getByRole('dialog');
+  const cell = dialog.locator(`[data-day="${day}"] button`).first();
+  // the calendar opens on the current month; step forward until the day is shown
+  for (let i = 0; i < 24 && !(await cell.isVisible()); i++) {
+    await dialog.getByRole('button', { name: /next|следующ/i }).click();
+  }
+  await cell.click();
+  await page.locator(`#${id}-time`).fill(`${pad(when.getHours())}:${pad(when.getMinutes())}`);
+  await page.locator(`#${id}-time`).blur();
 }

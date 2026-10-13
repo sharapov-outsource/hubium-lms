@@ -309,7 +309,7 @@ export function SectionMenu({
           >
             <input type="hidden" name="id" value={section.id} />
             <input type="hidden" name="courseId" value={courseId} />
-            <div className="grid gap-1.5">
+            <div className="grid content-start gap-1.5">
               <Label htmlFor={`st-${section.id}`}>{t('sectionTitle')}</Label>
               <Input id={`st-${section.id}`} name="title" defaultValue={section.title} />
             </div>

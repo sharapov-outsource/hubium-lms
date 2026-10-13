@@ -22,6 +22,7 @@ export function LiveSettingsFields({ settings }: SettingsFieldsProps<LiveSetting
           <DateTimeInput
             id="ls-startsAt"
             name="settings.startsAt"
+            defaultTime="09:00"
             defaultValue={settings.startsAt}
             ariaInvalid={!!startError}
           />

@@ -76,6 +76,21 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
+/* Popovers and dropdowns fade in; no motion for users who ask for less. */
+@keyframes hb-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px) scale(0.98);
+  }
+}
+
+@utility animate-pop-in {
+  animation: hb-pop-in 120ms ease-out;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
 @layer base {
   * {
     border-color: var(--color-border);

@@ -100,7 +100,7 @@ export function NewDiscussionForm({
           <Field label={t('subject')} htmlFor="fd-title">
             <Input id="fd-title" name="title" required maxLength={255} />
           </Field>
-          <div className="grid gap-1.5">
+          <div className="grid content-start gap-1.5">
             <Label htmlFor="fd-message">{t('message')}</Label>
             <RichTextEditor
               id="fd-message"

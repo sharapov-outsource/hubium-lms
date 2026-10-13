@@ -1,5 +1,6 @@
 'use client';
 
+import { LocalDateTimeInput } from '@hubium/module-sdk/form';
 import { Button, Checkbox, Input, Select, Textarea } from '@hubium/ui';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -28,8 +29,14 @@ export function NewEventForm({
     >
       <TzOffset />
       <FormField name="title" label={t('eventTitle')} required />
-      <FormField name="startsAt" type="datetime-local" label={t('startsAt')} required />
-      <FormField name="endsAt" type="datetime-local" label={t('endsAt')} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <FormField name="startsAt" label={t('startsAt')}>
+          <LocalDateTimeInput id="f-startsAt" name="startsAt" required defaultTime="09:00" />
+        </FormField>
+        <FormField name="endsAt" label={t('endsAt')}>
+          <LocalDateTimeInput id="f-endsAt" name="endsAt" defaultTime="10:00" />
+        </FormField>
+      </div>
       <label htmlFor="ev-allday" className="flex items-center gap-2 text-sm">
         <Checkbox id="ev-allday" name="allDay" />
         {t('allDay')}

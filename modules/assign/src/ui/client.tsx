@@ -103,7 +103,7 @@ export function SubmissionForm({
       <CardContent>
         <form ref={formRef} className="grid gap-4" onSubmit={(e) => e.preventDefault()}>
           {allowText ? (
-            <div className="grid gap-1.5">
+            <div className="grid content-start gap-1.5">
               <Label htmlFor="assign-text">{t('yourText')}</Label>
               <RichTextEditor
                 id="assign-text"
@@ -286,7 +286,7 @@ export function GradeForm({
               className="w-32"
             />
           </Field>
-          <div className="grid gap-1.5">
+          <div className="grid content-start gap-1.5">
             <Label htmlFor="assign-feedback">{t('feedback')}</Label>
             <RichTextEditor
               key={draft?.key ?? 0}
@@ -343,7 +343,7 @@ export function ExtensionForm({
       <CardContent>
         <form ref={ref} className="grid gap-3" onSubmit={(e) => e.preventDefault()}>
           <Field label={t('extensionDue')} htmlFor="assign-ext">
-            <DateTimeInput id="assign-ext" name="dueAt" defaultValue={dueAt} />
+            <DateTimeInput id="assign-ext" name="dueAt" defaultValue={dueAt} defaultTime="23:59" />
           </Field>
           <div className="flex flex-wrap gap-2">
             <Button

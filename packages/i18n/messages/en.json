@@ -56,7 +56,21 @@
     "disabled": "Disabled",
     "errorText": "Please try again. If it keeps happening, give the administrator the code below.",
     "errorCode": "Error code",
-    "retry": "Try again"
+    "retry": "Try again",
+    "datePicker": {
+      "placeholder": "Pick a date",
+      "clear": "Clear",
+      "today": "Today",
+      "time": "Time",
+      "timePlaceholder": "hh:mm"
+    },
+    "nothingFound": "Nothing found",
+    "file": {
+      "chooseFile": "Choose file",
+      "chooseFiles": "Choose files",
+      "noFile": "No file chosen",
+      "noFiles": "No files chosen"
+    }
   },
   "nav": {
     "main": "Main navigation",
@@ -175,7 +189,8 @@
     "apiTokens": "API tokens",
     "privacy": "Privacy",
     "requiredPassword": "An administrator set a temporary password for you. Choose a new one to continue.",
-    "required2fa": "Site administrators must turn on two-factor authentication to continue."
+    "required2fa": "Site administrators must turn on two-factor authentication to continue.",
+    "timezoneDefault": "Site default"
   },
   "admin": {
     "title": "Administration",

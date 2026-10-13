@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { sql } from './db';
-import { ADMIN, DEMO_PASSWORD, expectAccessible, login, logout } from './helpers';
+import { ADMIN, chooseOption, DEMO_PASSWORD, expectAccessible, login, logout } from './helpers';
 
 // The admin registers an LTI 1.3 tool; a teacher adds it to a course; opening the
 // activity starts the OIDC login initiation towards the tool.
@@ -28,7 +28,7 @@ test('LTI tool registration and launch initiation', async ({ page }) => {
   await login(page, 'teacher', DEMO_PASSWORD);
   await page.goto(`/course/${c!.id}/a/new?module=lti&section=${section!.id}`);
   await page.locator('#f-name').fill('Онлайн-тренажёр');
-  await page.locator('#lti-tool').selectOption({ label: name });
+  await chooseOption(page.locator('#lti-tool'), { label: name });
   await page.getByRole('button', { name: /^Создать$/ }).click();
   await page.waitForURL(/\?edit=1/);
   const [act] = await sql<{ id: string }>(

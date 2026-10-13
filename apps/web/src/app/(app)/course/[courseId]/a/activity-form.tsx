@@ -2,6 +2,7 @@
 
 import type { ActionResult } from '@hubium/core/operation';
 import { EditorField } from '@hubium/editor/field';
+import { DateInput, LocalDateTimeInput } from '@hubium/module-sdk/form';
 import {
   Button,
   Card,
@@ -12,6 +13,7 @@ import {
   Input,
   Label,
   Select,
+  useHydrated,
 } from '@hubium/ui';
 import { Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -61,6 +63,8 @@ function AvailabilityEditor({
 }) {
   const t = useTranslations('activity');
   const error = useFieldError('availability');
+  // Condition dates are shown in the browser's zone, known only after hydration.
+  const hydrated = useHydrated();
   const [conds, setConds] = useState<Cond[]>(initial?.c ?? []);
   const [hidden, setHidden] = useState(!!initial?.hidden);
   const json = conds.length
@@ -107,12 +111,11 @@ function AvailabilityEditor({
                 <option value=">=">{t('dateFrom')}</option>
                 <option value="<">{t('dateUntil')}</option>
               </Select>
-              <Input
-                type="datetime-local"
+              <LocalDateTimeInput
                 aria-label={t('conditionTypes.date')}
-                className="w-56"
-                value={toLocalInput(c.at)}
-                onChange={(e) => update(i, { at: new Date(e.target.value).toISOString() })}
+                className="w-72"
+                value={hydrated ? toLocalInput(c.at) : ''}
+                onChange={(v) => update(i, { at: v ? new Date(v).toISOString() : '' })}
               />
             </>
           ) : null}
@@ -349,7 +352,7 @@ export function ActivityForm({
           <CardTitle>{t('completion')}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <div className="grid gap-1.5">
+          <div className="grid content-start gap-1.5">
             <Label htmlFor="f-completionMode">{t('completion')}</Label>
             <Select
               id="f-completionMode"
@@ -385,12 +388,13 @@ export function ActivityForm({
             </div>
           ) : null}
           {mode !== 'NONE' ? (
-            <FormField
-              name="completionExpectedAt"
-              type="date"
-              label={t('completionExpected')}
-              defaultValue={values.completionExpectedAt}
-            />
+            <FormField name="completionExpectedAt" label={t('completionExpected')}>
+              <DateInput
+                id="f-completionExpectedAt"
+                name="completionExpectedAt"
+                defaultValue={values.completionExpectedAt}
+              />
+            </FormField>
           ) : null}
         </CardContent>
       </Card>

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { sql } from './db';
-import { DEMO_PASSWORD, expectAccessible, login, logout } from './helpers';
+import { chooseOption, DEMO_PASSWORD, expectAccessible, login, logout } from './helpers';
 
 // Video upload → HLS transcoding in the media worker → playback page → watch completion;
 // a live session page with its join window. Needs ffmpeg and WORKER_QUEUES=default,media.
@@ -53,7 +53,7 @@ test.describe
       );
       await page.goto(`/course/${courseId}/a/new?module=video&section=${section!.id}`);
       await page.locator('#f-name').fill(`Видео ${Date.now().toString(36)}`);
-      await page.locator('#f-completionMode').selectOption('AUTO');
+      await chooseOption(page.locator('#f-completionMode'), 'AUTO');
       await page.locator('#vc-minPercent').fill('90');
       await page.getByRole('button', { name: /^Создать$/ }).click();
       await page.waitForURL(/\?edit=1/);

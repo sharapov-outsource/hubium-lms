@@ -67,6 +67,8 @@ function When({
         id={`as-${name}`}
         name={`settings.${name}`}
         defaultValue={value}
+        // a deadline picked as a day means the end of that day
+        defaultTime={name === 'openAt' ? '00:00' : '23:59'}
         ariaInvalid={!!error}
       />
     </Field>

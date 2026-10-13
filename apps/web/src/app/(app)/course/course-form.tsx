@@ -2,6 +2,7 @@
 
 import type { ActionResult } from '@hubium/core/operation';
 import { EditorField } from '@hubium/editor/field';
+import { DateInput } from '@hubium/module-sdk/form';
 import { Card, CardContent, CardHeader, CardTitle, Checkbox, Select } from '@hubium/ui';
 import { useTranslations } from 'next-intl';
 import { ActionForm, FormField, SubmitButton, useFieldError } from '@/components/action-form';
@@ -129,18 +130,12 @@ export function CourseForm({
             ) : null}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              name="startDate"
-              type="date"
-              label={t('startDate')}
-              defaultValue={values.startDate}
-            />
-            <FormField
-              name="endDate"
-              type="date"
-              label={t('endDate')}
-              defaultValue={values.endDate}
-            />
+            <FormField name="startDate" label={t('startDate')}>
+              <DateInput id="f-startDate" name="startDate" defaultValue={values.startDate} />
+            </FormField>
+            <FormField name="endDate" label={t('endDate')}>
+              <DateInput id="f-endDate" name="endDate" defaultValue={values.endDate} />
+            </FormField>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField name="lang" label={t('lang')}>

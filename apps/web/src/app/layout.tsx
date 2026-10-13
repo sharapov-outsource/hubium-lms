@@ -1,10 +1,11 @@
 import { getAllSettings } from '@hubium/core';
 import { generateAccentPalette, paletteCss } from '@hubium/ui/palette';
 import { ThemeProvider, Toaster } from '@hubium/ui/theme';
+import { UiTextProvider } from '@hubium/ui/ui-text';
 import type { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
-import { getLocale } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { ServiceWorker } from '@/components/service-worker';
 import { db } from '@/server/db';
@@ -35,12 +36,19 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const [locale, settings, user, h] = await Promise.all([
+  const [locale, settings, user, h, tf] = await Promise.all([
     getLocale(),
     getAllSettings(db),
     getCurrentUser(),
     headers(),
+    getTranslations('common.file'),
   ]);
+  const uiText = {
+    chooseFile: tf('chooseFile'),
+    chooseFiles: tf('chooseFiles'),
+    noFile: tf('noFile'),
+    noFiles: tf('noFiles'),
+  };
   const nonce = h.get('x-nonce') ?? undefined;
   const palette = generateAccentPalette(settings['branding.accent']);
   return (
@@ -52,7 +60,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body className="min-h-dvh">
         <ThemeProvider defaultTheme={user?.theme ?? 'system'} nonce={nonce}>
           <NextIntlClientProvider>
-            {children}
+            <UiTextProvider value={uiText}>{children}</UiTextProvider>
             <Toaster />
             <ServiceWorker />
           </NextIntlClientProvider>

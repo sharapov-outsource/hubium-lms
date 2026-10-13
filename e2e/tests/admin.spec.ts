@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { setSetting } from './db';
-import { ADMIN, expectAccessible, login } from './helpers';
+import { ADMIN, chooseOption, expectAccessible, login } from './helpers';
 
 const stamp = Date.now();
 
@@ -30,11 +30,14 @@ test('role matrix change applies and permission checker explains it', async ({ p
   await page.goto('/admin/roles');
   await page.getByRole('link', { name: /^Студент$|^Student$/ }).click();
   const select = page.getByLabel('grade:viewall', { exact: true });
-  await select.selectOption('ALLOW');
+  await chooseOption(select, 'ALLOW');
   await expect(page.getByText(/Сохранено|Saved/).first()).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel('grade:viewall', { exact: true })).toHaveValue('ALLOW');
-  await page.getByLabel('grade:viewall', { exact: true }).selectOption('INHERIT');
+  await expect(page.getByLabel('grade:viewall', { exact: true })).toHaveAttribute(
+    'data-value',
+    'ALLOW',
+  );
+  await chooseOption(page.getByLabel('grade:viewall', { exact: true }), 'INHERIT');
   await expect(page.getByText(/Сохранено|Saved/).first()).toBeVisible();
 
   await page.goto('/admin/permissions?user=manager%40hubium.local&cap=user%3Acreate');

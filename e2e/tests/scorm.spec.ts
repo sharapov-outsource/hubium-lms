@@ -4,7 +4,7 @@ import path from 'node:path';
 import { scormFixture } from '@hubium/mod-scorm/fixtures';
 import { expect, test } from '@playwright/test';
 import { sql } from './db';
-import { DEMO_PASSWORD, expectAccessible, login, logout } from './helpers';
+import { chooseOption, DEMO_PASSWORD, expectAccessible, login, logout } from './helpers';
 
 // A SCORM 1.2 package runs in the real scorm-again runtime on the content origin
 // (CONTENT_HOST): status, suspend data and score are saved, the second launch resumes,
@@ -25,7 +25,7 @@ test.describe
       await login(page, 'teacher', DEMO_PASSWORD);
       await page.goto(`/course/${c!.id}/a/new?module=scorm&section=${section!.id}`);
       await page.locator('#f-name').fill(`SCORM ${Date.now().toString(36)}`);
-      await page.locator('#f-completionMode').selectOption('AUTO');
+      await chooseOption(page.locator('#f-completionMode'), 'AUTO');
       await page.locator('#scc-passed').check();
       await page.getByRole('button', { name: /^Создать$/ }).click();
       await page.waitForURL(/\?edit=1/);
