@@ -66,7 +66,7 @@ function QuestionBody({
                 type={q.multiple ? 'checkbox' : 'radio'}
                 name={name}
                 checked={selected.has(o.id)}
-                className="mt-0.5 size-4 accent-[var(--accent)]"
+                className="mt-0.5"
                 onChange={(e) => {
                   if (!q.multiple) return onChange({ selected: [o.id] });
                   const next = new Set(selected);
@@ -99,7 +99,6 @@ function QuestionBody({
                 type="radio"
                 name={name}
                 checked={v.value === b}
-                className="size-4 accent-[var(--accent)]"
                 onChange={() => onChange({ value: b })}
               />
               {b ? t('trueLabel') : t('falseLabel')}

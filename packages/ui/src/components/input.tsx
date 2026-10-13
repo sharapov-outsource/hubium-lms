@@ -24,14 +24,9 @@ export function Label({ className, ...props }: ComponentProps<'label'>) {
   return <label className={cn('text-sm font-medium leading-none', className)} {...props} />;
 }
 
-export function Checkbox({ className, ...props }: Omit<ComponentProps<'input'>, 'type'>) {
-  return (
-    <input
-      type="checkbox"
-      className={cn('size-4 rounded border-input accent-[var(--accent)]', className)}
-      {...props}
-    />
-  );
+/** Drawn by the base styles in globals.css, like every checkbox and radio button. */
+export function Checkbox(props: Omit<ComponentProps<'input'>, 'type'>) {
+  return <input type="checkbox" {...props} />;
 }
 
 export interface FieldProps {

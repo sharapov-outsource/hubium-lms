@@ -1,6 +1,7 @@
 import { environmentChecks } from '@hubium/core';
 import { Badge, Card, CardContent, PageHeader, Table, TBody, Td, THead, Th, Tr } from '@hubium/ui';
-import { getTranslations } from 'next-intl/server';
+import { getFormatter, getTranslations } from 'next-intl/server';
+import { buildInfo } from '@/lib/build-info';
 import { db } from '@/server/db';
 import { requireCapability } from '@/server/session';
 
@@ -11,9 +12,16 @@ const variant = { ok: 'success', warn: 'warning', error: 'destructive' } as cons
 export default async function EnvironmentPage() {
   await requireCapability('site:config');
   const t = await getTranslations('admin.env');
-  const checks = await environmentChecks(db);
+  const [checks, format] = await Promise.all([environmentChecks(db), getFormatter()]);
   const info: [string, string][] = [
-    [t('version'), process.env.npm_package_version ?? '1.0.0'],
+    [t('version'), buildInfo.version],
+    [t('commit'), buildInfo.commit ?? '—'],
+    [
+      t('builtAt'),
+      buildInfo.builtAt
+        ? format.dateTime(new Date(buildInfo.builtAt), { dateStyle: 'medium', timeStyle: 'short' })
+        : '—',
+    ],
     [t('appUrl'), process.env.APP_URL ?? '—'],
     [t('node'), process.version],
     [t('storage'), process.env.STORAGE_DRIVER ?? 'fs'],

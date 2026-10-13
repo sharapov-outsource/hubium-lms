@@ -31,7 +31,7 @@ const allowed = [
 
 export function Markdown({ text }: { text: string }) {
   return (
-    <div className="prose-sm grid gap-2 text-sm leading-relaxed [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-muted [&_pre]:p-2 [&_table]:text-xs [&_td]:border [&_td]:px-2 [&_th]:border [&_th]:px-2 [&_ul]:list-disc [&_ul]:pl-5">
+    <div className="prose-sm grid gap-2 text-sm leading-relaxed [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_pre]:overflow-x-auto [&_pre]:scrollbar-hairline [&_pre]:rounded-md [&_pre]:bg-muted [&_pre]:p-2 [&_table]:text-xs [&_td]:border [&_td]:px-2 [&_th]:border [&_th]:px-2 [&_ul]:list-disc [&_ul]:pl-5">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         allowedElements={allowed}

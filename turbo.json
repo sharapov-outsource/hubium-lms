@@ -5,7 +5,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "env": ["DATABASE_URL", "APP_URL", "APP_SECRET", "NEXT_TELEMETRY_DISABLED"],
+      "env": ["DATABASE_URL", "APP_URL", "APP_SECRET", "NEXT_TELEMETRY_DISABLED", "BUILD_COMMIT"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
     "typecheck": {

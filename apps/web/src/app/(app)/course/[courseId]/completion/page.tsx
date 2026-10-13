@@ -18,7 +18,7 @@ export default async function CompletionPage({
   const canOverride = await ctx.perm.can('completion:override', courseId);
   if (!report.activities.length) return <EmptyState title={t('empty')} />;
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <div className="scrollbar-hairline overflow-x-auto rounded-lg border border-border">
       <table className="w-full text-sm">
         <caption className="sr-only">{t('title')}</caption>
         <thead className="bg-surface">

@@ -53,7 +53,7 @@ export async function ScormView({ activity: a, ctx, canManage, searchParams }: P
             {t('cmiDebug')}: {track.attempt.user.name} · {track.sco.title} ·{' '}
             {t('attempt', { n: track.attempt.attemptNumber })}
           </h2>
-          <pre className="max-h-[70vh] overflow-auto rounded-md bg-muted p-3 text-xs">
+          <pre className="scrollbar-hairline max-h-[70vh] overflow-auto rounded-md bg-muted p-3 text-xs">
             {JSON.stringify(track.cmi, null, 2)}
           </pre>
         </div>

@@ -1,7 +1,11 @@
 # Production stack: `docker compose -f docker/compose.yml --env-file .env up -d --build`
+# (prefix it with `BUILD_COMMIT=$(git rev-parse HEAD)` to show the commit in the app).
 # Start from .env.production.example. The three public URLs below are used by the app and
 # by Caddy alike; the defaults (*.localhost) work for a trial run on one machine.
 name: hubium
+# The same arguments for every image, so they share one build stage.
+x-build-args: &build-args
+  BUILD_COMMIT: ${BUILD_COMMIT:-}
 x-app-env: &app-env
   DATABASE_URL: postgresql://hubium:${POSTGRES_PASSWORD:-hubium}@db:5432/hubium
   APP_URL: ${APP_URL:-https://lms.localhost}
@@ -61,7 +65,7 @@ services:
     restart: unless-stopped
 
   migrate:
-    build: { context: .., dockerfile: docker/Dockerfile, target: migrate }
+    build: { context: .., dockerfile: docker/Dockerfile, target: migrate, args: *build-args }
     environment:
       <<: *app-env
       # minimal: the administrator only; demo: also sample courses and users
@@ -71,14 +75,14 @@ services:
       s3: { condition: service_healthy }
 
   web:
-    build: { context: .., dockerfile: docker/Dockerfile, target: web }
+    build: { context: .., dockerfile: docker/Dockerfile, target: web, args: *build-args }
     environment: *app-env
     depends_on:
       migrate: { condition: service_completed_successfully }
     restart: unless-stopped
 
   worker:
-    build: { context: .., dockerfile: docker/Dockerfile, target: worker }
+    build: { context: .., dockerfile: docker/Dockerfile, target: worker, args: *build-args }
     environment:
       <<: *app-env
       WORKER_QUEUES: default
@@ -87,7 +91,7 @@ services:
     restart: unless-stopped
 
   worker-media:
-    build: { context: .., dockerfile: docker/Dockerfile, target: worker-media }
+    build: { context: .., dockerfile: docker/Dockerfile, target: worker-media, args: *build-args }
     environment:
       <<: *app-env
       WORKER_QUEUES: media

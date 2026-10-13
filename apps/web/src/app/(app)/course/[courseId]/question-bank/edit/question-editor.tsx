@@ -205,7 +205,6 @@ function TypeFields({
                 name="tf-correct"
                 checked={data.correct === b}
                 onChange={() => setData({ ...data, correct: b })}
-                className="size-4 accent-[var(--accent)]"
               />
               {b ? 'True / Верно' : 'False / Неверно'}
             </label>

@@ -97,4 +97,5 @@ jobs:
         env:
           APP_SECRET: ci-secret-ci-secret-ci-secret-ci-secret-0000
           S3_SECRET_KEY: ci-s3-secret-ci-s3-secret
+          BUILD_COMMIT: ${{ github.sha }}
         run: docker compose -f docker/compose.yml build

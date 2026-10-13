@@ -261,7 +261,7 @@ export default async function GradesPage({
       ) : (
         <>
           {canEdit ? <p className="text-xs text-muted-foreground">{t('editHint')}</p> : null}
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="scrollbar-hairline overflow-x-auto rounded-lg border border-border">
             <table className="w-full text-sm">
               <caption className="sr-only">{t('grader')}</caption>
               <thead className="bg-surface">

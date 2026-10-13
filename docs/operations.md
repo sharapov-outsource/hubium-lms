@@ -23,8 +23,10 @@ git clone https://github.com/sharapov-outsource/hubium && cd hubium
 cp .env.production.example .env
 # обязательно: APP_URL, CONTENT_HOST, S3_PUBLIC_URL, APP_SECRET и S3_SECRET_KEY (openssl rand -base64 32),
 # POSTGRES_PASSWORD, SMTP_URL, MAIL_FROM
-docker compose -f docker/compose.yml --env-file .env up -d --build
+BUILD_COMMIT=$(git rev-parse HEAD) docker compose -f docker/compose.yml --env-file .env up -d --build
 ```
+
+`BUILD_COMMIT` необязателен: с ним в левом нижнем углу и на странице «Окружение» рядом с версией виден коммит сборки.
 
 `.env.example` предназначен для разработки и для этого стека не подходит. Без своих адресов стек поднимается на `https://lms.localhost`, `https://content.localhost` и `https://files.localhost` — это удобно для пробного запуска на одной машине.
 
@@ -95,7 +97,7 @@ docker compose -f docker/compose.yml up -d
 
 ```bash
 git pull
-docker compose -f docker/compose.yml --env-file .env up -d --build
+BUILD_COMMIT=$(git rev-parse HEAD) docker compose -f docker/compose.yml --env-file .env up -d --build
 ```
 
 Сервис `migrate` применяет новые миграции до запуска `web` и `worker`. Перед обновлением сделайте резервную копию. Миграции только добавляют изменения; откат выполняется восстановлением копии.

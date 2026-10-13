@@ -30,6 +30,7 @@
     "studentsCount": "{count, plural, one {# student} other {# students}}",
     "usersCount": "{count, plural, one {# user} other {# users}}",
     "skipToContent": "Skip to content",
+    "buildDate": "Built {date}",
     "error": "Something went wrong",
     "forbidden": "You don't have permission",
     "notFound": "Page not found",
@@ -320,6 +321,8 @@
     "env": {
       "title": "Environment",
       "version": "Version",
+      "commit": "Commit",
+      "builtAt": "Built",
       "node": "Node.js",
       "database": "PostgreSQL",
       "storage": "File storage",

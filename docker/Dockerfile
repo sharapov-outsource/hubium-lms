@@ -22,9 +22,11 @@ FROM deps AS build
 COPY . .
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --offline --frozen-lockfile --store-dir /pnpm/store
+# Commit shown in the sidebar and on the environment page (the context has no .git).
+ARG BUILD_COMMIT=""
 # Server modules create their database and auth clients on import, which `next build` does
 # while collecting routes; nothing connects. These placeholders never reach the images.
-RUN DATABASE_URL=postgresql://build:build@127.0.0.1:1/build \
+RUN BUILD_COMMIT="$BUILD_COMMIT" DATABASE_URL=postgresql://build:build@127.0.0.1:1/build \
     APP_SECRET=build-time-placeholder-not-used-at-runtime \
     pnpm --filter @hubium/web build \
  && pnpm --filter @hubium/worker build

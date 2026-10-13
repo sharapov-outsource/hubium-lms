@@ -1,11 +1,12 @@
 import { getAllSettings, unreadConversationCount, unreadNotificationCount } from '@hubium/core';
-import { getTranslations } from 'next-intl/server';
+import { getFormatter, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { LiveCountsProvider } from '@/components/comms/live-counts';
 import { NotificationBell } from '@/components/comms/notification-bell';
 import { LocaleSwitcher, ThemeSwitcher } from '@/components/locale-theme-switcher';
 import { RealtimeProvider } from '@/components/realtime';
 import { SiteLogo } from '@/components/site-logo';
+import { buildInfo } from '@/lib/build-info';
 import { db } from '@/server/db';
 import type { CurrentUser } from '@/server/session';
 import { type NavItem, navIcon } from './nav-items';
@@ -23,13 +24,17 @@ export async function AppShell({
   children: ReactNode;
   topbarExtra?: ReactNode;
 }) {
-  const [settings, t, notifications, messages] = await Promise.all([
+  const [settings, t, format, notifications, messages] = await Promise.all([
     getAllSettings(db),
     getTranslations(),
+    getFormatter(),
     unreadNotificationCount(db, user.id),
     unreadConversationCount(db, user.id),
   ]);
   const primary = items.filter((i) => i.mobile);
+  const builtAt = buildInfo.builtAt
+    ? format.dateTime(new Date(buildInfo.builtAt), { dateStyle: 'medium', timeStyle: 'short' })
+    : null;
   return (
     <RealtimeProvider>
       <LiveCountsProvider initial={{ notifications, messages }}>
@@ -64,6 +69,13 @@ export async function AppShell({
                 />
               ))}
             </nav>
+            <p
+              className="px-2 text-xs tabular-nums text-muted-foreground"
+              title={builtAt ? t('common.buildDate', { date: builtAt }) : undefined}
+            >
+              Hubium {buildInfo.version}
+              {buildInfo.commit ? ` · ${buildInfo.commit}` : null}
+            </p>
           </aside>
           <div className="flex min-w-0 flex-col">
             <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background/90 px-4 backdrop-blur sm:px-6">

@@ -30,6 +30,7 @@
     "studentsCount": "{count, plural, one {# студент} few {# студента} many {# студентов} other {# студента}}",
     "usersCount": "{count, plural, one {# пользователь} few {# пользователя} many {# пользователей} other {# пользователя}}",
     "skipToContent": "Перейти к содержимому",
+    "buildDate": "Сборка от {date}",
     "error": "Что-то пошло не так",
     "forbidden": "Недостаточно прав",
     "notFound": "Страница не найдена",
@@ -320,6 +321,8 @@
     "env": {
       "title": "Окружение",
       "version": "Версия",
+      "commit": "Коммит",
+      "builtAt": "Дата сборки",
       "node": "Node.js",
       "database": "PostgreSQL",
       "storage": "Хранилище файлов",

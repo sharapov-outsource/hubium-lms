@@ -3,7 +3,7 @@ import { cn } from '../lib/cn.ts';
 
 export function Table({ className, ...props }: ComponentProps<'table'>) {
   return (
-    <div className="w-full overflow-x-auto rounded-lg border border-border">
+    <div className="scrollbar-hairline w-full overflow-x-auto rounded-lg border border-border">
       <table className={cn('w-full caption-bottom text-sm', className)} {...props} />
     </div>
   );

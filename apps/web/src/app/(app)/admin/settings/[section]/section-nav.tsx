@@ -9,7 +9,10 @@ export function SectionNav({
   active: string;
 }) {
   return (
-    <nav className="flex gap-1 overflow-x-auto lg:flex-col" aria-label="Settings sections">
+    <nav
+      className="scrollbar-hairline flex gap-1 overflow-x-auto lg:flex-col"
+      aria-label="Settings sections"
+    >
       {items.map((i) => (
         <Link
           key={i.key}
