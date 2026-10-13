@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { sql } from './db';
+import { deleteCourse, sql } from './db';
 import { ADMIN, expectAccessible, login } from './helpers';
 
 // The admin downloads a course backup, restores it through the import page (the worker
@@ -8,7 +8,7 @@ import { ADMIN, expectAccessible, login } from './helpers';
 // Courses created here are removed again, so the demo data does not grow with every run.
 const created: string[] = [];
 test.afterAll(async () => {
-  for (const id of created) await sql(`DELETE FROM "Context" WHERE id = $1`, [id]);
+  for (const id of created) await deleteCourse(id);
 });
 
 test('course backup, restore, duplicate and Moodle XML', async ({ page }, info) => {

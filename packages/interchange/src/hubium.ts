@@ -573,10 +573,19 @@ export async function restoreCourse(
     };
   } catch (e) {
     // do not leave a half-restored course behind
-    await ctx.db.course.delete({ where: { id: courseId } }).catch(() => {});
-    await ctx.db.context.delete({ where: { id: courseId } }).catch(() => {});
+    await discardCourse(ctx, courseId);
     throw e;
   }
+}
+
+/**
+ * Removes a course that an import gave up on. Its question bank is keyed by context id
+ * without a foreign key, so it goes explicitly, after the quizzes that use it.
+ */
+export async function discardCourse(ctx: RequestContext, courseId: string) {
+  await ctx.db.course.delete({ where: { id: courseId } }).catch(() => {});
+  await ctx.db.context.delete({ where: { id: courseId } }).catch(() => {});
+  await ctx.db.questionCategory.deleteMany({ where: { contextId: courseId } }).catch(() => {});
 }
 
 /** Copies a course through the backup pipeline. */
