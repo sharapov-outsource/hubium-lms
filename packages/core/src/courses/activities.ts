@@ -585,7 +585,13 @@ export async function getCourseOutline(
   return out;
 }
 
-/** Can the viewer open this activity? Returns the activity and reasons when blocked. */
+/**
+ * Can the viewer open this activity? Returns the activity and reasons when blocked.
+ *
+ * `listed` says whether the viewer may know the activity exists: it is in their course outline,
+ * or it is a stealth activity opened by link whose unmet conditions they are shown. Viewers who
+ * can neither open nor manage an unlisted activity should not learn even its name.
+ */
 export async function getActivityAccess(ctx: RequestContext, activityId: string) {
   const a = await ctx.db.activity.findUnique({ where: { id: activityId } });
   if (!a) throw new NotFoundError('Activity');
@@ -600,12 +606,16 @@ export async function getActivityAccess(ctx: RequestContext, activityId: string)
     access.canView &&
     (access.canManageActivities || access.canViewHidden || (entry?.available ?? false)) &&
     ((await ctx.perm.can('activity:view', a.id)) || access.isGuest || access.canManageActivities);
+  // Hidden activities and "hide entirely" restrictions reveal neither the name nor the conditions.
+  const listed =
+    !!entry &&
+    (entry.listed || (a.visibility === 'STEALTH' && entry.availabilityMissing.length > 0));
   return {
     activity: a,
     course: access.course,
     access,
     canOpen,
-    // "Hide entirely" restrictions do not reveal their conditions.
-    missing: entry && (entry.listed || a.visibility === 'STEALTH') ? entry.availabilityMissing : [],
+    listed,
+    missing: entry && listed ? entry.availabilityMissing : [],
   };
 }
