@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "license": "AGPL-3.0-only",
+  "author": "Alexander S. <alexander@sharapov.biz>",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
@@ -14,12 +15,12 @@
   "dependencies": {
     "@anthropic-ai/sdk": "0.133.0",
     "openai": "7.32.0",
-    "zod": "4.6.6"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@hubium/tooling": "workspace:*",
     "@types/node": "^24",
-    "typescript": "~5.9.3",
+    "typescript": "~7.0.2",
     "vitest": "5.0.4"
   }
 }

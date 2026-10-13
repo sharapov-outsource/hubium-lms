@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "license": "AGPL-3.0-only",
+  "author": "Alexander S. <alexander@sharapov.biz>",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -12,14 +13,16 @@
   },
   "scripts": {
     "seed": "tsx scripts/seed.ts",
+    "storage:init": "tsx scripts/storage-init.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "secrets:rotate": "tsx scripts/rotate-secret.ts",
     "k6:prepare": "tsx scripts/k6-prepare.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "3.1149.0",
-    "@aws-sdk/s3-request-presigner": "3.1149.0",
+    "@aws-sdk/client-s3": "3.1150.0",
+    "@aws-sdk/lib-storage": "3.1150.0",
+    "@aws-sdk/s3-request-presigner": "3.1150.0",
     "@hubium/ai": "workspace:*",
     "@hubium/db": "workspace:*",
     "@hubium/editor": "workspace:*",
@@ -31,7 +34,7 @@
     "pg": "8.23.1",
     "pg-boss": "12.37.1",
     "web-push": "3.6.7",
-    "zod": "4.6.6"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@hubium/mod-assign": "workspace:*",
@@ -51,7 +54,7 @@
     "fflate": "0.8.3",
     "jose": "6.2.12",
     "tsx": "4.23.15",
-    "typescript": "~5.9.3",
+    "typescript": "~7.0.2",
     "vitest": "5.0.4"
   }
 }

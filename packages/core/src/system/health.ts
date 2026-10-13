@@ -41,8 +41,11 @@ const withTimeout = <T>(p: Promise<T>, ms: number) =>
 
 const ffmpegVersion = () =>
   new Promise<string>((resolve, reject) =>
-    execFile(process.env.FFMPEG_PATH ?? 'ffmpeg', ['-version'], { timeout: 3000 }, (err, out) =>
-      err ? reject(err) : resolve(out.split('\n')[0] ?? ''),
+    execFile(
+      /*turbopackIgnore: true*/ process.env.FFMPEG_PATH ?? 'ffmpeg',
+      ['-version'],
+      { timeout: 3000 },
+      (err, out) => (err ? reject(err) : resolve(out.split('\n')[0] ?? '')),
     ),
   );
 

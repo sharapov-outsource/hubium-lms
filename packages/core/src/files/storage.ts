@@ -5,12 +5,15 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import {
   CopyObjectCommand,
+  CreateBucketCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadBucketCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { sign, verifySignature } from '../crypto.ts';
 
@@ -114,29 +117,40 @@ export class S3Storage implements StorageDriver {
       cfg.accessKeyId && cfg.secretAccessKey
         ? { accessKeyId: cfg.accessKeyId, secretAccessKey: cfg.secretAccessKey }
         : undefined;
-    this.client = new S3Client({
+    // Checksums only where S3 requires them: S3-compatible servers (RustFS, MinIO, Yandex
+    // Object Storage, …) do not all accept the SDK's default CRC trailers.
+    const common = {
       region: cfg.region,
-      endpoint: cfg.endpoint,
       forcePathStyle: true,
       credentials,
-    });
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
+    } as const;
+    this.client = new S3Client({ ...common, endpoint: cfg.endpoint });
     // Signatures cover the host, so presign against the public endpoint.
-    this.signer = new S3Client({
-      region: cfg.region,
-      endpoint: cfg.publicUrl ?? cfg.endpoint,
-      forcePathStyle: true,
-      credentials,
-    });
+    this.signer = new S3Client({ ...common, endpoint: cfg.publicUrl ?? cfg.endpoint });
+  }
+  /** Creates the bucket on a fresh install; the bucket stays private either way. */
+  async ensureBucket(): Promise<'exists' | 'created'> {
+    try {
+      await this.client.send(new HeadBucketCommand({ Bucket: this.cfg.bucket }));
+      return 'exists';
+    } catch (e) {
+      const status = (e as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+      if (status !== 404) throw e;
+    }
+    await this.client.send(new CreateBucketCommand({ Bucket: this.cfg.bucket }));
+    return 'created';
   }
   async put(key: string, body: Buffer | Readable, contentType: string) {
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.cfg.bucket,
-        Key: key,
-        Body: body,
-        ContentType: contentType,
-      }),
-    );
+    const params = { Bucket: this.cfg.bucket, Key: key, Body: body, ContentType: contentType };
+    if (Buffer.isBuffer(body)) {
+      await this.client.send(new PutObjectCommand(params));
+      return;
+    }
+    // A stream has no known length, which a single PutObject needs; Upload sends small
+    // streams in one request and large ones as a multipart upload.
+    await new Upload({ client: this.client, params }).done();
   }
   async getStream(key: string) {
     const r = await this.client.send(new GetObjectCommand({ Bucket: this.cfg.bucket, Key: key }));

@@ -53,7 +53,7 @@ export async function VideoView({ activity: a, ctx, canManage }: Props) {
   });
   const outputs = (asset?.outputs ?? {}) as VideoOutputs;
   const base = `/api/mod/video/${a.id}/hls`;
-  const initial = ((progress?.intervals ?? []) as Interval[]) ?? [];
+  const initial = (progress?.intervals ?? []) as Interval[];
   const embed = a.settings.source === 'embed' ? parseEmbed(a.settings.embedUrl) : null;
   const processing = asset?.status === 'UPLOADED' || asset?.status === 'PROCESSING';
 

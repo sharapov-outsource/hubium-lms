@@ -9,9 +9,10 @@
 | `web` | Next.js: интерфейс, server actions, REST API `/api/v1`, SSE |
 | `worker` | фоновые задачи (`WORKER_QUEUES=default`): почта, уведомления, расписание, AI, импорт курсов |
 | `worker-media` | перекодирование видео ffmpeg (`WORKER_QUEUES=media`), можно вынести на отдельную машину |
-| `db` | PostgreSQL 16+ с расширениями `pgvector`, `pg_trgm`, `citext` (образ `pgvector/pgvector:pg18`) |
-| `minio` | S3-совместимое хранилище файлов (подойдёт любое S3: Yandex Object Storage, VK Cloud, Selectel) |
-| `caddy` | HTTPS-прокси для основного домена и домена контента |
+| `db` | PostgreSQL 16+ с расширениями `pgvector`, `pg_trgm`, `citext` (образ `pgvector/pgvector:0.8.7-pg18-bookworm`) |
+| `s3` | S3-совместимое хранилище файлов [RustFS](https://github.com/rustfs/rustfs) (подойдёт любое S3: Yandex Object Storage, VK Cloud, Selectel) |
+| `mailpit` | перехватывает почту, пока не задан `SMTP_URL`; интерфейс только на `127.0.0.1:8025` сервера |
+| `caddy` | HTTPS-прокси для основного домена, домена контента и домена файлов |
 
 Очереди работают на pg-boss в той же базе — Redis не нужен.
 
@@ -19,17 +20,23 @@
 
 ```bash
 git clone https://github.com/sharapov-outsource/hubium && cd hubium
-cp .env.example .env
-# обязательно: APP_URL, CONTENT_HOST, APP_SECRET (openssl rand -base64 32), SMTP_URL, MAIL_FROM
+cp .env.production.example .env
+# обязательно: APP_URL, CONTENT_HOST, S3_PUBLIC_URL, APP_SECRET и S3_SECRET_KEY (openssl rand -base64 32),
+# POSTGRES_PASSWORD, SMTP_URL, MAIL_FROM
 docker compose -f docker/compose.yml --env-file .env up -d --build
 ```
 
-Сервис `migrate` при каждом запуске применяет миграции и идемпотентно наполняет базу (`SEED_PROFILE=minimal`; `demo` добавит учебные курсы и пользователей). Первый администратор создаётся из `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` — смените пароль после входа.
+`.env.example` предназначен для разработки и для этого стека не подходит. Без своих адресов стек поднимается на `https://lms.localhost`, `https://content.localhost` и `https://files.localhost` — это удобно для пробного запуска на одной машине.
+
+Сервис `migrate` при каждом запуске применяет миграции, создаёт бакет в S3, если его ещё нет, и идемпотентно наполняет базу (`SEED_PROFILE=minimal`; `demo` добавит учебные курсы и пользователей). Первый администратор создаётся из `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` — смените пароль после входа.
 
 ### Домены
 
 - `APP_URL` — основной адрес, например `https://lms.example.org`.
 - `CONTENT_HOST` — **отдельный домен** для недоверенного контента (SCORM), например `https://content.example.org`. Cookie LMS туда не попадают. Без отдельного домена страница «Окружение» показывает ошибку.
+- `S3_PUBLIC_URL` — домен, по которому браузеры скачивают файлы по подписанным ссылкам, например `https://files.example.org`. Бакет закрыт: без подписи ничего не отдаётся.
+
+Caddy использует эти же три адреса как имена сайтов и сам получает для них сертификаты. Все три домена должны указывать на сервер.
 
 ### Переменные окружения
 
@@ -38,7 +45,7 @@ docker compose -f docker/compose.yml --env-file .env up -d --build
 | `DATABASE_URL` | строка подключения PostgreSQL |
 | `APP_URL`, `CONTENT_HOST` | публичные адреса (см. выше) |
 | `APP_SECRET` | ключ для подписей и шифрования секретов в БД, 32+ символа |
-| `STORAGE_DRIVER` | `fs` (по умолчанию) или `s3`; для S3 — `S3_ENDPOINT`, `S3_PUBLIC_URL`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION` |
+| `STORAGE_DRIVER` | `fs` (по умолчанию) или `s3`; для S3 — `S3_ENDPOINT`, `S3_PUBLIC_URL`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION`. В `docker/compose.yml` — всегда `s3`, ключи обязательны |
 | `SMTP_URL`, `MAIL_FROM` | отправка почты |
 | `WORKER_QUEUES` | какие очереди обрабатывает воркер: `default`, `media` или оба через запятую |
 | `FFMPEG_PATH`, `FFPROBE_PATH` | пути к ffmpeg для видео |
@@ -63,8 +70,8 @@ docker compose -f docker/compose.yml --env-file .env up -d --build
 ```bash
 # база (сжатый custom-формат)
 docker compose -f docker/compose.yml exec -T db pg_dump -U hubium -Fc hubium > hubium-$(date +%F).dump
-# файлы: S3/MinIO
-mc mirror --overwrite hubium/hubium ./backup/files
+# файлы: встроенное S3 (RustFS) — том s3 целиком; для внешнего S3 подойдёт любой клиент, например rclone sync
+docker run --rm -v hubium_s3:/data -v "$PWD/backup":/backup debian:trixie-slim tar czf /backup/s3-$(date +%F).tgz -C /data .
 # файлы: драйвер fs
 rsync -a --delete ./.storage/ ./backup/files/
 ```
@@ -76,7 +83,9 @@ rsync -a --delete ./.storage/ ./backup/files/
 ```bash
 docker compose -f docker/compose.yml stop web worker worker-media
 docker compose -f docker/compose.yml exec -T db pg_restore -U hubium -d hubium --clean --if-exists < hubium-2026-10-12.dump
-mc mirror --overwrite ./backup/files hubium/hubium      # или rsync обратно в .storage
+docker compose -f docker/compose.yml stop s3
+docker run --rm -v hubium_s3:/data -v "$PWD/backup":/backup debian:trixie-slim sh -c 'rm -rf /data/* && tar xzf /backup/s3-2026-10-12.tgz -C /data'
+# драйвер fs: rsync обратно в .storage
 docker compose -f docker/compose.yml up -d
 ```
 

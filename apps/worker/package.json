@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "license": "AGPL-3.0-only",
+  "author": "Alexander S. <alexander@sharapov.biz>",
   "type": "module",
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
@@ -30,7 +31,7 @@
     "@types/node": "^24",
     "tsdown": "0.23.1",
     "tsx": "4.23.15",
-    "typescript": "~5.9.3",
+    "typescript": "~7.0.2",
     "vitest": "5.0.4"
   }
 }

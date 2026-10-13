@@ -10,8 +10,8 @@ jobs:
     name: Dependency audit (osv-scanner)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: google/osv-scanner-action/osv-scanner-action@v2.2.2
+      - uses: actions/checkout@v7
+      - uses: google/osv-scanner-action/osv-scanner-action@v2.7.0
         with:
           scan-args: --lockfile=pnpm-lock.yaml
 
@@ -21,14 +21,10 @@ jobs:
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: env.ANTHROPIC_API_KEY != ''
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/setup@v3
         if: env.ANTHROPIC_API_KEY != ''
-      - uses: actions/setup-node@v4
-        if: env.ANTHROPIC_API_KEY != ''
-        with: { node-version: 24, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-        if: env.ANTHROPIC_API_KEY != ''
+        with: { runtime: node@24, cache: true, require-lockfile: true }
       - run: pnpm --filter @hubium/ai test
         if: env.ANTHROPIC_API_KEY != ''

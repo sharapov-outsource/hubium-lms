@@ -24,18 +24,23 @@ jobs:
     runs-on: ubuntu-latest
     services:
       db:
-        image: pgvector/pgvector:pg18
+        image: pgvector/pgvector:0.8.7-pg18-bookworm
         env: { POSTGRES_USER: hubium, POSTGRES_PASSWORD: hubium, POSTGRES_DB: hubium }
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U hubium" --health-interval 5s --health-retries 20
+      s3:
+        image: rustfs/rustfs:1.0.1
+        env: { RUSTFS_ACCESS_KEY: hubium, RUSTFS_SECRET_KEY: hubium-secret }
+        ports: ["9000:9000"]
+        options: >-
+          --health-cmd "curl -fsS http://localhost:9000/health" --health-interval 5s --health-retries 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 24, cache: pnpm }
+      - uses: actions/checkout@v7
+      # pnpm version from package.json "packageManager"; runs pnpm install --frozen-lockfile
+      - uses: pnpm/setup@v3
+        with: { runtime: node@24, cache: true, require-lockfile: true }
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
-      - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm depcruise
       - run: pnpm --filter @hubium/db migrate:deploy
@@ -43,6 +48,10 @@ jobs:
         run: pnpm --filter @hubium/db migrate:diff
       - run: pnpm typecheck
       - run: pnpm test
+        env:
+          S3_TEST_ENDPOINT: http://localhost:9000
+          S3_TEST_ACCESS_KEY: hubium
+          S3_TEST_SECRET_KEY: hubium-secret
       - run: pnpm build
 
   e2e:
@@ -50,20 +59,18 @@ jobs:
     needs: check
     services:
       db:
-        image: pgvector/pgvector:pg18
+        image: pgvector/pgvector:0.8.7-pg18-bookworm
         env: { POSTGRES_USER: hubium, POSTGRES_PASSWORD: hubium, POSTGRES_DB: hubium }
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U hubium" --health-interval 5s --health-retries 20
       mailpit:
-        image: axllent/mailpit:v1.27
+        image: axllent/mailpit:v1.31
         ports: ["1025:1025", "8025:8025"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 24, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with: { runtime: node@24, cache: true, require-lockfile: true }
       - run: pnpm --filter @hubium/db migrate:deploy
       - run: pnpm db:seed --profile demo
       - run: pnpm --filter @hubium/web build && pnpm --filter @hubium/worker build
@@ -71,12 +78,23 @@ jobs:
       - run: sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Start app
         run: |
-          (cd apps/web && pnpm start &) 
+          (cd apps/web && pnpm start &)
           (cd apps/worker && WORKER_QUEUES=default,media pnpm start &)
-          npx wait-on -t 120000 http://localhost:3000/api/health http://localhost:3001/healthz
+          pnpm dlx wait-on -t 120000 http://localhost:3000/api/health http://localhost:3001/healthz
       - run: pnpm --filter @hubium/e2e e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report
           path: e2e/test-results
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build images
+        env:
+          APP_SECRET: ci-secret-ci-secret-ci-secret-ci-secret-0000
+          S3_SECRET_KEY: ci-s3-secret-ci-s3-secret
+        run: docker compose -f docker/compose.yml build

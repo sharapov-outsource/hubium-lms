@@ -11,6 +11,10 @@ import { db } from '@/server/db';
 import { getCurrentUser } from '@/server/session';
 import './globals.css';
 
+// Every page depends on the request (CSP nonce, session, site settings), so nothing is
+// prerendered and `next build` never touches the database.
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getAllSettings(db);
   return {

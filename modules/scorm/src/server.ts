@@ -85,7 +85,11 @@ function runtimeDir(): string {
 async function runtimeScript(name: 'scorm12.min.js' | 'scorm2004.min.js'): Promise<string> {
   const hit = runtimeCache.get(name);
   if (hit) return hit;
-  const js = await readFile(path.join(runtimeDir(), name), 'utf8');
+  // Resolved at runtime; next.config.ts adds these bundles to the /c/** trace explicitly.
+  const js = await readFile(
+    /*turbopackIgnore: true*/ path.join(/*turbopackIgnore: true*/ runtimeDir(), name),
+    'utf8',
+  );
   runtimeCache.set(name, js);
   return js;
 }

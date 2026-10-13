@@ -4,8 +4,9 @@ import { config as loadEnv } from 'dotenv';
 
 loadEnv({ path: path.resolve(import.meta.dirname, '../.env'), quiet: true });
 
-const executablePath =
-  process.env.PW_CHROMIUM_PATH ?? (process.env.CI ? undefined : '/opt/pw-browsers/chromium');
+// Playwright's own Chromium (`pnpm --filter @hubium/e2e exec playwright install chromium`)
+// unless PW_CHROMIUM_PATH points at another build.
+const executablePath = process.env.PW_CHROMIUM_PATH || undefined;
 
 export default defineConfig({
   testDir: './tests',
@@ -18,6 +19,8 @@ export default defineConfig({
   use: {
     baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000',
     locale: 'ru-RU',
+    // axe judges contrast on settled pages; with motion on it can sample a toast mid fade-in
+    reducedMotion: 'reduce',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     launchOptions: executablePath ? { executablePath } : {},

@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "license": "AGPL-3.0-only",
+  "author": "Alexander S. <alexander@sharapov.biz>",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
@@ -17,7 +18,7 @@
     "@hubium/db": "workspace:*",
     "@scalar/hono-api-reference": "0.12.12",
     "hono": "4.13.13",
-    "zod": "4.6.6"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@hubium/mod-assign": "workspace:*",
@@ -28,7 +29,7 @@
     "@scalar/openapi-parser": "0.29.13",
     "@types/node": "^24",
     "dotenv": "18.0.7",
-    "typescript": "~5.9.3",
+    "typescript": "~7.0.2",
     "vitest": "5.0.4"
   }
 }

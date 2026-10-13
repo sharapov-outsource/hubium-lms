@@ -1,0 +1,15 @@
+{
+  "name": "@hubium/depcruise",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "author": "Alexander S. <alexander@sharapov.biz>",
+  "description": "Architecture boundary check. dependency-cruiser parses TypeScript through the compiler's JavaScript API, which TypeScript 7 does not ship yet, so this package pins TypeScript 6 for it alone.",
+  "scripts": {
+    "depcruise": "cd ../.. && depcruise apps packages --config .dependency-cruiser.cjs"
+  },
+  "devDependencies": {
+    "dependency-cruiser": "18.6.0",
+    "typescript": "~6.0.3"
+  }
+}

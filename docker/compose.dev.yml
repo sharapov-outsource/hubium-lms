@@ -2,7 +2,7 @@
 name: hubium-dev
 services:
   db:
-    image: pgvector/pgvector:pg18
+    image: pgvector/pgvector:0.8.7-pg18-bookworm
     environment:
       POSTGRES_USER: hubium
       POSTGRES_PASSWORD: hubium
@@ -13,17 +13,23 @@ services:
       test: ["CMD-SHELL", "pg_isready -U hubium"]
       interval: 5s
       retries: 20
-  minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
-    command: server /data --console-address :9001
+  # S3-compatible storage for trying STORAGE_DRIVER=s3 locally (the default is the local FS).
+  # Console: http://localhost:9001
+  s3:
+    image: rustfs/rustfs:1.0.1
     environment:
-      MINIO_ROOT_USER: hubium
-      MINIO_ROOT_PASSWORD: hubium-secret
+      RUSTFS_ACCESS_KEY: hubium
+      RUSTFS_SECRET_KEY: hubium-secret
+      RUSTFS_CONSOLE_ENABLE: "true"
     ports: ["9000:9000", "9001:9001"]
-    volumes: [minio:/data]
+    volumes: [s3:/data]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/health"]
+      interval: 5s
+      retries: 20
   mailpit:
-    image: axllent/mailpit:v1.27
+    image: axllent/mailpit:v1.31
     ports: ["1025:1025", "8025:8025"]
 volumes:
   db:
-  minio:
+  s3:
