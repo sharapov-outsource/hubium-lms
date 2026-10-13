@@ -290,6 +290,7 @@ export const assign = defineModule<AssignSettingsT>({
   ],
   actions: {
     saveSubmission: defineAction({
+      summary: 'Save your submission: online text and files; `submit: true` sends it for grading',
       capability: 'mod.assign:submit',
       input: z.object({
         text: z.string().max(500_000).default(''),
@@ -364,6 +365,7 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     revertToDraft: defineAction({
+      summary: 'Take your submission back to a draft while it is ungraded and submissions are open',
       capability: 'mod.assign:submit',
       input: z.object({}),
       async handler(ctx, a) {
@@ -391,6 +393,8 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     grade: defineAction({
+      summary:
+        "Grade a student's submission: points or a 1-based scale position, feedback, feedback files",
       capability: 'mod.assign:grade',
       input: z.object({
         userId: z.string().uuid(),
@@ -479,6 +483,7 @@ export const assign = defineModule<AssignSettingsT>({
     }),
     // AI grading assistant: a suggestion only; the teacher copies it into the form.
     aiConsent: defineAction({
+      summary: 'Accept the AI grading assistant terms for yourself',
       capability: 'mod.assign:grade',
       mutation: false,
       input: z.object({}),
@@ -488,6 +493,7 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     aiSuggest: defineAction({
+      summary: 'Ask the AI grading assistant for a suggested grade and feedback',
       capability: 'mod.assign:grade',
       mutation: false,
       input: z.object({ userId: z.string().uuid(), criteria: z.string().max(5000).default('') }),
@@ -498,6 +504,7 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     aiMark: defineAction({
+      summary: 'Record whether an AI suggestion was applied or discarded',
       capability: 'mod.assign:grade',
       mutation: false,
       input: z.object({ id: z.string().uuid(), status: z.enum(['APPLIED', 'DISCARDED']) }),
@@ -507,6 +514,7 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     extend: defineAction({
+      summary: 'Give a student a personal due date and cut-off (null due date removes it)',
       capability: 'mod.assign:grantextension',
       input: z.object({
         userId: z.string().uuid(),

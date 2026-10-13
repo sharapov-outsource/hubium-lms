@@ -1,6 +1,6 @@
 import type { RequestContext } from '../context.ts';
 import { getActivityAccess } from '../courses/activities.ts';
-import { AppError, ForbiddenError, NotFoundError } from '../errors.ts';
+import { AppError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { withActorScope } from '../events/actor-scope.ts';
 import { parseInput } from '../operation.ts';
 import { buildModuleCtx, toActivityRef } from './module-ctx.ts';
@@ -16,6 +16,38 @@ export function runModuleAction(
   return withActorScope(ctx.actor, () => runAction(ctx, activityId, name, raw)).catch((e) => {
     throw userError(e);
   });
+}
+
+/**
+ * Input of an action sent as multipart form data: the JSON input in `input` and uploaded
+ * files as `files` parts, handed to the action under `filesField` (default `files`).
+ */
+export async function actionInputFromForm(form: {
+  input?: unknown;
+  filesField?: unknown;
+  files?: unknown;
+}): Promise<Record<string, unknown>> {
+  let input: unknown;
+  try {
+    input = JSON.parse(typeof form.input === 'string' && form.input ? form.input : '{}');
+  } catch {
+    throw new ValidationError({ input: ['Invalid JSON'] });
+  }
+  if (!input || typeof input !== 'object' || Array.isArray(input))
+    throw new ValidationError({ input: ['Expected a JSON object'] });
+  const parts = Array.isArray(form.files) ? form.files : form.files ? [form.files] : [];
+  const files = await Promise.all(
+    parts
+      .filter((f): f is File => f instanceof File && f.size > 0)
+      .map(async (f) => ({
+        name: f.name,
+        mimeType: f.type || 'application/octet-stream',
+        data: Buffer.from(await f.arrayBuffer()),
+      })),
+  );
+  const field = typeof form.filesField === 'string' && form.filesField ? form.filesField : 'files';
+  if (files.length) (input as Record<string, unknown>)[field] = files;
+  return input as Record<string, unknown>;
 }
 
 /** Module handlers throw plain Errors with messages for the user: a bad request, not a crash. */

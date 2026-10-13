@@ -602,6 +602,7 @@ export const quiz = defineModule<QuizSettingsT>({
   actions: {
     // ── editing ──
     addQuestions: defineAction({
+      summary: 'Add questions from the course question bank as fixed slots',
       capability: 'course:manageactivities',
       input: z.object({ questionIds: z.array(z.string().uuid()).min(1).max(200) }),
       async handler(ctx, a, { questionIds }) {
@@ -632,6 +633,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     addRandom: defineAction({
+      summary: 'Add slots that draw random questions from a category',
       capability: 'course:manageactivities',
       input: z.object({
         categoryId: z.string().uuid(),
@@ -665,6 +667,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     editSlot: defineAction({
+      summary: 'Remove or move a slot, or change its mark',
       capability: 'course:manageactivities',
       input: z.object({
         slot: z.number().int().min(1),
@@ -705,6 +708,7 @@ export const quiz = defineModule<QuizSettingsT>({
     }),
     // ── attempts ──
     start: defineAction({
+      summary: 'Start an attempt or resume the open one; `preview` for teachers',
       input: z.object({ preview: z.boolean().default(false) }),
       async handler(ctx, a, { preview }) {
         const userId = uid(ctx);
@@ -733,6 +737,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     save: defineAction({
+      summary: 'Save answers and flags of your attempt without finishing it',
       input: z.object({
         attemptId: z.string().uuid(),
         answers: z.record(z.string(), z.unknown()).default({}),
@@ -751,6 +756,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     finish: defineAction({
+      summary: 'Save the last answers and finish your attempt',
       input: z.object({
         attemptId: z.string().uuid(),
         answers: z.record(z.string(), z.unknown()).default({}),
@@ -781,6 +787,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     setOverride: defineAction({
+      summary: 'Give one participant or a group their own dates, time limit or attempts',
       capability: 'mod.quiz:manageoverrides',
       input: z
         .object({
@@ -844,6 +851,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     deleteOverride: defineAction({
+      summary: 'Remove a participant or group setting',
       capability: 'mod.quiz:manageoverrides',
       input: z.object({ id: z.string().uuid() }),
       async handler(ctx, a, { id }) {
@@ -852,6 +860,8 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     regrade: defineAction({
+      summary:
+        'Regrade finished attempts with the current questions; `dryRun` only reports changes',
       capability: 'mod.quiz:grade',
       input: z.object({ dryRun: z.boolean().default(true) }),
       async handler(ctx, a, { dryRun }) {
@@ -859,6 +869,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     gradeQuestion: defineAction({
+      summary: 'Mark a manually graded answer (essay) and comment on it',
       capability: 'mod.quiz:grade',
       input: z.object({
         questionAttemptId: z.string().uuid(),

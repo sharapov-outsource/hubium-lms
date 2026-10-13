@@ -419,6 +419,7 @@ export const scorm = defineModule<ScormSettingsT>({
   ],
   actions: {
     attachUpload: defineAction({
+      summary: 'Use a finished upload (POST /uploads) as the SCORM package and unpack it',
       input: z.object({ uploadId: z.string().uuid() }),
       async handler(ctx, a, input) {
         const access = await ctx.activities.get(a.id);
@@ -440,6 +441,7 @@ export const scorm = defineModule<ScormSettingsT>({
       },
     }),
     newAttempt: defineAction({
+      summary: 'Start a new attempt when the package allows more',
       capability: 'mod.scorm:launch',
       input: z.object({}),
       async handler(ctx, ref) {

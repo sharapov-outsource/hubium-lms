@@ -249,6 +249,8 @@ export interface TodoItem {
 }
 
 export interface ModuleAction<I extends z.ZodType = z.ZodType, O = unknown> {
+  /** One line for the REST API reference (POST /api/v1/activities/{id}/actions/{name}). */
+  summary?: string;
   input: I;
   /** Capability required at the activity context. */
   capability?: string;

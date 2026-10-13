@@ -2,8 +2,11 @@ import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import {
   type ApiScope,
   AppError,
+  actionInputFromForm,
+  appendUploadChunk,
   authenticateApiToken,
   createCourse,
+  createUpload,
   createUser,
   createWebhook,
   deleteWebhook,
@@ -13,6 +16,7 @@ import {
   getCategoryTree,
   getCourseAccess,
   getCourseOutline,
+  getUpload,
   getWebhook,
   graderReport,
   listApiTokens,
@@ -43,6 +47,8 @@ import type { Db } from '@hubium/db';
 import { fromAcceptLanguage, locales } from '@hubium/i18n';
 import { log } from '@hubium/log';
 import type { Context, MiddlewareHandler } from 'hono';
+import { HTTPException } from 'hono/http-exception';
+import { documentModuleActions } from './actions-doc.ts';
 import { DOCS_CSP, docsPage, scalarBundle } from './docs.ts';
 import { rateLimit } from './rate-limit.ts';
 
@@ -337,6 +343,12 @@ export function createApi(opts: ApiOptions) {
   }).basePath('/api/v1');
 
   app.onError((e, c) => {
+    // malformed JSON, an unsupported Content-Type
+    if (e instanceof HTTPException && e.status < 500)
+      return c.json(
+        { code: e.status === 415 ? 'UNSUPPORTED_MEDIA_TYPE' : 'BAD_REQUEST', message: e.message },
+        e.status,
+      );
     const r = toActionError(e);
     const status = STATUS[r.code as keyof typeof STATUS] ?? 500;
     if (status === 500 && !(e instanceof AppError))
@@ -421,6 +433,8 @@ export function createApi(opts: ApiOptions) {
     '/webhooks',
     '/webhooks/*',
     '/webhook-events',
+    '/uploads',
+    '/uploads/*',
   ])
     app.use(p, auth);
 
@@ -879,6 +893,8 @@ export function createApi(opts: ApiOptions) {
       path: '/activities/{id}/actions/{name}',
       tags: ['Activities'],
       summary: 'Run a module action (e.g. assign "saveSubmission", forum "reply")',
+      description:
+        'The actions an activity offers depend on its module (`moduleKey`). Send the input as JSON, or as multipart/form-data with the JSON in `input` when the action takes files (`files` parts, at most 10 MB per request; use POST /uploads for video and SCORM packages).',
       security,
       request: {
         params: IdParam.extend({
@@ -887,13 +903,33 @@ export function createApi(opts: ApiOptions) {
             .regex(/^[a-zA-Z][\w-]*$/)
             .openapi({ param: { name: 'name', in: 'path' } }),
         }),
-        body: { content: { 'application/json': { schema: z.record(z.string(), z.unknown()) } } },
+        body: {
+          content: {
+            'application/json': { schema: z.record(z.string(), z.unknown()) },
+            'multipart/form-data': {
+              schema: z.object({
+                input: z.string().optional().openapi({ description: 'The input as JSON' }),
+                files: z
+                  .any()
+                  .optional()
+                  .openapi({ type: 'array', items: { type: 'string', format: 'binary' } }),
+                filesField: z.string().optional().openapi({
+                  description: 'Input field that receives the files (default `files`)',
+                }),
+              }),
+            },
+          },
+        },
       },
       responses: { 200: ok(z.object({ data: z.unknown() })), ...writeErrors },
     }),
     async (c) => {
       const p = c.req.valid('param');
-      const data = await runModuleAction(ctxOf(c), p.id, p.name, c.req.valid('json'));
+      const multipart = c.req.header('content-type')?.toLowerCase().startsWith('multipart/');
+      const input = multipart
+        ? await actionInputFromForm(c.req.valid('form'))
+        : c.req.valid('json');
+      const data = await runModuleAction(ctxOf(c), p.id, p.name, input);
       return c.json({ data: JSON.parse(JSON.stringify(data ?? null)) }, 200);
     },
   );
@@ -1077,6 +1113,100 @@ export function createApi(opts: ApiOptions) {
       const { ids } = c.req.valid('json');
       await markNotificationsRead.run(ctxOf(c), ids?.length ? { ids } : { all: true });
       return c.json({ ok: true }, 200);
+    },
+  );
+
+  // ── resumable uploads (large files for module actions) ──
+  const UploadState = z
+    .object({ id: Id, size: z.number().int(), received: z.number().int(), done: z.boolean() })
+    .openapi('Upload');
+  const UploadProgress = z.object({ received: z.number().int() }).openapi('UploadProgress');
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/uploads',
+      tags: ['Files'],
+      summary: 'Start a resumable upload (up to 4 GB), e.g. a video for video "attachUpload"',
+      description:
+        'Send the file in chunks with PATCH /uploads/{id}, then pass the id to the module action. Unfinished uploads expire after 24 hours.',
+      security,
+      request: {
+        body: {
+          content: {
+            'application/json': {
+              schema: z.object({
+                name: z.string().min(1),
+                size: z.number().int().positive(),
+                mimeType: z.string().optional(),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        201: ok(
+          z.object({ id: Id, chunkSize: z.number().int(), received: z.number().int() }),
+          'Created',
+        ),
+        ...errors,
+      },
+    }),
+    async (c) => c.json(await createUpload(opts.db, uid(c), c.req.valid('json')), 201),
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/uploads/{id}',
+      tags: ['Files'],
+      summary: 'Where an upload stands: resume from `received`',
+      security,
+      request: { params: IdParam },
+      responses: { 200: ok(UploadState), ...errors },
+    }),
+    async (c) => c.json(await getUpload(opts.db, uid(c), c.req.valid('param').id), 200),
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'patch',
+      path: '/uploads/{id}',
+      tags: ['Files'],
+      summary: 'Append the next chunk (at most `chunkSize` bytes) at `Upload-Offset`',
+      security,
+      request: {
+        params: IdParam,
+        headers: z.object({
+          'upload-offset': z.coerce
+            .number()
+            .int()
+            .min(0)
+            .openapi({ description: 'Bytes already received' }),
+        }),
+        body: {
+          content: {
+            'application/octet-stream': { schema: z.string().openapi({ format: 'binary' }) },
+          },
+        },
+      },
+      responses: {
+        200: ok(UploadProgress),
+        409: ok(UploadProgress, 'The offset does not match: resume from `received`'),
+        ...errors,
+      },
+    }),
+    async (c) => {
+      const chunk = Buffer.from(await c.req.arrayBuffer());
+      const r = await appendUploadChunk(
+        opts.db,
+        uid(c),
+        c.req.valid('param').id,
+        c.req.valid('header')['upload-offset'],
+        chunk,
+      );
+      if (r.conflict) return c.json({ received: r.received }, 409);
+      return c.json({ received: r.received }, 200);
     },
   );
 
@@ -1297,7 +1427,7 @@ export function createApi(opts: ApiOptions) {
   );
 
   // ── spec + docs (public) ──
-  app.doc31('/openapi.json', {
+  const specConfig = {
     openapi: '3.1.0',
     info: {
       title: 'Hubium LMS REST API',
@@ -1307,6 +1437,14 @@ export function createApi(opts: ApiOptions) {
       license: { name: 'AGPL-3.0-only', url: 'https://www.gnu.org/licenses/agpl-3.0.html' },
     },
     servers: [{ url: opts.origin ?? '/' }],
+  };
+  // Built on first use: modules register their actions when the app starts.
+  let spec: Record<string, unknown> | undefined;
+  app.get('/openapi.json', (c) => {
+    spec ??= documentModuleActions(
+      app.getOpenAPI31Document(specConfig) as unknown as Record<string, unknown>,
+    );
+    return c.json(spec);
   });
   app.get('/docs', async (c) => {
     const { hash } = await scalarBundle();

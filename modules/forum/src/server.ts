@@ -310,6 +310,7 @@ export const forum = defineModule<ForumSettingsT>({
   extractText: (a) => a.name,
   actions: {
     startDiscussion: defineAction({
+      summary: 'Start a discussion, optionally in a group, with attachments',
       capability: 'mod.forum:startdiscussion',
       input: z.object({
         title: z.string().trim().min(1).max(255),
@@ -363,6 +364,7 @@ export const forum = defineModule<ForumSettingsT>({
       },
     }),
     reply: defineAction({
+      summary: 'Reply to a post (privately to its author when `private`)',
       capability: 'mod.forum:post',
       input: z.object({
         postId: z.string().uuid(),
@@ -415,6 +417,7 @@ export const forum = defineModule<ForumSettingsT>({
       },
     }),
     editPost: defineAction({
+      summary: 'Change the text of a post: your own within the edit window, any as a moderator',
       input: z.object({ postId: z.string().uuid(), message: z.string().max(200_000) }),
       async handler(ctx, ref, input) {
         const a = ref as Forum;
@@ -438,6 +441,7 @@ export const forum = defineModule<ForumSettingsT>({
       },
     }),
     deletePost: defineAction({
+      summary: 'Delete a post (the first post deletes the whole discussion)',
       input: z.object({ postId: z.string().uuid() }),
       async handler(ctx, ref, input) {
         const a = ref as Forum;
@@ -468,6 +472,7 @@ export const forum = defineModule<ForumSettingsT>({
       },
     }),
     moderate: defineAction({
+      summary: 'Pin or lock a discussion',
       capability: 'mod.forum:moderate',
       input: z.object({
         discussionId: z.string().uuid(),
@@ -487,6 +492,7 @@ export const forum = defineModule<ForumSettingsT>({
       },
     }),
     subscribe: defineAction({
+      summary: 'Subscribe to the forum (no discussionId) or one discussion, or unsubscribe',
       input: z.object({ discussionId: z.string().uuid().nullish(), subscribed: z.boolean() }),
       async handler(ctx, ref, input) {
         const a = ref as Forum;
@@ -519,6 +525,7 @@ export const forum = defineModule<ForumSettingsT>({
       },
     }),
     markRead: defineAction({
+      summary: 'Mark every post of a discussion read',
       input: z.object({ discussionId: z.string().uuid() }),
       async handler(ctx, ref, input) {
         const d = await loadDiscussion(ctx, ref as Forum, input.discussionId);

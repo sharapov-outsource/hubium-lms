@@ -239,6 +239,68 @@ describe('REST API v1', () => {
     expect(ev.status).toBe(200);
   });
 
+  it('takes files as multipart parts and as resumable uploads', async () => {
+    const token = await mint(f.users.student3!);
+    const form = new FormData();
+    form.set('input', JSON.stringify({ text: '<p>См. файл</p>', submit: true }));
+    form.append('files', new File(['ответ'], 'answer.txt', { type: 'text/plain' }));
+    const r = await api.request(`/api/v1/activities/${assignId}/actions/saveSubmission`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    expect(r.status).toBe(200);
+    const sub = await t.db.assignSubmission.findFirstOrThrow({
+      where: { activityId: assignId, userId: f.users.student3 },
+    });
+    expect(sub.status).toBe('SUBMITTED');
+    const files = await t.db.file.findMany({ where: { area: 'submission', itemId: sub.id } });
+    expect(files.map((x) => x.name)).toEqual(['answer.txt']);
+
+    // broken bodies are the client's fault
+    const json = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+    const broken = await api.request(`/api/v1/activities/${assignId}/actions/saveSubmission`, {
+      method: 'POST',
+      headers: json,
+      body: '{"text":',
+    });
+    expect(broken.status).toBe(400);
+    const plain = await api.request(`/api/v1/activities/${assignId}/actions/saveSubmission`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'text/plain' },
+      body: 'hello',
+    });
+    expect(plain.status).toBe(415);
+
+    // a large file goes in chunks; a wrong offset answers where to resume
+    const started = await call(tokens.teacher!, '/uploads', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'lecture.mp4', size: 6, mimeType: 'video/mp4' }),
+    });
+    expect(started.status).toBe(201);
+    const { id } = (await started.json()) as { id: string };
+    const chunk = (offset: number, bytes: string) =>
+      api.request(`/api/v1/uploads/${id}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${tokens.teacher}`,
+          'Content-Type': 'application/octet-stream',
+          'Upload-Offset': String(offset),
+        },
+        body: bytes,
+      });
+    expect(await (await chunk(0, 'abc')).json()).toEqual({ received: 3 });
+    const wrong = await chunk(0, 'def');
+    expect(wrong.status).toBe(409);
+    expect(await wrong.json()).toEqual({ received: 3 });
+    expect((await chunk(3, 'def')).status).toBe(200);
+    expect(await (await call(tokens.teacher!, `/uploads/${id}`)).json()).toMatchObject({
+      size: 6,
+      received: 6,
+    });
+    expect((await call(tokens.student!, `/uploads/${id}`)).status).toBe(403);
+  });
+
   it('hides other courses, classmates\u2019 emails, and serialises grades', async () => {
     // a course the student is not enrolled in
     const other = await courseFixture(t.db, 'API2');
@@ -388,6 +450,18 @@ describe('REST API v1', () => {
         '/api/v1/activities/{id}/actions/{name}',
       ]),
     );
+    // every module action is documented from its input schema
+    const schemas = (spec as { components: { schemas: Record<string, Record<string, unknown>> } })
+      .components.schemas;
+    expect(schemas['Action.assign.saveSubmission']).toMatchObject({
+      type: 'object',
+      properties: { text: { type: 'string' }, files: { items: { format: 'binary' } } },
+    });
+    expect(schemas['Action.quiz.setOverride']?.properties).toHaveProperty('attempts');
+    const run = (spec as { paths: Record<string, { post: Record<string, unknown> }> }).paths[
+      '/api/v1/activities/{id}/actions/{name}'
+    ]!.post;
+    expect(run.description).toContain('| quiz | `regrade` | `mod.quiz:grade` |');
     // the reference page runs only Scalar's bundle from this origin, under a strict CSP
     const docs = await api.request('/api/v1/docs');
     expect(docs.status).toBe(200);

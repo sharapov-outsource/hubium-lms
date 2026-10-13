@@ -250,6 +250,7 @@ export const livesession = defineModule<LiveSettingsT>({
     // Actions that call the meeting server run outside a transaction: a slow BBB must not
     // hold database locks or run past the transaction timeout.
     join: defineAction({
+      summary: 'Get a personal link to join the session',
       capability: 'mod.livesession:join',
       mutation: false,
       input: z.object({}),
@@ -302,6 +303,7 @@ export const livesession = defineModule<LiveSettingsT>({
       },
     }),
     end: defineAction({
+      summary: 'End the session for everyone',
       capability: 'mod.livesession:moderate',
       mutation: false,
       input: z.object({}),
@@ -315,6 +317,7 @@ export const livesession = defineModule<LiveSettingsT>({
       },
     }),
     syncRecordings: defineAction({
+      summary: 'Fetch the list of recordings from the conferencing server',
       capability: 'mod.livesession:moderate',
       mutation: false,
       input: z.object({}),
@@ -323,6 +326,7 @@ export const livesession = defineModule<LiveSettingsT>({
       },
     }),
     deleteRecording: defineAction({
+      summary: 'Delete a recording',
       capability: 'mod.livesession:moderate',
       input: z.object({ id: z.string().uuid() }),
       async handler(ctx, a, input) {
