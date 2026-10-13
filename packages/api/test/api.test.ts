@@ -388,8 +388,18 @@ describe('REST API v1', () => {
         '/api/v1/activities/{id}/actions/{name}',
       ]),
     );
+    // the reference page runs only Scalar's bundle from this origin, under a strict CSP
     const docs = await api.request('/api/v1/docs');
     expect(docs.status).toBe(200);
-    expect(await docs.text()).toContain('/api/v1/openapi.json');
+    expect(docs.headers.get('content-security-policy')).toContain("script-src 'self';");
+    const html = await docs.text();
+    expect(html).toContain('data-url="/api/v1/openapi.json"');
+    expect(html).not.toMatch(/https?:\/\//);
+    const src = html.match(/<script src="([^"]+)"/)?.[1];
+    expect(src).toMatch(/^\/api\/v1\/docs\/scalar\.js\?v=[0-9a-f]{12}$/);
+    const js = await api.request(src!);
+    expect(js.headers.get('content-type')).toContain('text/javascript');
+    expect(js.headers.get('cache-control')).toContain('immutable');
+    expect((await js.text()).length).toBeGreaterThan(100_000);
   });
 });

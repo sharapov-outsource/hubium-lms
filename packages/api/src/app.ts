@@ -42,8 +42,8 @@ import {
 import type { Db } from '@hubium/db';
 import { fromAcceptLanguage, locales } from '@hubium/i18n';
 import { log } from '@hubium/log';
-import { Scalar } from '@scalar/hono-api-reference';
 import type { Context, MiddlewareHandler } from 'hono';
+import { DOCS_CSP, docsPage, scalarBundle } from './docs.ts';
 import { rateLimit } from './rate-limit.ts';
 
 const logger = log('api');
@@ -1308,6 +1308,21 @@ export function createApi(opts: ApiOptions) {
     },
     servers: [{ url: opts.origin ?? '/' }],
   });
-  app.get('/docs', Scalar({ url: '/api/v1/openapi.json', pageTitle: 'Hubium LMS API' }));
+  app.get('/docs', async (c) => {
+    const { hash } = await scalarBundle();
+    const page = docsPage({
+      specUrl: '/api/v1/openapi.json',
+      scriptUrl: `/api/v1/docs/scalar.js?v=${hash}`,
+      title: 'Hubium LMS API',
+    });
+    return c.html(page, 200, { 'Content-Security-Policy': DOCS_CSP, 'Cache-Control': 'no-cache' });
+  });
+  app.get('/docs/scalar.js', async (c) => {
+    const { js } = await scalarBundle();
+    return c.body(js, 200, {
+      'Content-Type': 'text/javascript; charset=utf-8',
+      'Cache-Control': 'public, max-age=31536000, immutable',
+    });
+  });
   return app;
 }

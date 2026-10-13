@@ -18,7 +18,7 @@
     "@hubium/db": "workspace:*",
     "@hubium/i18n": "workspace:*",
     "@hubium/log": "workspace:*",
-    "@scalar/hono-api-reference": "0.12.12",
+    "@scalar/api-reference": "1.74.0",
     "hono": "4.13.13",
     "zod": "4.6.7"
   },
