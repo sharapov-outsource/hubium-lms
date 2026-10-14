@@ -26,6 +26,7 @@
     "@hubium/ai": "workspace:*",
     "@hubium/db": "workspace:*",
     "@hubium/editor": "workspace:*",
+    "@hubium/formula": "workspace:*",
     "@hubium/i18n": "workspace:*",
     "@hubium/log": "workspace:*",
     "@hubium/module-sdk": "workspace:*",

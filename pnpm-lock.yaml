@@ -232,6 +232,9 @@ importers:
       '@hubium/editor':
         specifier: workspace:*
         version: link:../../packages/editor
+      '@hubium/formula':
+        specifier: workspace:*
+        version: link:../../packages/formula
       '@hubium/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -937,6 +940,9 @@ importers:
       '@hubium/editor':
         specifier: workspace:*
         version: link:../editor
+      '@hubium/formula':
+        specifier: workspace:*
+        version: link:../formula
       '@hubium/i18n':
         specifier: workspace:*
         version: link:../i18n

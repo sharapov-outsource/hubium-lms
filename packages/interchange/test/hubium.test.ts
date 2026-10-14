@@ -1,10 +1,12 @@
 import {
   createManualItem,
+  displayCalculations,
   importGift,
   runModuleAction,
   saveGradeCategory,
   saveLetters,
   saveScale,
+  setGradeCalculation,
   updateGradeItem,
 } from '@hubium/core';
 import { fileUrl, storeFile } from '@hubium/core/files/files';
@@ -116,11 +118,28 @@ describe('.hubium backup and restore', () => {
       name: 'Контрольные',
       aggregation: 'MEAN',
       weight: 2,
+      idNumber: 'tests',
     });
     const essayItem = await t.db.gradeItem.findFirstOrThrow({
       where: { courseId: f.courseId, activity: { name: 'Эссе' } },
     });
-    await updateGradeItem.run(sys, { id: essayItem.id, categoryId: catId, display: 'PERCENT' });
+    await updateGradeItem.run(sys, {
+      id: essayItem.id,
+      categoryId: catId,
+      display: 'PERCENT',
+      idNumber: 'essay',
+    });
+    // a calculated item over the essay and the category
+    const { id: finalId } = await createManualItem.run(sys, {
+      courseId: f.courseId,
+      name: 'Итог',
+      idNumber: 'final',
+      gradeMax: 100,
+    } as never);
+    await setGradeCalculation.run(sys, {
+      id: finalId,
+      calculation: '=[[essay]] + [[tests]]',
+    });
     const { id: scaleId } = await saveScale.run(sys, {
       courseId: f.courseId,
       name: 'Зачёт',
@@ -220,7 +239,22 @@ describe('.hubium backup and restore', () => {
     });
     expect([cat.aggregation, Number(cat.weight)]).toEqual(['MEAN', 2]);
     const essayItem = await t.db.gradeItem.findFirstOrThrow({ where: { activityId: assign.id } });
-    expect([essayItem.categoryId, essayItem.display]).toEqual([cat.id, 'PERCENT']);
+    expect([essayItem.categoryId, essayItem.display, essayItem.idNumber]).toEqual([
+      cat.id,
+      'PERCENT',
+      'essay',
+    ]);
+    // the formula follows the copied essay item and category
+    expect(cat.idNumber).toBe('tests');
+    const [copiedItems, copiedCats] = await Promise.all([
+      t.db.gradeItem.findMany({ where: { courseId: r.courseId } }),
+      t.db.gradeCategory.findMany({ where: { courseId: r.courseId } }),
+    ]);
+    const final = copiedItems.find((i) => i.name === 'Итог')!;
+    expect(final.calculation).toBe(`=##gi${essayItem.id}## + ##gc${cat.id}##`);
+    expect(displayCalculations(copiedItems, copiedCats).get(final.id)).toBe(
+      '=[[essay]] + [[tests]]',
+    );
     const scale = await t.db.scale.findFirstOrThrow({ where: { courseId: r.courseId } });
     expect(scale.items).toEqual(['Не зачтено', 'Зачтено']);
     const admission = await t.db.gradeItem.findFirstOrThrow({

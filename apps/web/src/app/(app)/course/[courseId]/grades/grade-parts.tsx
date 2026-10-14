@@ -1,6 +1,6 @@
 'use client';
 
-import { Alert, Button, Checkbox, Input, Select, Td, Tr } from '@hubium/ui';
+import { Alert, Badge, Button, Checkbox, Input, Select, Td, Tr } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -13,6 +13,7 @@ import {
   overrideGradeAction,
   updateGradeItemAction,
 } from '@/server/actions/grades';
+import { CalculationDialog } from './calculation-dialog';
 import { MoveButtons } from './setup-parts';
 
 export function GradeCell({
@@ -125,6 +126,7 @@ export function ItemSetupRow({
   categories,
   first,
   last,
+  ids,
 }: {
   courseId: string;
   item: {
@@ -137,10 +139,19 @@ export function ItemSetupRow({
     hidden: boolean;
     categoryId: string;
     scale: string | null;
+    idNumber: string | null;
+    /** The formula as written, for a calculated item. */
+    formula: string | null;
+    /** The formula uses something no longer there. */
+    needsUpdate: boolean;
+    /** Manual items graded in points may calculate. */
+    canCalculate: boolean;
   };
   categories: { id: string; label: string }[];
   first: boolean;
   last: boolean;
+  /** ID numbers of the course's other items and categories, for formulas. */
+  ids: string[];
 }) {
   const t = useTranslations('grades');
   const router = useRouter();
@@ -163,10 +174,34 @@ export function ItemSetupRow({
             first={first}
             last={last}
           />
-          <span>
-            {item.name}{' '}
-            <span className="text-xs text-muted-foreground">
-              · {t(`kind.${item.kind}` as 'kind.MODULE')}
+          <span className="grid gap-0.5">
+            <span>
+              {item.name}{' '}
+              <span className="text-xs text-muted-foreground">
+                · {t(`kind.${item.kind}` as 'kind.MODULE')}
+              </span>
+            </span>
+            {item.formula ? (
+              <code className="break-all text-xs text-muted-foreground">{item.formula}</code>
+            ) : null}
+            {item.needsUpdate ? (
+              <Badge variant="warning" className="w-fit">
+                {t('calc.broken')}
+              </Badge>
+            ) : null}
+            {/* the ID number formulas know the item by */}
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span aria-hidden>ID</span>
+              <Input
+                aria-label={`${t('idNumber')}: ${item.name}`}
+                className="h-7 w-28 font-mono text-xs"
+                defaultValue={item.idNumber ?? ''}
+                disabled={pending}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v !== (item.idNumber ?? '')) patch({ idNumber: v || null });
+                }}
+              />
             </span>
           </span>
         </span>
@@ -174,7 +209,7 @@ export function ItemSetupRow({
       <Td>
         <Select
           aria-label={`${t('category')}: ${item.name}`}
-          className="h-8 w-44"
+          className="h-8 w-40"
           defaultValue={item.categoryId}
           onChange={(e) => patch({ categoryId: e.target.value })}
         >
@@ -202,7 +237,7 @@ export function ItemSetupRow({
       <Td>
         <Select
           aria-label={`${t('display')}: ${item.name}`}
-          className="h-8 w-36"
+          className="h-8 w-32"
           defaultValue={item.display}
           disabled={!!item.scale}
           onChange={(e) => patch({ display: e.target.value as 'REAL' })}
@@ -221,7 +256,16 @@ export function ItemSetupRow({
           onChange={(e) => patch({ hidden: e.target.checked })}
         />
       </Td>
-      <Td className="text-right">
+      <Td className="whitespace-nowrap text-right">
+        {item.canCalculate ? (
+          <CalculationDialog
+            courseId={courseId}
+            itemId={item.id}
+            name={item.name}
+            formula={item.formula}
+            ids={ids.filter((id) => id !== item.idNumber)}
+          />
+        ) : null}
         {item.kind === 'MANUAL' ? (
           <Button
             size="sm"
@@ -311,6 +355,12 @@ export function ManualItemForm({
           step="any"
         />
       </div>
+      <FormField
+        name="idNumber"
+        label={t('idNumber')}
+        hint={t('idNumberHint')}
+        className="sm:w-1/3"
+      />
       <SubmitButton className="w-fit">{tc('add')}</SubmitButton>
     </ActionForm>
   );

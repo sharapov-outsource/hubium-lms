@@ -91,12 +91,15 @@ const GradebookJson = z.object({
       hidden: z.boolean(),
       weight: z.number(),
       sortOrder: z.number().int(),
+      idNumber: z.string().nullable().default(null),
     }),
   ),
   scales: z.array(z.object({ id: z.string(), name: z.string(), items: z.array(z.string()) })),
   letters: z.array(z.object({ lowerBound: z.number(), letter: z.string() })),
   items: z.array(
     z.object({
+      /** The item's id in the source course, which formulas refer to. */
+      id: z.string().optional(),
       kind: z.enum(['MODULE', 'MANUAL']),
       activityId: z.string().nullable(),
       itemNumber: z.number().int(),
@@ -114,6 +117,8 @@ const GradebookJson = z.object({
       locked: z.boolean(),
       sortOrder: z.number().int(),
       idNumber: z.string().nullable(),
+      /** A calculated item's formula, references as ##gi<id>## / ##gc<id>## of the source. */
+      calculation: z.string().max(2000).nullable().default(null),
     }),
   ),
 });
@@ -350,12 +355,14 @@ export async function exportCourse(ctx: RequestContext, courseId: string): Promi
         hidden: c.hidden,
         weight: c.weight.toNumber(),
         sortOrder: c.sortOrder,
+        idNumber: c.idNumber,
       })),
       scales: scales.map((x) => ({ id: x.id, name: x.name, items: x.items })),
       letters: letters.map((l) => ({ lowerBound: l.lowerBound.toNumber(), letter: l.letter })),
       items: gradeItems
         .filter((i) => i.kind === 'MANUAL' || (i.activityId && exported.has(i.activityId)))
         .map((i) => ({
+          id: i.id,
           kind: i.kind as 'MODULE' | 'MANUAL',
           activityId: i.activityId,
           itemNumber: i.itemNumber,
@@ -373,6 +380,7 @@ export async function exportCourse(ctx: RequestContext, courseId: string): Promi
           locked: i.locked,
           sortOrder: i.sortOrder,
           idNumber: i.idNumber,
+          calculation: i.calculation,
         })),
     },
     questionCategories: categories.map((c) => ({
@@ -567,6 +575,7 @@ export async function restoreCourse(
             hidden: c.hidden,
             weight: c.weight,
             sortOrder: c.sortOrder,
+            idNumber: c.idNumber,
           },
         });
       }
@@ -779,6 +788,8 @@ export async function restoreCourse(
       );
     }
     if (gb) {
+      // formulas refer to items and categories by id: they follow them to the copy
+      const formulas: { id: string; calculation: string }[] = [];
       for (const it of gb.items) {
         const common = {
           categoryId: it.categoryId ? (map.get(it.categoryId) ?? gradeRoot.id) : gradeRoot.id,
@@ -798,7 +809,7 @@ export async function restoreCourse(
               (await db.scale.findFirst({ where: { id: it.scaleId, courseId: null } }))?.id ??
               null)
             : null;
-          await db.gradeItem.create({
+          const created = await db.gradeItem.create({
             data: {
               ...common,
               courseId,
@@ -810,6 +821,9 @@ export async function restoreCourse(
               gradeMax: it.gradeMax,
             },
           });
+          if (it.id) map.set(it.id, created.id);
+          if (it.calculation && created.gradeType === 'VALUE')
+            formulas.push({ id: created.id, calculation: it.calculation });
         } else {
           const activityId = it.activityId ? map.get(it.activityId) : undefined;
           if (!activityId) continue;
@@ -819,8 +833,27 @@ export async function restoreCourse(
             where: { activityId, itemNumber: it.itemNumber },
             data: common,
           });
+          const copy = await db.gradeItem.findFirst({
+            where: { activityId, itemNumber: it.itemNumber },
+            select: { id: true },
+          });
+          if (it.id && copy) map.set(it.id, copy.id);
         }
       }
+      // a reference to something left out stays as it was, and shows as broken
+      for (const f of formulas)
+        await db.gradeItem.update({
+          where: { id: f.id },
+          data: {
+            calculation: f.calculation.replace(
+              /##g([ic])([0-9a-f-]{36})##/g,
+              (all, kind: string, old: string) => {
+                const to = map.get(old);
+                return to ? `##g${kind}${to}##` : all;
+              },
+            ),
+          },
+        });
     }
     return {
       courseId,

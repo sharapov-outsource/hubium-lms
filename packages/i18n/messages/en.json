@@ -842,6 +842,8 @@
     "manualItem": "Manual grade item",
     "newItem": "Add grade item",
     "name": "Name",
+    "idNumber": "ID number",
+    "idNumberHint": "For gradebook formulas: [[ID number]]",
     "gradeMax": "Maximum",
     "gradePass": "Grade to pass",
     "weight": "Weight",
@@ -923,12 +925,37 @@
       "grader": "Gradebook",
       "override": "Changed by hand",
       "import": "Import",
-      "aggregation": "Total recalculated"
+      "aggregation": "Total recalculated",
+      "calculation": "Formula"
     },
     "all": "All",
     "from": "From",
     "to": "To",
-    "apply": "Show"
+    "apply": "Show",
+    "calc": {
+      "button": "Formula",
+      "open": "Formula: {name}",
+      "title": "Formula: {name}",
+      "hint": "A formula starts with \"=\". Refer to the course's items and categories by ID number in double square brackets, e.g. [[hw1]]. An empty grade counts as zero, but with all of them empty there is no grade. Functions: sum, average, min, max, round, floor, ceil, abs, sqrt, power, mod, pi, ifthenelse.",
+      "label": "Formula",
+      "ids": "The course's ID numbers",
+      "insert": "Insert [[{id}]]",
+      "noIds": "Give items and categories ID numbers to refer to them in formulas.",
+      "save": "Save formula",
+      "remove": "Remove formula",
+      "saved": "Formula saved",
+      "removed": "Formula removed",
+      "broken": "The formula refers to something no longer there",
+      "errors": {
+        "syntax": "Mistake in the formula (character {pos})",
+        "unknownFunction": "Unknown function (character {pos})",
+        "unknownName": "Unknown name (character {pos})",
+        "arity": "Wrong number of arguments (character {pos})",
+        "domain": "Value not allowed (character {pos})",
+        "limit": "The formula is too long or too complex",
+        "unknownIdNumber": "No item or category has the ID number \"{name}\""
+      }
+    }
   },
   "qbank": {
     "title": "Question bank",

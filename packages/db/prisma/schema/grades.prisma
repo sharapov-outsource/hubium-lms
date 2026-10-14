@@ -62,6 +62,8 @@ model GradeCategory {
   courseId            String           @db.Uuid
   parentId            String?          @db.Uuid
   name                String
+  /// The category in gradebook formulas: [[idNumber]].
+  idNumber            String?
   aggregation         GradeAggregation @default(NATURAL)
   dropLowest          Int              @default(0)
   keepHighest         Int              @default(0)
@@ -77,6 +79,7 @@ model GradeCategory {
   children GradeCategory[] @relation("GradeCategoryTree")
   items    GradeItem[]
 
+  @@unique([courseId, idNumber])
   @@index([courseId])
 }
 
@@ -89,7 +92,10 @@ model GradeItem {
   moduleKey   String?
   itemNumber  Int           @default(0)
   name        String
+  /// The item in gradebook formulas: [[idNumber]]. Unique in the course with the categories'.
   idNumber    String?
+  /// A formula giving the grade, references stored as ##gi<id>## and ##gc<id>## (manual items).
+  calculation String?
   gradeType   GradeType     @default(VALUE)
   gradeMin    Decimal       @default(0) @db.Decimal(12, 5)
   gradeMax    Decimal       @default(100) @db.Decimal(12, 5)
@@ -113,6 +119,7 @@ model GradeItem {
   grades   Grade[]
 
   @@unique([activityId, itemNumber])
+  @@unique([courseId, idNumber])
   @@index([courseId, sortOrder])
 }
 

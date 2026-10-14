@@ -16,6 +16,7 @@ import {
   saveQuestion,
   saveQuestionCategory,
   saveScale,
+  setGradeCalculation,
   updateGradeItem,
   ValidationError,
 } from '@hubium/core';
@@ -57,10 +58,24 @@ export async function updateGradeItemAction(
     locked?: boolean;
     display?: 'REAL' | 'PERCENT' | 'LETTER';
     categoryId?: string;
+    idNumber?: string | null;
   },
 ) {
   return runAction(async () => {
     const r = await updateGradeItem.run(await getContext(), { id, ...patch });
+    revalidatePath(`/course/${courseId}/grades`);
+    return r;
+  });
+}
+
+/** A manual item's formula, written with [[idnumber]] references (null removes it). */
+export async function setGradeCalculationAction(
+  courseId: string,
+  id: string,
+  calculation: string | null,
+) {
+  return runAction(async () => {
+    const r = await setGradeCalculation.run(await getContext(), { id, calculation });
     revalidatePath(`/course/${courseId}/grades`);
     return r;
   });
@@ -87,6 +102,7 @@ export async function saveGradeCategoryAction(fd: FormData) {
       keepHighest: v.keepHighest || 0,
       weight: v.weight || 1,
       aggregateOnlyGraded: fd.get('aggregateOnlyGraded') === 'on',
+      idNumber: v.idNumber,
     });
     revalidatePath(`/course/${v.courseId}/grades`);
     return r;

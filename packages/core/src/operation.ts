@@ -79,7 +79,14 @@ export type ActionResult<T> =
 /** Maps thrown errors to a serialisable result for server actions. */
 export function toActionError(e: unknown): Extract<ActionResult<never>, { ok: false }> {
   if (e instanceof AppError) {
-    return { ok: false, code: e.code, message: e.message, fieldErrors: e.fieldErrors };
+    // a refusal says why: the first field error rather than "Validation failed" (forms
+    // show every field's error by the field; toasts show the message)
+    const first = e.fieldErrors ? Object.values(e.fieldErrors).flat()[0] : undefined;
+    const message =
+      e instanceof ValidationError && e.message === 'Validation failed' && first
+        ? first
+        : e.message;
+    return { ok: false, code: e.code, message, fieldErrors: e.fieldErrors };
   }
   // Unique constraint races (two requests creating the same thing) surface as a conflict.
   if (e && typeof e === 'object' && 'code' in e && (e as { code: unknown }).code === 'P2002') {

@@ -16,6 +16,14 @@ import { isMentorOf, learnerPermissions } from '../users/mentors.ts';
 import { parseCsv } from '../users/users.ts';
 import { emitWebhook } from '../webhooks/events.ts';
 import { type Aggregation, aggregate } from './aggregate.ts';
+import {
+  CalculationError,
+  calculate,
+  calculationOrder,
+  calculationRefs,
+  displayCalculation,
+  storeCalculation,
+} from './calculation.ts';
 import { requireScaleFor, scaleValue } from './scales.ts';
 
 type Tx = Prisma.TransactionClient | Db;
@@ -75,7 +83,10 @@ export async function syncGradeItemsFor(tx: Tx, activityId: string): Promise<voi
           where: { id: spec.scaleId, OR: [{ courseId: null }, { courseId: a.courseId }] },
         })
       : null;
+    // the first item carries the activity's ID number (when no other item has it)
+    const idNumber = spec.itemNumber === 0 ? await activityIdNumber(tx, a, cur?.id) : undefined;
     const data = {
+      ...(idNumber !== undefined ? { idNumber } : {}),
       name:
         specs.length > 1 ? `${a.name}: ${spec.nameKey && t ? t(spec.nameKey) : spec.name}` : a.name,
       gradeType: scale ? ('SCALE' as const) : ('VALUE' as const),
@@ -111,6 +122,24 @@ export async function syncGradeItemsFor(tx: Tx, activityId: string): Promise<voi
   const stale = existing.filter((x) => !keep.has(x.itemNumber)).map((x) => x.id);
   if (stale.length) await tx.gradeItem.deleteMany({ where: { id: { in: stale } } });
   if (totalsChanged || stale.length) await recomputeAllTotals(tx, a.courseId);
+}
+
+/** The activity's ID number for its first grade item, unless something else has it. */
+async function activityIdNumber(
+  tx: Tx,
+  a: { courseId: string; idNumber: string | null },
+  itemId: string | undefined,
+) {
+  if (!a.idNumber) return null;
+  const where = {
+    courseId: a.courseId,
+    idNumber: { equals: a.idNumber, mode: 'insensitive' as const },
+  };
+  const [item, cat] = await Promise.all([
+    tx.gradeItem.findFirst({ where: { ...where, ...(itemId ? { id: { not: itemId } } : {}) } }),
+    tx.gradeCategory.findFirst({ where }),
+  ]);
+  return item || cat ? undefined : a.idNumber;
 }
 
 async function itemNameTranslator(tx: Tx, courseId: string) {
@@ -237,15 +266,58 @@ export async function recomputeCourseTotals(
       },
     }),
   ]);
+  const calculated = await calculationPlan(tx, categories, items);
   for (const userId of userIds) {
-    const fraction = categoryFraction(
-      null,
-      categories,
-      items,
-      grades.filter((g) => g.userId === userId),
-    );
+    const mine: GradeRow[] = grades.filter((g) => g.userId === userId);
+    // calculated items first, each after what it uses, then the total over everything
+    for (const item of calculated) {
+      const value = calculate(item.calculation!, (r) => {
+        if (r.kind === 'item') {
+          if (!items.some((i) => i.id === r.id)) return undefined;
+          return num(mine.find((g) => g.gradeItemId === r.id)?.finalGrade);
+        }
+        const cat = categories.find((c) => c.id === r.id);
+        if (!cat) return undefined;
+        const f = categoryFraction(cat.id, categories, items, mine);
+        return f === null ? null : f * categoryPoints(cat, categories, items);
+      });
+      const g = await writeGrade(tx, item, userId, { rawGrade: value }, { source: 'calculation' });
+      const row = mine.find((x) => x.gradeItemId === item.id);
+      if (row) row.finalGrade = g?.finalGrade ?? null;
+      else if (g)
+        mine.push({ gradeItemId: item.id, finalGrade: g.finalGrade, excluded: g.excluded });
+    }
+    const fraction = categoryFraction(null, categories, items, mine);
     const value = fraction === null ? null : fraction * num(total.gradeMax)!;
     await writeGrade(tx, total, userId, { rawGrade: value }, { source: 'aggregation' });
+  }
+}
+
+/**
+ * The course's calculated items in the order to compute them. Items whose formula uses
+ * something no longer there (an activity removed, say) get `needsUpdate`, shown as a
+ * warning in the gradebook setup; a formula that cannot be ordered is left out.
+ */
+async function calculationPlan(
+  tx: Tx,
+  categories: GradeCategory[],
+  items: GradeItem[],
+): Promise<GradeItem[]> {
+  const calc = items.filter((i) => i.calculation);
+  if (!calc.length) return [];
+  for (const item of calc) {
+    const r = calculationRefs(item.calculation!);
+    const broken =
+      r.items.some((id) => !items.some((i) => i.id === id)) ||
+      r.categories.some((id) => !categories.some((c) => c.id === id));
+    if (broken !== item.needsUpdate)
+      await tx.gradeItem.update({ where: { id: item.id }, data: { needsUpdate: broken } });
+  }
+  try {
+    return calculationOrder(items, categories).map((id) => calc.find((i) => i.id === id)!);
+  } catch (e) {
+    if (e instanceof CalculationError) return [];
+    throw e;
   }
 }
 
@@ -403,7 +475,7 @@ export const overrideGrade = defineOperation({
       where: { courseId: item.courseId, userId },
     });
     if (!enrolled) throw new ValidationError({ userId: ['User is not enrolled'] });
-    if (item.kind === 'MANUAL') {
+    if (item.kind === 'MANUAL' && !item.calculation) {
       await writeGrade(
         ctx.tx,
         item,
@@ -412,7 +484,8 @@ export const overrideGrade = defineOperation({
         { source: 'grader', changedById: ctx.perm.userId },
       );
     } else {
-      // Overriding a module grade freezes it; clearing it (null) brings back the module's grade.
+      // Overriding a module grade (or a calculated one) freezes it; clearing it (null) brings
+      // back the module's grade (or the formula's).
       await writeGrade(
         ctx.tx,
         item,
@@ -435,6 +508,71 @@ export const overrideGrade = defineOperation({
     return { ok: true };
   },
 });
+
+/** ID numbers name items and categories in formulas: one per course across both. */
+async function requireFreeIdNumber(
+  tx: Tx,
+  courseId: string,
+  idNumber: string | null | undefined,
+  except: { itemId?: string; categoryId?: string } = {},
+) {
+  if (!idNumber) return;
+  const [item, cat] = await Promise.all([
+    tx.gradeItem.findFirst({
+      where: {
+        courseId,
+        idNumber: { equals: idNumber, mode: 'insensitive' },
+        ...(except.itemId ? { id: { not: except.itemId } } : {}),
+      },
+    }),
+    tx.gradeCategory.findFirst({
+      where: {
+        courseId,
+        idNumber: { equals: idNumber, mode: 'insensitive' },
+        ...(except.categoryId ? { id: { not: except.categoryId } } : {}),
+      },
+    }),
+  ]);
+  if (item || cat)
+    throw new ValidationError({ idNumber: ['This ID number is already used in the course'] });
+}
+
+/** Names of the items whose formulas use an item or a category. */
+async function formulasUsing(
+  tx: Tx,
+  courseId: string,
+  ref: { itemId?: string; categoryId?: string },
+) {
+  const token = ref.itemId ? `##gi${ref.itemId}##` : `##gc${ref.categoryId}##`;
+  const rows = await tx.gradeItem.findMany({
+    where: { courseId, calculation: { contains: token } },
+    select: { name: true },
+  });
+  return rows.map((r) => r.name);
+}
+
+/**
+ * An activity's ID number names its first grade item in formulas: it must be free in the
+ * course's gradebook (its own item aside), and stay while formulas use the item.
+ */
+export async function requireActivityIdNumber(
+  tx: Tx,
+  courseId: string,
+  idNumber: string | null | undefined,
+  activityId?: string,
+) {
+  const own = activityId
+    ? await tx.gradeItem.findFirst({ where: { activityId, itemNumber: 0 }, select: { id: true } })
+    : null;
+  if (!idNumber) {
+    if (own && (await formulasUsing(tx, courseId, { itemId: own.id })).length)
+      throw new ValidationError({
+        idNumber: ['Gradebook formulas use this activity: it needs an ID number'],
+      });
+    return;
+  }
+  await requireFreeIdNumber(tx, courseId, idNumber, { itemId: own?.id });
+}
 
 export const ManualItemInput = z.object({
   courseId: z.string().uuid(),
@@ -478,6 +616,7 @@ export const createManualItem = defineOperation({
     const scale = input.scaleId
       ? await requireScaleFor(ctx.tx, input.courseId, input.scaleId)
       : null;
+    await requireFreeIdNumber(ctx.tx, input.courseId, input.idNumber);
     const count = await ctx.tx.gradeItem.count({ where: { courseId: input.courseId } });
     const item = await ctx.tx.gradeItem.create({
       data: {
@@ -511,6 +650,14 @@ export const updateGradeItem = defineOperation({
     display: z.enum(['REAL', 'PERCENT', 'LETTER']).optional(),
     hidden: z.boolean().optional(),
     locked: z.boolean().optional(),
+    /** The item in formulas; an activity's first item shares it with the activity. */
+    idNumber: z
+      .string()
+      .trim()
+      .max(100)
+      .nullable()
+      .optional()
+      .transform((v) => (v === '' ? null : v)),
   }),
   async authorize(ctx, i) {
     const item = await ctx.db.gradeItem.findUnique({ where: { id: i.id } });
@@ -521,6 +668,30 @@ export const updateGradeItem = defineOperation({
     const item = await ctx.tx.gradeItem.findUniqueOrThrow({ where: { id } });
     if (item.kind === 'MODULE') delete data.name; // module items follow the activity name
     if (data.categoryId) await requireGradeCategory(ctx.tx, item.courseId, data.categoryId);
+    if (data.idNumber !== undefined && data.idNumber !== item.idNumber) {
+      if (
+        data.idNumber === null &&
+        (await formulasUsing(ctx.tx, item.courseId, { itemId: id })).length
+      )
+        throw new ValidationError({ idNumber: ['Formulas use this item: it needs an ID number'] });
+      await requireFreeIdNumber(ctx.tx, item.courseId, data.idNumber, { itemId: id });
+      if (item.kind === 'MODULE' && item.itemNumber === 0 && item.activityId)
+        await ctx.tx.activity.update({
+          where: { id: item.activityId },
+          data: { idNumber: data.idNumber },
+        });
+    }
+    // a formula's item belongs where it does not use itself
+    if (data.categoryId && item.calculation) {
+      const [categories, items] = await Promise.all([
+        ctx.tx.gradeCategory.findMany({ where: { courseId: item.courseId } }),
+        ctx.tx.gradeItem.findMany({ where: { courseId: item.courseId } }),
+      ]);
+      requireOrder(
+        items.map((i) => (i.id === id ? { ...i, categoryId: data.categoryId! } : i)),
+        categories,
+      );
+    }
     await ctx.tx.gradeItem.update({ where: { id }, data });
     const users = await ctx.tx.enrolment.findMany({
       where: { courseId: item.courseId },
@@ -542,6 +713,10 @@ export const deleteManualItem = defineOperation({
     await ctx.perm.require('grade:manage', item.courseId);
   },
   async handler(ctx, { id }) {
+    const current = await ctx.tx.gradeItem.findUniqueOrThrow({ where: { id } });
+    const usedBy = await formulasUsing(ctx.tx, current.courseId, { itemId: id });
+    if (usedBy.length)
+      throw new ValidationError({ id: [`Formulas use this item: ${usedBy.join(', ')}`] });
     const item = await ctx.tx.gradeItem.delete({ where: { id } });
     const users = await ctx.tx.enrolment.findMany({
       where: { courseId: item.courseId },
@@ -551,6 +726,97 @@ export const deleteManualItem = defineOperation({
     return { id };
   },
 });
+
+/** The calculated items can be put in order: no formula uses itself, however indirectly. */
+function requireOrder(
+  items: {
+    id: string;
+    idNumber: string | null;
+    categoryId: string | null;
+    calculation: string | null;
+  }[],
+  categories: { id: string; idNumber: string | null; parentId: string | null }[],
+) {
+  try {
+    calculationOrder(items, categories);
+  } catch (e) {
+    if (e instanceof CalculationError)
+      throw new ValidationError({
+        calculation: ['The formula would use its own grade (itself, or a category it is in)'],
+      });
+    throw e;
+  }
+}
+
+/**
+ * A manual item's formula, written with [[idnumber]] references (null removes it). The
+ * grades are computed at once for everyone.
+ */
+export const setGradeCalculation = defineOperation({
+  name: 'grade.item.calculation',
+  input: z.object({
+    id: z.string().uuid(),
+    calculation: z.string().trim().max(2000).nullable(),
+  }),
+  async authorize(ctx, i) {
+    const item = await ctx.db.gradeItem.findUnique({ where: { id: i.id } });
+    if (!item) throw new NotFoundError('Grade item');
+    await ctx.perm.require('grade:manage', item.courseId);
+  },
+  async handler(ctx, { id, calculation }) {
+    const item = await ctx.tx.gradeItem.findUniqueOrThrow({ where: { id } });
+    if (item.kind !== 'MANUAL' || item.gradeType !== 'VALUE')
+      throw new ValidationError({ calculation: ['Only manual items graded in points calculate'] });
+    let stored: string | null = null;
+    if (calculation) {
+      const [categories, items] = await Promise.all([
+        ctx.tx.gradeCategory.findMany({ where: { courseId: item.courseId } }),
+        ctx.tx.gradeItem.findMany({ where: { courseId: item.courseId } }),
+      ]);
+      try {
+        stored = storeCalculation(calculation, items, categories);
+      } catch (e) {
+        if (e instanceof CalculationError)
+          throw new ValidationError({ calculation: [`${e.message} (at ${e.pos + 1})`] });
+        throw e;
+      }
+      requireOrder(
+        items.map((i) => (i.id === id ? { ...i, calculation: stored } : i)),
+        categories,
+      );
+    }
+    await ctx.tx.gradeItem.update({
+      where: { id },
+      data: { calculation: stored, needsUpdate: false },
+    });
+    await recomputeEveryone(ctx.tx, item.courseId);
+    await logEvent(ctx.tx, {
+      name: 'grade.calculation.updated',
+      actorId: ctx.perm.userId,
+      courseId: item.courseId,
+      objectId: id,
+      origin: ctx.origin,
+    });
+    return { id, calculation: stored };
+  },
+});
+
+/** The formulas of a course's items as teachers read them, by item id. */
+export function displayCalculations(
+  items: {
+    id: string;
+    idNumber: string | null;
+    categoryId: string | null;
+    calculation: string | null;
+  }[],
+  categories: { id: string; idNumber: string | null; parentId: string | null }[],
+): Map<string, string> {
+  return new Map(
+    items
+      .filter((i) => i.calculation)
+      .map((i) => [i.id, displayCalculation(i.calculation!, items, categories)]),
+  );
+}
 
 const AGGREGATIONS = ['NATURAL', 'MEAN', 'WEIGHTED_MEAN', 'HIGHEST', 'LOWEST', 'MEDIAN'] as const;
 
@@ -590,11 +856,25 @@ export const saveGradeCategory = defineOperation({
     keepHighest: z.coerce.number().int().min(0).max(100).default(0),
     aggregateOnlyGraded: z.boolean().default(true),
     weight: z.coerce.number().min(0).max(1000).default(1),
+    /** The category in formulas. */
+    idNumber: optionalText(100),
   }),
   authorize: (ctx, i) => ctx.perm.require('grade:manage', i.courseId),
   async handler(ctx, input) {
     const { root } = await ensureCourseGradebook(ctx.tx, input.courseId);
     const current = input.id ? await requireGradeCategory(ctx.tx, input.courseId, input.id) : null;
+    const idNumber = input.idNumber ?? null;
+    if (idNumber !== (current?.idNumber ?? null)) {
+      if (
+        !idNumber &&
+        current &&
+        (await formulasUsing(ctx.tx, input.courseId, { categoryId: current.id })).length
+      )
+        throw new ValidationError({
+          idNumber: ['Formulas use this category: it needs an ID number'],
+        });
+      await requireFreeIdNumber(ctx.tx, input.courseId, idNumber, { categoryId: current?.id });
+    }
     const isRoot = current?.id === root.id;
     if (!isRoot && !input.id && !input.name)
       throw new ValidationError({ name: ['Name the category'] });
@@ -606,6 +886,7 @@ export const saveGradeCategory = defineOperation({
     } else parentId = null;
     const data = {
       name: input.name,
+      idNumber,
       aggregation: input.aggregation,
       dropLowest: input.dropLowest,
       keepHighest: input.keepHighest,
@@ -613,6 +894,17 @@ export const saveGradeCategory = defineOperation({
       weight: input.weight,
       parentId,
     };
+    // moving a category may put a formula's item inside a category its formula uses
+    if (current && parentId !== current.parentId) {
+      const [categories, items] = await Promise.all([
+        ctx.tx.gradeCategory.findMany({ where: { courseId: input.courseId } }),
+        ctx.tx.gradeItem.findMany({ where: { courseId: input.courseId } }),
+      ]);
+      requireOrder(
+        items,
+        categories.map((c) => (c.id === current.id ? { ...c, parentId } : c)),
+      );
+    }
     let cat: GradeCategory;
     if (current) cat = await ctx.tx.gradeCategory.update({ where: { id: current.id }, data });
     else {
@@ -637,6 +929,20 @@ export const deleteGradeCategory = defineOperation({
   async handler(ctx, { courseId, id }) {
     const cat = await requireGradeCategory(ctx.tx, courseId, id);
     if (!cat.parentId) throw new ValidationError({ id: ['The course category cannot be deleted'] });
+    const usedBy = await formulasUsing(ctx.tx, courseId, { categoryId: id });
+    if (usedBy.length)
+      throw new ValidationError({ id: [`Formulas use this category: ${usedBy.join(', ')}`] });
+    // its items move up: none may land in a category its own formula uses
+    const [categories, items] = await Promise.all([
+      ctx.tx.gradeCategory.findMany({ where: { courseId } }),
+      ctx.tx.gradeItem.findMany({ where: { courseId } }),
+    ]);
+    requireOrder(
+      items.map((i) => (i.categoryId === id ? { ...i, categoryId: cat.parentId } : i)),
+      categories
+        .filter((c) => c.id !== id)
+        .map((c) => (c.parentId === id ? { ...c, parentId: cat.parentId } : c)),
+    );
     await ctx.tx.gradeItem.updateMany({
       where: { categoryId: id },
       data: { categoryId: cat.parentId },

@@ -3,6 +3,7 @@ import {
   categoryFractions,
   courseLetters,
   decimalToNumber,
+  displayCalculations,
   formatGrade,
   getCourseAccess,
   gradebookStructure,
@@ -149,6 +150,12 @@ export default async function GradesPage({
       listScales(ctx.db, courseId),
     ]);
     const root = categories.find((c) => !c.parentId)!;
+    // formulas as written, and the ID numbers they can use
+    const formulas = displayCalculations(items, categories);
+    const ids = [
+      ...items.flatMap((i) => (i.idNumber && i.kind !== 'COURSE' ? [i.idNumber] : [])),
+      ...categories.flatMap((c) => (c.idNumber && c.parentId ? [c.idNumber] : [])),
+    ].sort((x, y) => x.localeCompare(y));
     const options: { id: string; label: string }[] = [];
     walk(categories, (c, depth) =>
       options.push({
@@ -211,6 +218,7 @@ export default async function GradesPage({
                   keepHighest: c.keepHighest,
                   onlyGraded: c.aggregateOnlyGraded,
                   weight: n(c.weight)!,
+                  idNumber: c.idNumber,
                 }}
               />
             </div>
@@ -236,6 +244,7 @@ export default async function GradesPage({
                     categories={options}
                     first={k === 0}
                     last={k === own.length - 1}
+                    ids={ids}
                     item={{
                       id: i.id,
                       name: i.name,
@@ -246,6 +255,10 @@ export default async function GradesPage({
                       hidden: i.hidden,
                       categoryId: i.categoryId ?? root.id,
                       scale: i.scale?.name ?? null,
+                      idNumber: i.idNumber,
+                      formula: formulas.get(i.id) ?? null,
+                      needsUpdate: i.needsUpdate,
+                      canCalculate: i.kind === 'MANUAL' && i.gradeType === 'VALUE',
                     }}
                   />
                 ))}

@@ -12,6 +12,7 @@ import {
   createUser,
   createWebhook,
   deleteWebhook,
+  displayCalculations,
   enrolUsers,
   flattenTree,
   getActivityAccess,
@@ -351,6 +352,7 @@ const GradeCategory = z
     id: Id,
     parentId: Id.nullable().openapi({ description: 'Null for the course category (the root)' }),
     name: z.string(),
+    idNumber: z.string().nullable().openapi({ description: 'The category in formulas' }),
     aggregation: z.string().openapi({ example: 'WEIGHTED_MEAN' }),
     weight: z.number(),
     dropLowest: z.number().int(),
@@ -374,6 +376,11 @@ const GradeItem = z
       description: 'For scale items: the grade is the 1-based position in this list',
     }),
     hidden: z.boolean(),
+    idNumber: z.string().nullable().openapi({ description: 'The item in formulas' }),
+    calculation: z.string().nullable().openapi({
+      description: 'A calculated item: its formula, with [[idnumber]] references',
+      example: '=([[hw1]] + [[hw2]]) / 2',
+    }),
   })
   .openapi('GradeItem');
 
@@ -1027,6 +1034,8 @@ export function createApi(opts: ApiOptions) {
       const q = c.req.valid('query');
       const ctx = ctxOf(c);
       const dec = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+      // formulas as teachers write them, for those who see the whole gradebook
+      let formulas = new Map<string, string>();
       const itemOut = (i: Awaited<ReturnType<typeof gradebookStructure>>['items'][number]) => ({
         id: i.id,
         name: i.name,
@@ -1039,6 +1048,8 @@ export function createApi(opts: ApiOptions) {
         gradePass: dec(i.gradePass),
         scale: i.gradeType === 'SCALE' ? (i.scale?.items ?? []) : null,
         hidden: i.hidden,
+        idNumber: i.idNumber,
+        calculation: formulas.get(i.id) ?? null,
       });
       const gradeOut = (g: Grade) => ({
         userId: g.userId,
@@ -1055,6 +1066,7 @@ export function createApi(opts: ApiOptions) {
         id: k.id,
         parentId: k.parentId,
         name: k.name,
+        idNumber: k.idNumber,
         aggregation: k.aggregation,
         weight: Number(k.weight),
         dropLowest: k.dropLowest,
@@ -1063,6 +1075,7 @@ export function createApi(opts: ApiOptions) {
       });
       if (q.all === '1') {
         const r = await graderReport(ctx, id);
+        formulas = displayCalculations(r.items, r.categories);
         // category totals are worked out on display, like the grader report does
         const counted = r.items.filter(
           (i) =>
@@ -1090,6 +1103,7 @@ export function createApi(opts: ApiOptions) {
       }
       const r = await userReport(ctx, id, q.userId ?? uid(c));
       const all = await ctx.perm.can('grade:viewall', id);
+      if (all) formulas = displayCalculations(r.items, r.categories);
       return c.json(
         {
           categories: r.categories.filter((k) => all || !k.hidden).map(categoryOut),

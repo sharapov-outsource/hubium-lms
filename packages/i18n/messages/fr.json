@@ -841,6 +841,8 @@
     "manualItem": "Élément d’évaluation manuel",
     "newItem": "Ajouter un élément d’évaluation",
     "name": "Nom",
+    "idNumber": "Numéro d'identification",
+    "idNumberHint": "Pour les formules du carnet de notes : [[numéro]]",
     "gradeMax": "Note maximale",
     "gradePass": "Note pour passer",
     "weight": "Pondération",
@@ -922,12 +924,37 @@
       "grader": "Carnet de notes",
       "override": "Modifiée manuellement",
       "import": "Importation",
-      "aggregation": "Total recalculé"
+      "aggregation": "Total recalculé",
+      "calculation": "Formule"
     },
     "all": "Toutes",
     "from": "Du",
     "to": "Au",
-    "apply": "Afficher"
+    "apply": "Afficher",
+    "calc": {
+      "button": "Formule",
+      "open": "Formule : {name}",
+      "title": "Formule : {name}",
+      "hint": "Une formule commence par « = ». On désigne les éléments et catégories du cours par leur numéro d'identification entre doubles crochets, par ex. [[hw1]]. Une note vide compte pour zéro, mais si toutes sont vides, il n'y a pas de note. Fonctions : sum, average, min, max, round, floor, ceil, abs, sqrt, power, mod, pi, ifthenelse.",
+      "label": "Formule",
+      "ids": "Numéros d'identification du cours",
+      "insert": "Insérer [[{id}]]",
+      "noIds": "Donnez des numéros d'identification aux éléments et catégories pour les utiliser dans les formules.",
+      "save": "Enregistrer la formule",
+      "remove": "Retirer la formule",
+      "saved": "Formule enregistrée",
+      "removed": "Formule retirée",
+      "broken": "La formule fait référence à quelque chose qui n'existe plus",
+      "errors": {
+        "syntax": "Erreur dans la formule (caractère {pos})",
+        "unknownFunction": "Fonction inconnue (caractère {pos})",
+        "unknownName": "Nom inconnu (caractère {pos})",
+        "arity": "Mauvais nombre d'arguments (caractère {pos})",
+        "domain": "Valeur non permise (caractère {pos})",
+        "limit": "La formule est trop longue ou trop complexe",
+        "unknownIdNumber": "Aucun élément ni catégorie n'a le numéro d'identification « {name} »"
+      }
+    }
   },
   "qbank": {
     "title": "Banque de questions",

@@ -6,6 +6,7 @@ import { createContext } from '../access/contexts.ts';
 import type { MutationContext, RequestContext } from '../context.ts';
 import { NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { requireActivityIdNumber } from '../grades/gradebook.ts';
 import { enqueue } from '../jobs/jobs.ts';
 import { rankBetween } from '../lib/rank.ts';
 import { optionalText } from '../lib/zod.ts';
@@ -213,6 +214,7 @@ async function insertActivity(ctx: MutationContext, input: z.output<typeof Activ
   const groups = await groupSetup(ctx.tx, input.courseId, input);
   const id = uuidv7();
   await createContext(ctx.tx, id, 'ACTIVITY', input.courseId);
+  await requireActivityIdNumber(ctx.tx, input.courseId, input.idNumber);
   const a = await ctx.tx.activity.create({
     data: {
       id,
@@ -264,6 +266,8 @@ export const updateActivity = defineOperation({
   authorize: (ctx, i) => authorizeActivity(ctx, i.id, { enabledType: true }),
   async handler(ctx, input) {
     const prev = await ctx.tx.activity.findUniqueOrThrow({ where: { id: input.id } });
+    if ((input.idNumber ?? null) !== prev.idNumber)
+      await requireActivityIdNumber(ctx.tx, prev.courseId, input.idNumber, prev.id);
     const settings = validateSettings(prev.moduleKey, input.settings);
     const completionRules = validateCompletion(
       prev.moduleKey,

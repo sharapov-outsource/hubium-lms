@@ -28,6 +28,7 @@ export interface CategoryValues {
   keepHighest: number;
   onlyGraded: boolean;
   weight: number;
+  idNumber: string | null;
 }
 
 /** New category, or the settings of an existing one (the root has no parent or weight). */
@@ -104,6 +105,15 @@ export function CategoryForm({
             min={0}
             label={t('categoryWeight')}
             defaultValue={category?.weight ?? 1}
+          />
+        )}
+        {isRoot ? null : (
+          <FormField
+            id={`gc-idnumber-${sfx}`}
+            name="idNumber"
+            label={t('idNumber')}
+            hint={t('idNumberHint')}
+            defaultValue={category?.idNumber ?? ''}
           />
         )}
         <FormField

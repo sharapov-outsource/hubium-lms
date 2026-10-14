@@ -104,7 +104,7 @@ Courses carry `idNumber`, the key of the course in your other systems (unique; s
 `GET /courses/{id}/grades` describes the gradebook along with the grades:
 
 - `categories`: the category tree (`parentId` null for the course category), each with its aggregation and its weight in the parent.
-- `items`: grade items with `kind` (`MODULE`, `MANUAL`, `CATEGORY`, `COURSE`), `gradeType` and the range. For a scale item (`gradeType: "SCALE"`) `scale` lists the scale's grades, and `finalGrade` is the 1-based position in that list.
+- `items`: grade items with `kind` (`MODULE`, `MANUAL`, `CATEGORY`, `COURSE`), `gradeType`, the range and `idNumber`; a calculated item's grades come from its formula (`calculation`, references stored as `##gi<id>##` and `##gc<id>##`). For a scale item (`gradeType: "SCALE"`) `scale` lists the scale's grades, and `finalGrade` is the 1-based position in that list.
 - `grades`: one row per user and item that has a grade, with `overridden` and `excluded` flags.
 - `categoryTotals` (only with `?all=1`): every category's total per student in percent, as the grader report shows it. The course total is also the grade of the `COURSE` item.
 

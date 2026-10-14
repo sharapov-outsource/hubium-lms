@@ -841,6 +841,8 @@
     "manualItem": "Elemento di valutazione manuale",
     "newItem": "Aggiungi elemento di valutazione",
     "name": "Nome",
+    "idNumber": "Codice identificativo",
+    "idNumberHint": "Per le formule del registro: [[codice]]",
     "gradeMax": "Massimo",
     "gradePass": "Sufficienza",
     "weight": "Peso",
@@ -922,12 +924,37 @@
       "grader": "Registro valutatore",
       "override": "Modificata manualmente",
       "import": "Importazione",
-      "aggregation": "Totale ricalcolato"
+      "aggregation": "Totale ricalcolato",
+      "calculation": "Formula"
     },
     "all": "Tutti",
     "from": "Dal",
     "to": "Al",
-    "apply": "Mostra"
+    "apply": "Mostra",
+    "calc": {
+      "button": "Formula",
+      "open": "Formula: {name}",
+      "title": "Formula: {name}",
+      "hint": "Una formula inizia con «=». Si fa riferimento a voci e categorie del corso con il loro codice identificativo tra doppie parentesi quadre, ad es. [[hw1]]. Un voto vuoto vale zero, ma se sono tutti vuoti non c'è voto. Funzioni: sum, average, min, max, round, floor, ceil, abs, sqrt, power, mod, pi, ifthenelse.",
+      "label": "Formula",
+      "ids": "Codici identificativi del corso",
+      "insert": "Inserisci [[{id}]]",
+      "noIds": "Assegna codici identificativi a voci e categorie per usarli nelle formule.",
+      "save": "Salva la formula",
+      "remove": "Rimuovi la formula",
+      "saved": "Formula salvata",
+      "removed": "Formula rimossa",
+      "broken": "La formula fa riferimento a qualcosa che non esiste più",
+      "errors": {
+        "syntax": "Errore nella formula (carattere {pos})",
+        "unknownFunction": "Funzione sconosciuta (carattere {pos})",
+        "unknownName": "Nome sconosciuto (carattere {pos})",
+        "arity": "Numero di argomenti errato (carattere {pos})",
+        "domain": "Valore non consentito (carattere {pos})",
+        "limit": "La formula è troppo lunga o complessa",
+        "unknownIdNumber": "Nessuna voce o categoria ha il codice identificativo «{name}»"
+      }
+    }
   },
   "qbank": {
     "title": "Deposito delle domande",

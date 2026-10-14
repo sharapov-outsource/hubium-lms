@@ -841,6 +841,8 @@
     "manualItem": "Manueller Bewertungsaspekt",
     "newItem": "Bewertungsaspekt hinzufügen",
     "name": "Name",
+    "idNumber": "ID-Nummer",
+    "idNumberHint": "Für Formeln der Bewertungsübersicht: [[ID-Nummer]]",
     "gradeMax": "Maximum",
     "gradePass": "Bestehensgrenze",
     "weight": "Gewichtung",
@@ -922,12 +924,37 @@
       "grader": "Bewerterübersicht",
       "override": "Manuell geändert",
       "import": "Import",
-      "aggregation": "Gesamtwert neu berechnet"
+      "aggregation": "Gesamtwert neu berechnet",
+      "calculation": "Formel"
     },
     "all": "Alle",
     "from": "Von",
     "to": "Bis",
-    "apply": "Anzeigen"
+    "apply": "Anzeigen",
+    "calc": {
+      "button": "Formel",
+      "open": "Formel: {name}",
+      "title": "Formel: {name}",
+      "hint": "Eine Formel beginnt mit „=“. Elemente und Kategorien des Kurses werden über ihre ID-Nummer in doppelten eckigen Klammern angesprochen, z. B. [[hw1]]. Eine leere Bewertung zählt als null, sind aber alle leer, gibt es keine Bewertung. Funktionen: sum, average, min, max, round, floor, ceil, abs, sqrt, power, mod, pi, ifthenelse.",
+      "label": "Formel",
+      "ids": "ID-Nummern des Kurses",
+      "insert": "[[{id}]] einfügen",
+      "noIds": "Geben Sie Elementen und Kategorien ID-Nummern, um sie in Formeln zu verwenden.",
+      "save": "Formel speichern",
+      "remove": "Formel entfernen",
+      "saved": "Formel gespeichert",
+      "removed": "Formel entfernt",
+      "broken": "Die Formel verweist auf etwas, das es nicht mehr gibt",
+      "errors": {
+        "syntax": "Fehler in der Formel (Zeichen {pos})",
+        "unknownFunction": "Unbekannte Funktion (Zeichen {pos})",
+        "unknownName": "Unbekannter Name (Zeichen {pos})",
+        "arity": "Falsche Anzahl von Argumenten (Zeichen {pos})",
+        "domain": "Unzulässiger Wert (Zeichen {pos})",
+        "limit": "Die Formel ist zu lang oder zu komplex",
+        "unknownIdNumber": "Kein Element und keine Kategorie hat die ID-Nummer „{name}“"
+      }
+    }
   },
   "qbank": {
     "title": "Fragensammlung",
