@@ -6,13 +6,16 @@ import { authClient, safeNext } from '@/lib/auth-client';
 
 export function OAuthButtons({
   providers,
+  sso = [],
   next,
 }: {
   providers: ('google' | 'yandex' | 'vk')[];
+  /** Single sign-on providers from Administration → Single sign-on. */
+  sso?: { providerId: string; name: string }[];
   next?: string;
 }) {
   const t = useTranslations('auth');
-  if (!providers.length) return null;
+  if (!providers.length && !sso.length) return null;
   const callbackURL = safeNext(next);
   return (
     <div className="grid gap-3">
@@ -41,6 +44,25 @@ export function OAuthButtons({
             }
           >
             {t(p)}
+          </Button>
+        ))}
+        {sso.map((p) => (
+          <Button
+            key={p.providerId}
+            type="button"
+            variant="outline"
+            onClick={() =>
+              authClient
+                .$fetch<{ url: string }>('/sign-in/sso', {
+                  method: 'POST',
+                  body: { providerId: p.providerId, callbackURL, errorCallbackURL: '/login' },
+                })
+                .then((r) => {
+                  if (r.data?.url) window.location.href = r.data.url;
+                })
+            }
+          >
+            {p.name}
           </Button>
         ))}
       </div>

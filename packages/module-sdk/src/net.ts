@@ -68,6 +68,11 @@ export class UnsafeUrlError extends Error {
   }
 }
 
+/** Hosts SSRF_ALLOW_HOSTS lets server-side requests reach although they are internal. */
+export function ssrfAllowedHosts(): Set<string> {
+  return allowHosts();
+}
+
 function allowHosts(): Set<string> {
   return new Set(
     (process.env.SSRF_ALLOW_HOSTS ?? '')

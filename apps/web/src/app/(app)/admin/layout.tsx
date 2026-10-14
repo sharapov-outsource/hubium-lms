@@ -36,6 +36,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       label: t('profileFields'),
       show: config,
     },
+    { key: 'sso', href: '/admin/sso', label: t('sso'), show: config },
     { key: 'roles', href: '/admin/roles', label: t('roles'), show: roles },
     { key: 'permissions', href: '/admin/permissions', label: t('permissionCheck'), show: roles },
     { key: 'grades', href: '/admin/grades', label: t('grades'), show: config },

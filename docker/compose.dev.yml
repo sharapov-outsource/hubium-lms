@@ -30,6 +30,18 @@ services:
   mailpit:
     image: axllent/mailpit:v1.31
     ports: ["1025:1025", "8025:8025"]
+  # Identity provider for trying single sign-on (OIDC, SAML) and the e2e scenarios:
+  # `docker compose -f docker/compose.dev.yml --profile sso up -d`, admin / admin at
+  # http://127.0.0.1:8080, realm "hubium" (users kira and nikita, password Kc-pass-123).
+  keycloak:
+    image: keycloak/keycloak:26.4.2
+    profiles: [sso]
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports: ["8080:8080"]
+    volumes: [../e2e/keycloak:/opt/keycloak/data/import:ro]
 volumes:
   db:
   s3:

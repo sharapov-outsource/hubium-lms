@@ -185,7 +185,11 @@
     },
     "useRecoveryPhrase": "Use a recovery phrase",
     "recoveryPhrase": "Recovery phrase",
-    "invalidRecoveryPhrase": "That phrase did not match"
+    "invalidRecoveryPhrase": "That phrase did not match",
+    "ssoNoAccount": "There is no account on this site for that provider account. Contact an administrator.",
+    "ssoNotLinked": "An account with this email exists but is not linked to the provider. Sign in with your password or contact an administrator.",
+    "ssoDisabled": "This sign-in method is turned off.",
+    "ssoFailed": "Signing in through the provider failed. Try again."
   },
   "dashboard": {
     "title": "Welcome, {name}",
@@ -467,7 +471,8 @@
     "grades": "Grades",
     "languages": "Languages",
     "modules": "Modules",
-    "security": "Security"
+    "security": "Security",
+    "sso": "Single sign-on"
   },
   "email": {
     "footer": "You received this email because you have an account on this site.",
@@ -1826,5 +1831,49 @@
     "toSubmit": "To hand in",
     "toAttempt": "To take",
     "noDeadlines": "Nothing due."
+  },
+  "adminSso": {
+    "title": "Single sign-on (SSO)",
+    "description": "Sign-in through an organisation's identity provider over OpenID Connect or SAML 2.0: Keycloak, Microsoft Entra ID, ADFS, Okta, Google Workspace and others.",
+    "new": "Add provider",
+    "none": "No providers yet.",
+    "name": "Name",
+    "nameHint": "The button text on the sign-in page",
+    "providerId": "Identifier",
+    "providerIdHint": "Latin letters, digits and dashes; part of the callback addresses and cannot change later",
+    "protocol": "Protocol",
+    "status": "Status",
+    "on": "On",
+    "off": "Off",
+    "redirectUri": "Redirect URI",
+    "spEntityId": "Service provider entity ID",
+    "acsUrl": "ACS URL (Assertion Consumer Service)",
+    "spMetadata": "Service provider metadata (XML)",
+    "issuer": "Issuer",
+    "issuerHint": "For example https://sso.example.org/realms/main; the discovery document is read on save",
+    "clientId": "Client ID",
+    "clientSecret": "Client secret",
+    "clientSecretKept": "Stored; leave empty to keep it",
+    "scopes": "Scopes",
+    "idpMetadataUrl": "Identity provider metadata URL",
+    "idpMetadataHint": "Or paste the XML below",
+    "idpMetadataKept": "Fill in the URL or the XML to refresh the metadata",
+    "idpMetadataXml": "Identity provider metadata XML",
+    "accounts": "Accounts",
+    "enabled": "Show on the sign-in page",
+    "linkByEmail": "Sign in to an existing account with the same email",
+    "autoCreate": "Create an account when there is none",
+    "domain": "Email domains",
+    "domainHint": "Optional; comma-separated, for example example.org",
+    "mapping": "Field mapping",
+    "mappingHintOidc": "Claim names in the ID token or userinfo response. Leave empty for the default. Names and profile fields are refreshed at every sign-in.",
+    "mappingHintSaml": "Attribute names in the SAML assertion. Leave empty for the default. Names and profile fields are refreshed at every sign-in.",
+    "mapEmail": "Email",
+    "mapFirstName": "First name",
+    "mapLastName": "Last name",
+    "saved": "Provider saved",
+    "deleted": "Provider deleted",
+    "delete": "Delete provider",
+    "deleteConfirm": "Delete \"{name}\"? Accounts stay, but nobody can sign in through this provider."
   }
 }

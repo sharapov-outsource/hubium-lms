@@ -184,7 +184,11 @@
     },
     "useRecoveryPhrase": "Wiederherstellungssatz verwenden",
     "recoveryPhrase": "Wiederherstellungssatz",
-    "invalidRecoveryPhrase": "Dieser Satz passt nicht"
+    "invalidRecoveryPhrase": "Dieser Satz passt nicht",
+    "ssoNoAccount": "Für dieses Anbieterkonto gibt es kein Konto auf dieser Website. Wenden Sie sich an einen Administrator.",
+    "ssoNotLinked": "Ein Konto mit dieser E-Mail existiert, ist aber nicht mit dem Anbieter verknüpft. Melden Sie sich mit Ihrem Passwort an oder wenden Sie sich an einen Administrator.",
+    "ssoDisabled": "Diese Anmeldemethode ist deaktiviert.",
+    "ssoFailed": "Die Anmeldung über den Anbieter ist fehlgeschlagen. Versuchen Sie es erneut."
   },
   "dashboard": {
     "title": "Willkommen, {name}",
@@ -466,7 +470,8 @@
     "grades": "Bewertungen",
     "languages": "Sprachen",
     "modules": "Module",
-    "security": "Sicherheit"
+    "security": "Sicherheit",
+    "sso": "Single Sign-on"
   },
   "email": {
     "footer": "Sie erhalten diese E-Mail, weil Sie ein Konto auf dieser Website haben.",
@@ -1825,5 +1830,49 @@
     "toSubmit": "Abzugeben",
     "toAttempt": "Zu absolvieren",
     "noDeadlines": "Nichts fällig."
+  },
+  "adminSso": {
+    "title": "Single Sign-on (SSO)",
+    "description": "Anmeldung über den Identitätsanbieter einer Organisation per OpenID Connect oder SAML 2.0: Keycloak, Microsoft Entra ID, ADFS, Okta, Google Workspace und andere.",
+    "new": "Anbieter hinzufügen",
+    "none": "Noch keine Anbieter.",
+    "name": "Name",
+    "nameHint": "Der Text der Schaltfläche auf der Anmeldeseite",
+    "providerId": "Kennung",
+    "providerIdHint": "Lateinische Buchstaben, Ziffern und Bindestriche; Teil der Rückrufadressen und später nicht änderbar",
+    "protocol": "Protokoll",
+    "status": "Status",
+    "on": "Aktiv",
+    "off": "Inaktiv",
+    "redirectUri": "Weiterleitungs-URI",
+    "spEntityId": "Entity-ID des Dienstanbieters",
+    "acsUrl": "ACS-URL (Assertion Consumer Service)",
+    "spMetadata": "Metadaten des Dienstanbieters (XML)",
+    "issuer": "Aussteller (Issuer)",
+    "issuerHint": "Zum Beispiel https://sso.example.org/realms/main; das Discovery-Dokument wird beim Speichern gelesen",
+    "clientId": "Client-ID",
+    "clientSecret": "Client-Secret",
+    "clientSecretKept": "Gespeichert; leer lassen, um es zu behalten",
+    "scopes": "Scopes",
+    "idpMetadataUrl": "URL der Metadaten des Identitätsanbieters",
+    "idpMetadataHint": "Oder fügen Sie das XML unten ein",
+    "idpMetadataKept": "URL oder XML ausfüllen, um die Metadaten zu erneuern",
+    "idpMetadataXml": "Metadaten-XML des Identitätsanbieters",
+    "accounts": "Konten",
+    "enabled": "Auf der Anmeldeseite anzeigen",
+    "linkByEmail": "Bei einem bestehenden Konto mit derselben E-Mail anmelden",
+    "autoCreate": "Konto anlegen, wenn keines existiert",
+    "domain": "E-Mail-Domains",
+    "domainHint": "Optional; durch Kommas getrennt, zum Beispiel example.org",
+    "mapping": "Feldzuordnung",
+    "mappingHintOidc": "Claim-Namen im ID-Token oder in der Userinfo-Antwort. Leer lassen für den Standard. Namen und Profilfelder werden bei jeder Anmeldung aktualisiert.",
+    "mappingHintSaml": "Attributnamen in der SAML-Assertion. Leer lassen für den Standard. Namen und Profilfelder werden bei jeder Anmeldung aktualisiert.",
+    "mapEmail": "E-Mail",
+    "mapFirstName": "Vorname",
+    "mapLastName": "Nachname",
+    "saved": "Anbieter gespeichert",
+    "deleted": "Anbieter gelöscht",
+    "delete": "Anbieter löschen",
+    "deleteConfirm": "„{name}“ löschen? Die Konten bleiben, aber niemand kann sich mehr über diesen Anbieter anmelden."
   }
 }

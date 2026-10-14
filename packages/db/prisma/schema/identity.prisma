@@ -156,7 +156,8 @@ model Account {
 }
 
 model Verification {
-  id         String   @id @default(uuid(7)) @db.Uuid
+  /// Text: Better Auth reserves some rows under a hash id (SAML replay protection)
+  id         String   @id @default(uuid(7))
   identifier String
   value      String
   expiresAt  DateTime @db.Timestamptz(3)
@@ -220,6 +221,42 @@ model RecoveryPassphrase {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/// Single sign-on through OIDC or SAML 2.0. The first columns are the ones Better Auth's
+/// SSO plugin reads (model "ssoProvider"); Hubium manages the rows (auth/sso.ts).
+model SsoProvider {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  /// Slug in callback URLs
+  providerId      String   @unique
+  issuer          String
+  /// Email domains matched to this provider (comma-separated), may be empty
+  domain          String   @default("")
+  /// JSON for Better Auth, without the client secret
+  oidcConfig      String?
+  samlConfig      String?
+  /// Administrator who added it
+  userId          String   @db.Uuid
+  organizationId  String?
+  /// Button label on the sign-in page
+  name            String
+  protocol        String
+  /// AES-GCM sealed OIDC client secret, merged into oidcConfig on read
+  clientSecretEnc String?
+  /// SAML: Hubium's signing key for this provider (sealed, merged into samlConfig on read)
+  /// and its self-signed certificate, published in the service provider metadata
+  spPrivateKeyEnc String?
+  spCertificate   String?
+  enabled         Boolean  @default(true)
+  /// Create a Hubium account for a person who has none yet
+  autoCreate      Boolean  @default(false)
+  /// Sign in to an existing Hubium account with the same email
+  linkByEmail     Boolean  @default(true)
+  /// { email?, firstName?, lastName?, fields: { profileFieldShortName: attribute } }
+  mapping         Json     @default("{}")
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
 }
 
 model RateLimit {

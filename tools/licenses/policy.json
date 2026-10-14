@@ -31,5 +31,10 @@
     "description": "Build, test and database tools (all other installed packages). They ship in images next to the application, not linked into it, so licenses that do not combine with AGPL-3.0 are fine as long as they allow redistribution.",
     "accepted": ["EPL-2.0"]
   },
-  "exceptions": {}
+  "exceptions": {
+    "xml-escape": {
+      "license": "MIT License",
+      "reason": "The LICENSE file is the plain MIT text; package.json spells it \"MIT License\" instead of the SPDX id. Pulled in by samlify (SAML sign-in)."
+    }
+  }
 }

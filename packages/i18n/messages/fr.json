@@ -184,7 +184,11 @@
     },
     "useRecoveryPhrase": "Utiliser une phrase de récupération",
     "recoveryPhrase": "Phrase de récupération",
-    "invalidRecoveryPhrase": "Cette phrase ne correspond pas"
+    "invalidRecoveryPhrase": "Cette phrase ne correspond pas",
+    "ssoNoAccount": "Aucun compte sur ce site ne correspond à ce compte du fournisseur. Contactez un administrateur.",
+    "ssoNotLinked": "Un compte avec cette adresse existe mais n'est pas lié au fournisseur. Connectez-vous avec votre mot de passe ou contactez un administrateur.",
+    "ssoDisabled": "Ce mode de connexion est désactivé.",
+    "ssoFailed": "La connexion via le fournisseur a échoué. Réessayez."
   },
   "dashboard": {
     "title": "Bienvenue, {name}",
@@ -466,7 +470,8 @@
     "grades": "Notes",
     "languages": "Langues",
     "modules": "Modules",
-    "security": "Sécurité"
+    "security": "Sécurité",
+    "sso": "Authentification unique"
   },
   "email": {
     "footer": "Vous recevez cet e-mail car vous avez un compte sur ce site.",
@@ -1825,5 +1830,49 @@
     "toSubmit": "À remettre",
     "toAttempt": "À passer",
     "noDeadlines": "Rien à rendre."
+  },
+  "adminSso": {
+    "title": "Authentification unique (SSO)",
+    "description": "Connexion via le fournisseur d'identité d'une organisation en OpenID Connect ou SAML 2.0 : Keycloak, Microsoft Entra ID, ADFS, Okta, Google Workspace et d'autres.",
+    "new": "Ajouter un fournisseur",
+    "none": "Aucun fournisseur pour l'instant.",
+    "name": "Nom",
+    "nameHint": "Le texte du bouton sur la page de connexion",
+    "providerId": "Identifiant",
+    "providerIdHint": "Lettres latines, chiffres et tirets ; fait partie des adresses de retour et ne peut plus changer",
+    "protocol": "Protocole",
+    "status": "État",
+    "on": "Activé",
+    "off": "Désactivé",
+    "redirectUri": "URI de redirection",
+    "spEntityId": "Entity ID du fournisseur de services",
+    "acsUrl": "URL ACS (Assertion Consumer Service)",
+    "spMetadata": "Métadonnées du fournisseur de services (XML)",
+    "issuer": "Émetteur (issuer)",
+    "issuerHint": "Par exemple https://sso.example.org/realms/main ; le document de découverte est lu à l'enregistrement",
+    "clientId": "Client ID",
+    "clientSecret": "Secret client",
+    "clientSecretKept": "Enregistré ; laissez vide pour le conserver",
+    "scopes": "Portées (scopes)",
+    "idpMetadataUrl": "URL des métadonnées du fournisseur d'identité",
+    "idpMetadataHint": "Ou collez le XML ci-dessous",
+    "idpMetadataKept": "Renseignez l'URL ou le XML pour actualiser les métadonnées",
+    "idpMetadataXml": "XML des métadonnées du fournisseur d'identité",
+    "accounts": "Comptes",
+    "enabled": "Afficher sur la page de connexion",
+    "linkByEmail": "Se connecter au compte existant ayant la même adresse",
+    "autoCreate": "Créer un compte s'il n'existe pas",
+    "domain": "Domaines de messagerie",
+    "domainHint": "Facultatif ; séparés par des virgules, par exemple example.org",
+    "mapping": "Correspondance des champs",
+    "mappingHintOidc": "Noms des claims dans le jeton d'identité ou la réponse userinfo. Laissez vide pour la valeur par défaut. Nom et champs de profil sont actualisés à chaque connexion.",
+    "mappingHintSaml": "Noms des attributs dans l'assertion SAML. Laissez vide pour la valeur par défaut. Nom et champs de profil sont actualisés à chaque connexion.",
+    "mapEmail": "E-mail",
+    "mapFirstName": "Prénom",
+    "mapLastName": "Nom",
+    "saved": "Fournisseur enregistré",
+    "deleted": "Fournisseur supprimé",
+    "delete": "Supprimer le fournisseur",
+    "deleteConfirm": "Supprimer « {name} » ? Les comptes restent, mais personne ne pourra se connecter via ce fournisseur."
   }
 }

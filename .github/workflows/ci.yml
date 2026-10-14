@@ -79,6 +79,13 @@ jobs:
       - uses: actions/checkout@v7
       - uses: pnpm/setup@v3
         with: { runtime: node@24, cache: true, require-lockfile: true }
+      # the identity provider of the single sign-on scenarios; boots while the app builds
+      - name: Start Keycloak
+        run: |
+          docker run -d --name keycloak -p 8080:8080 \
+            -e KC_BOOTSTRAP_ADMIN_USERNAME=admin -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+            -v "$PWD/e2e/keycloak:/opt/keycloak/data/import:ro" \
+            keycloak/keycloak:26.4.2 start-dev --import-realm
       - run: pnpm --filter @hubium/db migrate:deploy
       - run: pnpm db:seed --profile demo
       - run: pnpm --filter @hubium/web build && pnpm --filter @hubium/worker build
@@ -88,7 +95,8 @@ jobs:
         run: |
           (cd apps/web && pnpm start &)
           (cd apps/worker && WORKER_QUEUES=default,media pnpm start &)
-          pnpm dlx wait-on -t 120000 http://localhost:3000/api/health http://localhost:3001/healthz
+          pnpm dlx wait-on -t 120000 http://localhost:3000/api/health http://localhost:3001/healthz \
+            http://127.0.0.1:8080/realms/hubium/.well-known/openid-configuration
       - run: pnpm --filter @hubium/e2e e2e
       - uses: actions/upload-artifact@v7
         if: failure()

@@ -18,6 +18,7 @@ import {
   recordPasswordChange,
 } from './password-policy.ts';
 import { dropRecoveryPassphrases, recoveryPassphrase } from './recovery.ts';
+import { isOpenSsoPath, ssoPlugin, ssoTrustedOrigins, withSsoSecrets } from './sso.ts';
 
 // Better Auth instance. Authentication only — authorization is Hubium's own (can()).
 
@@ -92,7 +93,11 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
     appName: 'Hubium LMS',
     baseURL,
     secret,
-    database: prismaAdapter(db, { provider: 'postgresql' }),
+    // Transactions are required by the SSO plugin's user resolution. SSO rows come with
+    // their client secret unsealed (see sso.ts).
+    database: prismaAdapter(withSsoSecrets(db), { provider: 'postgresql', transaction: true }),
+    // identity providers on internal hosts that SSRF_ALLOW_HOSTS allows
+    trustedOrigins: () => ssoTrustedOrigins(db),
     advanced: {
       database: { generateId: () => uuidv7() },
       cookiePrefix: 'hubium',
@@ -213,6 +218,21 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
           };
           return;
         }
+        // SSO providers are managed in Administration, not through the plugin's endpoints
+        if (c.path.startsWith('/sso/') && !isOpenSsoPath(c.path)) throw new APIError('NOT_FOUND');
+        if (c.path === '/sign-in/sso') {
+          const providerId = (c.body as { providerId?: unknown } | undefined)?.providerId;
+          const p =
+            typeof providerId === 'string'
+              ? await db.ssoProvider.findUnique({
+                  where: { providerId },
+                  select: { enabled: true },
+                })
+              : null;
+          if (!p?.enabled)
+            throw new APIError('FORBIDDEN', { message: 'This sign-in method is disabled' });
+          return;
+        }
         // The admin plugin is here for its impersonation session only; Hubium manages
         // users itself (its other endpoints check User.role, which Hubium does not use).
         if (c.path.startsWith('/admin/') && c.path !== '/admin/stop-impersonating')
@@ -292,10 +312,12 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
       },
       user: {
         create: {
-          async before(user) {
+          async before(user, context) {
             const settings = await getAllSettings(db);
-            // OAuth sign-ups count as registration; respect the site switch.
-            if (!settings['registration.enabled']) {
+            // OAuth sign-ups count as registration; respect the site switch. SSO providers
+            // decide for themselves (resolveSsoUser in sso.ts).
+            const viaSso = context?.path?.startsWith('/sso/') ?? false;
+            if (!viaSso && !settings['registration.enabled']) {
               throw new Error('Registration is disabled');
             }
             const name = String(user.name ?? '').trim();
@@ -317,7 +339,9 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
               where: { id: session.userId },
               select: { status: true },
             });
-            if (u?.status !== 'ACTIVE') return false;
+            // a user created in the same transaction (SSO) is not visible here yet, and new
+            // users are active
+            if (u && u.status !== 'ACTIVE') return false;
             return { data: session };
           },
           async after(session) {
@@ -348,6 +372,7 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
       admin({ defaultRole: 'user', adminRoles: [] }),
       loginAs(db),
       recoveryPassphrase(db, baseURL),
+      ssoPlugin(db),
       ...(generic.length ? [genericOAuth({ config: generic })] : []),
       ...extraPlugins,
     ],

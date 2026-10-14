@@ -184,7 +184,11 @@
     },
     "useRecoveryPhrase": "Usa una frase di recupero",
     "recoveryPhrase": "Frase di recupero",
-    "invalidRecoveryPhrase": "La frase non corrisponde"
+    "invalidRecoveryPhrase": "La frase non corrisponde",
+    "ssoNoAccount": "Non esiste un account su questo sito per quell'account del provider. Contatta un amministratore.",
+    "ssoNotLinked": "Esiste un account con questa email ma non è collegato al provider. Accedi con la password o contatta un amministratore.",
+    "ssoDisabled": "Questo metodo di accesso è disattivato.",
+    "ssoFailed": "L'accesso tramite il provider non è riuscito. Riprova."
   },
   "dashboard": {
     "title": "Le diamo il benvenuto, {name}",
@@ -466,7 +470,8 @@
     "grades": "Valutazioni",
     "languages": "Lingue",
     "modules": "Moduli",
-    "security": "Sicurezza"
+    "security": "Sicurezza",
+    "sso": "Single sign-on"
   },
   "email": {
     "footer": "Questa email è stata inviata perché l’indirizzo è associato a un account su questo sito.",
@@ -1825,5 +1830,49 @@
     "toSubmit": "Da consegnare",
     "toAttempt": "Da svolgere",
     "noDeadlines": "Nessuna scadenza."
+  },
+  "adminSso": {
+    "title": "Single sign-on (SSO)",
+    "description": "Accesso tramite il provider di identità di un'organizzazione con OpenID Connect o SAML 2.0: Keycloak, Microsoft Entra ID, ADFS, Okta, Google Workspace e altri.",
+    "new": "Aggiungi provider",
+    "none": "Nessun provider per ora.",
+    "name": "Nome",
+    "nameHint": "Il testo del pulsante nella pagina di accesso",
+    "providerId": "Identificatore",
+    "providerIdHint": "Lettere latine, cifre e trattini; fa parte degli indirizzi di ritorno e non può cambiare in seguito",
+    "protocol": "Protocollo",
+    "status": "Stato",
+    "on": "Attivo",
+    "off": "Disattivo",
+    "redirectUri": "URI di reindirizzamento",
+    "spEntityId": "Entity ID del fornitore di servizi",
+    "acsUrl": "URL ACS (Assertion Consumer Service)",
+    "spMetadata": "Metadati del fornitore di servizi (XML)",
+    "issuer": "Emittente (issuer)",
+    "issuerHint": "Ad esempio https://sso.example.org/realms/main; il documento di discovery viene letto al salvataggio",
+    "clientId": "Client ID",
+    "clientSecret": "Client secret",
+    "clientSecretKept": "Salvato; lascia vuoto per mantenerlo",
+    "scopes": "Ambiti (scopes)",
+    "idpMetadataUrl": "URL dei metadati del provider di identità",
+    "idpMetadataHint": "Oppure incolla l'XML qui sotto",
+    "idpMetadataKept": "Compila l'URL o l'XML per aggiornare i metadati",
+    "idpMetadataXml": "XML dei metadati del provider di identità",
+    "accounts": "Account",
+    "enabled": "Mostra nella pagina di accesso",
+    "linkByEmail": "Accedi all'account esistente con la stessa email",
+    "autoCreate": "Crea un account se non esiste",
+    "domain": "Domini email",
+    "domainHint": "Facoltativo; separati da virgole, ad esempio example.org",
+    "mapping": "Mappatura dei campi",
+    "mappingHintOidc": "Nomi dei claim nel token ID o nella risposta userinfo. Lascia vuoto per il valore predefinito. Nome e campi del profilo si aggiornano a ogni accesso.",
+    "mappingHintSaml": "Nomi degli attributi nell'asserzione SAML. Lascia vuoto per il valore predefinito. Nome e campi del profilo si aggiornano a ogni accesso.",
+    "mapEmail": "Email",
+    "mapFirstName": "Nome",
+    "mapLastName": "Cognome",
+    "saved": "Provider salvato",
+    "deleted": "Provider eliminato",
+    "delete": "Elimina provider",
+    "deleteConfirm": "Eliminare \"{name}\"? Gli account restano, ma nessuno potrà accedere tramite questo provider."
   }
 }

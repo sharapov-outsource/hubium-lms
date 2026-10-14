@@ -9,15 +9,20 @@ import { authClient, safeNext } from '@/lib/auth-client';
 
 export function LoginForm({
   providers,
+  sso,
   registration,
   next,
+  initialError,
 }: {
   providers: ('google' | 'yandex' | 'vk')[];
+  sso: { providerId: string; name: string }[];
   registration: boolean;
   next?: string;
+  /** Why a single sign-on came back without signing in. */
+  initialError?: string;
 }) {
   const t = useTranslations('auth');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError ?? null);
   const [pending, setPending] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -75,7 +80,7 @@ export function LoginForm({
           {t('signIn')}
         </Button>
       </form>
-      <OAuthButtons providers={providers} next={next} />
+      <OAuthButtons providers={providers} sso={sso} next={next} />
       {registration ? (
         <p className="text-center text-sm text-muted-foreground">
           {t('noAccount')}{' '}

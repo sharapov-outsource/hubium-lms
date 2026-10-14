@@ -119,6 +119,11 @@ test('sign-in and security administration fit 375 px', async ({ page }) => {
   ])
     await expectNoSideScroll(page, path);
   await login(page, ADMIN.login, ADMIN.password);
-  for (const path of ['/admin/settings/security', '/settings/security'])
+  for (const path of [
+    '/admin/settings/security',
+    '/settings/security',
+    '/admin/sso',
+    '/admin/sso/new',
+  ])
     await expectNoSideScroll(page, path);
 });

@@ -1,4 +1,4 @@
-import { getAllSettings } from '@hubium/core';
+import { enabledSsoProviders, getAllSettings } from '@hubium/core';
 import { configuredOAuthProviders } from '@hubium/core/auth/auth';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
@@ -14,14 +14,21 @@ export async function generateMetadata() {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string }>;
 }) {
   if (await getCurrentUser()) redirect('/dashboard');
-  const [settings, t, sp] = await Promise.all([
+  const [settings, t, sp, sso] = await Promise.all([
     getAllSettings(db),
     getTranslations('auth'),
     searchParams,
+    enabledSsoProviders(db),
   ]);
+  const ssoErrors: Record<string, string> = {
+    SSO_NO_ACCOUNT: t('ssoNoAccount'),
+    SSO_ACCOUNT_NOT_LINKED: t('ssoNotLinked'),
+    SSO_DISABLED: t('ssoDisabled'),
+  };
+  const error = sp.error ? (ssoErrors[sp.error] ?? t('ssoFailed')) : undefined;
   const providers = configuredOAuthProviders().filter((p) => settings[`auth.oauth.${p}`]);
   return (
     <div>
@@ -31,8 +38,10 @@ export default async function LoginPage({
       <p className="mt-1 mb-6 text-sm text-muted-foreground">{t('signInSubtitle')}</p>
       <LoginForm
         providers={providers}
+        sso={sso}
         registration={settings['registration.enabled']}
         next={sp.next}
+        initialError={error}
       />
     </div>
   );
