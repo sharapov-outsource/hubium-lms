@@ -407,10 +407,12 @@ preflight() {
   ok "curl, tar and coreutils found"
   local parent=$PREFIX
   while [[ ! -d $parent ]]; do parent=$(dirname "$parent"); done
-  local free_mb
+  local free_mb min_mb=3072
+  # an upgrade only adds a release and a database dump next to what is there
+  [[ $ACTION == upgrade ]] && min_mb=1024
   free_mb=$(df -Pm "$parent" | awk 'NR == 2 { print $4 }')
-  if ((free_mb < 3072)); then
-    die "Only ${free_mb} MB free on $parent; at least 3 GB are needed, 10 GB or more for courses and video."
+  if ((free_mb < min_mb)); then
+    die "Only ${free_mb} MB free on $parent; at least $((min_mb / 1024)) GB are needed, 10 GB or more for courses and video."
   elif ((free_mb < 10240)); then
     warn "${free_mb} MB free on $parent: enough to install, but courses and video need more."
   else
