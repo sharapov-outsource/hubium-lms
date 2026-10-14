@@ -36,6 +36,15 @@ export const match: QuestionTypeDef<'MATCH'> = {
       matchChoices: q.choices ?? q.data.pairs.map((p) => p.answer),
     };
   },
+  parts: (q, r) => ({
+    right: q.data.pairs.filter((p) => r.choices[p.id] === p.answer).length,
+    total: q.data.pairs.length,
+  }),
+  clearWrong: (q, r) => ({
+    choices: Object.fromEntries(
+      q.data.pairs.filter((p) => r.choices[p.id] === p.answer).map((p) => [p.id, p.answer]),
+    ),
+  }),
   gift: (d, { head, gf, esc }) =>
     `${head} {\n  ${[...d.pairs.map((p) => `=${esc(p.question)} -> ${esc(p.answer)}`), ...d.distractors.map((x) => `= -> ${esc(x)}`)].join('\n  ')}${gf}\n}`,
 };

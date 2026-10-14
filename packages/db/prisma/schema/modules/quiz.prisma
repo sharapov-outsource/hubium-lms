@@ -12,6 +12,21 @@ enum QuizAttemptState {
   ABANDONED
 }
 
+/// What happened to a question in an attempt (see @hubium/questions behaviours).
+enum QuestionStepKind {
+  SAVE
+  CHECK
+  TRYAGAIN
+  FINISH
+  MANUALGRADE
+}
+
+enum QuestionAttemptState {
+  TODO
+  TRYAGAIN
+  COMPLETE
+}
+
 model QuizSlot {
   id             String       @id @default(uuid(7)) @db.Uuid
   activityId     String       @db.Uuid
@@ -46,6 +61,8 @@ model QuizAttempt {
   seed               Int
   /// The page the learner is on; with sequential navigation they cannot go back.
   currentPage        Int              @default(1)
+  /// deferred, immediate or interactive: the quiz's behaviour when the attempt started.
+  behaviour          String           @default("deferred")
 
   activity  Activity          @relation(fields: [activityId], references: [id], onDelete: Cascade)
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -56,30 +73,51 @@ model QuizAttempt {
 }
 
 model QuestionAttempt {
-  id           String   @id @default(uuid(7)) @db.Uuid
-  attemptId    String   @db.Uuid
+  id           String               @id @default(uuid(7)) @db.Uuid
+  attemptId    String               @db.Uuid
   slot         Int
-  page         Int      @default(1)
-  questionId   String   @db.Uuid
+  page         Int                  @default(1)
+  questionId   String               @db.Uuid
   /// The quiz slot the question came from (random slots included); used by regrading.
-  quizSlotId   String?  @db.Uuid
+  quizSlotId   String?              @db.Uuid
   snapshot     Json
-  maxMark      Decimal  @db.Decimal(12, 5)
+  maxMark      Decimal              @db.Decimal(12, 5)
   response     Json?
-  fraction     Decimal? @db.Decimal(12, 7)
-  mark         Decimal? @db.Decimal(12, 5)
-  needsGrading Boolean  @default(false)
-  flagged      Boolean  @default(false)
-  comment      String   @default("")
-  gradedById   String?  @db.Uuid
-  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+  fraction     Decimal?             @db.Decimal(12, 7)
+  mark         Decimal?             @db.Decimal(12, 5)
+  needsGrading Boolean              @default(false)
+  flagged      Boolean              @default(false)
+  comment      String               @default("")
+  gradedById   String?              @db.Uuid
+  /// Checks made (immediate and interactive behaviours).
+  tries        Int                  @default(0)
+  state        QuestionAttemptState @default(TODO)
+  updatedAt    DateTime             @updatedAt @db.Timestamptz(3)
 
-  attempt  QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  question Question    @relation(fields: [questionId], references: [id], onDelete: Restrict)
-  quizSlot QuizSlot?   @relation(fields: [quizSlotId], references: [id], onDelete: SetNull)
+  attempt  QuizAttempt           @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question              @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  quizSlot QuizSlot?             @relation(fields: [quizSlotId], references: [id], onDelete: SetNull)
+  steps    QuestionAttemptStep[]
 
   @@unique([attemptId, slot])
   @@index([questionId])
+}
+
+/// The history of a question in an attempt: replaying it gives its state and grade.
+model QuestionAttemptStep {
+  id                String           @id @default(uuid(7)) @db.Uuid
+  questionAttemptId String           @db.Uuid
+  seq               Int
+  kind              QuestionStepKind
+  response          Json?
+  /// MANUALGRADE: the share of the mark the teacher gave; FINISH: the result then.
+  fraction          Decimal?         @db.Decimal(12, 7)
+  userId            String?          @db.Uuid
+  createdAt         DateTime         @default(now()) @db.Timestamptz(3)
+
+  questionAttempt QuestionAttempt @relation(fields: [questionAttemptId], references: [id], onDelete: Cascade)
+
+  @@unique([questionAttemptId, seq])
 }
 
 model QuizOverride {

@@ -65,6 +65,13 @@ describe('.hubium backup and restore', () => {
     });
     quizId = (await f.addActivity('quiz', 'Тест', { gradeMax: 10 })).id;
     const qs = await t.db.question.findMany({ where: { category: { contextId: f.courseId } } });
+    await t.db.question.update({
+      where: { id: qs[0]!.id },
+      data: {
+        penalty: 0.5,
+        hints: [{ text: '<p>Подумайте</p>', clearWrong: true, showNumCorrect: false }],
+      },
+    });
     await runModuleAction(sys, quizId, 'addQuestions', { questionIds: qs.map((q) => q.id) });
     const group = await t.db.group.create({ data: { courseId: f.courseId, name: 'Группа А' } });
     const grouping = await t.db.grouping.create({
@@ -148,6 +155,11 @@ describe('.hubium backup and restore', () => {
     expect(slots.every((s) => s.question?.categoryId && s.questionId)).toBe(true);
     const cats = await t.db.questionCategory.findMany({ where: { contextId: r.courseId } });
     expect(slots.every((s) => cats.some((c) => c.id === s.question!.categoryId))).toBe(true);
+    // the penalty and hints of the interactive behaviour come along
+    expect(slots.map((s) => [Number(s.question!.penalty), s.question!.hints])).toContainEqual([
+      0.5,
+      [{ text: '<p>Подумайте</p>', clearWrong: true, showNumCorrect: false }],
+    ]);
     // grade items and groups exist
     expect(
       await t.db.gradeItem.count({ where: { activityId: { in: [assign.id, quiz.id] } } }),

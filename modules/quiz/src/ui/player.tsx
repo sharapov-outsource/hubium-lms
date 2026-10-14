@@ -2,14 +2,14 @@
 
 import { callModuleAction } from '@hubium/module-sdk/form';
 import { isAnswered } from '@hubium/questions';
-import { Alert, Button, Card, CardContent } from '@hubium/ui';
+import { Alert, Badge, Button, Card, CardContent } from '@hubium/ui';
 import { cn } from '@hubium/ui/cn';
 import { toast } from '@hubium/ui/theme';
-import { Flag, Timer } from 'lucide-react';
+import { Check, Flag, RotateCcw, Timer } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PublicQuestion } from '../public.ts';
+import type { LiveQuestion, LiveState, PublicQuestion } from '../public.ts';
 import { questionBodies } from './qtypes.tsx';
 
 const TIME_WARNINGS = [10, 5, 1];
@@ -20,13 +20,87 @@ function QuestionBody({
   q,
   value,
   onChange,
+  readOnly,
 }: {
   q: PublicQuestion;
   value: unknown;
   onChange: (v: unknown) => void;
+  readOnly: boolean;
 }) {
   const Body = questionBodies[q.type];
-  return <Body q={q} value={(value ?? {}) as Record<string, unknown>} onChange={onChange} />;
+  return (
+    <Body
+      q={q}
+      value={(value ?? {}) as Record<string, unknown>}
+      onChange={onChange}
+      readOnly={readOnly}
+    />
+  );
+}
+
+const fmt = (n: number) => String(Math.round(n * 100) / 100);
+
+/** What a check said: verdict, mark, feedback, the hint and the tries left. */
+function QuestionFeedback({ live }: { live: LiveState }) {
+  const t = useTranslations('mod.quiz');
+  const f = live.feedback;
+  if (!f) return null;
+  return (
+    <div
+      data-feedback
+      tabIndex={-1}
+      className={cn(
+        'grid gap-2 rounded-lg border p-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+        f.verdict === 'correct' && 'border-success/50 bg-success/5',
+        f.verdict === 'partial' && 'border-warning/50 bg-warning/5',
+        f.verdict === 'incorrect' && 'border-destructive/40 bg-destructive/5',
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge
+          variant={
+            f.verdict === 'correct'
+              ? 'success'
+              : f.verdict === 'incorrect'
+                ? 'destructive'
+                : 'warning'
+          }
+        >
+          {t(f.verdict)}
+        </Badge>
+        {f.mark !== null ? (
+          <span className="text-xs text-muted-foreground">
+            {t('behaviours.markNow', { mark: fmt(f.mark) })}
+          </span>
+        ) : null}
+      </div>
+      {f.texts.map((html, k) => (
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: answer feedback is sanitised on save
+        // biome-ignore lint/suspicious/noArrayIndexKey: the list is fixed per check
+        <div key={k} className="prose-content" dangerouslySetInnerHTML={{ __html: html }} />
+      ))}
+      {f.numCorrect ? (
+        <p>
+          {t('behaviours.numCorrect', { right: f.numCorrect.right, total: f.numCorrect.total })}
+        </p>
+      ) : null}
+      {f.hint ? (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">{t('behaviours.hint')}</p>
+          {/* biome-ignore lint/security/noDangerouslySetInnerHtml: hints are sanitised on save */}
+          <div className="prose-content" dangerouslySetInnerHTML={{ __html: f.hint }} />
+        </div>
+      ) : null}
+      {f.rightAnswer ? (
+        <p className="text-success">{t('correctAnswer', { answer: f.rightAnswer })}</p>
+      ) : null}
+      {live.state === 'TRYAGAIN' && live.triesLeft !== null ? (
+        <p className="text-xs text-muted-foreground">
+          {t('behaviours.triesLeft', { n: live.triesLeft })}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 function formatLeft(ms: number) {
@@ -62,7 +136,7 @@ export function AttemptPlayer({
   activityId: string;
   attemptId: string;
   /** All questions, or only the current page with sequential navigation. */
-  questions: PublicQuestion[];
+  questions: LiveQuestion[];
   navMethod: 'free' | 'sequential';
   currentPage: number;
   pages: number[];
@@ -82,6 +156,32 @@ export function AttemptPlayer({
   const [answers, setAnswers] = useState<Answers>(() =>
     Object.fromEntries(questions.map((q) => [q.slot, q.response])),
   );
+  // immediate and interactive: each question's state after checks
+  const [live, setLive] = useState<Record<string, LiveState>>(() =>
+    Object.fromEntries(
+      questions.map((q) => [
+        q.slot,
+        { state: q.state, canCheck: q.canCheck, triesLeft: q.triesLeft, feedback: q.feedback },
+      ]),
+    ),
+  );
+  const [busy, setBusy] = useState<number | null>(null);
+  // The button pressed goes away with a check or a new try: focus moves on once the
+  // question has re-rendered (to "Try again" or the feedback, or back to the answer).
+  const [refocus, setRefocus] = useState<{ slot: number; to: 'answer' | 'result' } | null>(null);
+  useEffect(() => {
+    if (!refocus) return;
+    const card = document.getElementById(`q-${refocus.slot}`);
+    const target =
+      refocus.to === 'answer'
+        ? card?.querySelector<HTMLElement>(
+            'input:not([disabled]), select:not([disabled]), textarea, [contenteditable="true"]',
+          )
+        : (card?.querySelector<HTMLElement>('[data-retry]') ??
+          card?.querySelector<HTMLElement>('[data-feedback]'));
+    target?.focus();
+    setRefocus(null);
+  }, [refocus]);
   const [flags, setFlags] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(questions.map((q) => [q.slot, q.flagged])),
   );
@@ -161,6 +261,42 @@ export function AttemptPlayer({
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
+  // Check now (immediate, interactive) and try again after a wrong answer (interactive).
+  const checkAction = async (slot: number, action: 'check' | 'tryAgain') => {
+    setBusy(slot);
+    const r = await callModuleAction<{ closed: boolean; question: LiveQuestion | null }>(
+      activityId,
+      action,
+      action === 'check'
+        ? { attemptId, slot, response: latest.current.answers[slot] ?? {} }
+        : { attemptId, slot },
+    );
+    setBusy(null);
+    if (!r.ok || r.data?.closed || !r.data?.question) {
+      if (r.ok) toast.warning(t('timeUp'));
+      else toast.error(r.message ?? 'Error');
+      if (r.ok || /closed/i.test(r.message ?? '')) router.push(reviewUrl);
+      return;
+    }
+    const q = r.data.question;
+    setAnswers((a) => ({ ...a, [slot]: q.response }));
+    setDirty((d) => {
+      const next = new Set(d);
+      next.delete(String(slot));
+      return next;
+    });
+    setLive((l) => ({
+      ...l,
+      [slot]: {
+        state: q.state,
+        canCheck: q.canCheck,
+        triesLeft: q.triesLeft,
+        feedback: q.feedback,
+      },
+    }));
+    setRefocus({ slot, to: action === 'tryAgain' ? 'answer' : 'result' });
+  };
+
   // Moving saves the page's answers; the server remembers the page for resuming and, with
   // sequential navigation, refuses to go back.
   const go = async (p: number) => {
@@ -232,11 +368,46 @@ export function AttemptPlayer({
               <QuestionBody
                 q={q}
                 value={answers[q.slot]}
+                readOnly={live[q.slot]?.state !== undefined && live[q.slot]?.state !== 'TODO'}
                 onChange={(v) => {
                   setAnswers((a) => ({ ...a, [q.slot]: v }));
                   setDirty((d) => new Set(d).add(String(q.slot)));
                 }}
               />
+              <div aria-live="polite" aria-atomic="true">
+                {live[q.slot] ? <QuestionFeedback live={live[q.slot]!} /> : null}
+              </div>
+              {live[q.slot]?.canCheck || live[q.slot]?.state === 'TRYAGAIN' ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  {live[q.slot]?.state === 'TRYAGAIN' ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={busy !== null}
+                      data-retry
+                      onClick={() => void checkAction(q.slot, 'tryAgain')}
+                    >
+                      <RotateCcw />
+                      {t('behaviours.tryAgain')}
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={busy !== null || !isAnswered(q.type, answers[q.slot])}
+                      onClick={() => void checkAction(q.slot, 'check')}
+                    >
+                      <Check />
+                      {t('behaviours.check')}
+                    </Button>
+                  )}
+                  {live[q.slot]?.state === 'TODO' && live[q.slot]?.triesLeft !== null ? (
+                    <span className="text-xs text-muted-foreground">
+                      {t('behaviours.triesLeft', { n: live[q.slot]!.triesLeft! })}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         ))}

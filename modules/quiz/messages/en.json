@@ -179,6 +179,46 @@
       "perPage": "Questions per page",
       "repaginate": "Lay out again",
       "repaginated": "Pages laid out again"
+    },
+    "behaviours": {
+      "title": "Question behaviour",
+      "behaviour": "How questions behave",
+      "behaviourHint": "Deferred: answers are graded when the attempt is finished. Immediate: each answer can be checked once. Interactive: after a wrong answer the learner sees a hint and tries again, losing the question’s penalty for each wrong try.",
+      "names": {
+        "deferred": "Deferred feedback",
+        "immediate": "Immediate feedback",
+        "interactive": "Interactive with multiple tries"
+      },
+      "duringFeedback": "During the attempt, show feedback on checked answers and hints",
+      "duringRightAnswer": "During the attempt, show the right answer once a question is complete",
+      "check": "Check",
+      "tryAgain": "Try again",
+      "triesLeft": "{n, plural, one {# try left} other {# tries left}}",
+      "hint": "Hint",
+      "numCorrect": "You have {right} of {total} right.",
+      "markNow": "Mark for this question: {mark}",
+      "answerFeedback": "Feedback on the answer"
+    },
+    "history": {
+      "title": "Response history",
+      "step": "Step",
+      "time": "Time",
+      "action": "Action",
+      "state": "State",
+      "grade": "Mark",
+      "answerSaved": "Answer saved",
+      "kinds": {
+        "SAVE": "Saved",
+        "CHECK": "Checked",
+        "TRYAGAIN": "Tried again",
+        "FINISH": "Attempt finished",
+        "MANUALGRADE": "Graded by {name}"
+      },
+      "states": {
+        "TODO": "Not complete",
+        "TRYAGAIN": "Waiting for another try",
+        "COMPLETE": "Complete"
+      }
     }
   }
 }

@@ -1,5 +1,5 @@
 import { listQuestionCategories } from '@hubium/core';
-import { type QuestionType, questionTypes } from '@hubium/questions';
+import { Hints, type QuestionType, questionTypes } from '@hubium/questions';
 import { Button, PageHeader } from '@hubium/ui';
 import Link from 'next/link';
 import { forbidden, notFound } from 'next/navigation';
@@ -59,6 +59,8 @@ export default async function EditQuestionPage({
           defaultMark: q ? Number(q.defaultMark) : 1,
           status: q?.status ?? 'READY',
           data: (q?.data as Record<string, unknown>) ?? null,
+          penalty: q ? Number(q.penalty) : 0.33333,
+          hints: Hints.catch([]).parse(q?.hints ?? []),
         }}
       />
     </>

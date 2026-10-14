@@ -53,6 +53,18 @@ export const multichoice: QuestionTypeDef<'MULTICHOICE'> = {
         .map((a) => ({ id: a.id, text: a.text })),
     };
   },
+  parts(q, r) {
+    const right = q.data.answers.filter((a) => a.fraction > 0).map((a) => a.id);
+    return {
+      right: r.selected.filter((id) => right.includes(id)).length,
+      total: q.data.single ? 1 : right.length,
+    };
+  },
+  clearWrong: (q, r) => ({
+    selected: r.selected.filter(
+      (id) => (q.data.answers.find((a) => a.id === id)?.fraction ?? 0) > 0,
+    ),
+  }),
   gift(d, { head, gf, fb, esc }) {
     const items = d.answers.map((a) =>
       d.single

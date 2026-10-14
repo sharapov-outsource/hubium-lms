@@ -47,7 +47,9 @@ model Question {
   text            String
   generalFeedback String         @default("")
   defaultMark     Decimal        @default(1) @db.Decimal(12, 5)
-  penalty         Decimal        @default(0) @db.Decimal(6, 5)
+  penalty         Decimal        @default(0.33333) @db.Decimal(6, 5)
+  /// Shown after wrong tries in interactive quizzes: [{ text, clearWrong, showNumCorrect }]
+  hints           Json           @default("[]")
   data            Json
   status          QuestionStatus @default(READY)
   source          QuestionSource @default(MANUAL)

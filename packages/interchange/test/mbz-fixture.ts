@@ -66,7 +66,7 @@ export async function mbzFixture(): Promise<Buffer> {
       12,
       'quiz',
       32,
-      `<name>Тест</name><intro>&lt;p&gt;Проверка&lt;/p&gt;</intro><timeopen>0</timeopen><timeclose>0</timeclose><timelimit>900</timelimit><attempts>2</attempts><grademethod>1</grademethod><grade>10.00000</grade><questionsperpage>2</questionsperpage><password>Секрет-1</password><subnet>192.168.1.0/24, office</subnet><delay1>600</delay1><delay2>3601</delay2><navmethod>seq</navmethod>
+      `<name>Тест</name><intro>&lt;p&gt;Проверка&lt;/p&gt;</intro><timeopen>0</timeopen><timeclose>0</timeclose><timelimit>900</timelimit><attempts>2</attempts><grademethod>1</grademethod><grade>10.00000</grade><questionsperpage>2</questionsperpage><password>Секрет-1</password><subnet>192.168.1.0/24, office</subnet><delay1>600</delay1><delay2>3601</delay2><navmethod>seq</navmethod><preferredbehaviour>adaptive</preferredbehaviour><reviewspecificfeedback>69888</reviewspecificfeedback><reviewrightanswer>4352</reviewrightanswer>
       <question_instances>
         <question_instance id="1"><slot>1</slot><page>1</page><maxmark>1.0000000</maxmark><question_reference id="1"><usingcontextid>32</usingcontextid><component>mod_quiz</component><questionarea>slot</questionarea><questionbankentryid>5</questionbankentryid><version>$@NULL@$</version></question_reference></question_instance>
         <question_instance id="2"><slot>2</slot><page>1</page><maxmark>2.0000000</maxmark><question_reference id="2"><questionbankentryid>6</questionbankentryid></question_reference></question_instance>
@@ -120,6 +120,7 @@ export async function mbzFixture(): Promise<Buffer> {
             <answer id="501"><answertext>float</answertext><answerformat>1</answerformat><fraction>1.0000000</fraction><feedback>Да</feedback></answer>
             <answer id="502"><answertext>int</answertext><answerformat>1</answerformat><fraction>0.0000000</fraction><feedback></feedback></answer>
           </answers><multichoice id="1"><single>1</single><shuffleanswers>1</shuffleanswers></multichoice></plugin_qtype_multichoice_question>
+          <question_hints><question_hint id="1"><hint>&lt;p&gt;Посмотрите на точку&lt;/p&gt;</hint><hintformat>1</hintformat><shownumcorrect>0</shownumcorrect><clearwrong>1</clearwrong><options>$@NULL@$</options></question_hint></question_hints>
         </question>
       </questions></question_versions></question_version></question_bank_entry>
       <question_bank_entry id="6"><questioncategoryid>2</questioncategoryid><question_version>

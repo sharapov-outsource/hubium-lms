@@ -62,4 +62,39 @@ describe('question bank isolation', () => {
       }),
     ).resolves.toMatchObject({ created: 1 });
   });
+
+  it('keeps the penalty and the hints that say something', async () => {
+    const f = await courseFixture(t.db, 'QB-H');
+    const sys = await ctxFor(t.db, 'system');
+    const cat = await ensureDefaultQuestionCategory(t.db, f.courseId);
+    const { id } = await saveQuestion.run(sys, {
+      categoryId: cat.id,
+      type: 'TRUEFALSE',
+      name: 'Подсказки',
+      text: '<p>?</p>',
+      data: { correct: true, feedbackTrue: '', feedbackFalse: '' },
+      hints: [
+        { text: '<p>Подумайте</p><script>x()</script>' },
+        { text: '<p>&nbsp;</p>' },
+        { text: '', clearWrong: true },
+      ],
+    });
+    const q = await t.db.question.findUniqueOrThrow({ where: { id } });
+    // new questions lose a third of the mark per wrong try, as in Moodle
+    expect(Number(q.penalty)).toBeCloseTo(1 / 3, 4);
+    expect(q.hints).toEqual([
+      { text: '<p>Подумайте</p>', clearWrong: false, showNumCorrect: false },
+      { text: '', clearWrong: true, showNumCorrect: false },
+    ]);
+    // an edit without them leaves them as they are
+    await saveQuestion.run(sys, {
+      id,
+      categoryId: cat.id,
+      type: 'TRUEFALSE',
+      name: 'Подсказки',
+      text: '<p>?</p>',
+      data: { correct: false, feedbackTrue: '', feedbackFalse: '' },
+    });
+    expect((await t.db.question.findUniqueOrThrow({ where: { id } })).hints).toHaveLength(2);
+  });
 });

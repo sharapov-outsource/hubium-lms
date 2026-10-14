@@ -16,9 +16,11 @@ export interface BodyProps {
   q: PublicQuestion;
   value: Record<string, unknown>;
   onChange: (v: unknown) => void;
+  /** A checked answer: shown, not changed (immediate and interactive behaviours). */
+  readOnly?: boolean;
 }
 
-function Multichoice({ q, value, onChange }: BodyProps) {
+function Multichoice({ q, value, onChange, readOnly }: BodyProps) {
   const t = useTranslations('mod.quiz');
   const name = `q${q.slot}`;
   const selected = new Set((value.selected as string[]) ?? []);
@@ -30,7 +32,8 @@ function Multichoice({ q, value, onChange }: BodyProps) {
           key={o.id}
           htmlFor={`${name}-${o.id}`}
           className={cn(
-            'flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3 text-sm hover:bg-muted',
+            'flex items-start gap-3 rounded-lg border border-border p-3 text-sm',
+            readOnly ? 'cursor-default' : 'cursor-pointer hover:bg-muted',
             selected.has(o.id) && 'border-accent bg-accent-soft',
           )}
         >
@@ -39,6 +42,7 @@ function Multichoice({ q, value, onChange }: BodyProps) {
             type={q.multiple ? 'checkbox' : 'radio'}
             name={name}
             checked={selected.has(o.id)}
+            disabled={readOnly}
             className="mt-0.5"
             onChange={(e) => {
               if (!q.multiple) return onChange({ selected: [o.id] });
@@ -55,7 +59,7 @@ function Multichoice({ q, value, onChange }: BodyProps) {
   );
 }
 
-function TrueFalse({ q, value, onChange }: BodyProps) {
+function TrueFalse({ q, value, onChange, readOnly }: BodyProps) {
   const t = useTranslations('mod.quiz');
   const name = `q${q.slot}`;
   return (
@@ -66,7 +70,8 @@ function TrueFalse({ q, value, onChange }: BodyProps) {
           key={String(b)}
           htmlFor={`${name}-${b}`}
           className={cn(
-            'flex cursor-pointer items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted',
+            'flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm',
+            readOnly ? 'cursor-default' : 'cursor-pointer hover:bg-muted',
             value.value === b && 'border-accent bg-accent-soft',
           )}
         >
@@ -75,6 +80,7 @@ function TrueFalse({ q, value, onChange }: BodyProps) {
             type="radio"
             name={name}
             checked={value.value === b}
+            disabled={readOnly}
             onChange={() => onChange({ value: b })}
           />
           {b ? t('trueLabel') : t('falseLabel')}
@@ -84,7 +90,7 @@ function TrueFalse({ q, value, onChange }: BodyProps) {
   );
 }
 
-function TextAnswer({ q, value, onChange }: BodyProps) {
+function TextAnswer({ q, value, onChange, readOnly }: BodyProps) {
   const t = useTranslations('mod.quiz');
   const name = `q${q.slot}`;
   return (
@@ -94,6 +100,7 @@ function TextAnswer({ q, value, onChange }: BodyProps) {
         id={name}
         inputMode={q.type === 'NUMERICAL' ? 'decimal' : 'text'}
         value={(value.text as string) ?? ''}
+        readOnly={readOnly}
         autoComplete="off"
         onChange={(e) => onChange({ text: e.target.value })}
       />
@@ -101,7 +108,7 @@ function TextAnswer({ q, value, onChange }: BodyProps) {
   );
 }
 
-function Match({ q, value, onChange }: BodyProps) {
+function Match({ q, value, onChange, readOnly }: BodyProps) {
   const t = useTranslations('mod.quiz');
   const name = `q${q.slot}`;
   const choices = (value.choices as Record<string, string>) ?? {};
@@ -115,6 +122,7 @@ function Match({ q, value, onChange }: BodyProps) {
           <Select
             id={`${name}-${row.id}`}
             value={choices[row.id] ?? ''}
+            disabled={readOnly}
             onChange={(e) => onChange({ choices: { ...choices, [row.id]: e.target.value } })}
           >
             <option value="">{t('choose')}</option>
@@ -130,6 +138,7 @@ function Match({ q, value, onChange }: BodyProps) {
   );
 }
 
+// essays are graded by hand, never checked during the attempt: always editable
 function Essay({ q, value, onChange }: BodyProps) {
   const t = useTranslations('mod.quiz');
   const labels = useEditorLabels();

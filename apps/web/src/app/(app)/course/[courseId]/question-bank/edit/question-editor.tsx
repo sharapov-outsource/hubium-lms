@@ -1,7 +1,7 @@
 'use client';
 
 import { EditorField } from '@hubium/editor/field';
-import type { QuestionType } from '@hubium/questions';
+import { type Hint, type QuestionType, typeDef } from '@hubium/questions';
 import { Card, CardContent, CardHeader, CardTitle, Select } from '@hubium/ui';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -13,6 +13,7 @@ import {
   useFormErrors,
 } from '@/components/action-form';
 import { saveQuestionAction } from '@/server/actions/grades';
+import { MultipleTries } from './multiple-tries';
 import { type Data, editorParts } from './qtypes';
 
 function DataErrors() {
@@ -45,6 +46,8 @@ export function QuestionEditor({
     defaultMark: number;
     status: string;
     data: Data | null;
+    penalty: number;
+    hints: Hint[];
   };
 }) {
   const t = useTranslations('qbank');
@@ -109,6 +112,13 @@ export function QuestionEditor({
             <DataErrors />
           </CardContent>
         </Card>
+      ) : null}
+      {typeDef(type).grading === 'auto' ? (
+        <MultipleTries
+          penalty={initial.penalty}
+          hints={initial.hints}
+          withParts={!!typeDef(type).parts}
+        />
       ) : null}
       <Card>
         <CardContent className="pt-5">

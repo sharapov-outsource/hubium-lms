@@ -11,10 +11,14 @@ import {
 import { bool, isoDate, optionalNumber } from '@hubium/module-sdk/fields';
 import { invalidIpListEntries } from '@hubium/module-sdk/net';
 import {
+  type Behaviour,
+  behaviours,
+  clearWrongParts,
   correctResponse,
   gradedTypes,
-  gradeResponse,
+  type Hint,
   isAnswered,
+  type Outcome,
   PublicFields,
   presentQuestion,
   type QuestionData,
@@ -22,7 +26,9 @@ import {
   type QuestionType,
   questionTypes,
   ResponseSchemas,
+  replay,
   answerText as responseText,
+  type Step,
   shuffle,
   subSeed,
   typeDef,
@@ -35,7 +41,7 @@ import {
   networkAllowed,
   nextAttemptAt,
 } from './access.ts';
-import { type PublicQuestion, toPublicQuestion } from './public.ts';
+import { type LiveState, type PublicQuestion, toPublicQuestion } from './public.ts';
 
 // mod-quiz: question slots (fixed or random from a category), timed attempts with
 // frozen question snapshots, automatic grading and manual grading of essays.
@@ -87,6 +93,12 @@ export const QuizSettings = z
       .default(0),
     /** sequential: pages in order, no going back. */
     navMethod: z.enum(['free', 'sequential']).default('free'),
+    /** How questions behave (see @hubium/questions behaviours). */
+    behaviour: z.enum(behaviours).default('deferred'),
+    /** After a check: the feedback for the answer and the hint (immediate, interactive). */
+    duringFeedback: bool(true),
+    /** After a question is complete: its right answer, during the attempt. */
+    duringRightAnswer: bool(false),
   })
   .refine((s) => !s.closeAt || !s.openAt || s.closeAt > s.openAt, {
     message: 'Close date must be after open date',
@@ -192,6 +204,37 @@ function requireNetwork(ctx: ModuleCtx, a: ActivityRef<QuizSettingsT>) {
     );
 }
 
+/** What a question shows during an attempt in the immediate and interactive behaviours. */
+export function liveState(
+  s: QuizSettingsT,
+  behaviour: Behaviour,
+  qa: { snapshot: unknown; maxMark: unknown },
+  steps: Step[],
+): LiveState {
+  const snap = qa.snapshot as QuestionSnapshot;
+  const o = replay(snap, steps, behaviour);
+  const auto = typeDef(snap.type).grading === 'auto';
+  // feedback stays from a check until the next try starts
+  const checked = auto && behaviour !== 'deferred' && o.tries > 0 && o.state !== 'TODO';
+  const raw = o.rawFraction ?? 0;
+  const right = o.state === 'COMPLETE' ? correctResponse(snap) : null;
+  return {
+    state: o.state,
+    canCheck: auto && behaviour !== 'deferred' && o.state === 'TODO',
+    triesLeft: auto && behaviour === 'interactive' ? Math.max(0, o.maxTries - o.tries) : null,
+    feedback: checked
+      ? {
+          verdict: raw >= 0.9999 ? 'correct' : raw > 0 ? 'partial' : 'incorrect',
+          mark: s.reviewMarks && o.fraction !== null ? o.fraction * Number(qa.maxMark) : null,
+          texts: s.duringFeedback ? o.feedback : [],
+          hint: s.duringFeedback ? (o.hint?.text ?? null) : null,
+          numCorrect: s.duringFeedback ? o.numCorrect : null,
+          rightAnswer: s.duringRightAnswer && right ? answerText(snap, right) || null : null,
+        }
+      : null,
+  };
+}
+
 // ── pages ───────────────────────────────────────────────────────────────────────
 
 /** Page numbers made consecutive from 1, keeping their order. */
@@ -261,6 +304,8 @@ function snapshotOf(q: {
   text: string;
   generalFeedback: string;
   defaultMark: Prisma.Decimal;
+  penalty: Prisma.Decimal;
+  hints: unknown;
   data: unknown;
 }) {
   return {
@@ -270,8 +315,86 @@ function snapshotOf(q: {
     text: q.text,
     generalFeedback: q.generalFeedback,
     defaultMark: Number(q.defaultMark),
+    penalty: Number(q.penalty),
+    hints: (Array.isArray(q.hints) ? q.hints : []) as Hint[],
     data: q.data as QuestionData,
   };
+}
+
+// ── steps (behaviours) ───────────────────────────────────────────────────────────
+
+type QaRow = {
+  id: string;
+  snapshot: Prisma.JsonValue;
+  maxMark: Prisma.Decimal;
+  response: Prisma.JsonValue;
+  state: string;
+};
+
+const asStep = (s: { kind: string; response: unknown; fraction: unknown }): Step => ({
+  kind: s.kind as Step['kind'],
+  response: s.response === null ? undefined : s.response,
+  fraction: s.fraction === null || s.fraction === undefined ? null : Number(s.fraction),
+});
+
+async function stepsOf(db: Db, questionAttemptId: string): Promise<Step[]> {
+  const rows = await db.questionAttemptStep.findMany({
+    where: { questionAttemptId },
+    orderBy: { seq: 'asc' },
+  });
+  return rows.map(asStep);
+}
+
+async function addStep(
+  db: Db,
+  questionAttemptId: string,
+  step: {
+    kind: Step['kind'];
+    response?: unknown;
+    fraction?: number | null;
+    userId?: string | null;
+  },
+) {
+  const last = await db.questionAttemptStep.findFirst({
+    where: { questionAttemptId },
+    orderBy: { seq: 'desc' },
+    select: { seq: true },
+  });
+  await db.questionAttemptStep.create({
+    data: {
+      questionAttemptId,
+      seq: (last?.seq ?? 0) + 1,
+      kind: step.kind,
+      ...(step.response === undefined ? {} : { response: step.response as Prisma.InputJsonValue }),
+      fraction: step.fraction ?? null,
+      userId: step.userId ?? null,
+    },
+  });
+}
+
+/** Replays a question's steps and stores its state and mark; returns the outcome. */
+async function settle(
+  db: Db,
+  qa: QaRow,
+  behaviour: Behaviour,
+  snapshot: QuestionSnapshot = qa.snapshot as unknown as QuestionSnapshot,
+  maxMark = Number(qa.maxMark),
+): Promise<Outcome> {
+  const o = replay(snapshot, await stepsOf(db, qa.id), behaviour);
+  await db.questionAttempt.update({
+    where: { id: qa.id },
+    data: {
+      fraction: o.fraction,
+      mark: o.fraction === null ? null : o.fraction * maxMark,
+      needsGrading: o.needsGrading,
+      tries: o.tries,
+      state: o.state,
+      ...(o.response === null || o.response === undefined
+        ? {}
+        : { response: o.response as Prisma.InputJsonValue }),
+    },
+  });
+  return o;
 }
 
 async function categoryIds(db: Db, categoryId: string, includeSub: boolean): Promise<string[]> {
@@ -319,6 +442,7 @@ export async function startAttempt(
       dueAt: preview ? timeDue : dueAt,
       preview,
       seed,
+      behaviour: a.settings.behaviour,
     },
   });
   // Shuffling moves questions between positions; each position keeps its slot's page.
@@ -382,17 +506,61 @@ async function saveResponses(
   for (const qa of qas) {
     const key = String(qa.slot);
     const data: Prisma.QuestionAttemptUpdateInput = {};
+    let changed: unknown;
     if (key in answers) {
       if (onlyPage !== undefined && qa.page !== onlyPage)
         throw new ModuleError('CONFLICT', 'That question is on a page you have already left');
       const snap = qa.snapshot as unknown as QuestionSnapshot;
       const resp = cleanResponse(snap.type, answers[key]);
-      if (resp) data.response = resp as Prisma.InputJsonValue;
+      // A step only when the answer changed: autosave sends the same one again and again.
+      // A checked question keeps its answer until the learner tries again.
+      if (resp && qa.state === 'TODO' && JSON.stringify(resp) !== JSON.stringify(qa.response)) {
+        data.response = resp as Prisma.InputJsonValue;
+        changed = resp;
+      }
     }
     if (flags && key in flags) data.flagged = !!flags[key];
     if (Object.keys(data).length)
       await ctx.db.questionAttempt.update({ where: { id: qa.id }, data });
+    if (changed !== undefined) await addStep(ctx.db, qa.id, { kind: 'SAVE', response: changed });
   }
+}
+
+/**
+ * One question of the learner's open attempt, for check and tryAgain. A late attempt is
+ * finished instead (`closed`); with sequential navigation only the current page counts.
+ */
+async function questionInPlay(ctx: ModuleCtx, a: ActivityRef, attemptId: string, slot: number) {
+  const quizA = a as ActivityRef<QuizSettingsT>;
+  const at = await ownAttempt(ctx, a, attemptId);
+  if (at.state !== 'IN_PROGRESS') throw new Error('This attempt is closed');
+  requireNetwork(ctx, quizA);
+  const closed = !!at.dueAt && ctx.now.getTime() > at.dueAt.getTime() + GRACE_MS;
+  // Returned, not thrown: an error would roll the finishing back with the transaction.
+  if (closed) await finishAttempt(ctx, quizA, at.id);
+  const qa = await ctx.db.questionAttempt.findFirst({ where: { attemptId: at.id, slot } });
+  if (!qa) throw new ModuleError('NOT_FOUND', 'No such question in the attempt');
+  if (!closed && quizA.settings.navMethod === 'sequential' && qa.page !== at.currentPage)
+    throw new ModuleError('CONFLICT', 'That question is on a page you have already left');
+  const snap = qa.snapshot as unknown as QuestionSnapshot;
+  return { quizA, at, qa, snap, behaviour: at.behaviour as Behaviour, closed };
+}
+
+/** A question of an attempt in progress as the player shows it. */
+async function liveQuestion(
+  db: Db,
+  a: ActivityRef<QuizSettingsT>,
+  at: { behaviour: string },
+  questionAttemptId: string,
+) {
+  const qa = await db.questionAttempt.findUniqueOrThrow({
+    where: { id: questionAttemptId },
+    include: { steps: { orderBy: { seq: 'asc' } } },
+  });
+  return {
+    ...toPublicQuestion(qa),
+    ...liveState(a.settings, at.behaviour as Behaviour, qa, qa.steps.map(asStep)),
+  };
 }
 
 /** Grades every question of an attempt and closes it. */
@@ -402,20 +570,17 @@ export async function finishAttempt(
   attemptId: string,
   state: 'FINISHED' | 'ABANDONED' = 'FINISHED',
 ) {
-  const qas = await ctx.db.questionAttempt.findMany({ where: { attemptId } });
+  const [qas, attempt] = await Promise.all([
+    ctx.db.questionAttempt.findMany({ where: { attemptId } }),
+    ctx.db.quizAttempt.findUniqueOrThrow({ where: { id: attemptId } }),
+  ]);
   let sum = 0;
   let manual = false;
   for (const qa of qas) {
-    const snap = qa.snapshot as unknown as QuestionSnapshot;
-    const r = gradeResponse(snap, qa.response);
-    const max = Number(qa.maxMark);
-    const mark = r.fraction === null ? null : r.fraction * max;
-    if (r.needsGrading) manual = true;
-    if (mark !== null) sum += mark;
-    await ctx.db.questionAttempt.update({
-      where: { id: qa.id },
-      data: { fraction: r.fraction, mark, needsGrading: r.needsGrading },
-    });
+    await addStep(ctx.db, qa.id, { kind: 'FINISH' });
+    const o = await settle(ctx.db, qa, attempt.behaviour as Behaviour);
+    if (o.needsGrading) manual = true;
+    if (o.fraction !== null) sum += o.fraction * Number(qa.maxMark);
   }
   const at = await ctx.db.quizAttempt.update({
     where: { id: attemptId },
@@ -502,7 +667,7 @@ export async function regradeQuiz(
   const attempts = await ctx.db.quizAttempt.findMany({
     where: { activityId: a.id, state: 'FINISHED', preview: false },
     orderBy: [{ userId: 'asc' }, { attemptNumber: 'asc' }],
-    include: { questions: true },
+    include: { questions: { include: { steps: { orderBy: { seq: 'asc' } } } } },
   });
   const ids = [...new Set(attempts.flatMap((x) => x.questions.map((q) => q.questionId)))];
   const [questions, slots] = await Promise.all([
@@ -531,9 +696,8 @@ export async function regradeQuiz(
             ? Number(slot.maxMark)
             : Number(qa.maxMark);
       maxAfter += maxMark;
-      // a teacher's mark (essays, manual grading) is kept, scaled to a changed maximum
-      const manual = qa.gradedById !== null || typeDef(snap.type).grading === 'manual';
-      if (manual || !q || q.type !== snap.type) {
+      // a question that changed type cannot be graded again: its mark is kept, scaled
+      if (!q || q.type !== snap.type) {
         if (q && q.type !== snap.type && !report.skipped.includes(q.name))
           report.skipped.push(q.name);
         const scaled = Number(qa.maxMark) > 0 ? (mark / Number(qa.maxMark)) * maxMark : 0;
@@ -545,19 +709,22 @@ export async function regradeQuiz(
           });
         continue;
       }
-      // The current question, presented as the learner saw it (order of choices kept).
+      // The current question, presented as the learner saw it (order of choices kept),
+      // through the same steps: a teacher's mark stays, scaled to a changed maximum.
       const fresh = { ...snap, ...snapshotOf(q) } as QuestionSnapshot;
-      const r = gradeResponse(fresh, qa.response);
-      const newMark = r.fraction === null ? null : r.fraction * maxMark;
+      const o = replay(fresh, qa.steps.map(asStep), at.behaviour as Behaviour);
+      const newMark = o.fraction === null ? null : o.fraction * maxMark;
       after += newMark ?? 0;
       updates.push({
         id: qa.id,
         data: {
           snapshot: fresh as unknown as Prisma.InputJsonValue,
           maxMark,
-          fraction: r.fraction,
+          fraction: o.fraction,
           mark: newMark,
-          needsGrading: r.needsGrading,
+          needsGrading: o.needsGrading,
+          tries: o.tries,
+          state: o.state,
         },
       });
     }
@@ -681,7 +848,9 @@ export async function readQuizOverview(ctx: ModuleCtx, a: Quiz) {
 export async function readAttempt(ctx: ModuleCtx, a: Quiz, attemptId: string) {
   const at = await ctx.db.quizAttempt.findUnique({
     where: { id: attemptId },
-    include: { questions: { orderBy: { slot: 'asc' } } },
+    include: {
+      questions: { orderBy: { slot: 'asc' }, include: { steps: { orderBy: { seq: 'asc' } } } },
+    },
   });
   if (!at || at.activityId !== a.id || ctx.actor.kind !== 'user' || at.userId !== ctx.actor.userId)
     return null;
@@ -695,6 +864,7 @@ export async function readAttempt(ctx: ModuleCtx, a: Quiz, attemptId: string) {
     dueAt: at.dueAt,
     serverNow: new Date(),
     navMethod: a.settings.navMethod,
+    behaviour: at.behaviour as Behaviour,
     currentPage: at.currentPage,
     pages: open ? pages : [],
     /** Every question's place and state, for the navigation panel (no content). */
@@ -712,7 +882,12 @@ export async function readAttempt(ctx: ModuleCtx, a: Quiz, attemptId: string) {
       : [],
     // with sequential navigation only the current page: the others are not to be seen
     questions: open
-      ? at.questions.filter((q) => !sequential || q.page === at.currentPage).map(toPublicQuestion)
+      ? at.questions
+          .filter((q) => !sequential || q.page === at.currentPage)
+          .map((q) => ({
+            ...toPublicQuestion(q),
+            ...liveState(a.settings, at.behaviour as Behaviour, q, q.steps.map(asStep)),
+          }))
       : [],
   };
 }
@@ -733,7 +908,22 @@ export interface ReviewQuestion extends PublicQuestion {
   correctResponse: unknown;
   correctAnswerText: string | null;
   generalFeedback: string | null;
+  /** Feedback for the answer given, when answers may be shown. */
+  answerFeedback: string[];
   comment: string | null;
+  /** Teachers: what happened to the question, step by step. */
+  history: ReviewStep[] | null;
+}
+
+export interface ReviewStep {
+  seq: number;
+  kind: Step['kind'];
+  at: Date;
+  answerText: string | null;
+  /** The grade after this step, as a share of the mark. */
+  fraction: number | null;
+  state: 'TODO' | 'TRYAGAIN' | 'COMPLETE';
+  userName: string | null;
 }
 
 /**
@@ -745,7 +935,13 @@ export interface ReviewQuestion extends PublicQuestion {
 export async function readReview(ctx: ModuleCtx, a: Quiz, attemptId: string) {
   const at = await ctx.db.quizAttempt.findUnique({
     where: { id: attemptId },
-    include: { questions: { orderBy: { slot: 'asc' } }, user: { select: { name: true } } },
+    include: {
+      questions: {
+        orderBy: { slot: 'asc' },
+        include: { steps: { orderBy: { seq: 'asc' } } },
+      },
+      user: { select: { name: true } },
+    },
   });
   if (!at || at.activityId !== a.id) return null;
   const own = ctx.actor.kind === 'user' && at.userId === ctx.actor.userId;
@@ -756,6 +952,22 @@ export async function readReview(ctx: ModuleCtx, a: Quiz, attemptId: string) {
   const showAnswers = teacher || at.preview || reviewAllowed(a.settings, e.closeAt, ctx.now);
   const showMarks = teacher || at.preview || a.settings.reviewMarks;
   const max = sumMaxMarks(at.questions);
+  // who graded by hand, for the teacher's step history
+  const graderIds = teacher
+    ? [
+        ...new Set(
+          at.questions.flatMap((q) => q.steps.flatMap((s) => (s.userId ? [s.userId] : []))),
+        ),
+      ]
+    : [];
+  const graders = new Map(
+    (
+      await ctx.db.user.findMany({
+        where: { id: { in: graderIds } },
+        select: { id: true, name: true },
+      })
+    ).map((u) => [u.id, u.name]),
+  );
   const questions: ReviewQuestion[] = at.questions.map((qa) => {
     const snap = qa.snapshot as unknown as QuestionSnapshot;
     const frac = qa.fraction === null ? null : Number(qa.fraction);
@@ -769,6 +981,8 @@ export async function readReview(ctx: ModuleCtx, a: Quiz, attemptId: string) {
             ? 'partial'
             : 'incorrect';
     const correct = showAnswers ? correctResponse(snap) : null;
+    const steps = qa.steps.map(asStep);
+    const behaviour = at.behaviour as Behaviour;
     return {
       ...toPublicQuestion(qa),
       id: qa.id,
@@ -778,7 +992,25 @@ export async function readReview(ctx: ModuleCtx, a: Quiz, attemptId: string) {
       correctResponse: correct,
       correctAnswerText: correct ? answerText(snap, correct) : null,
       generalFeedback: showAnswers ? (snap.generalFeedback ?? null) : null,
+      answerFeedback: showAnswers ? replay(snap, steps, behaviour).feedback : [],
       comment: qa.comment || null,
+      history: teacher
+        ? qa.steps.map((st, k) => {
+            const o = replay(snap, steps.slice(0, k + 1), behaviour);
+            return {
+              seq: st.seq,
+              kind: st.kind,
+              at: st.createdAt,
+              answerText:
+                st.response === null || st.kind === 'MANUALGRADE'
+                  ? null
+                  : answerText(snap, st.response),
+              fraction: o.fraction,
+              state: o.state,
+              userName: st.userId ? (graders.get(st.userId) ?? null) : null,
+            };
+          })
+        : null,
     };
   });
   return {
@@ -801,6 +1033,23 @@ export async function readReview(ctx: ModuleCtx, a: Quiz, attemptId: string) {
     questions,
   };
 }
+
+const LiveStateOut = z.object({
+  state: z.enum(['TODO', 'TRYAGAIN', 'COMPLETE']),
+  canCheck: z.boolean().describe('the check action may be used now'),
+  triesLeft: z.number().nullable().describe('interactive: tries left, this one included'),
+  feedback: z
+    .object({
+      verdict: z.enum(['correct', 'partial', 'incorrect']),
+      mark: z.number().nullable(),
+      texts: z.array(z.string()).describe('feedback for the answer (sanitised HTML)'),
+      hint: z.string().nullable().describe('sanitised HTML'),
+      numCorrect: z.object({ right: z.number(), total: z.number() }).nullable(),
+      rightAnswer: z.string().nullable(),
+    })
+    .nullable()
+    .describe('after a check, as the quiz allows'),
+});
 
 const QuestionOut = z
   .object({
@@ -1018,8 +1267,11 @@ export const quiz = defineModule<QuizSettingsT>({
             }),
           )
           .describe('every question of the attempt, without its content'),
+        behaviour: z
+          .enum(behaviours)
+          .describe('immediate and interactive: questions are checked one by one'),
         questions: z
-          .array(QuestionOut)
+          .array(QuestionOut.extend(LiveStateOut.shape))
           .describe('all questions, or only the current page with sequential navigation'),
       }),
       async handler(ctx, a, { attemptId }) {
@@ -1059,7 +1311,24 @@ export const quiz = defineModule<QuizSettingsT>({
             correctResponse: z.unknown().describe('null unless answers may be shown'),
             correctAnswerText: z.string().nullable(),
             generalFeedback: z.string().nullable(),
+            answerFeedback: z
+              .array(z.string())
+              .describe('feedback for the answer given (sanitised HTML), as the quiz allows'),
             comment: z.string().nullable().describe("the teacher's comment"),
+            history: z
+              .array(
+                z.object({
+                  seq: z.number(),
+                  kind: z.enum(['SAVE', 'CHECK', 'TRYAGAIN', 'FINISH', 'MANUALGRADE']),
+                  at: z.string(),
+                  answerText: z.string().nullable(),
+                  fraction: z.number().nullable(),
+                  state: z.enum(['TODO', 'TRYAGAIN', 'COMPLETE']),
+                  userName: z.string().nullable(),
+                }),
+              )
+              .nullable()
+              .describe('teachers: the steps of the question'),
           }),
         ),
       }),
@@ -1327,6 +1596,54 @@ export const quiz = defineModule<QuizSettingsT>({
         return { currentPage: input.to, closed: false };
       },
     }),
+    check: defineAction({
+      summary:
+        'Immediate and interactive behaviours: save one answer and check it now. Returns the question with its feedback',
+      input: z.object({
+        attemptId: z.string().uuid(),
+        slot: z.number().int().min(1),
+        response: z.unknown(),
+      }),
+      async handler(ctx, a, input) {
+        const { quizA, at, qa, snap, behaviour, closed } = await questionInPlay(
+          ctx,
+          a,
+          input.attemptId,
+          input.slot,
+        );
+        if (closed) return { closed: true, question: null };
+        if (behaviour === 'deferred' || typeDef(snap.type).grading !== 'auto')
+          throw new ModuleError('CONFLICT', 'This question is graded when the attempt is finished');
+        if (qa.state !== 'TODO')
+          throw new ModuleError('CONFLICT', 'This answer is checked already');
+        const resp = cleanResponse(snap.type, input.response);
+        if (!resp || !isAnswered(snap.type, resp))
+          throw new Error('Answer the question before checking it');
+        await addStep(ctx.db, qa.id, { kind: 'CHECK', response: resp });
+        await settle(ctx.db, qa, behaviour);
+        return { closed: false, question: await liveQuestion(ctx.db, quizA, at, qa.id) };
+      },
+    }),
+    tryAgain: defineAction({
+      summary:
+        'Interactive behaviour: after a wrong answer, open the question for the next try (wrong parts cleared if its hint says so)',
+      input: z.object({ attemptId: z.string().uuid(), slot: z.number().int().min(1) }),
+      async handler(ctx, a, input) {
+        const { quizA, at, qa, snap, behaviour, closed } = await questionInPlay(
+          ctx,
+          a,
+          input.attemptId,
+          input.slot,
+        );
+        if (closed) return { closed: true, question: null };
+        if (qa.state !== 'TRYAGAIN') throw new ModuleError('CONFLICT', 'There is nothing to retry');
+        const o = replay(snap, await stepsOf(ctx.db, qa.id), behaviour);
+        const next = o.hint?.clearWrong ? clearWrongParts(snap, o.response) : o.response;
+        await addStep(ctx.db, qa.id, { kind: 'TRYAGAIN', response: next });
+        await settle(ctx.db, qa, behaviour);
+        return { closed: false, question: await liveQuestion(ctx.db, quizA, at, qa.id) };
+      },
+    }),
     finish: defineAction({
       summary: 'Save the last answers and finish your attempt',
       input: z.object({
@@ -1468,16 +1785,17 @@ export const quiz = defineModule<QuizSettingsT>({
         if (qa.attempt.state !== 'FINISHED') throw new Error('The attempt is not finished');
         const max = Number(qa.maxMark);
         if (input.mark > max) throw new Error(`Mark must be at most ${max}`);
+        const graderId = ctx.actor.kind === 'user' ? ctx.actor.userId : null;
         await ctx.db.questionAttempt.update({
           where: { id: qa.id },
-          data: {
-            mark: input.mark,
-            fraction: max ? input.mark / max : 0,
-            needsGrading: false,
-            comment: sanitizeRichText(input.comment),
-            gradedById: ctx.actor.kind === 'user' ? ctx.actor.userId : null,
-          },
+          data: { comment: sanitizeRichText(input.comment), gradedById: graderId },
         });
+        await addStep(ctx.db, qa.id, {
+          kind: 'MANUALGRADE',
+          fraction: max ? input.mark / max : 0,
+          userId: graderId,
+        });
+        await settle(ctx.db, qa, qa.attempt.behaviour as Behaviour);
         const all = await ctx.db.questionAttempt.findMany({ where: { attemptId: qa.attemptId } });
         await ctx.db.quizAttempt.update({
           where: { id: qa.attemptId },

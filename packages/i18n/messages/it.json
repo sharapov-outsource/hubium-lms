@@ -1002,7 +1002,16 @@
     "true": "Vero",
     "false": "Falso",
     "untitledQuestion": "Domanda",
-    "importedCategory": "Importato"
+    "importedCategory": "Importato",
+    "tries": {
+      "title": "Più tentativi",
+      "about": "Per i quiz interattivi: dopo una risposta sbagliata compare il suggerimento successivo e si riprova. Ogni tentativo sbagliato costa la penalità.",
+      "penalty": "Penalità per ogni tentativo sbagliato",
+      "hintN": "Suggerimento {n}",
+      "addHint": "Aggiungi un suggerimento",
+      "clearWrong": "Cancella le risposte errate",
+      "showNumCorrect": "Mostra il numero di risposte giuste"
+    }
   },
   "notifications": {
     "title": "Notifiche",

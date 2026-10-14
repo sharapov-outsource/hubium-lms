@@ -31,12 +31,20 @@ async function expectNoSideScroll(page: import('@playwright/test').Page, path: s
 
 test('main pages fit a phone screen', async ({ page }) => {
   test.slow();
-  const [c] = await sql<{ id: string; forum: string; quiz: string; student: string }>(
+  const [c] = await sql<{
+    id: string;
+    forum: string;
+    quiz: string;
+    question: string;
+    student: string;
+  }>(
     `SELECT c.id,
        (SELECT id FROM "Activity" WHERE "courseId" = c.id AND "moduleKey" = 'forum'
           AND "deletedAt" IS NULL LIMIT 1) AS forum,
        (SELECT id FROM "Activity" WHERE "courseId" = c.id AND "moduleKey" = 'quiz'
           AND "deletedAt" IS NULL LIMIT 1) AS quiz,
+       (SELECT q.id FROM "Question" q JOIN "QuestionCategory" qc ON qc.id = q."categoryId"
+         WHERE qc."contextId" = c.id AND q.type = 'MULTICHOICE' LIMIT 1) AS question,
        (SELECT id FROM "User" WHERE username = 'student1') AS student
      FROM "Course" c WHERE c."shortName" = 'DEMO-PY'`,
   );
@@ -62,6 +70,7 @@ test('main pages fit a phone screen', async ({ page }) => {
     `${course}/a/${c!.forum}`,
     `${course}/a/${c!.quiz}/edit`,
     `${course}/a/${c!.quiz}?tab=edit`,
+    `${course}/question-bank/edit?id=${c!.question}`,
     '/settings/account',
     '/settings/security',
     '/admin',

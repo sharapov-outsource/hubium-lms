@@ -1003,7 +1003,16 @@
     "true": "True",
     "false": "False",
     "untitledQuestion": "Question",
-    "importedCategory": "Imported"
+    "importedCategory": "Imported",
+    "tries": {
+      "title": "Multiple tries",
+      "about": "For quizzes with interactive questions: after a wrong answer the learner sees the next hint and tries again. Each wrong try costs the penalty.",
+      "penalty": "Penalty for each wrong try",
+      "hintN": "Hint {n}",
+      "addHint": "Add a hint",
+      "clearWrong": "Clear incorrect responses",
+      "showNumCorrect": "Show the number of correct responses"
+    }
   },
   "notifications": {
     "title": "Notifications",

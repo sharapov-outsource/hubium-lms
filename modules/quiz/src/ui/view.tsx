@@ -289,6 +289,21 @@ async function ReviewPage({ activity: a, ctx, attemptId }: Props & { attemptId: 
                   )}
                 </div>
               ) : null}
+              {qa.answerFeedback.length ? (
+                <div className="grid gap-1 text-sm">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {t('behaviours.answerFeedback')}
+                  </p>
+                  {qa.answerFeedback.map((html) => (
+                    <div
+                      key={html}
+                      className="prose-content"
+                      // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised on save
+                      dangerouslySetInnerHTML={{ __html: html }}
+                    />
+                  ))}
+                </div>
+              ) : null}
               {qa.correctAnswerText && verdict !== 'correct' ? (
                 <p className="text-sm text-success">
                   {t('correctAnswer', { answer: tf(qa.correctAnswerText) })}
@@ -312,6 +327,50 @@ async function ReviewPage({ activity: a, ctx, attemptId }: Props & { attemptId: 
                   {/* biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised on save */}
                   <div className="prose-content" dangerouslySetInnerHTML={{ __html: qa.comment }} />
                 </div>
+              ) : null}
+              {qa.history?.length ? (
+                <details className="text-sm">
+                  <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+                    {t('history.title')}
+                  </summary>
+                  <div className="mt-2">
+                    <Table>
+                      <THead>
+                        <Tr>
+                          <Th>{t('history.step')}</Th>
+                          <Th>{t('history.time')}</Th>
+                          <Th>{t('history.action')}</Th>
+                          <Th>{t('history.state')}</Th>
+                          <Th>{t('history.grade')}</Th>
+                        </Tr>
+                      </THead>
+                      <TBody>
+                        {qa.history.map((s) => (
+                          <Tr key={s.seq}>
+                            <Td className="tabular-nums">{s.seq}</Td>
+                            <Td className="whitespace-nowrap text-xs">
+                              {format.dateTime(s.at, { dateStyle: 'short', timeStyle: 'medium' })}
+                            </Td>
+                            <Td>
+                              {t(`history.kinds.${s.kind}`, { name: s.userName ?? '—' })}
+                              {s.answerText ? (
+                                <span className="block text-xs text-muted-foreground">
+                                  {typeDef(qa.type).richText
+                                    ? t('history.answerSaved')
+                                    : tf(s.answerText)}
+                                </span>
+                              ) : null}
+                            </Td>
+                            <Td className="text-xs">{t(`history.states.${s.state}`)}</Td>
+                            <Td className="tabular-nums">
+                              {s.fraction === null ? '—' : fmt(s.fraction * qa.maxMark)}
+                            </Td>
+                          </Tr>
+                        ))}
+                      </TBody>
+                    </Table>
+                  </div>
+                </details>
               ) : null}
               {canGrade && typeDef(qa.type).grading === 'manual' && at.state === 'FINISHED' ? (
                 <GradeQuestionForm

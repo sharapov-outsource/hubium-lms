@@ -156,7 +156,8 @@ describe('module queries', () => {
       { attemptId },
     );
     expect(attempt.questions).toHaveLength(2);
-    expect(JSON.stringify(attempt)).not.toMatch(/fraction|feedback/);
+    // `feedback` is there for checks in the immediate and interactive behaviours: empty here
+    expect(JSON.stringify(attempt)).not.toMatch(/fraction|"feedback":(?!null)|generalFeedback/);
     // not someone else's attempt, and no review while it is open
     await expect(
       runModuleQuery(await as(f.users.student2!), id, 'attempt', { attemptId }),

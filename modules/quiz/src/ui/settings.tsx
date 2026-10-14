@@ -143,6 +143,34 @@ export function QuizSettingsFields({ settings }: SettingsFieldsProps<QuizSetting
         </Select>
       </Field>
       <fieldset className="grid gap-4 rounded-lg border border-border p-4">
+        <legend className="px-1 text-sm font-medium">{t('behaviours.title')}</legend>
+        <Field
+          label={t('behaviours.behaviour')}
+          htmlFor="qs-behaviour"
+          hint={t('behaviours.behaviourHint')}
+        >
+          <Select id="qs-behaviour" name="settings.behaviour" defaultValue={settings.behaviour}>
+            {(['deferred', 'immediate', 'interactive'] as const).map((m) => (
+              <option key={m} value={m}>
+                {t(`behaviours.names.${m}`)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <div className="grid gap-2">
+          <Bool
+            name="duringFeedback"
+            label={t('behaviours.duringFeedback')}
+            checked={settings.duringFeedback}
+          />
+          <Bool
+            name="duringRightAnswer"
+            label={t('behaviours.duringRightAnswer')}
+            checked={settings.duringRightAnswer}
+          />
+        </div>
+      </fieldset>
+      <fieldset className="grid gap-4 rounded-lg border border-border p-4">
         <legend className="px-1 text-sm font-medium">{t('access.title')}</legend>
         <PasswordField value={settings.password} />
         <Field

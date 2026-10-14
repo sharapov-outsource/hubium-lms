@@ -65,6 +65,13 @@ export interface QuestionTypeDef<T extends QuestionType> {
   publicView(q: QuestionView<T>): PublicFields;
   /** The whole GIFT question; absent when GIFT cannot express the type. */
   gift?(data: QuestionData<T>, p: GiftParts): string;
+  /** Right parts of a response, for the hint "show the number of correct responses". */
+  parts?(q: QuestionView<T>, r: ResponseOf<T>): { right: number; total: number };
+  /**
+   * The response without its wrong parts, for the hint "clear incorrect responses". Without
+   * it a wrong response is cleared entirely.
+   */
+  clearWrong?(q: QuestionView<T>, r: ResponseOf<T>): ResponseOf<T>;
 }
 
 export type QuestionTypeDefs = { [K in QuestionType]: QuestionTypeDef<K> };

@@ -89,6 +89,17 @@ export type QuestionData<T extends QuestionType = QuestionType> = z.output<
   (typeof questionDataSchemas)[T]
 >;
 
+/** Shown after an unsuccessful try in interactive mode, one per try. */
+export const Hint = z.object({
+  text: z.string().max(5000),
+  /** Clear the wrong parts of the response before the next try. */
+  clearWrong: z.boolean().default(false),
+  /** Tell how many parts are right. */
+  showNumCorrect: z.boolean().default(false),
+});
+export type Hint = z.output<typeof Hint>;
+export const Hints = z.array(Hint).max(10).default([]);
+
 /** Frozen copy of a question stored with each attempt. */
 export interface QuestionSnapshot {
   id: string;
@@ -98,6 +109,9 @@ export interface QuestionSnapshot {
   generalFeedback: string;
   defaultMark: number;
   data: QuestionData;
+  /** Share of the mark lost for each wrong try in interactive mode (0..1). */
+  penalty?: number;
+  hints?: Hint[];
   /** Per-attempt presentation order (answer ids / pair ids / choice texts). */
   order?: string[];
   choices?: string[];

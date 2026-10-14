@@ -1,3 +1,4 @@
+export * from './behaviours.ts';
 export * from './draft.ts';
 export * from './gift.ts';
 export * from './grade.ts';

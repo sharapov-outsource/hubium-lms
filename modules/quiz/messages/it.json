@@ -179,6 +179,46 @@
       "perPage": "Domande per pagina",
       "repaginate": "Reimpagina",
       "repaginated": "Pagine reimpaginate"
+    },
+    "behaviours": {
+      "title": "Comportamento delle domande",
+      "behaviour": "Come funzionano le domande",
+      "behaviourHint": "Differito: le risposte sono valutate alla fine del tentativo. Immediato: ogni risposta può essere verificata una volta. Interattivo: dopo una risposta sbagliata compare un suggerimento e si riprova; ogni errore toglie la penalità della domanda.",
+      "names": {
+        "deferred": "Feedback differito",
+        "immediate": "Feedback immediato",
+        "interactive": "Interattivo con più tentativi"
+      },
+      "duringFeedback": "Durante il tentativo, mostrare il feedback delle risposte verificate e i suggerimenti",
+      "duringRightAnswer": "Durante il tentativo, mostrare la risposta giusta quando la domanda è completata",
+      "check": "Verifica",
+      "tryAgain": "Riprova",
+      "triesLeft": "{n, plural, one {resta # tentativo} other {restano # tentativi}}",
+      "hint": "Suggerimento",
+      "numCorrect": "Hai {right} risposte giuste su {total}.",
+      "markNow": "Punteggio della domanda: {mark}",
+      "answerFeedback": "Feedback sulla risposta"
+    },
+    "history": {
+      "title": "Cronologia della risposta",
+      "step": "Passo",
+      "time": "Ora",
+      "action": "Azione",
+      "state": "Stato",
+      "grade": "Punteggio",
+      "answerSaved": "Risposta salvata",
+      "kinds": {
+        "SAVE": "Salvata",
+        "CHECK": "Verificata",
+        "TRYAGAIN": "Nuovo tentativo",
+        "FINISH": "Tentativo terminato",
+        "MANUALGRADE": "Valutata da {name}"
+      },
+      "states": {
+        "TODO": "Non completata",
+        "TRYAGAIN": "In attesa di un nuovo tentativo",
+        "COMPLETE": "Completata"
+      }
     }
   }
 }

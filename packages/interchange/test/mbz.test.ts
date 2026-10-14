@@ -103,8 +103,16 @@ describe('.mbz import', () => {
       delay1Min: 10,
       delay2Min: 61,
       navMethod: 'sequential',
+      // adaptive mode has no equal here: interactive, reported
+      behaviour: 'interactive',
+      duringFeedback: true,
+      duringRightAnswer: false,
     });
     expect(report.warnings).toContainEqual(expect.stringContaining('office'));
+    expect(report.warnings).toContainEqual(expect.stringContaining('adaptive'));
+    expect(slots[0]!.question!.hints).toEqual([
+      { text: '<p>Посмотрите на точку</p>', clearWrong: true, showNumCorrect: false },
+    ]);
     const cat = await t.db.questionCategory.findFirstOrThrow({
       where: { contextId: report.courseId },
     });

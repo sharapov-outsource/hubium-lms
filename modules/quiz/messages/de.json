@@ -179,6 +179,46 @@
       "perPage": "Fragen pro Seite",
       "repaginate": "Neu aufteilen",
       "repaginated": "Seiten neu aufgeteilt"
+    },
+    "behaviours": {
+      "title": "Frageverhalten",
+      "behaviour": "Wie sich Fragen verhalten",
+      "behaviourHint": "Verzögert: Antworten werden am Ende des Versuchs bewertet. Direkt: jede Antwort kann einmal geprüft werden. Interaktiv: nach einer falschen Antwort erscheint ein Hinweis und ein neuer Versuch, jeder Fehlversuch kostet den Abzug der Frage.",
+      "names": {
+        "deferred": "Verzögertes Feedback",
+        "immediate": "Direktes Feedback",
+        "interactive": "Interaktiv mit mehreren Versuchen"
+      },
+      "duringFeedback": "Während des Versuchs Feedback zu geprüften Antworten und Hinweise zeigen",
+      "duringRightAnswer": "Während des Versuchs die richtige Antwort zeigen, sobald eine Frage abgeschlossen ist",
+      "check": "Prüfen",
+      "tryAgain": "Erneut versuchen",
+      "triesLeft": "{n, plural, one {noch # Versuch} other {noch # Versuche}}",
+      "hint": "Hinweis",
+      "numCorrect": "{right} von {total} richtig.",
+      "markNow": "Punkte für diese Frage: {mark}",
+      "answerFeedback": "Feedback zur Antwort"
+    },
+    "history": {
+      "title": "Antwortverlauf",
+      "step": "Schritt",
+      "time": "Zeit",
+      "action": "Aktion",
+      "state": "Status",
+      "grade": "Punkte",
+      "answerSaved": "Antwort gespeichert",
+      "kinds": {
+        "SAVE": "Gespeichert",
+        "CHECK": "Geprüft",
+        "TRYAGAIN": "Neuer Versuch",
+        "FINISH": "Versuch beendet",
+        "MANUALGRADE": "Bewertet von {name}"
+      },
+      "states": {
+        "TODO": "Nicht abgeschlossen",
+        "TRYAGAIN": "Wartet auf neuen Versuch",
+        "COMPLETE": "Abgeschlossen"
+      }
     }
   }
 }

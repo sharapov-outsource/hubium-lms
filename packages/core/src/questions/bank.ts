@@ -1,6 +1,7 @@
 import type { Db, Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import {
+  Hint,
   parseGift,
   type QuestionType,
   questionDataSchemas,
@@ -110,7 +111,15 @@ export const QuestionInput = z.object({
   tags: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
   status: z.enum(['DRAFT', 'READY', 'HIDDEN']).default('READY'),
   idNumber: optionalText(100),
+  /** Share of the mark lost per wrong try in interactive quizzes; new questions get ⅓. */
+  penalty: z.coerce.number().min(0).max(1).optional(),
+  /** Shown after wrong tries in interactive quizzes, one per try. */
+  // not Hints: its default would replace the hints of an edit that leaves them out
+  hints: z.array(Hint).max(10).optional(),
 });
+
+const blankHtml = (html: string) =>
+  !/<(img|video|iframe)\b/i.test(html) && !html.replace(/<[^>]*>|&nbsp;/g, '').trim();
 
 function validateData(type: QuestionType, data: unknown) {
   const r = questionDataSchemas[type].safeParse(data);
@@ -155,6 +164,19 @@ export const saveQuestion = defineOperation({
       tags: input.tags,
       status: input.status,
       idNumber: input.idNumber ?? null,
+      // left as they are when not given (an edit through the API without them)
+      ...(input.penalty !== undefined ? { penalty: input.penalty } : {}),
+      ...(input.hints !== undefined
+        ? {
+            // a hint with no text and nothing to do is dropped (as Moodle): it would only
+            // add a try
+            hints: input.hints
+              .map((h) => ({ ...h, text: sanitizeRichText(h.text) }))
+              .filter(
+                (h) => !blankHtml(h.text) || h.clearWrong || h.showNumCorrect,
+              ) as Prisma.InputJsonValue,
+          }
+        : {}),
     };
     if (input.id) {
       // Attempts keep their own snapshots, so editing never changes past results.
@@ -164,7 +186,9 @@ export const saveQuestion = defineOperation({
       });
       return { id: q.id };
     }
-    const q = await ctx.tx.question.create({ data: { ...values, createdById: ctx.perm.userId } });
+    const q = await ctx.tx.question.create({
+      data: { ...values, createdById: ctx.perm.userId },
+    });
     return { id: q.id };
   },
 });

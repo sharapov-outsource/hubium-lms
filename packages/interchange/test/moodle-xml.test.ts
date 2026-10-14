@@ -16,6 +16,8 @@ const SAMPLE = `<?xml version="1.0" encoding="UTF-8"?>
     <answer fraction="100" format="html"><text>float</text><feedback format="html"><text>Да</text></feedback></answer>
     <answer fraction="0" format="html"><text>int</text><feedback format="html"><text></text></feedback></answer>
     <tags><tag><text>основы</text></tag></tags>
+    <hint format="html"><text>Подумайте о точке</text><shownumcorrect/></hint>
+    <hint format="html"><text>Это не целое число</text><clearwrong/></hint>
   </question>
   <question type="truefalse">
     <name><text>Комментарий</text></name>
@@ -51,6 +53,11 @@ const SAMPLE = `<?xml version="1.0" encoding="UTF-8"?>
   <question type="calculated"><name><text>Формула</text></name><questiontext><text>x</text></questiontext></question>
 </quiz>`;
 
+const HINTS = [
+  { text: 'Подумайте о точке', clearWrong: false, showNumCorrect: true },
+  { text: 'Это не целое число', clearWrong: true, showNumCorrect: false },
+];
+
 describe('Moodle XML', () => {
   it('parses the seven supported types', () => {
     const r = parseMoodleXml(SAMPLE);
@@ -73,6 +80,7 @@ describe('Moodle XML', () => {
       tags: ['основы'],
     });
     expect(mc!.text).toContain('data:image/png;base64,iVBORw0KGgo=');
+    expect(mc!.hints).toEqual(HINTS);
     expect(mc!.data).toMatchObject({
       single: true,
       answers: [{ text: 'float', fraction: 1, feedback: 'Да' }, { fraction: 0 }],
@@ -125,6 +133,8 @@ describe('Moodle XML', () => {
         'DESCRIPTION',
       ]);
       expect(again.questions[3]!.data).toMatchObject({ answers: [{ value: 3, fraction: 1 }] });
+      expect(again.questions[0]!.hints).toEqual(HINTS);
+      expect(again.questions[1]!.hints).toEqual([]);
       const s1 = await ctxFor(t.db, f.users.student1!);
       await expect(importMoodleXml(s1, f.courseId, SAMPLE)).rejects.toThrow();
     });

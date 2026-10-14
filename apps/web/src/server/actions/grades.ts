@@ -208,8 +208,10 @@ export async function saveQuestionAction(fd: FormData) {
   const v = formToObject(fd);
   const res = await runAction(async () => {
     let data: unknown;
+    let hints: unknown;
     try {
       data = JSON.parse(v.data || '{}');
+      hints = v.hints ? JSON.parse(v.hints) : undefined;
     } catch {
       throw new ValidationError({ data: ['Invalid data'] });
     }
@@ -223,6 +225,8 @@ export async function saveQuestionAction(fd: FormData) {
       defaultMark: v.defaultMark,
       status: (v.status || 'READY') as 'READY',
       data,
+      penalty: v.penalty === undefined || v.penalty === '' ? undefined : Number(v.penalty),
+      hints: hints as never,
     });
   });
   if (res.ok) redirect(`/course/${v.courseId}/question-bank?category=${v.categoryId}`);

@@ -1002,7 +1002,16 @@
     "true": "Vrai",
     "false": "Faux",
     "untitledQuestion": "Question",
-    "importedCategory": "Importé"
+    "importedCategory": "Importé",
+    "tries": {
+      "title": "Plusieurs essais",
+      "about": "Pour les tests interactifs : après une mauvaise réponse, l’apprenant voit l’indice suivant et réessaie. Chaque essai faux coûte la pénalité.",
+      "penalty": "Pénalité pour chaque essai faux",
+      "hintN": "Indice {n}",
+      "addHint": "Ajouter un indice",
+      "clearWrong": "Effacer les réponses incorrectes",
+      "showNumCorrect": "Afficher le nombre de bonnes réponses"
+    }
   },
   "notifications": {
     "title": "Notifications",

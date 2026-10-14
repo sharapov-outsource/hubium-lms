@@ -1002,7 +1002,16 @@
     "true": "Wahr",
     "false": "Falsch",
     "untitledQuestion": "Frage",
-    "importedCategory": "Importiert"
+    "importedCategory": "Importiert",
+    "tries": {
+      "title": "Mehrere Versuche",
+      "about": "Für Tests mit interaktiven Fragen: nach einer falschen Antwort erscheint der nächste Hinweis und ein neuer Versuch. Jeder Fehlversuch kostet den Abzug.",
+      "penalty": "Abzug für jeden Fehlversuch",
+      "hintN": "Hinweis {n}",
+      "addHint": "Hinweis hinzufügen",
+      "clearWrong": "Falsche Antworten löschen",
+      "showNumCorrect": "Anzahl richtiger Antworten zeigen"
+    }
   },
   "notifications": {
     "title": "Mitteilungen",

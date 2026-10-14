@@ -19,7 +19,7 @@ import { type Prisma, uuidv7 } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { isLocale } from '@hubium/i18n';
 import { parseSettings } from '@hubium/module-sdk';
-import { type QuestionType, questionDataSchemas, questionTypes } from '@hubium/questions';
+import { Hints, type QuestionType, questionDataSchemas, questionTypes } from '@hubium/questions';
 import { strFromU8, strToU8, zipSync } from 'fflate';
 import { z } from 'zod';
 import { type ArchiveLimits, unzipLimited } from './archive.ts';
@@ -169,6 +169,8 @@ const CourseJson = z.object({
       generalFeedback: z.string(),
       defaultMark: z.number(),
       penalty: z.number(),
+      // absent from archives made before hints existed
+      hints: Hints.catch([]),
       data: z.unknown(),
       status: z.enum(['DRAFT', 'READY', 'HIDDEN']).catch('READY'),
       tags: z.array(z.string()),
@@ -377,6 +379,7 @@ export async function exportCourse(ctx: RequestContext, courseId: string): Promi
       generalFeedback: q.generalFeedback,
       defaultMark: Number(q.defaultMark),
       penalty: Number(q.penalty),
+      hints: Hints.catch([]).parse(q.hints),
       data: q.data,
       status: q.status,
       tags: q.tags,
@@ -616,6 +619,10 @@ export async function restoreCourse(
           generalFeedback: sanitizeRichText(q.generalFeedback),
           defaultMark: q.defaultMark,
           penalty: q.penalty,
+          hints: q.hints.map((h) => ({
+            ...h,
+            text: sanitizeRichText(h.text),
+          })) as unknown as Prisma.InputJsonValue,
           data: data.data as Prisma.InputJsonValue,
           status: q.status,
           tags: q.tags,

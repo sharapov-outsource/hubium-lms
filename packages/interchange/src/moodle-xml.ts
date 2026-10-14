@@ -2,11 +2,11 @@ import { type RequestContext, ValidationError } from '@hubium/core';
 import type { Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { createTranslator } from '@hubium/i18n/packs';
-import { type QuestionType, questionDataSchemas } from '@hubium/questions';
+import { type Hint, Hints, type QuestionType, questionDataSchemas } from '@hubium/questions';
 import { XMLBuilder, XMLParser } from 'fast-xml-parser';
 
 // Moodle XML question format: import (7 question types, category paths, base64 images,
-// feedback, fractions) and export of a course question bank.
+// feedback, fractions, hints) and export of a course question bank.
 
 type Node = Record<string, unknown>;
 
@@ -18,6 +18,8 @@ export interface ParsedQuestion {
   generalFeedback: string;
   defaultMark: number;
   penalty: number;
+  /** For the interactive behaviour: shown between tries. */
+  hints: Hint[];
   data: unknown;
   idNumber: string | null;
   tags: string[];
@@ -90,6 +92,19 @@ const plain = (h: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+/** <hint> elements: their text, and <clearwrong/> and <shownumcorrect/> when present. */
+function readHints(v: unknown): Hint[] {
+  const hints = arr(v as Node | Node[])
+    .filter((h) => h && typeof h === 'object')
+    .map((h) => ({
+      text: sanitizeRichText(html(h)),
+      clearWrong: 'clearwrong' in h,
+      showNumCorrect: 'shownumcorrect' in h,
+    }))
+    .filter((h) => plain(h.text) || h.text.includes('<img'));
+  return Hints.parse(hints.slice(0, 10));
+}
+
 function mapQuestion(q: Node, path: string[], untitled: string): ParsedQuestion | null {
   const qtype = String(q['@_type']);
   const name = plain(txt(q.name)) || untitled;
@@ -100,6 +115,7 @@ function mapQuestion(q: Node, path: string[], untitled: string): ParsedQuestion 
     generalFeedback: sanitizeRichText(html(q.generalfeedback)),
     defaultMark: num(q.defaultgrade, 1),
     penalty: Math.min(1, Math.max(0, num(q.penalty, 0))),
+    hints: readHints(q.hint),
     idNumber: txt(q.idnumber) || null,
     tags: arr((q.tags as Node | undefined)?.tag as Node | Node[])
       .map((t) => txt(t))
@@ -284,6 +300,7 @@ export async function importMoodleXml(ctx: RequestContext, courseId: string, xml
           generalFeedback: q.generalFeedback,
           defaultMark: q.defaultMark,
           penalty: q.penalty,
+          hints: q.hints as unknown as Prisma.InputJsonValue,
           data: q.data as Prisma.InputJsonValue,
           idNumber: q.idNumber,
           tags: q.tags,
@@ -439,6 +456,20 @@ function exportQuestion(q: {
   }
 }
 
+function hintNodes(hints: unknown): Node {
+  const list = Hints.catch([]).parse(hints);
+  return list.length
+    ? {
+        hint: list.map((h) => ({
+          '@_format': 'html',
+          ...cdata(h.text),
+          ...(h.showNumCorrect ? { shownumcorrect: '' } : {}),
+          ...(h.clearWrong ? { clearwrong: '' } : {}),
+        })),
+      }
+    : {};
+}
+
 /** Exports a course question bank (or one category with subcategories) as Moodle XML. */
 export async function exportMoodleXml(
   ctx: RequestContext,
@@ -477,7 +508,7 @@ export async function exportMoodleXml(
       });
     }
     const x = exportQuestion(q);
-    if (x) items.push(x);
+    if (x) items.push({ ...x, ...hintNodes(q.hints) });
   }
   const builder = new XMLBuilder({
     ignoreAttributes: false,

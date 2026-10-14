@@ -15,7 +15,7 @@ import type { Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { createTranslator } from '@hubium/i18n/packs';
 import { invalidIpListEntries } from '@hubium/module-sdk/net';
-import { type QuestionType, questionDataSchemas } from '@hubium/questions';
+import { type Hint, Hints, type QuestionType, questionDataSchemas } from '@hubium/questions';
 import { XMLParser } from 'fast-xml-parser';
 import tar from 'tar-stream';
 import {
@@ -163,6 +163,45 @@ export interface MbzReport {
 }
 
 // ── questions ────────────────────────────────────────────────────────────────
+
+/** A question's hints (question_hints) for the interactive behaviour. */
+function mbzHints(q: Node): Hint[] {
+  const list = arr((q.question_hints as Node | undefined)?.question_hint as Node | Node[])
+    .map((h) => ({
+      text: sanitizeRichText(txt(h.hint)),
+      clearWrong: txt(h.clearwrong) === '1',
+      showNumCorrect: txt(h.shownumcorrect) === '1',
+    }))
+    .filter((h) => h.text.trim());
+  return Hints.parse(list.slice(0, 10));
+}
+
+/** Moodle review option bit: "during the attempt". */
+const DURING = 0x10000;
+
+/**
+ * The quiz's question behaviour. Certainty-based marking is not supported (its plain
+ * behaviour is used) and adaptive mode becomes interactive: both are reported.
+ */
+export function quizBehaviour(data: Node, warn: (why: string) => void) {
+  const b = txt(data.preferredbehaviour);
+  const behaviour =
+    b === 'immediatefeedback' || b === 'immediatecbm'
+      ? 'immediate'
+      : b === 'interactive' || b === 'adaptive' || b === 'adaptivenopenalty'
+        ? 'interactive'
+        : 'deferred';
+  if (b.endsWith('cbm')) warn('certainty-based marking is not supported: plain marking is used');
+  if (b.startsWith('adaptive'))
+    warn('adaptive mode is imported as interactive with multiple tries');
+  const during = (field: unknown, d: boolean) =>
+    txt(field) === '' ? d : (num(field) & DURING) !== 0;
+  return {
+    behaviour,
+    duringFeedback: during(data.reviewspecificfeedback, true),
+    duringRightAnswer: during(data.reviewrightanswer, false),
+  };
+}
 
 function mapMoodleQuestion(q: Node): { type: QuestionType; data: unknown } | null {
   const qtype = txt(q.qtype);
@@ -486,6 +525,7 @@ export async function importMbz(
                 generalFeedback: sanitizeRichText(txt(q.generalfeedback)),
                 defaultMark: mapped.type === 'DESCRIPTION' ? 0 : num(q.defaultmark, 1),
                 penalty: Math.min(1, Math.max(0, num(q.penalty))),
+                hints: mbzHints(q) as unknown as Prisma.InputJsonValue,
                 data: parsed.data as Prisma.InputJsonValue,
                 source: 'IMPORT',
                 createdById: ctx.perm.userId ?? null,
@@ -647,6 +687,7 @@ export async function importMbz(
                 delay1Min: Math.ceil(num(data.delay1) / 60),
                 delay2Min: Math.ceil(num(data.delay2) / 60),
                 navMethod: txt(data.navmethod) === 'seq' ? 'sequential' : 'free',
+                ...quizBehaviour(data, (why) => warnings.push(`"${name}": ${why}`)),
               },
             });
             const instances = arr(

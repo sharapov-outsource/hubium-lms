@@ -179,6 +179,46 @@
       "perPage": "Questions par page",
       "repaginate": "Repaginer",
       "repaginated": "Pages réorganisées"
+    },
+    "behaviours": {
+      "title": "Comportement des questions",
+      "behaviour": "Fonctionnement des questions",
+      "behaviourHint": "Différé : les réponses sont évaluées à la fin de la tentative. Immédiat : chaque réponse peut être vérifiée une fois. Interactif : après une mauvaise réponse, l’apprenant voit un indice et réessaie, chaque essai faux retirant la pénalité de la question.",
+      "names": {
+        "deferred": "Feedback différé",
+        "immediate": "Feedback immédiat",
+        "interactive": "Interactif avec plusieurs essais"
+      },
+      "duringFeedback": "Pendant la tentative, afficher le feedback des réponses vérifiées et les indices",
+      "duringRightAnswer": "Pendant la tentative, afficher la bonne réponse une fois la question terminée",
+      "check": "Vérifier",
+      "tryAgain": "Réessayer",
+      "triesLeft": "{n, plural, one {# essai restant} other {# essais restants}}",
+      "hint": "Indice",
+      "numCorrect": "Vous avez {right} bonne(s) réponse(s) sur {total}.",
+      "markNow": "Note de la question : {mark}",
+      "answerFeedback": "Feedback sur la réponse"
+    },
+    "history": {
+      "title": "Historique de la réponse",
+      "step": "Étape",
+      "time": "Heure",
+      "action": "Action",
+      "state": "État",
+      "grade": "Note",
+      "answerSaved": "Réponse enregistrée",
+      "kinds": {
+        "SAVE": "Enregistrée",
+        "CHECK": "Vérifiée",
+        "TRYAGAIN": "Nouvel essai",
+        "FINISH": "Tentative terminée",
+        "MANUALGRADE": "Évaluée par {name}"
+      },
+      "states": {
+        "TODO": "Non terminée",
+        "TRYAGAIN": "En attente d’un nouvel essai",
+        "COMPLETE": "Terminée"
+      }
     }
   }
 }
