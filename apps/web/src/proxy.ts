@@ -17,6 +17,7 @@ const PUBLIC = [
   '/verify-email',
   '/unsubscribe',
   '/unlock-account',
+  '/not-me',
   '/offline',
   '/c/',
   '/api',

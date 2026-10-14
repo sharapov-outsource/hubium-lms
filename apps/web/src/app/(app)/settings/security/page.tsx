@@ -1,4 +1,4 @@
-import { getAllSettings, passwordExpired, passwordPolicy } from '@hubium/core';
+import { deviceLabel, getAllSettings, passwordExpired, passwordPolicy } from '@hubium/core';
 import {
   Alert,
   Badge,
@@ -21,33 +21,6 @@ import { RevokeButtons } from './revoke-buttons';
 import { TwoFactorPanel } from './two-factor-panel';
 
 export const generateMetadata = titled('settings', 'security');
-
-function deviceLabel(ua: string | null | undefined, unknown: string): string {
-  if (!ua) return unknown;
-  const browser = /Edg\//.test(ua)
-    ? 'Edge'
-    : /YaBrowser/.test(ua)
-      ? 'Yandex Browser'
-      : /Firefox\//.test(ua)
-        ? 'Firefox'
-        : /Chrome\//.test(ua)
-          ? 'Chrome'
-          : /Safari\//.test(ua)
-            ? 'Safari'
-            : unknown;
-  const os = /Windows/.test(ua)
-    ? 'Windows'
-    : /Android/.test(ua)
-      ? 'Android'
-      : /iPhone|iPad/.test(ua)
-        ? 'iOS'
-        : /Mac OS X/.test(ua)
-          ? 'macOS'
-          : /Linux/.test(ua)
-            ? 'Linux'
-            : '';
-  return os ? `${browser} · ${os}` : browser;
-}
 
 export default async function SecuritySettings({
   searchParams,

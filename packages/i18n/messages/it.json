@@ -169,6 +169,18 @@
       "action": "Sblocca",
       "done": "Il tuo account è sbloccato; puoi accedere.",
       "invalid": "Il link non è valido o è scaduto. Il blocco termina da solo allo scadere del tempo."
+    },
+    "notMe": {
+      "title": "Accesso da un nuovo dispositivo",
+      "device": "Dispositivo",
+      "ip": "Indirizzo IP",
+      "time": "Ora",
+      "intro": "Se non eri tu, chiudi tutte le sessioni: chi ha effettuato l'accesso perde l'accesso e ricevi un'email per cambiare la password.",
+      "action": "Non ero io — chiudi tutte le sessioni",
+      "itWasMe": "Ero io",
+      "doneReset": "Tutte le sessioni sono state chiuse. Ti abbiamo inviato un'email con un link per cambiare la password.",
+      "doneSessions": "Tutte le sessioni sono state chiuse. Chiedi a un amministratore di cambiare la tua password.",
+      "invalid": "Il link non è valido, è scaduto o è già stato usato."
     }
   },
   "dashboard": {
@@ -385,7 +397,10 @@
       "lockoutThreshold": "Accessi non riusciti prima del blocco",
       "lockoutThresholdHint": "0 per non bloccare mai. Il titolare riceve un'email con un link per sbloccare.",
       "lockoutWindow": "Conta i tentativi entro, minuti",
-      "lockoutDuration": "Durata del blocco, minuti"
+      "lockoutDuration": "Durata del blocco, minuti",
+      "signInNotices": "Avvisi di accesso",
+      "newSignInNotice": "Segnala gli accessi da un nuovo dispositivo",
+      "newSignInNoticeHint": "Un nuovo dispositivo è un altro browser, sistema o rete. Gli utenti possono disattivare queste email nelle impostazioni delle notifiche."
     },
     "env": {
       "title": "Ambiente",
@@ -1253,7 +1268,8 @@
       "announcement_course": "Annunci dei corsi",
       "announcement_site": "Annunci del sito",
       "message_new": "Nuovi messaggi privati",
-      "calendar_reminder": "Promemoria del calendario"
+      "calendar_reminder": "Promemoria del calendario",
+      "auth_newSignIn": "Accesso da un nuovo dispositivo"
     },
     "text": {
       "enrolled": "Iscrizione al corso «{course}» effettuata",
@@ -1300,6 +1316,10 @@
       "doneAll": "Fatto: le email di notifica non verranno più inviate.",
       "invalid": "Questo link non è valido o è scaduto.",
       "manage": "Gestisci le notifiche"
+    },
+    "newSignIn": {
+      "title": "Accesso da un nuovo dispositivo",
+      "body": "Qualcuno ha effettuato l'accesso al tuo account: {device}, IP {ip}. Se non eri tu, apri questo avviso per chiudere tutte le sessioni e cambiare la password."
     }
   },
   "messages": {

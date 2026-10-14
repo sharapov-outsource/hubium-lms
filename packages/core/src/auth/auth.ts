@@ -8,6 +8,7 @@ import { clientIp } from '../client-ip.ts';
 import { ValidationError } from '../errors.ts';
 import { sendAuthEmail } from '../mail/mail.ts';
 import { getAllSettings, userLocale } from '../settings/settings.ts';
+import { noteSignIn } from './devices.ts';
 import { clearFailedSignIns, findSignInUser, isLocked, recordFailedSignIn } from './lockout.ts';
 import { impersonatedBy, loginAs } from './login-as.ts';
 import {
@@ -316,6 +317,7 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
             // logging in as someone is not that person's login
             if (impersonatedBy(session)) return;
             await clearFailedSignIns(db, session.userId);
+            await noteSignIn(db, session);
             const user = await db.user.update({
               where: { id: session.userId },
               data: { lastLoginAt: new Date() },

@@ -116,7 +116,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 
 ### Platform
 
-- Sign-in by email or username (for learners without email), email verification, two-factor authentication (TOTP), a password policy (length, character classes, no reuse, expiry), lockout after failed sign-ins with an unlock link by email, sign-in with Google, Yandex ID and VK ID, and active session management.
+- Sign-in by email or username (for learners without email), email verification, two-factor authentication (TOTP), a password policy (length, character classes, no reuse, expiry), lockout after failed sign-ins with an unlock link by email, notices of sign-ins from a new device with an "it wasn't me" link, sign-in with Google, Yandex ID and VK ID, and active session management.
 - An installable PWA with an offline page and push notifications.
 - Russian, English, French, German and Italian; a language is a set of JSON files ([docs/i18n.md](docs/i18n.md)) and administrators enable languages and set the site language in the admin area. Light and dark themes, and a mobile layout with bottom navigation.
 - Accessibility: every end-to-end scenario is checked with axe for serious and critical violations.

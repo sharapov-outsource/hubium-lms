@@ -228,6 +228,7 @@ export async function saveSettingsAction(fd: FormData) {
           'password.requireSymbol': bool(fd.get('requireSymbol')),
           'password.history': v.history,
           'password.maxAgeDays': v.maxAgeDays,
+          'auth.newSignInNotice': bool(fd.get('newSignInNotice')),
           'lockout.threshold': v.lockoutThreshold,
           'lockout.windowMinutes': v.lockoutWindow,
           'lockout.durationMinutes': v.lockoutDuration,

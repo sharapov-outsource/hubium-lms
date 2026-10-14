@@ -170,6 +170,18 @@
       "action": "Unlock",
       "done": "Your account is unlocked; you can sign in.",
       "invalid": "The link is invalid or has expired. The lock ends by itself when its time is up."
+    },
+    "notMe": {
+      "title": "Sign-in from a new device",
+      "device": "Device",
+      "ip": "IP address",
+      "time": "Time",
+      "intro": "If it wasn't you, end all sessions: whoever signed in loses access, and you get an email to change your password.",
+      "action": "It wasn't me — end all sessions",
+      "itWasMe": "It was me",
+      "doneReset": "All sessions have ended. We sent you an email with a link to change your password.",
+      "doneSessions": "All sessions have ended. Ask an administrator to change your password.",
+      "invalid": "The link is invalid, has expired or was already used."
     }
   },
   "dashboard": {
@@ -386,7 +398,10 @@
       "lockoutThreshold": "Failed sign-ins before lockout",
       "lockoutThresholdHint": "0 to never lock. The owner gets an email with a link to unlock.",
       "lockoutWindow": "Count attempts within, minutes",
-      "lockoutDuration": "Lockout duration, minutes"
+      "lockoutDuration": "Lockout duration, minutes",
+      "signInNotices": "Sign-in notices",
+      "newSignInNotice": "Notify of sign-ins from a new device",
+      "newSignInNoticeHint": "A new device is another browser, system or network. Users can turn these emails off in their notification settings."
     },
     "env": {
       "title": "Environment",
@@ -1254,7 +1269,8 @@
       "announcement_course": "Course announcements",
       "announcement_site": "Site announcements",
       "message_new": "New direct messages",
-      "calendar_reminder": "Calendar reminders"
+      "calendar_reminder": "Calendar reminders",
+      "auth_newSignIn": "Sign-in from a new device"
     },
     "text": {
       "enrolled": "You were enrolled in “{course}”",
@@ -1301,6 +1317,10 @@
       "doneAll": "Done: you will no longer receive notification emails.",
       "invalid": "This link is invalid or has expired.",
       "manage": "Manage notifications"
+    },
+    "newSignIn": {
+      "title": "Sign-in from a new device",
+      "body": "Someone signed in to your account: {device}, IP {ip}. If it wasn't you, open this notice to end all sessions and change your password."
     }
   },
   "messages": {

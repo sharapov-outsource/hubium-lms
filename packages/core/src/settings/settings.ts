@@ -30,6 +30,8 @@ export const settingDefs = {
   'auth.oauth.yandex': z.boolean().default(false),
   'auth.oauth.vk': z.boolean().default(false),
   'auth.require2faForAdmins': z.boolean().default(false),
+  /** Notify users of sign-ins from a new device (auth/devices.ts). */
+  'auth.newSignInNotice': z.boolean().default(true),
   // Password policy (auth/password-policy.ts). It applies when a password is set.
   'password.minLength': z.coerce.number().int().min(8).max(128).default(8),
   'password.requireDigit': z.boolean().default(false),

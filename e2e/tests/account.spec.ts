@@ -197,3 +197,48 @@ test('lockout after failed sign-ins: email link and administrator unlock', async
     );
   }
 });
+
+test('a sign-in from a new device is notified, and "it wasn\'t me" ends all sessions', async ({
+  page,
+  browser,
+}) => {
+  // the usual browser is known (signed in before or now)
+  await login(page, 'student2', DEMO_PASSWORD);
+  await page.context().clearCookies();
+
+  const after = new Date(Date.now() - 1000);
+  const other = await browser.newContext({
+    locale: 'ru-RU',
+    userAgent: 'Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0',
+  });
+  const intruder = await other.newPage();
+  await login(intruder, 'student2', DEMO_PASSWORD);
+
+  const mail = await waitForMail('student2@hubium.local', {
+    subject: /Вход с нового устройства/,
+    after,
+  });
+  expect(mail.Text).toContain('Firefox · Linux');
+
+  // the owner sees it in the app too and follows it
+  await login(page, 'student2', DEMO_PASSWORD);
+  await page.goto('/notifications');
+  await page
+    .getByRole('link', { name: /Вход с нового устройства/ })
+    .first()
+    .click();
+  await page.waitForURL(/\/not-me\?token=/);
+  await expect(page.getByText('Firefox · Linux')).toBeVisible();
+  await expectAccessible(page);
+  await page.getByRole('button', { name: /Это был не я/ }).click();
+  await expect(page.getByText(/Все сеансы завершены/)).toBeVisible();
+  await waitForMail('student2@hubium.local', { subject: /Сброс/, after });
+
+  // every session is gone (browsers drop theirs once the 60-second cookie cache expires)
+  const [{ n }] = (await sql<{ n: string }>(
+    `SELECT count(*) AS n FROM "Session" s JOIN "User" u ON u.id = s."userId"
+     WHERE u.username = 'student2'`,
+  )) as [{ n: string }];
+  expect(Number(n)).toBe(0);
+  await other.close();
+});

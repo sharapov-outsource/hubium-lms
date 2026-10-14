@@ -199,6 +199,13 @@ export default async function SettingsSectionPage({
             hint={t('settings.passwordMaxAgeHint')}
             defaultValue={s['password.maxAgeDays']}
           />
+          <h2 className="mt-2 font-semibold">{t('settings.signInNotices')}</h2>
+          <Toggle
+            name="newSignInNotice"
+            label={t('settings.newSignInNotice')}
+            checked={s['auth.newSignInNotice']}
+          />
+          <p className="-mt-2 text-xs text-muted-foreground">{t('settings.newSignInNoticeHint')}</p>
           <h2 className="mt-2 font-semibold">{t('settings.lockout')}</h2>
           <FormField
             name="lockoutThreshold"

@@ -169,6 +169,18 @@
       "action": "Déverrouiller",
       "done": "Votre compte est déverrouillé ; vous pouvez vous connecter.",
       "invalid": "Le lien est invalide ou a expiré. Le verrouillage prend fin de lui-même à son terme."
+    },
+    "notMe": {
+      "title": "Connexion depuis un nouvel appareil",
+      "device": "Appareil",
+      "ip": "Adresse IP",
+      "time": "Heure",
+      "intro": "Si ce n'était pas vous, fermez toutes les sessions : la personne connectée perd l'accès et vous recevez un e-mail pour changer votre mot de passe.",
+      "action": "Ce n'était pas moi — fermer toutes les sessions",
+      "itWasMe": "C'était moi",
+      "doneReset": "Toutes les sessions sont fermées. Nous vous avons envoyé un e-mail avec un lien pour changer votre mot de passe.",
+      "doneSessions": "Toutes les sessions sont fermées. Demandez à un administrateur de changer votre mot de passe.",
+      "invalid": "Le lien est invalide, a expiré ou a déjà été utilisé."
     }
   },
   "dashboard": {
@@ -385,7 +397,10 @@
       "lockoutThreshold": "Échecs de connexion avant verrouillage",
       "lockoutThresholdHint": "0 pour ne jamais verrouiller. Le titulaire reçoit un e-mail avec un lien de déverrouillage.",
       "lockoutWindow": "Compter les tentatives sur, en minutes",
-      "lockoutDuration": "Durée du verrouillage, en minutes"
+      "lockoutDuration": "Durée du verrouillage, en minutes",
+      "signInNotices": "Avis de connexion",
+      "newSignInNotice": "Signaler les connexions depuis un nouvel appareil",
+      "newSignInNoticeHint": "Un nouvel appareil est un autre navigateur, système ou réseau. Chacun peut désactiver ces e-mails dans ses préférences de notification."
     },
     "env": {
       "title": "Environnement",
@@ -1253,7 +1268,8 @@
       "announcement_course": "Annonces des cours",
       "announcement_site": "Annonces du site",
       "message_new": "Nouveaux messages personnels",
-      "calendar_reminder": "Rappels du calendrier"
+      "calendar_reminder": "Rappels du calendrier",
+      "auth_newSignIn": "Connexion depuis un nouvel appareil"
     },
     "text": {
       "enrolled": "Vous avez été inscrit au cours « {course} »",
@@ -1300,6 +1316,10 @@
       "doneAll": "C’est fait : vous ne recevrez plus d’e-mails de notification.",
       "invalid": "Ce lien est invalide ou a expiré.",
       "manage": "Gérer les notifications"
+    },
+    "newSignIn": {
+      "title": "Connexion depuis un nouvel appareil",
+      "body": "Quelqu'un s'est connecté à votre compte : {device}, IP {ip}. Si ce n'était pas vous, ouvrez cet avis pour fermer toutes les sessions et changer votre mot de passe."
     }
   },
   "messages": {

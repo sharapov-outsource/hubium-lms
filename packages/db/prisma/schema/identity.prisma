@@ -64,6 +64,7 @@ model User {
   accounts            Account[]
   twoFactors          TwoFactor[]
   passwordHistory     PasswordHistory[]
+  knownDevices        KnownDevice[]
   mentees             UserRelation[]           @relation("mentor")
   mentors             UserRelation[]           @relation("mentee")
   apiTokens           ApiToken[]
@@ -188,6 +189,22 @@ model PasswordHistory {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+/// Browsers and networks a user has signed in from; a new one triggers a notice.
+model KnownDevice {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  userId      String   @db.Uuid
+  /// sha256 of browser, OS and network prefix (auth/devices.ts)
+  fingerprint String
+  label       String
+  lastIp      String?
+  firstSeenAt DateTime @default(now()) @db.Timestamptz(3)
+  lastSeenAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fingerprint])
 }
 
 model RateLimit {

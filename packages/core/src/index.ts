@@ -2,6 +2,7 @@ export * from './access/index.ts';
 export * from './ai/index.ts';
 export * from './announcements/announcements.ts';
 export * from './api-tokens/tokens.ts';
+export * from './auth/devices.ts';
 export * from './auth/lockout.ts';
 export * from './auth/password-policy.ts';
 export * from './cache-bus.ts';

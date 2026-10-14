@@ -169,6 +169,18 @@
       "action": "Entsperren",
       "done": "Ihr Konto ist entsperrt; Sie können sich anmelden.",
       "invalid": "Der Link ist ungültig oder abgelaufen. Die Sperre endet von selbst, wenn ihre Zeit abgelaufen ist."
+    },
+    "notMe": {
+      "title": "Anmeldung von einem neuen Gerät",
+      "device": "Gerät",
+      "ip": "IP-Adresse",
+      "time": "Zeit",
+      "intro": "Wenn Sie es nicht waren, beenden Sie alle Sitzungen: Wer sich angemeldet hat, verliert den Zugang, und Sie erhalten eine E-Mail zum Ändern Ihres Passworts.",
+      "action": "Das war ich nicht — alle Sitzungen beenden",
+      "itWasMe": "Das war ich",
+      "doneReset": "Alle Sitzungen wurden beendet. Wir haben Ihnen eine E-Mail mit einem Link zum Ändern Ihres Passworts gesendet.",
+      "doneSessions": "Alle Sitzungen wurden beendet. Bitten Sie einen Administrator, Ihr Passwort zu ändern.",
+      "invalid": "Der Link ist ungültig, abgelaufen oder wurde bereits verwendet."
     }
   },
   "dashboard": {
@@ -385,7 +397,10 @@
       "lockoutThreshold": "Fehlversuche bis zur Sperre",
       "lockoutThresholdHint": "0 für keine Sperre. Der Inhaber erhält eine E-Mail mit einem Link zum Entsperren.",
       "lockoutWindow": "Versuche zählen innerhalb von Minuten",
-      "lockoutDuration": "Dauer der Sperre in Minuten"
+      "lockoutDuration": "Dauer der Sperre in Minuten",
+      "signInNotices": "Anmeldehinweise",
+      "newSignInNotice": "Über Anmeldungen von neuen Geräten informieren",
+      "newSignInNoticeHint": "Ein neues Gerät ist ein anderer Browser, ein anderes System oder Netz. Nutzer können diese E-Mails in ihren Benachrichtigungseinstellungen abschalten."
     },
     "env": {
       "title": "Umgebung",
@@ -1253,7 +1268,8 @@
       "announcement_course": "Kursankündigungen",
       "announcement_site": "Website-Ankündigungen",
       "message_new": "Neue Direktnachrichten",
-      "calendar_reminder": "Kalendererinnerungen"
+      "calendar_reminder": "Kalendererinnerungen",
+      "auth_newSignIn": "Anmeldung von einem neuen Gerät"
     },
     "text": {
       "enrolled": "Sie wurden in „{course}“ eingeschrieben",
@@ -1300,6 +1316,10 @@
       "doneAll": "Erledigt: Sie erhalten keine Mitteilungs-E-Mails mehr.",
       "invalid": "Dieser Link ist ungültig oder abgelaufen.",
       "manage": "Mitteilungen verwalten"
+    },
+    "newSignIn": {
+      "title": "Anmeldung von einem neuen Gerät",
+      "body": "Jemand hat sich bei Ihrem Konto angemeldet: {device}, IP {ip}. Wenn Sie es nicht waren, öffnen Sie diese Mitteilung, um alle Sitzungen zu beenden und Ihr Passwort zu ändern."
     }
   },
   "messages": {
