@@ -15,7 +15,14 @@ fi
 ENV_FILE=${HUBIUM_ENV_FILE:-/etc/hubium/hubium.env}
 
 run() {
-  exec "$NODE" --env-file-if-exists="$ENV_FILE" "$@"
+  if [ ! -e "$ENV_FILE" ]; then
+    exec "$NODE" "$@"
+  elif [ -r "$ENV_FILE" ]; then
+    exec "$NODE" --env-file="$ENV_FILE" "$@"
+  else
+    echo "hubium: cannot read $ENV_FILE; run it as root or as the hubium user (sudo -u hubium hubium ...)" >&2
+    exit 1
+  fi
 }
 
 case "${1:-}" in
@@ -29,6 +36,7 @@ case "${1:-}" in
     ;;
   healthcheck)
     # Container health: the web server or the worker, whichever this container runs.
+    # shellcheck disable=SC2016 # JavaScript template literals
     exec "$NODE" -e '
       const urls = [
         `http://127.0.0.1:${process.env.PORT || 3000}/api/health`,

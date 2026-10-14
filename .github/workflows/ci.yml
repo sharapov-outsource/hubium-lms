@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # the release workflow runs every check before it publishes
+  workflow_call:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -42,6 +44,8 @@ jobs:
         with: { runtime: node@24, cache: true, require-lockfile: true }
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - run: pnpm lint
+      - name: Shell scripts
+        run: shellcheck install-hubium.sh deploy/bin/hubium scripts/bundle.sh
       - run: pnpm depcruise
       - run: pnpm licenses:check
       - run: pnpm --filter @hubium/db migrate:deploy
@@ -92,45 +96,106 @@ jobs:
           name: playwright-report
           path: e2e/test-results
 
-  # Builds the production images, starts docker/compose.yml behind Caddy on *.localhost and
-  # runs the checks in e2e/stack against it.
+  # Builds the production images, installs them with install-hubium.sh (Docker mode: every
+  # optional service, S3 storage, Caddy on *.localhost) and runs the checks in e2e/stack.
   docker:
     runs-on: ubuntu-latest
     needs: check
     env:
-      # compose reads these from the environment: replace the workflow's dev-server values
-      APP_URL: https://lms.localhost
-      CONTENT_HOST: https://content.localhost
-      SMTP_URL: smtp://mailpit:1025
-      APP_SECRET: ci-secret-ci-secret-ci-secret-ci-secret-0000
-      # every optional service, and S3 storage (the native job covers local files)
-      COMPOSE_PROFILES: db,s3,caddy,media,mailpit
-      STORAGE_DRIVER: s3
-      S3_SECRET_KEY: ci-s3-secret-ci-s3-secret
-      HUBIUM_VERSION: ci
       BUILD_COMMIT: ${{ github.sha }}
-      SEED_PROFILE: demo
-      SEED_ADMIN_PASSWORD: Admin12345!
+      # images ghcr.io/sharapov-outsource/hubium-lms{,-media}:ci, built here
+      HUBIUM_VERSION: ci
+      COMPOSE_PROFILES: media
     steps:
       - uses: actions/checkout@v7
       - name: Build images
         run: docker compose -f docker/compose.yml build
       - name: Image sizes
         run: docker image ls --format '{{.Repository}}:{{.Tag}} {{.Size}}' | grep hubium
-      - name: Start the stack
-        run: docker compose -f docker/compose.yml up -d --wait --wait-timeout 300
+      - name: Install with install-hubium.sh
+        run: |
+          mkdir -p release && cp docker/compose.yml docker/Caddyfile release/
+          sudo bash install-hubium.sh --yes --mode docker --from-dir release --version ci --no-pull \
+            --domain lms.localhost --content-domain content.localhost --https caddy --db bundled \
+            --storage s3 --files-domain files.localhost --modules all --demo yes \
+            --admin-email admin@hubium.local --admin-password 'Admin12345!'
       - uses: pnpm/setup@v3
         with: { runtime: node@24, cache: true, require-lockfile: true }
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       # Google Chrome from the runner image (it plays H.264), not Playwright's Chromium
       - run: pnpm --filter @hubium/e2e stack
+      - name: Upgrade in place
+        run: sudo bash install-hubium.sh upgrade --yes --from-dir release --version ci --no-pull --backup yes
       - name: Stack logs
         if: failure()
-        run: docker compose -f docker/compose.yml logs --no-color > stack.log
+        run: |
+          sudo docker compose --project-directory /opt/hubium logs --no-color > stack.log || true
+          sudo cp /var/log/hubium-install.log . && sudo chmod a+r hubium-install.log || true
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: stack-report
           path: |
             stack.log
+            hubium-install.log
+            e2e/test-results
+
+  # Builds the release archive, installs it with install-hubium.sh as systemd services
+  # (PostgreSQL 18 from PGDG, local file storage, Caddy, ffmpeg), runs e2e/stack against it,
+  # checks the oldest supported PostgreSQL and upgrades in place.
+  native:
+    runs-on: ubuntu-24.04
+    needs: check
+    services:
+      pg16:
+        image: pgvector/pgvector:0.8.7-pg16-trixie
+        env: { POSTGRES_USER: hubium, POSTGRES_PASSWORD: hubium, POSTGRES_DB: hubium }
+        ports: ["5499:5432"]
+        options: >-
+          --health-cmd "pg_isready -U hubium" --health-interval 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Build the release archive
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: bundle
+          build-args: BUILD_COMMIT=${{ github.sha }}
+          outputs: type=local,dest=release
+          cache-from: type=gha,scope=bundle-amd64
+          cache-to: type=gha,scope=bundle-amd64,mode=max
+      - run: ls -la release
+      - name: Install with install-hubium.sh
+        run: |
+          sudo bash install-hubium.sh --yes --mode native --from-dir release \
+            --domain lms.localhost --content-domain content.localhost --https caddy --db bundled \
+            --storage fs --modules all --demo yes \
+            --admin-email admin@hubium.local --admin-password 'Admin12345!'
+      # doctor reports the missing SMTP server; the database must be Hubium's, up to date
+      - run: (sudo -u hubium hubium doctor --json || true) | jq -e '.state == "hubium" and (.pending | length == 0)'
+      - uses: pnpm/setup@v3
+        with: { runtime: node@24, cache: true, require-lockfile: true }
+      - run: pnpm --filter @hubium/e2e stack
+      - name: PostgreSQL 16, the oldest supported
+        run: |
+          export DATABASE_URL=postgresql://hubium:hubium@127.0.0.1:5499/hubium
+          sudo -u hubium --preserve-env=DATABASE_URL hubium doctor db
+          sudo -u hubium --preserve-env=DATABASE_URL SEED_ADMIN_PASSWORD=Admin12345! hubium migrate --seed minimal
+          sudo -u hubium --preserve-env=DATABASE_URL hubium doctor db
+      - name: Upgrade in place
+        run: sudo bash install-hubium.sh upgrade --yes --from-dir release --backup yes
+      - name: Logs
+        if: failure()
+        run: |
+          sudo journalctl -u 'hubium-*' -u caddy -u postgresql@18-main --no-pager > services.log || true
+          sudo cp /var/log/hubium-install.log . && sudo chmod a+r hubium-install.log || true
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: native-report
+          path: |
+            services.log
+            hubium-install.log
             e2e/test-results
