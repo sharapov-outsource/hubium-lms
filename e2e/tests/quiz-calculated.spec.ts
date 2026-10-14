@@ -88,7 +88,13 @@ test('quiz: a calculated question from the editor to the review', async ({ page 
     await page.getByRole('button', { name: 'Завершить попытку' }).last().click();
     await page.waitForURL(/review=/);
     await expect(page.getByText(`Сколько будет ${a} + ${b}?`)).toBeVisible();
-    await expect(page.getByText(String(Number(a) + Number(b))).first()).toBeVisible();
+    // the answer as given (the sum is random: match it whole, among what is shown)
+    await expect(
+      page
+        .getByText(String(Number(a) + Number(b)), { exact: true })
+        .filter({ visible: true })
+        .first(),
+    ).toBeVisible();
   } finally {
     await cleanup();
   }
