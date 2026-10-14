@@ -53,6 +53,7 @@ export function EditorField({
   courseId,
   error,
   minHeight,
+  onChangeHtml,
 }: {
   name: string;
   label: string;
@@ -60,6 +61,8 @@ export function EditorField({
   courseId?: string;
   error?: string[];
   minHeight?: number;
+  /** Called with the current HTML on every change. */
+  onChangeHtml?: (html: string) => void;
 }) {
   const labels = useEditorLabels();
   const id = `f-${name.replace(/\W/g, '-')}`;
@@ -72,6 +75,7 @@ export function EditorField({
         defaultValue={defaultValue}
         labels={labels}
         minHeight={minHeight}
+        onChangeHtml={onChangeHtml}
         uploadImage={courseId ? (f) => uploadEditorImage(courseId, f) : undefined}
       />
     </Field>

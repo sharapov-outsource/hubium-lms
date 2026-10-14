@@ -1,6 +1,7 @@
 import { shuffle, subSeed } from '../random.ts';
 import type { QuestionTypeDef, QuestionView } from '../registry.ts';
 import { combinedFeedback } from './combined.ts';
+import { countbackByParts } from './countback.ts';
 
 // Gaps in the question text, as Moodle's "select missing words" (GAPSELECT) and "drag and
 // drop into text" (DDWTOS): [[n]] marks a gap whose right answer is choice n, and the gap
@@ -124,7 +125,11 @@ function makeGapType<T extends GapType>(type: T): QuestionTypeDef<T> {
       const right = rightGaps(q, r.gaps);
       return { right: right.filter(Boolean).length, total: right.length };
     },
-    rightParts: (q, r) => rightGaps(q, r.gaps),
+    countback: (q, responses, penalty) =>
+      countbackByParts(
+        responses.map((r) => rightGaps(q, r.gaps)),
+        penalty,
+      ),
     clearWrong(q, r) {
       const right = rightGaps(q, r.gaps);
       return {

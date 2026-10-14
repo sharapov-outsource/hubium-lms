@@ -121,4 +121,58 @@ describe('quiz: ordering and gap questions', () => {
     );
     expect(review.questions[2]!.partScores).toBeNull();
   });
+
+  it('Cloze: answers written in the text, read when it is saved', async () => {
+    const f = await courseFixture(t.db, 'QQT2');
+    const teacher = await ctxFor(t.db, f.users.teacher!);
+    const [cat] = await listQuestionCategories(teacher, f.courseId);
+    const save = (text: string) =>
+      saveQuestion.run(teacher, {
+        categoryId: cat!.id,
+        type: 'MULTIANSWER',
+        name: 'Cloze',
+        text,
+        defaultMark: 4,
+        data: {},
+      } as never);
+    await expect(save('<p>Столица — {1:SA:Лион}</p>')).rejects.toMatchObject({
+      fieldErrors: { text: ['Gap 1: no right answer'] },
+    });
+    const { id } = await save(
+      '<p>Столица Франции — {1:SA:=Париж#Верно}, 2 + 2 = {1:NM:=4}, список — {2:MCV:=list~tuple}.</p>',
+    );
+    const q = await t.db.question.findUniqueOrThrow({ where: { id } });
+    expect(q.data).toMatchObject({
+      parts: [{ kind: 'shortanswer' }, { kind: 'numerical' }, { kind: 'multichoice', weight: 2 }],
+    });
+    const quizId = (await f.addActivity('quiz', 'Cloze', { attempts: 0, behaviour: 'immediate' }))
+      .id;
+    await runModuleAction(teacher, quizId, 'addQuestions', { questionIds: [id] });
+    const s1 = await ctxFor(t.db, f.users.student1!);
+    const { attemptId } = (await runModuleAction(s1, quizId, 'start', {})) as {
+      attemptId: string;
+    };
+    const attempt = (await runModuleQuery(s1, quizId, 'attempt', { attemptId })) as {
+      questions: { text: string; clozeParts: { kind: string; options?: { id: string }[] }[] }[];
+    };
+    const [cq] = attempt.questions;
+    expect(cq!.text).toBe('<p>Столица Франции — [[1]], 2 + 2 = [[2]], список — [[3]].</p>');
+    expect(cq!.clozeParts.map((p) => p.kind)).toEqual(['shortanswer', 'numerical', 'multichoice']);
+    expect(JSON.stringify(attempt)).not.toMatch(/Париж|Верно/);
+    const checked = (await runModuleAction(s1, quizId, 'check', {
+      attemptId,
+      slot: 1,
+      response: { parts: { 1: 'париж', 2: '5', 3: 'a1' } },
+    })) as { question: { feedback: { verdict: string; mark: number } } };
+    // 1 + 0 + 2 of 4 marks
+    expect(checked.question.feedback).toMatchObject({ verdict: 'partial', mark: 3 });
+    await runModuleAction(s1, quizId, 'finish', { attemptId });
+    const review = (await runModuleQuery(s1, quizId, 'review', { attemptId })) as {
+      questions: { text: string; answerText: string }[];
+    };
+    expect(review.questions[0]!.text).not.toContain('Париж');
+    expect(review.questions[0]!.answerText).toBe(
+      'Столица Франции — [париж], 2 + 2 = [5], список — [list].',
+    );
+  });
 });

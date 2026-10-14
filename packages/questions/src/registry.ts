@@ -53,6 +53,19 @@ export const PublicFields = z.object({
     .optional(),
   /** Answered by dragging choices into the gaps (or picking them) rather than from lists. */
   gapDrag: z.boolean().optional(),
+  /** The gaps of a Cloze question, [[1]], [[2]], … in the text. */
+  clozeParts: z
+    .array(
+      z.object({
+        place: z.number(),
+        kind: z.enum(['shortanswer', 'numerical', 'multichoice', 'multiresponse']),
+        display: z.enum(['dropdown', 'vertical', 'horizontal']).optional(),
+        /** Input width in characters (as Moodle: from the longest answer). */
+        size: z.number().optional(),
+        options: z.array(z.object({ id: z.string(), text: z.string() })).optional(),
+      }),
+    )
+    .optional(),
 });
 export type PublicFields = z.output<typeof PublicFields>;
 
@@ -104,11 +117,13 @@ export interface QuestionTypeDef<T extends QuestionType> {
    */
   clearWrong?(q: QuestionView<T>, r: ResponseOf<T>): ResponseOf<T>;
   /**
-   * Which parts of a response are right. Types with it are graded part by part in the
-   * interactive behaviour (Moodle's "countback"): each part loses the penalty for every
-   * try it was wrong in, rather than the whole question for every wrong try.
+   * The grade in the interactive behaviour from the responses of every try (Moodle's
+   * "countback"): types made of parts grade them one by one, each part losing the
+   * penalty for its own wrong tries, rather than the whole question for every wrong try.
    */
-  rightParts?(q: QuestionView<T>, r: ResponseOf<T>): boolean[];
+  countback?(q: QuestionView<T>, responses: ResponseOf<T>[], penalty: number): number;
+  /** Types whose data is written in their text (Cloze): the data read from the text. */
+  deriveData?(text: string): unknown;
 }
 
 export type QuestionTypeDefs = { [K in QuestionType]: QuestionTypeDef<K> };

@@ -946,7 +946,8 @@
       "DESCRIPTION": "Descrizione (senza risposta)",
       "ORDERING": "Ordinamento",
       "GAPSELECT": "Seleziona parole mancanti",
-      "DDWTOS": "Trascina e rilascia nel testo"
+      "DDWTOS": "Trascina e rilascia nel testo",
+      "MULTIANSWER": "Risposte annidate (Cloze)"
     },
     "name": "Nome",
     "text": "Testo della domanda",
@@ -1073,6 +1074,25 @@
       "feedbackCorrect": "Per ogni risposta corretta",
       "feedbackPartial": "Per ogni risposta parzialmente corretta",
       "feedbackIncorrect": "Per ogni risposta errata"
+    },
+    "cloze": {
+      "help": "Scrivete gli spazi nel testo della domanda, come in Moodle (esempi sotto): un peso, il TIPO e le risposte. = indica la risposta giusta, %50% una giusta a metà, # inizia un feedback e ~ separa le risposte. TIPO è SHORTANSWER (SA), SHORTANSWER_C (maiuscole contano), NUMERICAL (NM, numero:tolleranza), MULTICHOICE (MC elenco, MCV verticale, MCH orizzontale) o MULTIRESPONSE (MR, MRH); S mescola le scelte (MCS, MRS). La parentesi graffa chiusa, # e ~ si proteggono con la barra rovesciata.",
+      "preview": "Spazi nel testo",
+      "none": "Ancora nessuno spazio",
+      "gap": "Spazio {n}",
+      "weight": "peso {w}",
+      "caseSensitive": "maiuscole contano",
+      "kinds": {
+        "shortanswer": "risposta breve",
+        "numerical": "numero",
+        "multichoice": "una scelta",
+        "multiresponse": "più scelte"
+      },
+      "errors": {
+        "noAnswers": "nessuna risposta",
+        "noRight": "nessuna risposta giusta",
+        "noNumber": "nessun numero giusto"
+      }
     }
   },
   "notifications": {

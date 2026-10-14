@@ -1,5 +1,6 @@
 import type { QuestionTypeDef, QuestionTypeDefs } from '../registry.ts';
 import type { QuestionType } from '../types.ts';
+import { multianswer } from './cloze.ts';
 import { description } from './description.ts';
 import { essay } from './essay.ts';
 import { ddwtos, gapselect } from './gaps.ts';
@@ -21,6 +22,7 @@ export const questionTypeDefs = {
   ORDERING: ordering,
   GAPSELECT: gapselect,
   DDWTOS: ddwtos,
+  MULTIANSWER: multianswer,
 } satisfies QuestionTypeDefs;
 
 /** The definition of a question type (the loose signature suits snapshots read from JSON). */

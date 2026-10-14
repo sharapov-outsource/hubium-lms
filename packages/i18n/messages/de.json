@@ -946,7 +946,8 @@
       "DESCRIPTION": "Beschreibung (ohne Antwort)",
       "ORDERING": "Anordnung",
       "GAPSELECT": "Lückentextauswahl",
-      "DDWTOS": "Drag-and-Drop auf Text"
+      "DDWTOS": "Drag-and-Drop auf Text",
+      "MULTIANSWER": "Lückentext (Cloze)"
     },
     "name": "Fragetitel",
     "text": "Fragetext",
@@ -1073,6 +1074,25 @@
       "feedbackCorrect": "Für jede richtige Antwort",
       "feedbackPartial": "Für jede teilweise richtige Antwort",
       "feedbackIncorrect": "Für jede falsche Antwort"
+    },
+    "cloze": {
+      "help": "Schreiben Sie die Lücken in den Fragetext, wie in Moodle (Beispiele unten): ein Gewicht, der TYP und die Antworten. = markiert die richtige Antwort, %50% eine halb richtige, # beginnt ein Feedback und ~ trennt Antworten. TYP ist SHORTANSWER (SA), SHORTANSWER_C (Groß-/Kleinschreibung), NUMERICAL (NM, Zahl:Toleranz), MULTICHOICE (MC Liste, MCV vertikal, MCH horizontal) oder MULTIRESPONSE (MR, MRH); S mischt die Auswahl (MCS, MRS). Schließende geschweifte Klammer, # und ~ werden mit Backslash maskiert.",
+      "preview": "Lücken im Text",
+      "none": "Noch keine Lücken",
+      "gap": "Lücke {n}",
+      "weight": "Gewicht {w}",
+      "caseSensitive": "Groß-/Kleinschreibung beachten",
+      "kinds": {
+        "shortanswer": "Kurzantwort",
+        "numerical": "Zahl",
+        "multichoice": "eine Auswahl",
+        "multiresponse": "mehrere Auswahlen"
+      },
+      "errors": {
+        "noAnswers": "keine Antworten",
+        "noRight": "keine richtige Antwort",
+        "noNumber": "keine richtige Zahl"
+      }
     }
   },
   "notifications": {

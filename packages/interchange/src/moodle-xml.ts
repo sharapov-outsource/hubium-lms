@@ -7,6 +7,7 @@ import {
   type Hint,
   Hints,
   type QuestionType,
+  questionDataFrom,
   questionDataSchemas,
 } from '@hubium/questions';
 import { XMLBuilder, XMLParser } from 'fast-xml-parser';
@@ -19,7 +20,7 @@ import {
   orderingShowGrading,
 } from './moodle-qtypes.ts';
 
-// Moodle XML question format: import (10 question types, category paths, base64 images,
+// Moodle XML question format: import (11 question types, category paths, base64 images,
 // feedback, fractions, hints) and export of a course question bank.
 
 type Node = Record<string, unknown>;
@@ -278,6 +279,13 @@ function mapQuestion(q: Node, path: string[], untitled: string): ParsedQuestion 
           ...combinedFeedback(q),
         },
       };
+    case 'cloze':
+      // the gaps are written in the text, as in Hubium
+      return {
+        ...base,
+        type: 'MULTIANSWER',
+        data: questionDataFrom('MULTIANSWER', base.text, null),
+      };
     default:
       return null;
   }
@@ -325,13 +333,20 @@ export function parseMoodleXml(xml: string, untitled = 'Question'): ParseResult 
         out.errors.push({ name, message: `Unsupported question type: ${q['@_type']}` });
         continue;
       }
+      if (mapped.type === 'MULTIANSWER') {
+        const clozeError = checkQuestionText(mapped.type, mapped.text, mapped.data);
+        if (clozeError) {
+          out.errors.push({ name, message: clozeError });
+          continue;
+        }
+      }
       const schema = questionDataSchemas[mapped.type];
       const parsed = schema.safeParse(mapped.data);
       if (!parsed.success) {
         out.errors.push({ name, message: parsed.error.issues[0]?.message ?? 'Invalid question' });
         continue;
       }
-      // gaps in the text must match the choices
+      // gaps in the text must match the choices (a Cloze text, its answers)
       const textError = checkQuestionText(mapped.type, mapped.text, parsed.data);
       if (textError) {
         out.errors.push({ name, message: textError });
@@ -567,6 +582,9 @@ function exportQuestion(q: {
         })),
       };
     }
+    case 'MULTIANSWER':
+      // the text holds the gaps
+      return { '@_type': 'cloze', ...head };
     case 'GAPSELECT':
     case 'DDWTOS': {
       const d = q.data as {

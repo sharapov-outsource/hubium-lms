@@ -19,7 +19,9 @@ type Gradable = Pick<QuestionSnapshot, 'type' | 'data' | 'order' | 'choices'> & 
 };
 
 export function gradeResponse(q: Gradable, raw: unknown): GradeResult {
-  const parsed = ResponseSchemas[q.type].safeParse(raw ?? {});
+  // no response at all scores 0, as it always has (a blank one is graded as given)
+  if (raw === null || raw === undefined) return { fraction: 0, needsGrading: false, feedback: [] };
+  const parsed = ResponseSchemas[q.type].safeParse(raw);
   if (!parsed.success) return { fraction: 0, needsGrading: false, feedback: [] };
   return typeDef(q.type).grade(q as QuestionView, parsed.data as never);
 }
@@ -47,6 +49,11 @@ export function isAnswered(type: QuestionType, raw: unknown): boolean {
 /** The question text as the learner sees it. */
 export function publicText(q: Gradable & { text: string }): string {
   return typeDef(q.type).publicText?.(q as QuestionView, q.text) ?? q.text;
+}
+
+/** The data of a question: as given, or read from its text for types written there (Cloze). */
+export function questionDataFrom(type: QuestionType, text: string, data: unknown): unknown {
+  return typeDef(type).deriveData?.(text) ?? data;
 }
 
 /** What is wrong with a question's text for its type, or null. */

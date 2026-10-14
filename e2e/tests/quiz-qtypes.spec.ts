@@ -127,6 +127,29 @@ test('quiz: ordering and gap questions', async ({ page }) => {
     await expect(page.getByText('Без ограничений').first()).toBeVisible();
     await expectAccessible(page);
 
+    // a Cloze question written in the editor: its gaps are read as they are typed
+    await page.goto(
+      `/course/${courseId}/question-bank/edit?type=MULTIANSWER&category=${categoryId}`,
+    );
+    await page.getByLabel('Название').fill('E2E cloze');
+    await page
+      .getByRole('textbox', { name: 'Текст вопроса' })
+      .fill('Столица Франции — {1:SA:=Париж}, список — {1:MCH:=list~tuple}');
+    await expect(page.getByText('Пропуск 2')).toBeVisible();
+    await expect(page.getByText('один вариант')).toBeVisible();
+    await expectAccessible(page);
+    await page.getByRole('button', { name: 'Сохранить' }).click();
+    await page.waitForURL(/question-bank\?category=/);
+    const [cloze] = await sql<{ id: string }>(
+      `SELECT id FROM "Question" WHERE name = 'E2E cloze' AND "categoryId" = $1`,
+      [categoryId],
+    );
+    await sql(
+      `INSERT INTO "QuizSlot" (id, "activityId", page, slot, kind, "questionId", "maxMark")
+       VALUES (gen_random_uuid(), $1, 3, 10, 'FIXED', $2, 1)`,
+      [quizId, cloze!.id],
+    );
+
     await page.context().clearCookies();
     await page.setViewportSize({ width: 375, height: 812 });
     await login(page, 'student2', DEMO_PASSWORD);
@@ -176,6 +199,13 @@ test('quiz: ordering and gap questions', async ({ page }) => {
     expect(sideScroll).toBe(false);
     await drag.getByRole('button', { name: 'Проверить', exact: true }).click();
     await expect(drag.getByText('Верно', { exact: true })).toBeVisible();
+
+    // Cloze: a field and radio buttons in the text
+    const cz = page.locator('#q-10');
+    await page.locator('#q10-gap-1').fill('париж');
+    await page.locator('#q10-gap-2').getByLabel('list').check();
+    await cz.getByRole('button', { name: 'Проверить', exact: true }).click();
+    await expect(cz.getByText('Верно', { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Завершить попытку' }).first().click();
     await page.getByRole('button', { name: 'Завершить попытку' }).last().click();

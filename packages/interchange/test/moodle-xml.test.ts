@@ -76,6 +76,10 @@ const SAMPLE = `<?xml version="1.0" encoding="UTF-8"?>
     <dragbox><text>list</text><group>1</group></dragbox>
     <dragbox><text>dict</text><group>1</group></dragbox>
   </question>
+  <question type="cloze">
+    <name><text>Вложенные</text></name>
+    <questiontext format="html"><text><![CDATA[<p>Столица Франции — {1:SA:=Париж#Верно~%50%Paris}, а 2 + 2 = {2:NM:=4:0}; список это {1:MC:=list~tuple}.</p>]]></text></questiontext>
+  </question>
   <question type="calculated"><name><text>Формула</text></name><questiontext><text>x</text></questiontext></question>
 </quiz>`;
 
@@ -90,6 +94,7 @@ const TYPES = [
   'ORDERING',
   'GAPSELECT',
   'DDWTOS',
+  'MULTIANSWER',
 ];
 
 const HINTS = [
@@ -115,6 +120,24 @@ describe('Moodle XML', () => {
       feedbackCorrect: 'Отлично',
     });
     expect(gap!.data).toMatchObject({ choices: [{ text: 'list' }, { text: 'tuple' }] });
+    expect(r.questions[10]!.data).toMatchObject({
+      parts: [
+        {
+          kind: 'shortanswer',
+          weight: 1,
+          answers: [
+            { text: 'Париж', fraction: 1, feedback: 'Верно' },
+            { text: 'Paris', fraction: 0.5 },
+          ],
+        },
+        { kind: 'numerical', weight: 2, answers: [{ value: 4 }] },
+        {
+          kind: 'multichoice',
+          display: 'dropdown',
+          answers: [{ text: 'list' }, { text: 'tuple' }],
+        },
+      ],
+    });
     expect(drag!.data).toMatchObject({
       shuffle: false,
       choices: [
@@ -164,7 +187,7 @@ describe('Moodle XML', () => {
       const f = await courseFixture(t.db, 'MXML1');
       const teacher = await ctxFor(t.db, f.users.teacher!);
       const r = await importMoodleXml(teacher, f.courseId, SAMPLE);
-      expect(r.created).toBe(10);
+      expect(r.created).toBe(11);
       const cats = await t.db.questionCategory.findMany({ where: { contextId: f.courseId } });
       expect(cats.map((c) => c.name).sort()).toEqual(['Python', 'Основы']);
       const xml = await exportMoodleXml(teacher, f.courseId);
@@ -175,7 +198,7 @@ describe('Moodle XML', () => {
       expect(again.questions.map((q) => q.type)).toEqual(TYPES);
       // the new types come back as they went out
       const first = parseMoodleXml(SAMPLE).questions;
-      for (const k of [7, 8, 9]) expect(again.questions[k]!.data).toEqual(first[k]!.data);
+      for (const k of [7, 8, 9, 10]) expect(again.questions[k]!.data).toEqual(first[k]!.data);
       expect(again.questions[3]!.data).toMatchObject({ answers: [{ value: 3, fraction: 1 }] });
       expect(again.questions[0]!.hints).toEqual(HINTS);
       expect(again.questions[1]!.hints).toEqual([]);

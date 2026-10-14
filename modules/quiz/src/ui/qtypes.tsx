@@ -8,6 +8,7 @@ import { cn } from '@hubium/ui/cn';
 import { useTranslations } from 'next-intl';
 import type { ComponentType } from 'react';
 import type { BodyProps } from './body.ts';
+import { Cloze } from './cloze.tsx';
 import { DragText, GapSelect } from './gaps.tsx';
 import { Ordering } from './ordering.tsx';
 
@@ -165,7 +166,9 @@ export const questionBodies = {
   ORDERING: Ordering,
   GAPSELECT: GapSelect,
   DDWTOS: DragText,
+  MULTIANSWER: Cloze,
 } satisfies Record<QuestionType, ComponentType<BodyProps>>;
 
 /** Types whose body shows the question text itself (with its gaps). */
-export const bodyShowsText = (type: QuestionType) => type === 'GAPSELECT' || type === 'DDWTOS';
+export const bodyShowsText = (type: QuestionType) =>
+  type === 'GAPSELECT' || type === 'DDWTOS' || type === 'MULTIANSWER';

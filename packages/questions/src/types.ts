@@ -125,6 +125,71 @@ export const GapSelectData = z.object({
   ...CombinedFeedback,
 });
 
+const ClozeAnswer = z.object({
+  text: z.string().max(2000),
+  fraction: z.number().min(-1).max(1),
+  feedback: z.string().max(5000).default(''),
+});
+const weight = z.number().int().min(0).max(100).default(1);
+
+/** One gap of a Cloze question: a short answer, a number, or a choice of one or several. */
+export const ClozePart = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('shortanswer'),
+    weight,
+    caseSensitive: z.boolean().default(false),
+    answers: z
+      .array(ClozeAnswer.extend({ text: z.string().min(1).max(500) }))
+      .min(1)
+      .max(30),
+  }),
+  z.object({
+    kind: z.literal('numerical'),
+    weight,
+    answers: z
+      .array(
+        z.object({
+          value: z.number(),
+          tolerance: z.number().min(0).default(0),
+          fraction: z.number().min(0).max(1),
+          feedback: z.string().max(5000).default(''),
+        }),
+      )
+      .min(1)
+      .max(30),
+  }),
+  z.object({
+    kind: z.literal('multichoice'),
+    weight,
+    display: z.enum(['dropdown', 'vertical', 'horizontal']).default('dropdown'),
+    shuffle: z.boolean().default(false),
+    answers: z
+      .array(ClozeAnswer.extend({ id: z.string().min(1) }))
+      .min(1)
+      .max(30),
+  }),
+  z.object({
+    kind: z.literal('multiresponse'),
+    weight,
+    display: z.enum(['vertical', 'horizontal']).default('vertical'),
+    shuffle: z.boolean().default(false),
+    answers: z
+      .array(ClozeAnswer.extend({ id: z.string().min(1) }))
+      .min(1)
+      .max(30),
+  }),
+]);
+export type ClozePart = z.output<typeof ClozePart>;
+
+/** Embedded answers (Cloze): the gaps are written in the question text, Moodle's way. */
+export const MultianswerData = z.object({
+  parts: z
+    .array(ClozePart)
+    .min(1)
+    .max(50)
+    .refine((ps) => ps.some((p) => p.weight > 0), 'At least one gap must carry marks'),
+});
+
 /** As GapSelectData, answered by dragging; an unlimited choice can fill several gaps. */
 export const DdwtosData = z.object({
   shuffle: z.boolean().default(true),
@@ -146,6 +211,7 @@ export const questionDataSchemas = {
   ORDERING: OrderingData,
   GAPSELECT: GapSelectData,
   DDWTOS: DdwtosData,
+  MULTIANSWER: MultianswerData,
 } as const;
 
 export type QuestionType = keyof typeof questionDataSchemas;
@@ -186,19 +252,26 @@ export interface QuestionSnapshot {
   choices?: string[];
 }
 
+// An empty object is a valid (blank) response of every type.
 export const ResponseSchemas = {
-  MULTICHOICE: z.object({ selected: z.array(z.string()).max(20) }),
-  TRUEFALSE: z.object({ value: z.boolean().nullable() }),
-  SHORTANSWER: z.object({ text: z.string().max(1000) }),
-  NUMERICAL: z.object({ text: z.string().max(100) }),
-  MATCH: z.object({ choices: z.record(z.string(), z.string()) }),
-  ESSAY: z.object({ text: z.string().max(100_000) }),
+  MULTICHOICE: z.object({ selected: z.array(z.string()).max(20).default([]) }),
+  TRUEFALSE: z.object({ value: z.boolean().nullable().default(null) }),
+  SHORTANSWER: z.object({ text: z.string().max(1000).default('') }),
+  NUMERICAL: z.object({ text: z.string().max(100).default('') }),
+  MATCH: z.object({ choices: z.record(z.string(), z.string()).default({}) }),
+  ESSAY: z.object({ text: z.string().max(100_000).default('') }),
   DESCRIPTION: z.object({}),
   /** Item ids in the learner's order. */
   ORDERING: z.object({ order: z.array(z.string().max(100)).max(30).default([]) }),
   /** Gap number (1, 2, … in the order of the text) → choice id. */
   GAPSELECT: z.object({ gaps: z.record(z.string(), z.string().max(100)).default({}) }),
   DDWTOS: z.object({ gaps: z.record(z.string(), z.string().max(100)).default({}) }),
+  /** Gap number → the text typed, the option chosen, or the options chosen. */
+  MULTIANSWER: z.object({
+    parts: z
+      .record(z.string(), z.union([z.string().max(1000), z.array(z.string().max(100)).max(30)]))
+      .default({}),
+  }),
 } as const;
 
 export type QuestionResponse = z.output<(typeof ResponseSchemas)[QuestionType]>;

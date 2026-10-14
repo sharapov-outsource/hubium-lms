@@ -158,6 +158,8 @@ describe('question behaviours', () => {
       replay(match, [half, { kind: 'TRYAGAIN' }, saved, { kind: 'FINISH' }], 'interactive')
         .fraction,
     ).toBeCloseTo(0.85);
+    // never answered: nothing to count back, and no error
+    expect(replay(match, [{ kind: 'FINISH' }], 'interactive').fraction).toBe(0);
     // no checks at all: the parts right
     expect(
       replay(match, [{ kind: 'SAVE', response: half.response }, { kind: 'FINISH' }], 'interactive')

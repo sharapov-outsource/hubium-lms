@@ -11,6 +11,7 @@ enum QuestionType {
   ORDERING
   GAPSELECT
   DDWTOS
+  MULTIANSWER
 }
 
 enum QuestionStatus {

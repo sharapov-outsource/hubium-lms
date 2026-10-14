@@ -54,6 +54,8 @@ export function QuestionEditor({
   const tc = useTranslations('common');
   const part = editorParts[type];
   const [data, setData] = useState<Data>(initial.data ?? part.defaults());
+  // a Cloze question's answers are written in its text
+  const [text, setText] = useState(initial.text);
   return (
     <ActionForm action={saveQuestionAction} success={t('saved')} className="grid max-w-3xl gap-5">
       <input type="hidden" name="courseId" value={courseId} />
@@ -88,6 +90,7 @@ export function QuestionEditor({
             label={t('text')}
             defaultValue={initial.text}
             courseId={courseId}
+            onChangeHtml={setText}
           />
           {type !== 'DESCRIPTION' ? (
             <FormField
@@ -108,7 +111,7 @@ export function QuestionEditor({
             <CardTitle>{t('answers')}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3">
-            <part.Fields data={data} setData={setData} />
+            <part.Fields data={data} setData={setData} text={text} />
             <DataErrors />
           </CardContent>
         </Card>
@@ -144,12 +147,14 @@ function TextField({
   defaultValue,
   courseId,
   small,
+  onChangeHtml,
 }: {
   name: string;
   label: string;
   defaultValue: string;
   courseId: string;
   small?: boolean;
+  onChangeHtml?: (html: string) => void;
 }) {
   const error = useFieldError(name);
   return (
@@ -160,6 +165,7 @@ function TextField({
       courseId={courseId}
       error={error}
       minHeight={small ? 80 : 140}
+      onChangeHtml={onChangeHtml}
     />
   );
 }

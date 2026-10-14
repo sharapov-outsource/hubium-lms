@@ -76,6 +76,21 @@ const fixtures: { [K in QuestionType]: QuestionSnapshot & { type: K } } = (() =>
       }),
       text: '<p>The [[2]] barks</p>',
     },
+    MULTIANSWER: {
+      ...q('MULTIANSWER', {
+        parts: [
+          { kind: 'shortanswer', answers: [{ text: 'Paris', fraction: 1, feedback: 'right' }] },
+          {
+            kind: 'multichoice',
+            answers: [
+              { id: 'a1', text: 'blue', fraction: 1 },
+              { id: 'a2', text: 'red', fraction: 0 },
+            ],
+          },
+        ],
+      }),
+      text: '<p>{1:SA:=Paris#right} is the capital; the sky is {1:MC:=blue~red}</p>',
+    },
   };
 })();
 

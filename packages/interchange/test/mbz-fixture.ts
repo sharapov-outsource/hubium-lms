@@ -141,6 +141,20 @@ export async function mbzFixture(): Promise<Buffer> {
           </answers><ordering id="1"><layouttype>1</layouttype><selecttype>0</selecttype><selectcount>3</selectcount><gradingtype>5</gradingtype><showgrading>0</showgrading><numberingstyle>abc</numberingstyle><correctfeedback>Верно</correctfeedback><partiallycorrectfeedback></partiallycorrectfeedback><incorrectfeedback></incorrectfeedback><shownumcorrect>1</shownumcorrect></ordering></plugin_qtype_ordering_question>
         </question>
       </questions></question_versions></question_version></question_bank_entry>
+      <question_bank_entry id="10"><questioncategoryid>2</questioncategoryid><question_version><question_versions id="11"><version>1</version><questions>
+        <question id="100"><parent>0</parent><name>Вложенные</name><questiontext>&lt;p&gt;Столица — {#1}, тип — {#2}&lt;/p&gt;</questiontext><defaultmark>3</defaultmark><qtype>multianswer</qtype>
+          <plugin_qtype_multianswer_question><multianswer id="1"><question>100</question><sequence>101,102</sequence></multianswer></plugin_qtype_multianswer_question>
+        </question>
+        <question id="101"><parent>100</parent><name>Вложенные 1</name><questiontext>{1:SA:=Париж}</questiontext><defaultmark>1</defaultmark><qtype>shortanswer</qtype>
+          <plugin_qtype_shortanswer_question><answers><answer id="1011"><answertext>Париж</answertext><fraction>1.0000000</fraction><feedback>&lt;p&gt;Верно&lt;/p&gt;</feedback></answer></answers><shortanswer id="1"><usecase>0</usecase></shortanswer></plugin_qtype_shortanswer_question>
+        </question>
+        <question id="102"><parent>100</parent><name>Вложенные 2</name><questiontext>{2:MCV:=list~tuple}</questiontext><defaultmark>2</defaultmark><qtype>multichoice</qtype>
+          <plugin_qtype_multichoice_question><answers>
+            <answer id="1021"><answertext>&lt;p&gt;list&lt;/p&gt;</answertext><fraction>1.0000000</fraction><feedback></feedback></answer>
+            <answer id="1022"><answertext>tuple</answertext><fraction>0.0000000</fraction><feedback></feedback></answer>
+          </answers><multichoice id="2"><layout>1</layout><single>1</single><shuffleanswers>0</shuffleanswers></multichoice></plugin_qtype_multichoice_question>
+        </question>
+      </questions></question_versions></question_version></question_bank_entry>
       <question_bank_entry id="9"><questioncategoryid>2</questioncategoryid><question_version><question_versions id="10"><version>1</version><questions>
         <question id="90"><name>Перетаскивание</name><questiontext>&lt;p&gt;[[1]] — список, [[2]] — кортеж&lt;/p&gt;</questiontext><defaultmark>1</defaultmark><qtype>ddwtos</qtype>
           <plugin_qtype_ddwtos_question><answers>

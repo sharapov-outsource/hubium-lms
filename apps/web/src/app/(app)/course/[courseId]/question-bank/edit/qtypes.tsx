@@ -5,6 +5,7 @@ import { Button, Checkbox, Field, Input, Select } from '@hubium/ui';
 import { Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { ComponentType } from 'react';
+import { ClozeFields } from './cloze-fields';
 import { GapFields, gapDefaults, OrderingFields, orderingDefaults } from './qtypes-order-gaps';
 import { type Data, type FieldsProps, listHelpers, nid } from './qtypes-shared';
 
@@ -425,4 +426,6 @@ export const editorParts = {
   ORDERING: { defaults: orderingDefaults, Fields: OrderingFields },
   GAPSELECT: { defaults: gapDefaults(false), Fields: (p) => <GapFields {...p} drag={false} /> },
   DDWTOS: { defaults: gapDefaults(true), Fields: (p) => <GapFields {...p} drag /> },
+  // the answers are read from the text when the question is saved
+  MULTIANSWER: { defaults: () => ({ parts: [] }), Fields: ClozeFields },
 } satisfies Record<QuestionType, EditorPart>;

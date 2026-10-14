@@ -5,6 +5,8 @@ export type Data = Record<string, unknown>;
 export interface FieldsProps {
   data: Data;
   setData: (d: Data) => void;
+  /** The question text as it is being written (Cloze answers live there). */
+  text?: string;
 }
 
 let seq = 0;

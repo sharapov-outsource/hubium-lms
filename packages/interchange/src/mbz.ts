@@ -16,11 +16,14 @@ import { sanitizeRichText } from '@hubium/editor/server';
 import { createTranslator } from '@hubium/i18n/packs';
 import { invalidIpListEntries } from '@hubium/module-sdk/net';
 import {
+  type ClozePart,
   checkQuestionText,
   type Hint,
   Hints,
   type QuestionType,
+  questionDataFrom,
   questionDataSchemas,
+  toClozeSource,
 } from '@hubium/questions';
 import { XMLParser } from 'fast-xml-parser';
 import tar from 'tar-stream';
@@ -370,6 +373,89 @@ function mapMoodleQuestion(q: Node): { type: QuestionType; data: unknown } | nul
   }
 }
 
+/**
+ * A Cloze question's text with its gaps written back in ({#1} → {1:SA:=…}) from the
+ * questions in its sequence; null when a gap is of a type Cloze cannot hold.
+ */
+function clozeText(q: Node, byId: Map<string, Node>): string | null {
+  const ma = ((q.plugin_qtype_multianswer_question as Node | undefined)?.multianswer ?? {}) as Node;
+  let text = txt(q.questiontext);
+  for (const [i, id] of txt(ma.sequence).split(',').filter(Boolean).entries()) {
+    const sub = byId.get(id.trim());
+    const part = sub ? clozePart(sub) : null;
+    if (!part) return null;
+    text = text.replace(`{#${i + 1}}`, toClozeSource(part));
+  }
+  return text;
+}
+
+function clozePart(sub: Node): ClozePart | null {
+  const mapped = mapMoodleQuestion(sub);
+  const weight = Math.max(0, Math.round(num(sub.defaultmark, 1)));
+  if (!mapped) return null;
+  switch (mapped.type) {
+    case 'SHORTANSWER': {
+      const d = mapped.data as {
+        caseSensitive: boolean;
+        answers: { text: string; fraction: number; feedback: string }[];
+      };
+      return {
+        kind: 'shortanswer',
+        weight,
+        caseSensitive: d.caseSensitive,
+        answers: d.answers.map((a) => ({ ...a, feedback: plainText(a.feedback) })),
+      };
+    }
+    case 'NUMERICAL': {
+      const d = mapped.data as {
+        answers: { value: number; tolerance: number; fraction: number; feedback: string }[];
+      };
+      return {
+        kind: 'numerical',
+        weight,
+        answers: d.answers.map((a) => ({ ...a, feedback: plainText(a.feedback) })),
+      };
+    }
+    case 'MULTICHOICE': {
+      const d = mapped.data as {
+        single: boolean;
+        shuffleAnswers: boolean;
+        answers: { id: string; text: string; fraction: number; feedback: string }[];
+      };
+      // Moodle's layouts: 0 a list, 1 vertical, 2 horizontal
+      const layout = txt(
+        (
+          (sub.plugin_qtype_multichoice_question as Node | undefined)?.multichoice as
+            | Node
+            | undefined
+        )?.layout,
+      );
+      const answers = d.answers.map((a) => ({
+        ...a,
+        text: plainText(a.text),
+        feedback: plainText(a.feedback),
+      }));
+      return d.single
+        ? {
+            kind: 'multichoice',
+            weight,
+            display: layout === '1' ? 'vertical' : layout === '2' ? 'horizontal' : 'dropdown',
+            shuffle: d.shuffleAnswers,
+            answers,
+          }
+        : {
+            kind: 'multiresponse',
+            weight,
+            display: layout === '2' ? 'horizontal' : 'vertical',
+            shuffle: d.shuffleAnswers,
+            answers,
+          };
+    }
+    default:
+      return null;
+  }
+}
+
 const plainText = (s: string) =>
   s
     .replace(/<[^>]+>/g, ' ')
@@ -578,9 +664,19 @@ export async function importMbz(
           }),
           ...(direct.length ? [{ entryId: null, questions: direct }] : []),
         ];
+        // a Cloze question's gaps come as questions of their own, pointing to it
+        const byId = new Map(groups.flatMap((g) => g.questions).map((q) => [String(q['@_id']), q]));
         for (const g of groups) {
           for (const q of g.questions) {
-            const mapped = mapMoodleQuestion(q);
+            const parent = txt(q.parent);
+            if (parent && parent !== '0' && parent !== String(q['@_id'])) continue;
+            const cloze = txt(q.qtype) === 'multianswer' ? clozeText(q, byId) : null;
+            const mapped: ReturnType<typeof mapMoodleQuestion> = cloze
+              ? {
+                  type: 'MULTIANSWER',
+                  data: questionDataFrom('MULTIANSWER', sanitizeRichText(cloze), null),
+                }
+              : mapMoodleQuestion(q);
             const name = txt(q.name) || t('qbank.untitledQuestion');
             if (!mapped) {
               warnings.push(`Question "${name}": type ${txt(q.qtype)} is not supported`);
@@ -591,7 +687,7 @@ export async function importMbz(
               warnings.push(`Question "${name}": ${parsed.error.issues[0]?.message ?? 'invalid'}`);
               continue;
             }
-            const text = sanitizeRichText(txt(q.questiontext));
+            const text = sanitizeRichText(cloze ?? txt(q.questiontext));
             const textError = checkQuestionText(mapped.type, text, parsed.data);
             if (textError) {
               warnings.push(`Question "${name}": ${textError}`);

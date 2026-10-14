@@ -5,6 +5,7 @@ import {
   Hint,
   parseGift,
   type QuestionType,
+  questionDataFrom,
   questionDataSchemas,
   questionTypes,
 } from '@hubium/questions';
@@ -150,18 +151,24 @@ export const saveQuestion = defineOperation({
     }
   },
   async handler(ctx, input) {
-    if (!sanitizeRichText(input.text).trim() && input.type !== 'DESCRIPTION') {
+    const text = sanitizeRichText(input.text);
+    if (!text.trim() && input.type !== 'DESCRIPTION') {
       throw new ValidationError({ text: ['Question text is required'] });
     }
-    const data = validateData(input.type, input.data) as Prisma.InputJsonValue;
-    // gaps in the text must match the choices
-    const textError = checkQuestionText(input.type, sanitizeRichText(input.text), data);
+    // A Cloze text holds its answers: they are read from it. Gaps in the text must match
+    // the choices of the gap types.
+    const derived = questionDataFrom(input.type, text, input.data);
+    const fromText = derived !== input.data;
+    const early = fromText ? checkQuestionText(input.type, text, derived) : null;
+    if (early) throw new ValidationError({ text: [early] });
+    const data = validateData(input.type, derived) as Prisma.InputJsonValue;
+    const textError = fromText ? null : checkQuestionText(input.type, text, data);
     if (textError) throw new ValidationError({ text: [textError] });
     const values = {
       categoryId: input.categoryId,
       type: input.type,
       name: input.name,
-      text: sanitizeRichText(input.text),
+      text,
       generalFeedback: sanitizeRichText(input.generalFeedback),
       defaultMark: input.type === 'DESCRIPTION' ? 0 : input.defaultMark,
       data,

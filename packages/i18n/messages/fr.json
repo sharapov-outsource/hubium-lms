@@ -946,7 +946,8 @@
       "DESCRIPTION": "Description (sans réponse)",
       "ORDERING": "Mise en ordre",
       "GAPSELECT": "Sélectionner les mots manquants",
-      "DDWTOS": "Glisser-déposer dans le texte"
+      "DDWTOS": "Glisser-déposer dans le texte",
+      "MULTIANSWER": "Réponses intégrées (Cloze)"
     },
     "name": "Nom",
     "text": "Texte de la question",
@@ -1073,6 +1074,25 @@
       "feedbackCorrect": "Pour toute réponse correcte",
       "feedbackPartial": "Pour toute réponse partiellement correcte",
       "feedbackIncorrect": "Pour toute réponse incorrecte"
+    },
+    "cloze": {
+      "help": "Écrivez les trous dans le texte de la question, comme dans Moodle (exemples ci-dessous) : un poids, le TYPE et les réponses. = marque la bonne réponse, %50% une réponse à moitié juste, # commence un feedback et ~ sépare les réponses. TYPE est SHORTANSWER (SA), SHORTANSWER_C (sensible à la casse), NUMERICAL (NM, nombre:tolérance), MULTICHOICE (MC liste, MCV vertical, MCH horizontal) ou MULTIRESPONSE (MR, MRH) ; ajoutez S pour mélanger (MCS, MRS). Échappez l’accolade fermante, # et ~ par une barre oblique inverse.",
+      "preview": "Trous dans le texte",
+      "none": "Pas encore de trous",
+      "gap": "Trou {n}",
+      "weight": "poids {w}",
+      "caseSensitive": "sensible à la casse",
+      "kinds": {
+        "shortanswer": "réponse courte",
+        "numerical": "nombre",
+        "multichoice": "un choix",
+        "multiresponse": "plusieurs choix"
+      },
+      "errors": {
+        "noAnswers": "aucune réponse",
+        "noRight": "aucune bonne réponse",
+        "noNumber": "aucun bon nombre"
+      }
     }
   },
   "notifications": {

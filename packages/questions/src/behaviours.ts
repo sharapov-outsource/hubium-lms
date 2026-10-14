@@ -8,9 +8,9 @@ import { type Hint, type QuestionSnapshot, ResponseSchemas } from './types.ts';
 //   immediate    each question can be checked once; checking grades and locks it
 //   interactive  checking a wrong answer shows the next hint and costs `penalty` of the
 //                mark; the learner tries again until right or out of tries (hints + 1).
-//                Types made of parts (rightParts) are graded part by part instead, each
-//                part losing the penalty for the tries it was wrong in (Moodle's
-//                "interactive with countback").
+//                Types made of parts (countback) are graded part by part instead, each
+//                part losing the penalty for its own wrong tries (Moodle's "interactive
+//                with countback").
 // The steps of a question are replayed to get its state and grade, so finishing,
 // manual grading and regrading all compute the same way. Questions graded by hand
 // (essays) always behave as deferred.
@@ -86,26 +86,15 @@ export function clearWrongParts(q: Replayable, response: unknown): unknown {
   return (gradeResponse(q, response).fraction ?? 0) >= RIGHT ? response : {};
 }
 
-/**
- * Countback: each part scores 1 less the penalty for every try up to the last one it was
- * wrong in, if it is right in the end; the grade is the average over the parts.
- */
+/** The grade of the tries so far, part by part, for types that grade that way. */
 function countback(q: Replayable, responses: unknown[], penalty: number): number | null {
   const def = typeDef(q.type);
-  if (!def.rightParts || !responses.length) return null;
-  const parts = responses.map((r) => {
-    const parsed = ResponseSchemas[q.type].safeParse(r ?? {});
-    return parsed.success ? def.rightParts!(q as QuestionView, parsed.data as never) : [];
+  if (!def.countback || !responses.length) return null;
+  const parsed = responses.map((r) => {
+    const p = ResponseSchemas[q.type].safeParse(r ?? {});
+    return p.success ? p.data : ResponseSchemas[q.type].parse({});
   });
-  const total = Math.max(...parts.map((p) => p.length));
-  if (!total) return 0;
-  let score = 0;
-  for (let k = 0; k < total; k++) {
-    let lastWrong = -1;
-    for (const [i, p] of parts.entries()) if (!p[k]) lastWrong = i;
-    if (lastWrong < parts.length - 1) score += Math.max(0, 1 - (lastWrong + 1) * penalty);
-  }
-  return score / total;
+  return def.countback(q as QuestionView, parsed as never, penalty);
 }
 
 export function replay(q: Replayable, steps: Step[], behaviour: Behaviour): Outcome {

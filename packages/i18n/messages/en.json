@@ -947,7 +947,8 @@
       "DESCRIPTION": "Description (no answer)",
       "ORDERING": "Ordering",
       "GAPSELECT": "Select missing words",
-      "DDWTOS": "Drag and drop into text"
+      "DDWTOS": "Drag and drop into text",
+      "MULTIANSWER": "Embedded answers (Cloze)"
     },
     "name": "Name",
     "text": "Question text",
@@ -1074,6 +1075,25 @@
       "feedbackCorrect": "For any correct response",
       "feedbackPartial": "For any partially correct response",
       "feedbackIncorrect": "For any incorrect response"
+    },
+    "cloze": {
+      "help": "Write the gaps into the question text, as in Moodle (examples below): a weight, the TYPE and the answers. = marks the right answer, %50% a half-right one, # starts feedback and ~ separates answers. TYPE is SHORTANSWER (SA), SHORTANSWER_C (case sensitive), NUMERICAL (NM, number:tolerance), MULTICHOICE (MC a list, MCV vertical, MCH horizontal) or MULTIRESPONSE (MR, MRH); add S to shuffle the choices (MCS, MRS). Escape a closing brace, # and ~ with a backslash.",
+      "preview": "Gaps in the text",
+      "none": "No gaps yet",
+      "gap": "Gap {n}",
+      "weight": "weight {w}",
+      "caseSensitive": "case sensitive",
+      "kinds": {
+        "shortanswer": "short answer",
+        "numerical": "number",
+        "multichoice": "one choice",
+        "multiresponse": "several choices"
+      },
+      "errors": {
+        "noAnswers": "no answers",
+        "noRight": "no right answer",
+        "noNumber": "no right number"
+      }
     }
   },
   "notifications": {

@@ -22,7 +22,7 @@ describe('.mbz import', () => {
       moodleRelease: '4.5 (Build: 20241007)',
       sections: 2,
       activities: 7,
-      questions: 4,
+      questions: 5,
     });
     expect(report.warnings.join('\n')).toContain('Формула');
     expect(report.warnings.join('\n')).toContain('Новости');
@@ -129,6 +129,16 @@ describe('.mbz import', () => {
       showGrading: false,
       feedbackCorrect: 'Верно',
     });
+    // a Cloze question rebuilt from its gaps; the gaps are not questions of their own
+    const cloze = await byName('Вложенные');
+    expect(cloze.text).toBe('<p>Столица — {1:SA:=Париж#Верно}, тип — {2:MCV:=list~tuple}</p>');
+    expect(cloze.data).toMatchObject({
+      parts: [
+        { kind: 'shortanswer', weight: 1 },
+        { kind: 'multichoice', weight: 2, display: 'vertical' },
+      ],
+    });
+    expect(await t.db.question.count({ where: { name: { startsWith: 'Вложенные ' } } })).toBe(0);
     expect((await byName('Перетаскивание')).data).toMatchObject({
       shuffle: false,
       choices: [

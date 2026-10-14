@@ -1,5 +1,6 @@
 import { shuffle, subSeed } from '../random.ts';
 import type { QuestionTypeDef } from '../registry.ts';
+import { countbackByParts } from './countback.ts';
 
 export const match: QuestionTypeDef<'MATCH'> = {
   type: 'MATCH',
@@ -40,7 +41,11 @@ export const match: QuestionTypeDef<'MATCH'> = {
     right: q.data.pairs.filter((p) => r.choices[p.id] === p.answer).length,
     total: q.data.pairs.length,
   }),
-  rightParts: (q, r) => q.data.pairs.map((p) => r.choices[p.id] === p.answer),
+  countback: (q, responses, penalty) =>
+    countbackByParts(
+      responses.map((r) => q.data.pairs.map((p) => r.choices[p.id] === p.answer)),
+      penalty,
+    ),
   clearWrong: (q, r) => ({
     choices: Object.fromEntries(
       q.data.pairs.filter((p) => r.choices[p.id] === p.answer).map((p) => [p.id, p.answer]),

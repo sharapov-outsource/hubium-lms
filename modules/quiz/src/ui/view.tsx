@@ -280,7 +280,9 @@ async function ReviewPage({ activity: a, ctx, attemptId }: Props & { attemptId: 
               <div
                 className="prose-content"
                 // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised on save; gaps become blanks
-                dangerouslySetInnerHTML={{ __html: qa.gapPlaces ? blankGaps(qa.text) : qa.text }}
+                dangerouslySetInnerHTML={{
+                  __html: qa.gapPlaces || qa.clozeParts ? blankGaps(qa.text) : qa.text,
+                }}
               />
               {typeDef(qa.type).grading !== 'none' ? (
                 <div className="rounded-md bg-muted p-3 text-sm">
