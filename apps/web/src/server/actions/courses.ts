@@ -3,6 +3,7 @@
 import {
   addCohortSync,
   addSection,
+  autoCreateGroups,
   buildModuleCtx,
   createActivity,
   createCategory,
@@ -19,6 +20,8 @@ import {
   deleteSection,
   duplicateActivity,
   enrolUsers,
+  importCohorts,
+  importCourseGroups,
   isSwitchableRole,
   moveActivity,
   moveActivityStep,
@@ -625,5 +628,40 @@ export async function deleteCohortAction(id: string) {
     await deleteCohort.run(await getContext(), { id });
     revalidatePath('/admin/cohorts');
     return null;
+  });
+}
+
+/** Course groups from a CSV file; `apply` false only checks it. */
+export async function importGroupsAction(courseId: string, csv: string, apply: boolean) {
+  return runAction(async () => {
+    const r = await importCourseGroups.run(await getContext(), { courseId, csv, apply });
+    if (apply) revalidatePath(`/course/${courseId}/groups`);
+    return r;
+  });
+}
+
+/** Cohorts from a CSV file; `apply` false only checks it. */
+export async function importCohortsAction(csv: string, apply: boolean) {
+  return runAction(async () => {
+    const r = await importCohorts.run(await getContext(), { csv, apply });
+    if (apply) revalidatePath('/admin/cohorts');
+    return r;
+  });
+}
+
+export async function autoGroupsAction(fd: FormData) {
+  return runAction(async () => {
+    const v = formToObject(fd);
+    const r = await autoCreateGroups.run(await getContext(), {
+      courseId: v.courseId ?? '',
+      roleId: v.roleId ?? '',
+      by: v.by === 'size' ? 'size' : 'count',
+      number: Number(v.number),
+      pattern: v.pattern ?? '',
+      order: v.order === 'name' ? 'name' : 'random',
+      grouping: v.grouping ?? '',
+    });
+    revalidatePath(`/course/${v.courseId}/groups`);
+    return r;
   });
 }

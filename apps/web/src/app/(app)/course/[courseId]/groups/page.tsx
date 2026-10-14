@@ -1,11 +1,14 @@
-import { getCourseAccess, listGroupings, listGroups } from '@hubium/core';
+import { getCourseAccess, listGroupings, listGroups, roleName } from '@hubium/core';
 import { Card, CardContent, CardHeader, CardTitle, EmptyState } from '@hubium/ui';
 import { Users } from 'lucide-react';
 import { forbidden } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
+import { CsvImport } from '@/components/csv-import';
+import { importGroupsAction } from '@/server/actions/courses';
 import { db } from '@/server/db';
 import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
+import { AutoGroupsForm } from './auto-groups';
 import { GroupCard, NewGroupForm } from './group-parts';
 import { GroupingCard, NewGroupingForm } from './grouping-parts';
 
@@ -16,14 +19,18 @@ export default async function GroupsPage({ params }: { params: Promise<{ courseI
   const ctx = await getContext();
   const access = await getCourseAccess(ctx, courseId);
   if (!access.canManageGroups) forbidden();
-  const t = await getTranslations('groups');
-  const [groups, groupings, enrolled] = await Promise.all([
+  const [t, locale] = await Promise.all([getTranslations('groups'), getLocale()]);
+  const [groups, groupings, enrolled, roles] = await Promise.all([
     listGroups(ctx, courseId),
     listGroupings(ctx, courseId),
     db.user.findMany({
       where: { enrolments: { some: { courseId } }, deletedAt: null },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       select: { id: true, name: true },
+    }),
+    db.role.findMany({
+      where: { assignableLevels: { has: 'COURSE' } },
+      orderBy: { sortOrder: 'asc' },
     }),
   ]);
   return (
@@ -85,6 +92,31 @@ export default async function GroupsPage({ params }: { params: Promise<{ courseI
           </CardHeader>
           <CardContent>
             <NewGroupingForm courseId={courseId} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('auto.title')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AutoGroupsForm
+              courseId={courseId}
+              roles={roles.map((r) => ({ id: r.id, name: roleName(r, locale) }))}
+              defaultRoleId={roles.find((r) => r.shortName === 'student')?.id}
+            />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('importTitle')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CsvImport
+              run={importGroupsAction.bind(null, courseId)}
+              sample={
+                'group;grouping;user\nГруппа 1;Поток А;ivanov\nГруппа 2;Поток А;petrova@example.org'
+              }
+            />
           </CardContent>
         </Card>
       </div>

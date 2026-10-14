@@ -34,6 +34,7 @@ export * from './grades/gradebook.ts';
 export * from './grades/import.ts';
 export * from './grades/scales.ts';
 export * from './groups/groups.ts';
+export * from './groups/import.ts';
 export * from './lib/localized.ts';
 export * from './lib/rank.ts';
 export * from './lib/zod.ts';

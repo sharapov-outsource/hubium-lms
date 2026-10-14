@@ -200,10 +200,10 @@ test('teacher puts groups into a grouping', async ({ page }) => {
     await login(page, 'teacher', DEMO_PASSWORD);
     await page.goto(`/course/${c!.id}/groups`);
     await page.locator('#f-name').fill(group);
-    await page.getByRole('button', { name: 'Создать' }).first().click();
+    await page.getByRole('button', { name: 'Создать', exact: true }).first().click();
     await expect(page.getByRole('heading', { name: group })).toBeVisible();
     await page.locator('#f-grouping-name').fill(grouping);
-    await page.getByRole('button', { name: 'Создать' }).last().click();
+    await page.getByRole('button', { name: 'Создать', exact: true }).last().click();
     const card = page.getByRole('region', { name: grouping });
     await card.getByLabel(group).check();
     await card.getByRole('button', { name: 'Сохранить' }).click();

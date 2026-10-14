@@ -844,7 +844,26 @@
     "groupingGroups": "Groupes du groupement",
     "groupingDeleteConfirm": "Supprimer le groupement « {name} » ? Ses groupes sont conservés.",
     "groupingsEmpty": "Aucun groupement pour l’instant",
-    "usedBy": "{count, plural, one {utilisé par # activité} other {utilisé par # activités}}"
+    "usedBy": "{count, plural, one {utilisé par # activité} other {utilisé par # activités}}",
+    "importTitle": "Importer depuis un CSV",
+    "auto": {
+      "title": "Créer des groupes automatiquement",
+      "role": "Qui répartir",
+      "by": "Méthode",
+      "byCount": "Nombre de groupes",
+      "bySize": "Personnes par groupe",
+      "number": "Combien",
+      "pattern": "Noms des groupes",
+      "patternHint": "@ pour les lettres A, B, C…, # pour les nombres 1, 2, 3…",
+      "defaultPattern": "Groupe @",
+      "order": "Ordre",
+      "random": "Aléatoire",
+      "byName": "Par nom",
+      "grouping": "Ajouter à un groupement",
+      "groupingHint": "Facultatif ; créé à partir du nom s'il n'existe pas",
+      "create": "Créer les groupes",
+      "done": "Groupes créés"
+    }
   },
   "completionReport": {
     "title": "Achèvement",
@@ -936,7 +955,8 @@
     "idNumber": "Numéro d’identification",
     "members": "Membres",
     "addMember": "Ajouter un membre",
-    "empty": "Aucune cohorte pour l’instant"
+    "empty": "Aucune cohorte pour l’instant",
+    "importTitle": "Importer depuis un CSV"
   },
   "grades": {
     "title": "Notes",
@@ -1957,5 +1977,19 @@
     "syncQueued": "La synchronisation est en file d'attente",
     "lastSync": "Dernière synchronisation {when} : {checked} vérifiés, {updated} mis à jour, {suspended} suspendus, {errors} erreurs",
     "neverSynced": "Pas encore de synchronisation ; elle a lieu chaque nuit."
+  },
+  "csvImport": {
+    "hint": "La première ligne nomme les colonnes. Un utilisateur est un identifiant ou une adresse. Vérifiez d'abord le fichier pour voir ce qui changera et quelles lignes en erreur seront ignorées.",
+    "file": "Fichier CSV",
+    "check": "Vérifier",
+    "import": "Importer",
+    "preview": "Ce qui sera fait :",
+    "applied": "Importé :",
+    "created": "nouveaux : {names}",
+    "createdGroupings": "nouveaux groupements : {names}",
+    "memberships": "membres à ajouter : {count}",
+    "done": "Import terminé",
+    "problems": "Lignes en erreur",
+    "lineProblem": "Ligne {line} ({target}, {user})"
   }
 }

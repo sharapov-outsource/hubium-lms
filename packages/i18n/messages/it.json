@@ -844,7 +844,26 @@
     "groupingGroups": "Gruppi del raggruppamento",
     "groupingDeleteConfirm": "Eliminare il raggruppamento «{name}»? I suoi gruppi resteranno.",
     "groupingsEmpty": "Ancora nessun raggruppamento",
-    "usedBy": "{count, plural, one {usato in # attività} other {usato in # attività}}"
+    "usedBy": "{count, plural, one {usato in # attività} other {usato in # attività}}",
+    "importTitle": "Importa da CSV",
+    "auto": {
+      "title": "Crea gruppi automaticamente",
+      "role": "Chi distribuire",
+      "by": "Modo",
+      "byCount": "Numero di gruppi",
+      "bySize": "Persone per gruppo",
+      "number": "Quanti",
+      "pattern": "Nomi dei gruppi",
+      "patternHint": "@ per le lettere A, B, C…, # per i numeri 1, 2, 3…",
+      "defaultPattern": "Gruppo @",
+      "order": "Ordine",
+      "random": "Casuale",
+      "byName": "Per cognome",
+      "grouping": "Aggiungi a un raggruppamento",
+      "groupingHint": "Facoltativo; ne viene creato uno con questo nome",
+      "create": "Crea i gruppi",
+      "done": "Gruppi creati"
+    }
   },
   "completionReport": {
     "title": "Completamento",
@@ -936,7 +955,8 @@
     "idNumber": "Codice identificativo",
     "members": "Membri",
     "addMember": "Aggiungi membro",
-    "empty": "Ancora nessuna coorte"
+    "empty": "Ancora nessuna coorte",
+    "importTitle": "Importa da CSV"
   },
   "grades": {
     "title": "Valutazioni",
@@ -1957,5 +1977,19 @@
     "syncQueued": "La sincronizzazione è in coda",
     "lastSync": "Ultima sincronizzazione {when}: {checked} verificati, {updated} aggiornati, {suspended} sospesi, {errors} errori",
     "neverSynced": "Nessuna sincronizzazione finora; avviene ogni notte."
+  },
+  "csvImport": {
+    "hint": "La prima riga nomina le colonne. Un utente è un nome utente o un'email. Verifica prima il file per vedere cosa cambierà e quali righe con errori saranno saltate.",
+    "file": "File CSV",
+    "check": "Verifica",
+    "import": "Importa",
+    "preview": "Cosa verrà fatto:",
+    "applied": "Importato:",
+    "created": "nuovi: {names}",
+    "createdGroupings": "nuovi raggruppamenti: {names}",
+    "memberships": "membri da aggiungere: {count}",
+    "done": "Importazione completata",
+    "problems": "Righe con errori",
+    "lineProblem": "Riga {line} ({target}, {user})"
   }
 }

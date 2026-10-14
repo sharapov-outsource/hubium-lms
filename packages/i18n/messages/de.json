@@ -844,7 +844,26 @@
     "groupingGroups": "Gruppen in der Gruppierung",
     "groupingDeleteConfirm": "Gruppierung „{name}“ löschen? Ihre Gruppen bleiben erhalten.",
     "groupingsEmpty": "Noch keine Gruppierungen",
-    "usedBy": "{count, plural, one {von # Aktivität verwendet} other {von # Aktivitäten verwendet}}"
+    "usedBy": "{count, plural, one {von # Aktivität verwendet} other {von # Aktivitäten verwendet}}",
+    "importTitle": "Aus CSV importieren",
+    "auto": {
+      "title": "Gruppen automatisch anlegen",
+      "role": "Wen verteilen",
+      "by": "Art",
+      "byCount": "Anzahl der Gruppen",
+      "bySize": "Personen pro Gruppe",
+      "number": "Wie viele",
+      "pattern": "Gruppennamen",
+      "patternHint": "@ für Buchstaben A, B, C…, # für Zahlen 1, 2, 3…",
+      "defaultPattern": "Gruppe @",
+      "order": "Reihenfolge",
+      "random": "Zufällig",
+      "byName": "Nach Nachname",
+      "grouping": "Zu einer Gruppierung hinzufügen",
+      "groupingHint": "Optional; wird bei Bedarf mit diesem Namen angelegt",
+      "create": "Gruppen anlegen",
+      "done": "Gruppen angelegt"
+    }
   },
   "completionReport": {
     "title": "Aktivitätsabschluss",
@@ -936,7 +955,8 @@
     "idNumber": "ID-Nummer",
     "members": "Mitglieder",
     "addMember": "Mitglied hinzufügen",
-    "empty": "Noch keine globalen Gruppen"
+    "empty": "Noch keine globalen Gruppen",
+    "importTitle": "Aus CSV importieren"
   },
   "grades": {
     "title": "Bewertungen",
@@ -1957,5 +1977,19 @@
     "syncQueued": "Der Abgleich ist eingereiht",
     "lastSync": "Letzter Abgleich {when}: {checked} geprüft, {updated} aktualisiert, {suspended} gesperrt, {errors} Fehler",
     "neverSynced": "Noch kein Abgleich; er läuft jede Nacht."
+  },
+  "csvImport": {
+    "hint": "Die erste Zeile benennt die Spalten. Ein Benutzer ist ein Benutzername oder eine E-Mail. Prüfen Sie die Datei zuerst: Sie sehen, was sich ändert und welche fehlerhaften Zeilen übersprungen werden.",
+    "file": "CSV-Datei",
+    "check": "Prüfen",
+    "import": "Importieren",
+    "preview": "Was passiert:",
+    "applied": "Importiert:",
+    "created": "neu: {names}",
+    "createdGroupings": "neue Gruppierungen: {names}",
+    "memberships": "hinzuzufügende Mitglieder: {count}",
+    "done": "Import abgeschlossen",
+    "problems": "Fehlerhafte Zeilen",
+    "lineProblem": "Zeile {line} ({target}, {user})"
   }
 }

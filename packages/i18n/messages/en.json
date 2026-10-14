@@ -845,7 +845,26 @@
     "groupingGroups": "Groups in the grouping",
     "groupingDeleteConfirm": "Delete the grouping “{name}”? Its groups stay.",
     "groupingsEmpty": "No groupings yet",
-    "usedBy": "{count, plural, one {used by # activity} other {used by # activities}}"
+    "usedBy": "{count, plural, one {used by # activity} other {used by # activities}}",
+    "importTitle": "Import from CSV",
+    "auto": {
+      "title": "Create groups automatically",
+      "role": "Who to place",
+      "by": "How",
+      "byCount": "Number of groups",
+      "bySize": "People per group",
+      "number": "How many",
+      "pattern": "Group names",
+      "patternHint": "@ for letters A, B, C…, # for numbers 1, 2, 3…",
+      "defaultPattern": "Group @",
+      "order": "Order",
+      "random": "Random",
+      "byName": "By last name",
+      "grouping": "Add to a grouping",
+      "groupingHint": "Optional; a new one is made from the name",
+      "create": "Create groups",
+      "done": "Groups created"
+    }
   },
   "completionReport": {
     "title": "Completion",
@@ -937,7 +956,8 @@
     "idNumber": "ID number",
     "members": "Members",
     "addMember": "Add member",
-    "empty": "No cohorts yet"
+    "empty": "No cohorts yet",
+    "importTitle": "Import from CSV"
   },
   "grades": {
     "title": "Grades",
@@ -1958,5 +1978,19 @@
     "syncQueued": "The sync is queued",
     "lastSync": "Last sync {when}: {checked} checked, {updated} updated, {suspended} suspended, {errors} errors",
     "neverSynced": "No sync yet; it runs every night."
+  },
+  "csvImport": {
+    "hint": "The first line names the columns. A user is a username or email. Check the file first to see what will change and which lines with problems are skipped.",
+    "file": "CSV file",
+    "check": "Check",
+    "import": "Import",
+    "preview": "What will happen:",
+    "applied": "Imported:",
+    "created": "new: {names}",
+    "createdGroupings": "new groupings: {names}",
+    "memberships": "members to add: {count}",
+    "done": "Import done",
+    "problems": "Lines with problems",
+    "lineProblem": "Line {line} ({target}, {user})"
   }
 }

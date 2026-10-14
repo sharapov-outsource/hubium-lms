@@ -10,10 +10,12 @@ import {
 import { getTranslations } from 'next-intl/server';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { CommandButton } from '@/components/confirm-button';
+import { CsvImport } from '@/components/csv-import';
 import {
   addCohortMemberByLoginAction,
   cohortMembersAction,
   deleteCohortAction,
+  importCohortsAction,
   saveCohortAction,
 } from '@/server/actions/courses';
 import { db } from '@/server/db';
@@ -91,23 +93,36 @@ export default async function CohortsPage() {
             </Card>
           ))}
         </div>
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle>{t('new')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ActionForm
-              action={saveCohortAction}
-              resetOnSuccess
-              success={tc('saved')}
-              className="grid gap-3"
-            >
-              <FormField name="name" label={t('name')} required />
-              <FormField name="idNumber" label={t('idNumber')} />
-              <SubmitButton>{tc('create')}</SubmitButton>
-            </ActionForm>
-          </CardContent>
-        </Card>
+        <div className="grid h-fit gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('new')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ActionForm
+                action={saveCohortAction}
+                resetOnSuccess
+                success={tc('saved')}
+                className="grid gap-3"
+              >
+                <FormField name="name" label={t('name')} required />
+                <FormField name="idNumber" label={t('idNumber')} />
+                <SubmitButton>{tc('create')}</SubmitButton>
+              </ActionForm>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('importTitle')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CsvImport
+                run={importCohortsAction}
+                sample={'name,idnumber,description,user\nФизики 2026,phys26,Первый курс,ivanov'}
+              />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </>
   );

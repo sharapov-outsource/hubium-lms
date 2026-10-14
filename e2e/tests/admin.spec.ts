@@ -235,3 +235,72 @@ test('bulk actions on selected users: suspend, enrol, export, delete', async ({ 
     await sql(`DELETE FROM "User" WHERE id = ANY($1)`, [ids]);
   }
 });
+
+test('groups and cohorts from CSV, checked before import', async ({ page }) => {
+  const [course] = await sql<{ id: string }>(
+    `SELECT id FROM "Course" WHERE "shortName" = 'DEMO-PY'`,
+  );
+  const upload = async (csv: string) => {
+    await page.getByLabel('Файл CSV').setInputFiles({
+      name: 'import.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+    await page.getByRole('button', { name: 'Проверить' }).click();
+    await expect(page.getByText('Будет сделано:')).toBeVisible();
+  };
+  try {
+    await login(page, ADMIN.login, ADMIN.password);
+    await page.goto(`/course/${course!.id}/groups`);
+    await upload('group;grouping;user\nCSV-Альфа;CSV-Поток;student1\nCSV-Бета;CSV-Поток;nobody');
+    await expect(page.getByText('новые: CSV-Альфа')).toBeVisible();
+    await expect(page.getByText('Строка 3 (CSV-Бета, nobody): No such user')).toBeVisible();
+    await expectAccessible(page);
+    await page.getByRole('button', { name: 'Импортировать' }).click();
+    await expect(page.getByText('Импорт выполнен:')).toBeVisible();
+    await expect(page.getByText('CSV-Альфа', { exact: true }).first()).toBeVisible();
+
+    await page.goto('/admin/cohorts');
+    await upload(
+      'name,idnumber,user\nCSV-Когорта,csv-cohort,student1\nCSV-Когорта,csv-cohort,student2',
+    );
+    await expect(page.getByText('добавлений участников: 2')).toBeVisible();
+    await page.getByRole('button', { name: 'Импортировать' }).click();
+    await expect(page.getByText('Импорт выполнен:')).toBeVisible();
+    const [members] = await sql<{ n: number }>(
+      `SELECT count(*)::int AS n FROM "CohortMember" m JOIN "Cohort" c ON c.id = m."cohortId"
+       WHERE c."idNumber" = 'csv-cohort'`,
+    );
+    expect(members!.n).toBe(2);
+  } finally {
+    await sql(`DELETE FROM "Group" WHERE "courseId" = $1 AND name LIKE 'CSV-%'`, [course!.id]);
+    await sql(`DELETE FROM "Grouping" WHERE "courseId" = $1 AND name LIKE 'CSV-%'`, [course!.id]);
+    await sql(`DELETE FROM "Cohort" WHERE "idNumber" = 'csv-cohort'`);
+  }
+});
+
+test('groups created automatically from the course students', async ({ page }) => {
+  const [course] = await sql<{ id: string }>(
+    `SELECT id FROM "Course" WHERE "shortName" = 'DEMO-PY'`,
+  );
+  try {
+    await login(page, ADMIN.login, ADMIN.password);
+    await page.goto(`/course/${course!.id}/groups`);
+    await page.getByLabel('Названия групп').fill('AUTO-#');
+    await page.getByLabel('Добавить в группировку').fill('AUTO-Поток');
+    await page.getByRole('button', { name: 'Создать группы' }).click();
+    await expect(page.getByText('Группы созданы')).toBeVisible();
+    await expect(page.getByText('AUTO-1', { exact: true }).first()).toBeVisible();
+    const rows = await sql<{ name: string; n: number }>(
+      `SELECT g.name, count(m."userId")::int AS n FROM "Group" g
+       LEFT JOIN "GroupMember" m ON m."groupId" = g.id
+       WHERE g."courseId" = $1 AND g.name LIKE 'AUTO-%' GROUP BY g.name ORDER BY g.name`,
+      [course!.id],
+    );
+    expect(rows.map((r) => r.name)).toEqual(['AUTO-1', 'AUTO-2']);
+    expect(Math.abs(rows[0]!.n - rows[1]!.n)).toBeLessThanOrEqual(1);
+  } finally {
+    await sql(`DELETE FROM "Group" WHERE "courseId" = $1 AND name LIKE 'AUTO-%'`, [course!.id]);
+    await sql(`DELETE FROM "Grouping" WHERE "courseId" = $1 AND name LIKE 'AUTO-%'`, [course!.id]);
+  }
+});
