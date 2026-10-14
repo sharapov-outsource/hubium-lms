@@ -698,7 +698,9 @@
     "hiddenCourse": "Hidden from students",
     "stealthBadge": "Link only",
     "reset": "Reset the course",
-    "resetHint": "Get the course ready for a new intake: remove work and grades, unenrol students, move the dates."
+    "resetHint": "Get the course ready for a new intake: remove work and grades, unenrol students, move the dates.",
+    "import": "Import",
+    "importHint": "Copy activities from another course."
   },
   "activity": {
     "new": "New {module}",
@@ -2017,5 +2019,23 @@
     "confirmTitle": "Reset the course?",
     "confirm": "The ticked data will be deleted. This cannot be undone; make a backup first if you need one.",
     "done": "Course reset: {activities} activities cleared, {grades} grades deleted, {unenrolled} unenrolled, dates moved by {days} days."
+  },
+  "courseImport": {
+    "title": "Import from another course",
+    "description": "Copy activities of another course into this one, with their files, scales and, for quizzes, the question bank. Learners’ work is not copied.",
+    "search": "Course name or short name",
+    "find": "Find",
+    "courses": "Courses",
+    "noneFound": "No courses found that you can copy from.",
+    "noneOwn": "Nothing to copy in your courses. Find a course by name.",
+    "from": "From course",
+    "another": "Choose another course",
+    "all": "Select all",
+    "hint": "Each activity lands in the section with the same number; missing sections are added. Access restrictions that refer to activities and groups not imported are removed.",
+    "submit": "Import ({count})",
+    "importing": "Importing…",
+    "empty": "This course has no activities.",
+    "done": "Activities imported: {activities}, new sections: {sections}, questions: {questions}.",
+    "toCourse": "Go to the course"
   }
 }

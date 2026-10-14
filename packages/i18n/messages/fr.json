@@ -697,7 +697,9 @@
     "hiddenCourse": "Caché aux étudiants",
     "stealthBadge": "Accessible par lien",
     "reset": "Réinitialiser le cours",
-    "resetHint": "Préparer le cours pour une nouvelle promotion : supprimer travaux et notes, désinscrire les étudiants, décaler les dates."
+    "resetHint": "Préparer le cours pour une nouvelle promotion : supprimer travaux et notes, désinscrire les étudiants, décaler les dates.",
+    "import": "Importer",
+    "importHint": "Copier des activités depuis un autre cours."
   },
   "activity": {
     "new": "Nouvel élément : {module}",
@@ -2016,5 +2018,23 @@
     "confirmTitle": "Réinitialiser le cours ?",
     "confirm": "Les données cochées seront supprimées. C'est irréversible ; faites d'abord une sauvegarde si nécessaire.",
     "done": "Cours réinitialisé : {activities} activités vidées, {grades} notes supprimées, {unenrolled} désinscrits, dates décalées de {days} jours."
+  },
+  "courseImport": {
+    "title": "Importer depuis un autre cours",
+    "description": "Copier des activités d’un autre cours dans celui-ci, avec leurs fichiers, barèmes et, pour les tests, la banque de questions. Les travaux des apprenants ne sont pas copiés.",
+    "search": "Nom ou nom abrégé du cours",
+    "find": "Rechercher",
+    "courses": "Cours",
+    "noneFound": "Aucun cours trouvé depuis lequel vous pouvez copier.",
+    "noneOwn": "Rien à copier dans vos cours. Recherchez un cours par son nom.",
+    "from": "Depuis le cours",
+    "another": "Choisir un autre cours",
+    "all": "Tout sélectionner",
+    "hint": "Chaque activité va dans la section de même numéro ; les sections manquantes sont ajoutées. Les restrictions d’accès qui renvoient à des activités ou groupes non importés sont supprimées.",
+    "submit": "Importer ({count})",
+    "importing": "Importation…",
+    "empty": "Ce cours n’a aucune activité.",
+    "done": "Activités importées : {activities}, nouvelles sections : {sections}, questions : {questions}.",
+    "toCourse": "Aller au cours"
   }
 }

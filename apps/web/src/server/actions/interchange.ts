@@ -1,7 +1,12 @@
 'use server';
 
 import { ForbiddenError, NotFoundError, ValidationError } from '@hubium/core';
-import { duplicateCourse, type RestoreReport, startImport } from '@hubium/interchange';
+import {
+  duplicateCourse,
+  importActivities,
+  type RestoreReport,
+  startImport,
+} from '@hubium/interchange';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { formToObject, runAction } from '../action';
@@ -22,6 +27,17 @@ export async function duplicateCourseAction(fd: FormData) {
     revalidatePath('/my-courses');
     redirect(`/course/${res.data.courseId}`);
   }
+  return res;
+}
+
+/** Copies chosen activities of another course into this one. */
+export async function importActivitiesAction(input: {
+  targetCourseId: string;
+  sourceCourseId: string;
+  activityIds: string[];
+}) {
+  const res = await runAction(async () => importActivities(await getContext(), input));
+  if (res.ok) revalidatePath(`/course/${input.targetCourseId}`);
   return res;
 }
 

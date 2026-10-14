@@ -697,7 +697,9 @@
     "hiddenCourse": "Für Teilnehmer/innen verborgen",
     "stealthBadge": "Nur per Link",
     "reset": "Kurs zurücksetzen",
-    "resetHint": "Den Kurs für einen neuen Durchgang vorbereiten: Arbeiten und Bewertungen löschen, Studierende austragen, Termine verschieben."
+    "resetHint": "Den Kurs für einen neuen Durchgang vorbereiten: Arbeiten und Bewertungen löschen, Studierende austragen, Termine verschieben.",
+    "import": "Importieren",
+    "importHint": "Aktivitäten aus einem anderen Kurs kopieren."
   },
   "activity": {
     "new": "{module} hinzufügen",
@@ -2016,5 +2018,23 @@
     "confirmTitle": "Kurs zurücksetzen?",
     "confirm": "Die angekreuzten Daten werden gelöscht. Das lässt sich nicht rückgängig machen; legen Sie bei Bedarf zuerst eine Sicherung an.",
     "done": "Kurs zurückgesetzt: {activities} Aktivitäten geleert, {grades} Bewertungen gelöscht, {unenrolled} ausgetragen, Termine um {days} Tage verschoben."
+  },
+  "courseImport": {
+    "title": "Aus einem anderen Kurs importieren",
+    "description": "Aktivitäten eines anderen Kurses in diesen kopieren, mit ihren Dateien, Skalen und bei Tests der Fragensammlung. Arbeiten der Lernenden werden nicht kopiert.",
+    "search": "Kursname oder Kurzname",
+    "find": "Suchen",
+    "courses": "Kurse",
+    "noneFound": "Keine Kurse gefunden, aus denen Sie kopieren können.",
+    "noneOwn": "In Ihren Kursen gibt es nichts zu kopieren. Suchen Sie einen Kurs nach Namen.",
+    "from": "Aus dem Kurs",
+    "another": "Anderen Kurs wählen",
+    "all": "Alle auswählen",
+    "hint": "Jede Aktivität landet im Abschnitt mit derselben Nummer; fehlende Abschnitte werden ergänzt. Zugriffsbeschränkungen, die auf nicht importierte Aktivitäten und Gruppen verweisen, entfallen.",
+    "submit": "Importieren ({count})",
+    "importing": "Import läuft…",
+    "empty": "Dieser Kurs hat keine Aktivitäten.",
+    "done": "Importierte Aktivitäten: {activities}, neue Abschnitte: {sections}, Fragen: {questions}.",
+    "toCourse": "Zum Kurs"
   }
 }

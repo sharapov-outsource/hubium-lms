@@ -9,14 +9,18 @@ import {
   setGradeCalculation,
   updateGradeItem,
 } from '@hubium/core';
+import { enrolUsers } from '@hubium/core/enrol/enrol';
 import { fileUrl, storeFile } from '@hubium/core/files/files';
 import { ctxFor, useTestDb } from '@hubium/core/testing';
 import { courseFixture } from '@hubium/core/testing/course-fixture';
+import { createUserRecord } from '@hubium/core/users/users';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
+  addMissingSections,
   duplicateCourse,
   exportCourse,
+  importActivities,
   readBackup,
   restoreCourse,
   rewriteIds,
@@ -342,6 +346,107 @@ describe('.hubium backup and restore', () => {
     });
     expect(sections).toHaveLength(body.sections.length);
     expect(sections.at(-1)!.title).toBe('Неделя 60');
+  });
+
+  it('imports chosen activities into another course', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const target = await courseFixture(t.db, 'IMPORT2');
+    await saveScale.run(admin, { courseId: target.courseId, name: 'Зачёт', items: ['Нет', 'Да'] });
+    const essayId = (await t.db.activity.findFirstOrThrow({
+      where: { courseId: f.courseId, name: 'Эссе' },
+    }))!.id;
+    // a section of its own for the page, which the target course does not have
+    await addMissingSections(admin, f.courseId, 2);
+    const third = await t.db.courseSection.findFirstOrThrow({
+      where: { courseId: f.courseId },
+      orderBy: { rank: 'desc' },
+    });
+    await t.db.activity.update({ where: { id: pageId }, data: { sectionId: third.id } });
+
+    const teacher = await ctxFor(t.db, target.users.teacher!);
+    await expect(
+      importActivities(teacher, {
+        sourceCourseId: target.courseId,
+        targetCourseId: target.courseId,
+        activityIds: [essayId],
+      }),
+    ).rejects.toMatchObject({ fieldErrors: { sourceCourseId: ['Choose another course'] } });
+
+    const r = await importActivities(admin, {
+      sourceCourseId: f.courseId,
+      targetCourseId: target.courseId,
+      activityIds: [essayId, quizId, pageId],
+    });
+    expect(r).toMatchObject({ activities: 3, sections: 1, questions: 2 });
+    const sections = await t.db.courseSection.findMany({
+      where: { courseId: target.courseId },
+      orderBy: { rank: 'asc' },
+      include: { activities: { orderBy: { rank: 'asc' } } },
+    });
+    expect(sections.map((s) => s.activities.map((a) => a.name))).toEqual([
+      [],
+      ['Эссе', 'Тест'],
+      ['Введение'],
+    ]);
+    const essay = sections[1]!.activities[0]!;
+    // the page it waited for came along, the grouping did not
+    expect(JSON.stringify(essay.availability)).toContain(sections[2]!.activities[0]!.id);
+    expect(essay.groupingId).toBeNull();
+    // the page shows its picture from the new course
+    const page = sections[2]!.activities[0]!;
+    const pic = await t.db.file.findFirstOrThrow({
+      where: { contextId: target.courseId, name: 'pic.png' },
+    });
+    expect(JSON.stringify(page.settings)).toContain(pic.id);
+    expect(JSON.stringify(page.settings)).not.toContain(imageId);
+    // the bank comes under a name saying where from; the same-named scale is reused
+    expect(
+      await t.db.questionCategory.count({
+        where: { contextId: target.courseId, name: { endsWith: '(BACKUP1)' } },
+      }),
+    ).toBeGreaterThan(0);
+    expect(await t.db.scale.count({ where: { courseId: target.courseId } })).toBe(1);
+    const essayItem = await t.db.gradeItem.findFirstOrThrow({ where: { activityId: essay.id } });
+    const root = await t.db.gradeCategory.findFirstOrThrow({
+      where: { courseId: target.courseId, parentId: null },
+    });
+    expect(essayItem).toMatchObject({ categoryId: root.id, idNumber: 'essay' });
+    // groups and course settings stay behind
+    expect(await t.db.group.count({ where: { courseId: target.courseId } })).toBe(0);
+
+    // a second import of the essay alone: its access rule names a page left behind
+    const again = await importActivities(admin, {
+      sourceCourseId: f.courseId,
+      targetCourseId: target.courseId,
+      activityIds: [essayId],
+    });
+    expect(again).toMatchObject({ activities: 1, sections: 0, questions: 0 });
+    const copy = await t.db.activity.findFirstOrThrow({
+      where: { courseId: target.courseId, name: 'Эссе', id: { not: essay.id } },
+    });
+    expect(copy.availability).toBeNull();
+    const copyItem = await t.db.gradeItem.findFirstOrThrow({ where: { activityId: copy.id } });
+    expect(copyItem.idNumber).toBeNull();
+
+    // a teacher of the target course alone has no rights over the source course
+    const other = await createUserRecord(t.db, {
+      username: 'import-teacher',
+      firstName: 'Импорт',
+      lastName: 'Учитель',
+      password: 'Import-pass-1',
+    });
+    await enrolUsers.run(admin, {
+      courseId: target.courseId,
+      userIds: [other.id],
+      roleId: target.roles.editingteacher!,
+    });
+    await expect(
+      importActivities(await ctxFor(t.db, other.id), {
+        sourceCourseId: f.courseId,
+        targetCourseId: target.courseId,
+        activityIds: [essayId],
+      }),
+    ).rejects.toThrow();
   });
 
   it('rejects foreign archives', async () => {

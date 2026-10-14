@@ -8,6 +8,8 @@ import {
   ForbiddenError,
   getModule,
   importActivity,
+  NotFoundError,
+  parseInput,
   type RequestContext,
   syncGradeItemsFor,
   toActivityRef,
@@ -215,7 +217,14 @@ async function readAll(stream: NodeJS.ReadableStream): Promise<Buffer> {
 }
 
 /** Builds a .hubium archive of a course (structure, content, question bank, files). */
-export async function exportCourse(ctx: RequestContext, courseId: string): Promise<Uint8Array> {
+export async function exportCourse(
+  ctx: RequestContext,
+  courseId: string,
+  opts: {
+    /** Only these activities, and of the course's own files those they show (an import). */
+    activityIds?: string[];
+  } = {},
+): Promise<Uint8Array> {
   await ctx.perm.require('backup:create', courseId);
   const db = ctx.db;
   const course = await db.course.findUniqueOrThrow({ where: { id: courseId } });
@@ -224,7 +233,11 @@ export async function exportCourse(ctx: RequestContext, courseId: string): Promi
     orderBy: { rank: 'asc' },
   });
   const activities = await db.activity.findMany({
-    where: { courseId, deletedAt: null },
+    where: {
+      courseId,
+      deletedAt: null,
+      ...(opts.activityIds ? { id: { in: opts.activityIds } } : {}),
+    },
     orderBy: { rank: 'asc' },
   });
   const order = new Map(sections.map((s, i) => [s.id, i]));
@@ -279,12 +292,19 @@ export async function exportCourse(ctx: RequestContext, courseId: string): Promi
   const userAreas = new Map(
     activities.map((a) => [a.id, getModule(a.moduleKey)?.backup?.userFileAreas ?? []]),
   );
+  const shown = opts.activityIds
+    ? JSON.stringify([actRows, activities.some((a) => a.moduleKey === 'quiz') ? questions : []])
+    : null;
   const files = (
     await db.file.findMany({
       where: { contextId: { in: [courseId, ...activities.map((a) => a.id)] } },
       include: { blob: true },
     })
-  ).filter((f) => !(userAreas.get(f.contextId) ?? []).includes(f.area));
+  ).filter(
+    (f) =>
+      !(userAreas.get(f.contextId) ?? []).includes(f.area) &&
+      (shown === null || f.contextId !== courseId || shown.includes(f.id)),
+  );
 
   const out: Record<string, Uint8Array> = {};
   let total = 0;
@@ -445,6 +465,25 @@ export function rewriteIds(text: string, map: Map<string, string>): string {
 const rewriteJson = <T>(v: T, map: Map<string, string>): T =>
   v === null || v === undefined ? v : (JSON.parse(rewriteIds(JSON.stringify(v), map)) as T);
 
+/**
+ * Drops the access conditions that name an activity, group or grouping an import left
+ * behind (they would point into the other course); null when no condition stays.
+ */
+export function pruneAvailability(tree: unknown, map: Map<string, string>): unknown {
+  if (!tree || typeof tree !== 'object' || !Array.isArray((tree as { c?: unknown }).c)) return tree;
+  const t = tree as { c: unknown[] };
+  const c = t.c.flatMap((x) => {
+    if (x && typeof x === 'object' && 'c' in x) {
+      const sub = pruneAvailability(x, map);
+      return sub ? [sub] : [];
+    }
+    const cond = (x ?? {}) as Record<string, unknown>;
+    const ref = cond.activityId ?? cond.groupingId ?? cond.groupId;
+    return typeof ref === 'string' && !map.has(ref) ? [] : [x];
+  });
+  return c.length ? { ...t, c } : null;
+}
+
 /** Reads and validates a .hubium archive. */
 export function readBackup(zip: Uint8Array, limits?: ArchiveLimits) {
   let entries: Record<string, Uint8Array>;
@@ -487,8 +526,6 @@ export async function restoreCourse(
   target: { categoryId: string; fullName?: string; shortName?: string },
 ): Promise<RestoreReport> {
   const b = readBackup(zip);
-  const warnings: string[] = [];
-  const map = new Map<string, string>();
   const src = b.course.course;
 
   let shortName = target.shortName ?? src.shortName;
@@ -511,115 +548,197 @@ export async function restoreCourse(
     groupMode: src.groupMode,
     groupModeForced: src.groupModeForced,
   });
-  map.set(src.id, courseId);
   try {
     await ctx.perm.require('restore:course', courseId).catch(() => {
       throw new ForbiddenError('You cannot restore into this course');
     });
-    const db = ctx.db;
-    if (src.format !== 'SINGLE') await addMissingSections(ctx, courseId, sectionsCount);
+    return await restoreInto(ctx, b, courseId, { fresh: true });
+  } catch (e) {
+    // do not leave a half-restored course behind
+    await discardCourse(ctx, courseId);
+    throw e;
+  }
+}
+
+/**
+ * Copies chosen activities of one course into another (Moodle's "Import"), through the
+ * backup pipeline: each lands in the section with the same number, which is added when
+ * missing. Their files, the course scales and, for quizzes, the question bank come along;
+ * course settings, groups and the gradebook layout of the source stay where they are.
+ */
+export const ImportActivitiesInput = z.object({
+  sourceCourseId: z.string().uuid(),
+  targetCourseId: z.string().uuid(),
+  activityIds: z.array(z.string().uuid()).max(1000),
+});
+
+export async function importActivities(
+  ctx: RequestContext,
+  raw: z.input<typeof ImportActivitiesInput>,
+): Promise<RestoreReport> {
+  const input = parseInput(ImportActivitiesInput, raw);
+  if (input.sourceCourseId === input.targetCourseId)
+    throw new ValidationError({ sourceCourseId: ['Choose another course'] });
+  if (!input.activityIds.length)
+    throw new ValidationError({ activityIds: ['Choose at least one activity'] });
+  await ctx.perm.require('restore:course', input.targetCourseId);
+  const zip = await exportCourse(ctx, input.sourceCourseId, { activityIds: input.activityIds });
+  const b = readBackup(zip);
+  if (!b.course.activities.length) throw new NotFoundError('Activity');
+  return restoreInto(ctx, b, input.targetCourseId, { fresh: false });
+}
+
+interface RestoreScope {
+  /** A course made for this restore: its settings, groups and gradebook come along. */
+  fresh: boolean;
+}
+
+type Backup = ReturnType<typeof readBackup>;
+
+async function restoreInto(
+  ctx: RequestContext,
+  b: Backup,
+  courseId: string,
+  scope: RestoreScope,
+): Promise<RestoreReport> {
+  const warnings: string[] = [];
+  const map = new Map<string, string>();
+  const src = b.course.course;
+  const db = ctx.db;
+  const target = await db.course.findUniqueOrThrow({
+    where: { id: courseId },
+    select: { format: true },
+  });
+  const activities = b.course.activities;
+  map.set(src.id, courseId);
+  // what an import into an existing course made, removed again if it fails
+  const made = { activities: [] as string[], categories: [] as string[] };
+  try {
+    // sections: the one with the same number, added when the course has fewer
+    const sectionIndex = new Map(b.course.sections.map((s, i) => [s.id, i]));
+    const needed = scope.fresh
+      ? Math.max(0, b.course.sections.length - 1)
+      : Math.max(0, ...activities.map((a) => sectionIndex.get(a.sectionId) ?? 0));
+    const before = await db.courseSection.count({ where: { courseId } });
+    if (target.format !== 'SINGLE') await addMissingSections(ctx, courseId, needed);
     const newSections = await db.courseSection.findMany({
       where: { courseId },
       orderBy: { rank: 'asc' },
     });
     b.course.sections.forEach((s, i) => {
-      const target = newSections[i] ?? newSections.at(-1)!;
-      map.set(s.id, target.id);
+      const t = newSections[i] ?? newSections.at(-1)!;
+      map.set(s.id, t.id);
     });
 
-    for (const g of b.course.groups) {
-      const id = uuidv7();
-      map.set(g.id, id);
-      await db.group.create({
-        data: { id, courseId, name: g.name, description: g.description, idNumber: g.idNumber },
-      });
-    }
+    if (scope.fresh)
+      for (const g of b.course.groups) {
+        const id = uuidv7();
+        map.set(g.id, id);
+        await db.group.create({
+          data: { id, courseId, name: g.name, description: g.description, idNumber: g.idNumber },
+        });
+      }
     // gradebook setup first: activities refer to course scales in their settings
     const gb = b.course.gradebook;
     const { root: gradeRoot } = await ensureCourseGradebook(db, courseId);
     if (gb) {
       for (const sc of gb.scales) {
+        const same = scope.fresh
+          ? null
+          : await db.scale.findFirst({ where: { courseId, name: sc.name } });
+        if (same) {
+          map.set(sc.id, same.id);
+          continue;
+        }
         const id = uuidv7();
         map.set(sc.id, id);
         await db.scale.create({ data: { id, courseId, name: sc.name, items: sc.items } });
       }
-      const oldRoot = gb.categories.find((c) => !c.parentId);
-      if (oldRoot) {
-        map.set(oldRoot.id, gradeRoot.id);
-        await db.gradeCategory.update({
-          where: { id: gradeRoot.id },
-          data: {
-            aggregation: oldRoot.aggregation,
-            dropLowest: oldRoot.dropLowest,
-            keepHighest: oldRoot.keepHighest,
-            aggregateOnlyGraded: oldRoot.aggregateOnlyGraded,
-          },
-        });
+      if (scope.fresh) {
+        const oldRoot = gb.categories.find((c) => !c.parentId);
+        if (oldRoot) {
+          map.set(oldRoot.id, gradeRoot.id);
+          await db.gradeCategory.update({
+            where: { id: gradeRoot.id },
+            data: {
+              aggregation: oldRoot.aggregation,
+              dropLowest: oldRoot.dropLowest,
+              keepHighest: oldRoot.keepHighest,
+              aggregateOnlyGraded: oldRoot.aggregateOnlyGraded,
+            },
+          });
+        }
+        const pending = gb.categories.filter((c) => c.parentId);
+        while (pending.length) {
+          const i = pending.findIndex((c) => map.has(c.parentId!));
+          const c = pending.splice(i === -1 ? 0 : i, 1)[0]!;
+          const id = uuidv7();
+          map.set(c.id, id);
+          await db.gradeCategory.create({
+            data: {
+              id,
+              courseId,
+              parentId: map.get(c.parentId!) ?? gradeRoot.id,
+              name: c.name,
+              aggregation: c.aggregation,
+              dropLowest: c.dropLowest,
+              keepHighest: c.keepHighest,
+              aggregateOnlyGraded: c.aggregateOnlyGraded,
+              hidden: c.hidden,
+              weight: c.weight,
+              sortOrder: c.sortOrder,
+              idNumber: c.idNumber,
+            },
+          });
+        }
+        if (gb.letters.length)
+          await db.gradeLetter.createMany({
+            data: gb.letters.map((l) => ({ contextId: courseId, ...l })),
+          });
       }
-      const pending = gb.categories.filter((c) => c.parentId);
-      while (pending.length) {
-        const i = pending.findIndex((c) => map.has(c.parentId!));
-        const c = pending.splice(i === -1 ? 0 : i, 1)[0]!;
+    }
+
+    if (scope.fresh)
+      for (const g of b.course.groupings) {
         const id = uuidv7();
-        map.set(c.id, id);
-        await db.gradeCategory.create({
+        map.set(g.id, id);
+        await db.grouping.create({
           data: {
             id,
             courseId,
-            parentId: map.get(c.parentId!) ?? gradeRoot.id,
-            name: c.name,
-            aggregation: c.aggregation,
-            dropLowest: c.dropLowest,
-            keepHighest: c.keepHighest,
-            aggregateOnlyGraded: c.aggregateOnlyGraded,
-            hidden: c.hidden,
-            weight: c.weight,
-            sortOrder: c.sortOrder,
-            idNumber: c.idNumber,
+            name: g.name,
+            description: g.description,
+            groups: {
+              create: g.groupIds.flatMap((gid) =>
+                map.has(gid) ? [{ groupId: map.get(gid)! }] : [],
+              ),
+            },
           },
         });
       }
-      if (gb.letters.length)
-        await db.gradeLetter.createMany({
-          data: gb.letters.map((l) => ({ contextId: courseId, ...l })),
-        });
-    }
 
-    for (const g of b.course.groupings) {
-      const id = uuidv7();
-      map.set(g.id, id);
-      await db.grouping.create({
-        data: {
-          id,
-          courseId,
-          name: g.name,
-          description: g.description,
-          groups: {
-            create: g.groupIds.flatMap((gid) => (map.has(gid) ? [{ groupId: map.get(gid)! }] : [])),
-          },
-        },
-      });
-    }
-
-    // question bank: parents first
-    const pending = [...b.course.questionCategories];
+    // question bank: parents first (an import brings it only for quizzes)
+    const withBank = scope.fresh || activities.some((a) => a.moduleKey === 'quiz');
+    const pending = withBank ? [...b.course.questionCategories] : [];
     while (pending.length) {
       const i = pending.findIndex((c) => !c.parentId || map.has(c.parentId));
       const c = pending.splice(i === -1 ? 0 : i, 1)[0]!;
       const id = uuidv7();
       map.set(c.id, id);
+      made.categories.push(id);
       await db.questionCategory.create({
         data: {
           id,
           contextId: courseId,
           parentId: c.parentId ? (map.get(c.parentId) ?? null) : null,
-          name: c.name,
+          // an imported top category says where it came from
+          name: !scope.fresh && !c.parentId ? `${c.name} (${src.shortName})` : c.name,
           info: c.info,
           sortOrder: c.sortOrder,
         },
       });
     }
-    for (const d of b.course.questionDatasets) {
+    for (const d of withBank ? b.course.questionDatasets : []) {
       const categoryId = map.get(d.categoryId);
       if (!categoryId) continue;
       await db.questionDataset.create({
@@ -634,7 +753,7 @@ export async function restoreCourse(
         },
       });
     }
-    for (const q of b.course.questions) {
+    for (const q of withBank ? b.course.questions : []) {
       const categoryId = map.get(q.categoryId);
       // The archive is untrusted: only known types with valid data make it into the bank.
       const data = questionTypes.includes(q.type as QuestionType)
@@ -672,7 +791,7 @@ export async function restoreCourse(
 
     // activities (availability and cross references are fixed up after all exist)
     const created: { row: z.infer<typeof ActivityRow>; id: string }[] = [];
-    for (const a of b.course.activities) {
+    for (const a of activities) {
       const known = getModule(a.moduleKey);
       const sectionId = map.get(a.sectionId) ?? newSections[0]!.id;
       if (!known) {
@@ -687,6 +806,7 @@ export async function restoreCourse(
           settings: { content: `<p>${a.name}</p>` },
         });
         map.set(a.id, id);
+        made.activities.push(id);
         continue;
       }
       try {
@@ -706,6 +826,7 @@ export async function restoreCourse(
           settings: rewriteJson(a.settings, map),
         });
         map.set(a.id, id);
+        made.activities.push(id);
         created.push({ row: a, id });
       } catch (e) {
         warnings.push(
@@ -714,7 +835,6 @@ export async function restoreCourse(
       }
     }
 
-    // files
     let fileCount = 0;
     for (const f of b.files) {
       const contextId = map.get(f.contextId);
@@ -736,32 +856,39 @@ export async function restoreCourse(
     }
 
     // second pass: references to activities, files and groups
-    await db.course.update({
-      where: { id: courseId },
-      data: {
-        summary: sanitizeRichText(rewriteIds(src.summary, map)),
-        formatOptions: rewriteJson(src.formatOptions, map) as Prisma.InputJsonValue,
-        completionSettings: rewriteJson(src.completionSettings, map) as Prisma.InputJsonValue,
-        settings: rewriteJson(src.settings, map) as Prisma.InputJsonValue,
-      },
-    });
+    if (scope.fresh)
+      await db.course.update({
+        where: { id: courseId },
+        data: {
+          summary: sanitizeRichText(rewriteIds(src.summary, map)),
+          formatOptions: rewriteJson(src.formatOptions, map) as Prisma.InputJsonValue,
+          completionSettings: rewriteJson(src.completionSettings, map) as Prisma.InputJsonValue,
+          settings: rewriteJson(src.settings, map) as Prisma.InputJsonValue,
+        },
+      });
+    const availability = (tree: unknown) => {
+      const kept = scope.fresh ? tree : pruneAvailability(tree, map);
+      return kept ? (rewriteJson(kept, map) as Prisma.InputJsonValue) : undefined;
+    };
     for (const [i, s] of b.course.sections.entries()) {
-      const target = newSections[i];
-      if (!target) continue;
+      const t = newSections[i];
+      // an import names only the sections it added
+      if (!t || (!scope.fresh && i < before)) continue;
       await db.courseSection.update({
-        where: { id: target.id },
+        where: { id: t.id },
         data: {
           title: s.title,
           summary: sanitizeRichText(rewriteIds(s.summary, map)),
           visible: s.visible,
-          availability: s.availability
-            ? (rewriteJson(s.availability, map) as Prisma.InputJsonValue)
-            : undefined,
+          availability: availability(s.availability),
         },
       });
     }
     for (const { row, id } of created) {
       // Same checks as importActivity, which only saw the archive's settings before ids were mapped.
+      const idNumber = scope.fresh
+        ? row.idNumber
+        : await freeIdNumber(db, courseId, row.idNumber, id);
       await db.activity.update({
         where: { id },
         data: {
@@ -770,10 +897,8 @@ export async function restoreCourse(
             getModule(row.moduleKey)!,
             rewriteJson(row.settings, map),
           ) as Prisma.InputJsonValue,
-          availability: row.availability
-            ? (rewriteJson(row.availability, map) as Prisma.InputJsonValue)
-            : undefined,
-          idNumber: row.idNumber,
+          availability: availability(row.availability),
+          idNumber,
         },
       });
     }
@@ -803,13 +928,15 @@ export async function restoreCourse(
           idNumber: it.idNumber,
         };
         if (it.kind === 'MANUAL') {
+          // an import brings activities only
+          if (!scope.fresh) continue;
           // a site scale only exists on the site the course came from
           const scaleId = it.scaleId
             ? (map.get(it.scaleId) ??
               (await db.scale.findFirst({ where: { id: it.scaleId, courseId: null } }))?.id ??
               null)
             : null;
-          const created = await db.gradeItem.create({
+          const item = await db.gradeItem.create({
             data: {
               ...common,
               courseId,
@@ -821,9 +948,9 @@ export async function restoreCourse(
               gradeMax: it.gradeMax,
             },
           });
-          if (it.id) map.set(it.id, created.id);
-          if (it.calculation && created.gradeType === 'VALUE')
-            formulas.push({ id: created.id, calculation: it.calculation });
+          if (it.id) map.set(it.id, item.id);
+          if (it.calculation && item.gradeType === 'VALUE')
+            formulas.push({ id: item.id, calculation: it.calculation });
         } else {
           const activityId = it.activityId ? map.get(it.activityId) : undefined;
           if (!activityId) continue;
@@ -831,7 +958,14 @@ export async function restoreCourse(
           await syncGradeItemsFor(db, activityId);
           await db.gradeItem.updateMany({
             where: { activityId, itemNumber: it.itemNumber },
-            data: common,
+            // an import puts the items in the course's top category
+            data: scope.fresh
+              ? common
+              : {
+                  ...common,
+                  categoryId: gradeRoot.id,
+                  idNumber: await freeIdNumber(db, courseId, it.idNumber, activityId),
+                },
           });
           const copy = await db.gradeItem.findFirst({
             where: { activityId, itemNumber: it.itemNumber },
@@ -857,17 +991,50 @@ export async function restoreCourse(
     }
     return {
       courseId,
-      sections: b.course.sections.length,
+      sections: scope.fresh ? b.course.sections.length : newSections.length - before,
       activities: created.length,
-      questions: b.course.questions.length,
+      questions: withBank ? b.course.questions.length : 0,
       files: fileCount,
       warnings: [...warnings, ...disabledTypesWarning(await disabledTypesIn(db, courseId))],
     };
   } catch (e) {
-    // do not leave a half-restored course behind
-    await discardCourse(ctx, courseId);
+    // a fresh course is discarded by the caller; an import takes back what it added
+    if (!scope.fresh) {
+      if (made.activities.length)
+        await db.activity.deleteMany({ where: { id: { in: made.activities } } }).catch(() => {});
+      if (made.categories.length)
+        await db.questionCategory
+          .deleteMany({ where: { id: { in: made.categories } } })
+          .catch(() => {});
+    }
     throw e;
   }
+}
+
+/**
+ * An ID number an import keeps only when nothing else in the course goes by it: activities
+ * and the gradebook share them (formulas refer to them), whatever the case.
+ */
+async function freeIdNumber(
+  db: RequestContext['db'],
+  courseId: string,
+  idNumber: string | null,
+  activityId: string,
+): Promise<string | null> {
+  if (!idNumber) return null;
+  const where = { courseId, idNumber: { equals: idNumber, mode: 'insensitive' as const } };
+  const [activity, item, category] = await Promise.all([
+    db.activity.findFirst({
+      where: { ...where, deletedAt: null, id: { not: activityId } },
+      select: { id: true },
+    }),
+    db.gradeItem.findFirst({
+      where: { ...where, OR: [{ activityId: null }, { activityId: { not: activityId } }] },
+      select: { id: true },
+    }),
+    db.gradeCategory.findFirst({ where, select: { id: true } }),
+  ]);
+  return activity || item || category ? null : idNumber;
 }
 
 /**

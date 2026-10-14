@@ -254,3 +254,43 @@ test('course reset moves the dates and clears what is ticked', async ({ page }) 
     if (courseId) await deleteCourse(courseId);
   }
 });
+
+test('activities are imported from another course', async ({ page }) => {
+  let courseId = '';
+  try {
+    await login(page, ADMIN.login, ADMIN.password);
+    await page.goto('/course/new');
+    await page.locator('#f-fullName').fill(`Импорт ${stamp}`);
+    await page.locator('#f-shortName').fill(`IMPORT-${stamp}`);
+    await page.getByRole('button', { name: 'Создать', exact: true }).click();
+    await page.waitForURL(/\/course\/[0-9a-f-]{36}/);
+    courseId = new URL(page.url()).pathname.split('/')[2]!;
+
+    await page.goto(`/course/${courseId}/settings`);
+    await page.getByRole('link', { name: 'Импорт', exact: true }).click();
+    await page.waitForURL(/\/import$/);
+    await page.getByLabel('Название или краткое название курса').fill('DEMO-PY');
+    await page.getByRole('button', { name: 'Найти' }).click();
+    await page.getByRole('link', { name: /DEMO-PY/ }).click();
+    await page.waitForURL(/from=/);
+    await expectAccessible(page);
+    await page.getByLabel('Условия: if, elif, else').check();
+    await page.getByLabel('Функции и аргументы').check();
+    await page.getByRole('button', { name: 'Импортировать (2)' }).click();
+    await expect(page.getByText(/Импортировано элементов: 2/)).toBeVisible();
+
+    const rows = await sql<{ name: string; availability: unknown }>(
+      `SELECT name, availability FROM "Activity" WHERE "courseId" = $1 ORDER BY name`,
+      [courseId],
+    );
+    // the page it waited for was not imported, so the restriction went
+    expect(rows).toEqual([
+      { name: 'Условия: if, elif, else', availability: null },
+      { name: 'Функции и аргументы', availability: null },
+    ]);
+    await page.getByRole('link', { name: 'Перейти к курсу' }).click();
+    await expect(page.getByRole('link', { name: 'Функции и аргументы' })).toBeVisible();
+  } finally {
+    if (courseId) await deleteCourse(courseId);
+  }
+});

@@ -40,6 +40,7 @@ export default async function CourseSettingsPage({
   const canDelete = await ctx.perm.can('course:delete', courseId);
   const canBackup = await ctx.perm.can('backup:create', courseId);
   const canReset = await ctx.perm.can('course:reset', courseId);
+  const canImport = await ctx.perm.can('restore:course', courseId);
   const restoreCats = canBackup ? await categoriesWhereCan(ctx, 'restore:course') : [];
   const dupCats = restoreCats.filter((x) => cats.some((y) => y.id === x.id));
   // AI features enabled site-wide can be switched off per course.
@@ -92,6 +93,16 @@ export default async function CourseSettingsPage({
           categories={dupCats.map((x) => ({ id: x.id, name: x.name, depth: x.depth }))}
           canDuplicate={dupCats.length > 0}
         />
+      ) : null}
+      {canImport ? (
+        <Card className="max-w-3xl">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-5">
+            <span className="text-sm">{t('importHint')}</span>
+            <Button asChild variant="outline">
+              <Link href={`/course/${courseId}/import`}>{t('import')}</Link>
+            </Button>
+          </CardContent>
+        </Card>
       ) : null}
       {canReset ? (
         <Card className="max-w-3xl">

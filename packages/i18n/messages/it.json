@@ -697,7 +697,9 @@
     "hiddenCourse": "Nascosto agli studenti",
     "stealthBadge": "Solo tramite link",
     "reset": "Reimposta il corso",
-    "resetHint": "Preparare il corso per un nuovo gruppo: eliminare lavori e voti, disiscrivere gli studenti, spostare le date."
+    "resetHint": "Preparare il corso per un nuovo gruppo: eliminare lavori e voti, disiscrivere gli studenti, spostare le date.",
+    "import": "Importa",
+    "importHint": "Copia attività da un altro corso."
   },
   "activity": {
     "new": "Nuova attività: {module}",
@@ -2016,5 +2018,23 @@
     "confirmTitle": "Reimpostare il corso?",
     "confirm": "I dati spuntati verranno eliminati. Non si può annullare; se serve, fai prima un backup.",
     "done": "Corso reimpostato: {activities} attività svuotate, {grades} voti eliminati, {unenrolled} disiscritti, date spostate di {days} giorni."
+  },
+  "courseImport": {
+    "title": "Importa da un altro corso",
+    "description": "Copia attività di un altro corso in questo, con i loro file, le scale e, per i quiz, il deposito delle domande. I lavori degli studenti non vengono copiati.",
+    "search": "Nome o nome breve del corso",
+    "find": "Cerca",
+    "courses": "Corsi",
+    "noneFound": "Nessun corso trovato da cui puoi copiare.",
+    "noneOwn": "Niente da copiare nei tuoi corsi. Cerca un corso per nome.",
+    "from": "Dal corso",
+    "another": "Scegli un altro corso",
+    "all": "Seleziona tutto",
+    "hint": "Ogni attività finisce nella sezione con lo stesso numero; le sezioni mancanti vengono aggiunte. Le restrizioni di accesso che rimandano ad attività e gruppi non importati vengono rimosse.",
+    "submit": "Importa ({count})",
+    "importing": "Importazione…",
+    "empty": "Questo corso non ha attività.",
+    "done": "Attività importate: {activities}, nuove sezioni: {sections}, domande: {questions}.",
+    "toCourse": "Vai al corso"
   }
 }
