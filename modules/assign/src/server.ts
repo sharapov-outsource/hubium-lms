@@ -9,18 +9,63 @@ import {
   ModuleError,
 } from '@hubium/module-sdk';
 import { bool } from '@hubium/module-sdk/fields';
+import {
+  criteriaText,
+  Guide,
+  GuideFilling,
+  guideFillingError,
+  guideGrade,
+  Rubric,
+  RubricFilling,
+  rubricFillingError,
+  rubricGrade,
+  sameStructure,
+} from '@hubium/module-sdk/grading';
 import { z } from 'zod';
 import { AssignSettings, type AssignSettingsT } from './config.ts';
 import { type EffectiveDates, effectiveDates } from './dates.ts';
+import {
+  allocating,
+  canMoveStage,
+  flagsFor,
+  gradeRange,
+  gradeReleased,
+  gradingForm,
+  isBlind,
+  markedBy,
+  methodKey,
+  participantNumbers,
+  revealedAt,
+  setFlags,
+  type WorkflowState,
+  workflowStates,
+} from './marking.ts';
 import { applyPenalty, latePenalty, lateSeconds } from './penalty.ts';
 import { pushGrades } from './push.ts';
 import { ownerOf, type Team, teamOf } from './team.ts';
 
 // mod-assign: text and/or file submissions, alone or as a team, grading with feedback and
-// a late penalty, date overrides for students and groups, reopening.
+// a late penalty, rubrics and marking guides, a marking workflow with allocated markers,
+// blind marking, date overrides for students and groups, reopening.
 
 export { AssignSettings, type AssignSettingsT } from './config.ts';
 export { type EffectiveDates, effectiveDates } from './dates.ts';
+export {
+  allocating,
+  flagsFor,
+  type GradingForm,
+  gradeRange,
+  gradingForm,
+  hidesNames,
+  isBlind,
+  markedBy,
+  participantLabel,
+  participantNumbers,
+  revealedAt,
+  settableStates,
+  type WorkflowState,
+  workflowStates,
+} from './marking.ts';
 export { applyPenalty, latePenalty } from './penalty.ts';
 export { type Team, teamOf } from './team.ts';
 
@@ -143,13 +188,17 @@ export async function readAssignStatus(ctx: ModuleCtx, a: Assign) {
         },
       })
     : null;
-  const last =
+  const graded =
     current ??
     (await ctx.db.assignGrade.findFirst({
       where: { activityId: a.id, userId: me },
       orderBy: { attemptNumber: 'desc' },
     }));
-  const [grader, feedbackFiles] = last
+  // a grade reaches the student once released (marking workflow) and no longer blind
+  const flags = (await flagsFor(ctx.db, a, [me])).get(me)!;
+  const released = gradeReleased(a, flags.workflowState, await isBlind(ctx.db, a));
+  const last = released ? graded : null;
+  const [grader, feedbackFiles, form] = last
     ? await Promise.all([
         last.graderId
           ? ctx.db.user.findUnique({ where: { id: last.graderId }, select: { name: true } })
@@ -157,8 +206,9 @@ export async function readAssignStatus(ctx: ModuleCtx, a: Assign) {
         ctx.files
           .list(a.id, 'feedback', me)
           .then((fs) => fs.filter((f) => f.path === `/${last.attemptNumber}/`)),
+        filledForm(ctx.db, a, me, last.attemptNumber),
       ])
-    : [null, []];
+    : [null, [], null];
   const confirmed = sub
     ? new Set(
         (
@@ -228,10 +278,146 @@ export async function readAssignStatus(ctx: ModuleCtx, a: Assign) {
           gradedAt: last.gradedAt,
           graderName: grader?.name ?? null,
           feedbackFiles,
+          form,
         }
       : null,
   };
 }
+
+/**
+ * The rubric or marking guide as filled for a student's attempt, as the student sees it:
+ * the guide's notes for markers stay with the markers.
+ */
+export async function filledForm(db: Db, a: Assign, userId: string, attemptNumber: number) {
+  const form = await gradingForm(db, a);
+  if (!form) return null;
+  const inst = await db.gradingInstance.findUnique({
+    where: {
+      definitionId_userId_attemptNumber: { definitionId: form.id, userId, attemptNumber },
+    },
+  });
+  if (!inst) return null;
+  if (form.method === 'rubric') {
+    const f = RubricFilling.safeParse(inst.filling);
+    const filling = f.success ? f.data : {};
+    return {
+      method: 'rubric' as const,
+      criteria: form.definition.criteria.map((c) => ({
+        id: c.id,
+        name: c.description,
+        description: '',
+        levels: c.levels,
+        levelId: filling[c.id]?.levelId ?? null,
+        maxScore: Math.max(...c.levels.map((l) => l.score)),
+        score: c.levels.find((l) => l.id === filling[c.id]?.levelId)?.score ?? null,
+        remark: filling[c.id]?.remark ?? '',
+      })),
+    };
+  }
+  const f = GuideFilling.safeParse(inst.filling);
+  const filling = f.success ? f.data : {};
+  return {
+    method: 'guide' as const,
+    criteria: form.definition.criteria.map((c) => ({
+      id: c.id,
+      name: c.shortName,
+      description: c.descriptionStudents,
+      levels: [],
+      levelId: null,
+      maxScore: c.maxScore,
+      score: filling[c.id]?.score ?? null,
+      remark: filling[c.id]?.remark ?? '',
+    })),
+  };
+}
+
+/** Pushes every graded student's grade again: after a release, a reveal or new settings. */
+async function pushAll(ctx: ModuleCtx, a: Assign) {
+  const rows = await ctx.db.assignGrade.findMany({
+    where: { activityId: a.id },
+    distinct: ['userId'],
+    select: { userId: true },
+  });
+  if (rows.length)
+    await pushGrades(
+      ctx,
+      a,
+      rows.map((r) => r.userId),
+      await assignScale(ctx.db, a),
+    );
+  return rows.map((r) => r.userId);
+}
+
+/** Tells students their grade is out: those of them whose grade is released and not blind. */
+async function notifyGraded(ctx: ModuleCtx, a: Assign, userIds: string[]) {
+  if (!userIds.length || (await isBlind(ctx.db, a))) return;
+  const flags = await flagsFor(ctx.db, a, userIds);
+  const graded = new Set(
+    (
+      await ctx.db.assignGrade.findMany({
+        where: { activityId: a.id, userId: { in: userIds } },
+        select: { userId: true },
+      })
+    ).map((g) => g.userId),
+  );
+  const to = userIds.filter(
+    (id) => graded.has(id) && gradeReleased(a, flags.get(id)!.workflowState, false),
+  );
+  if (!to.length) return;
+  await ctx.notify.send(to, {
+    type: 'assign.graded',
+    title: { key: 'mod.assign.notify.gradedTitle', values: { name: a.name } },
+    url: `/course/${a.courseId}/a/${a.id}`,
+    courseId: a.courseId,
+    contextId: a.id,
+  });
+}
+
+/** May the user mark this student? With allocation, markers mark the students given them. */
+async function requireMarker(ctx: ModuleCtx, a: Assign, userIds: string[]) {
+  const mine = new Set(await markedBy(ctx, a, userIds));
+  if (userIds.some((id) => !mine.has(id)))
+    throw new ModuleError('FORBIDDEN', 'This student is allocated to another marker');
+}
+
+/** Moves students to a marking stage, when the user may (and may mark them). */
+async function moveStage(ctx: ModuleCtx, a: Assign, userIds: string[], to: WorkflowState) {
+  const flags = await flagsFor(ctx.db, a, userIds);
+  for (const id of userIds)
+    if (!(await canMoveStage(ctx, a, flags.get(id)!.workflowState, to)))
+      throw new ModuleError('FORBIDDEN', `You cannot move grades to ${to.toLowerCase()}`);
+  await setFlags(
+    ctx.db,
+    a,
+    userIds.filter((id) => flags.get(id)!.workflowState !== to),
+    { workflowState: to },
+  );
+  return userIds.filter((id) => flags.get(id)!.workflowState !== to);
+}
+
+/** Gives students a marker (null takes the marker away): someone who grades here. */
+async function allocate(ctx: ModuleCtx, a: Assign, userIds: string[], markerId: string | null) {
+  if (!(await ctx.perm.can('mod.assign:manageallocations', a.id)))
+    throw new ModuleError('FORBIDDEN', 'You cannot allocate markers');
+  if (markerId && !(await ctx.perm.usersWithCap('mod.assign:grade', a.id)).includes(markerId))
+    throw new Error('The marker does not grade this assignment');
+  await setFlags(ctx.db, a, userIds, { allocatedMarkerId: markerId });
+}
+
+const UserIds = z.array(z.string().uuid()).min(1).max(1000);
+
+const FormCriterionOut = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().describe('marking guide: the description for students'),
+  levels: z
+    .array(z.object({ id: z.string(), score: z.number(), definition: z.string() }))
+    .describe('rubric: the levels of the criterion'),
+  levelId: z.string().nullable().describe('rubric: the level given'),
+  maxScore: z.number(),
+  score: z.number().nullable(),
+  remark: z.string(),
+});
 
 /** Grades again after dates change: the penalty follows the student's due date. */
 async function regrade(ctx: ModuleCtx, a: Assign, userIds: string[]) {
@@ -263,7 +449,7 @@ export const assign = defineModule<AssignSettingsT>({
         where: { userId: uid },
         select: { groupId: true },
       });
-      const [submissions, grades] = await Promise.all([
+      const [submissions, grades, marking, gradingForms] = await Promise.all([
         ctx.db.assignSubmission.findMany({
           // their own work, and their teams'
           where: {
@@ -289,8 +475,21 @@ export const assign = defineModule<AssignSettingsT>({
             gradedAt: true,
           },
         }),
+        ctx.db.assignUserFlags.findMany({
+          where: { userId: uid },
+          select: { activityId: true, workflowState: true },
+        }),
+        ctx.db.gradingInstance.findMany({
+          where: { userId: uid },
+          select: {
+            definition: { select: { activityId: true, method: true } },
+            attemptNumber: true,
+            filling: true,
+            grade: true,
+          },
+        }),
       ]);
-      return { submissions, grades };
+      return { submissions, grades, marking, gradingForms };
     },
     // A team's work belongs to the team and stays; the student's own work goes.
     async erase(ctx, uid) {
@@ -313,7 +512,87 @@ export const assign = defineModule<AssignSettingsT>({
       });
     },
   },
-  backup: { userFileAreas: ['submission', 'feedback'] },
+  lifecycle: {
+    async onUpdate(ctx, act, prev) {
+      const a = act as Assign;
+      const s = a.settings;
+      // blind marking is decided before the work comes in: names cannot come and go
+      if (s.blindMarking !== prev.blindMarking) {
+        const [subs, grades] = await Promise.all([
+          ctx.db.assignSubmission.count({
+            where: { activityId: a.id, status: { in: ['SUBMITTED', 'REOPENED'] } },
+          }),
+          ctx.db.assignGrade.count({ where: { activityId: a.id } }),
+        ]);
+        if (subs || grades)
+          throw new ModuleError(
+            'CONFLICT',
+            'Blind marking cannot be changed once students have submitted',
+          );
+      }
+      // grades given before the workflow was on had reached the students: they stay released
+      if (s.markingWorkflow && !prev.markingWorkflow) {
+        const graded = await ctx.db.assignGrade.findMany({
+          where: { activityId: a.id },
+          distinct: ['userId'],
+          select: { userId: true },
+        });
+        await setFlags(
+          ctx.db,
+          a,
+          graded.map((g) => g.userId),
+          { workflowState: 'RELEASED' },
+        );
+      }
+      if (s.markingWorkflow !== prev.markingWorkflow) await pushAll(ctx, a);
+    },
+  },
+  backup: {
+    userFileAreas: ['submission', 'feedback'],
+    // the rubric and marking guide go with the assignment (the forms filled are user data)
+    async export(ctx, a) {
+      const defs = await ctx.db.gradingDefinition.findMany({ where: { activityId: a.id } });
+      return {
+        gradingForms: defs.map((d) => ({
+          area: d.area,
+          method: d.method,
+          definition: d.definition,
+        })),
+      };
+    },
+    async import(ctx, a, data) {
+      const parsed = z
+        .object({
+          gradingForms: z
+            .array(
+              z.object({
+                area: z.string().max(64),
+                method: z.enum(['RUBRIC', 'GUIDE']),
+                definition: z.unknown(),
+              }),
+            )
+            .default([]),
+        })
+        .safeParse(data);
+      if (!parsed.success) return;
+      for (const f of parsed.data.gradingForms) {
+        const d = (f.method === 'RUBRIC' ? Rubric : Guide).safeParse(f.definition);
+        if (!d.success) continue;
+        await ctx.db.gradingDefinition.upsert({
+          where: {
+            activityId_area_method: { activityId: a.id, area: f.area, method: f.method },
+          },
+          create: {
+            activityId: a.id,
+            area: f.area,
+            method: f.method,
+            definition: d.data as Prisma.InputJsonValue,
+          },
+          update: { definition: d.data as Prisma.InputJsonValue },
+        });
+      }
+    },
+  },
   notifications: {
     submitted: { email: 'DIGEST' },
     graded: { email: 'IMMEDIATE' },
@@ -515,8 +794,16 @@ export const assign = defineModule<AssignSettingsT>({
             feedbackFiles: z.array(
               z.object({ id: z.string(), name: z.string(), size: z.number(), url: z.string() }),
             ),
+            form: z
+              .object({
+                method: z.enum(['rubric', 'guide']),
+                criteria: z.array(FormCriterionOut),
+              })
+              .nullable()
+              .describe('the rubric or marking guide as filled for this grade'),
           })
-          .nullable(),
+          .nullable()
+          .describe('shown once released (marking workflow) and no longer blind'),
       }),
       handler: (ctx, a) => readAssignStatus(ctx, a as Assign),
     }),
@@ -614,17 +901,40 @@ export const assign = defineModule<AssignSettingsT>({
         if (complete) {
           for (const o of await ownersOf(ctx, a, uid, team))
             await ctx.completion.recompute(a.id, o);
-          const graders = await ctx.perm.usersWithCap('mod.assign:grade', a.id);
+          // with allocation the student's marker, or (none yet) those who allocate; otherwise
+          // everyone who grades
+          const marker = allocating(a)
+            ? (await flagsFor(ctx.db, a, [uid])).get(uid)!.allocatedMarkerId
+            : null;
+          const graders = marker
+            ? [marker]
+            : await ctx.perm.usersWithCap(
+                allocating(a) ? 'mod.assign:manageallocations' : 'mod.assign:grade',
+                a.id,
+              );
           const me = await ctx.db.user.findUniqueOrThrow({
             where: { id: uid },
             select: { name: true },
           });
+          // while marking is blind markers learn the participant number, never the name
+          const title: { key: string; values: Record<string, string | number> } = (await isBlind(
+            ctx.db,
+            a,
+          ))
+            ? {
+                key: 'mod.assign.notify.submittedTitleBlind',
+                values: {
+                  name: a.name,
+                  number: (await participantNumbers(ctx.db, a.id, [uid])).get(uid) ?? 0,
+                },
+              }
+            : {
+                key: 'mod.assign.notify.submittedTitle',
+                values: { name: a.name, user: team.kind === 'team' ? team.name : me.name },
+              };
           await ctx.notify.send(graders, {
             type: 'assign.submitted',
-            title: {
-              key: 'mod.assign.notify.submittedTitle',
-              values: { name: a.name, user: team.kind === 'team' ? team.name : me.name },
-            },
+            title,
             url: `/course/${a.courseId}/a/${a.id}?grade=${uid}`,
             courseId: a.courseId,
             contextId: a.id,
@@ -662,20 +972,42 @@ export const assign = defineModule<AssignSettingsT>({
     }),
     grade: defineAction({
       summary:
-        "Grade a student's submission: points or a 1-based scale position, feedback, feedback files; `applyToTeam` grades the whole team alike",
+        "Grade a student's submission: points or a 1-based scale position, or the filled rubric (`rubric`) or marking guide (`guide`) the assignment grades with; feedback, feedback files; `applyToTeam` grades the whole team alike; `workflowState` and `allocatedMarkerId` with the marking workflow",
       capability: 'mod.assign:grade',
       input: z.object({
         userId: z.string().uuid(),
         grade: z.union([z.number(), z.null()]),
+        rubric: RubricFilling.optional(),
+        guide: GuideFilling.optional(),
         feedback: z.string().max(200_000).default(''),
         files: z.array(FileInput).max(20).default([]),
         reopen: z.boolean().default(false),
         applyToTeam: z.boolean().default(false),
+        workflowState: z.enum(workflowStates).optional(),
+        allocatedMarkerId: z.string().uuid().nullable().optional(),
       }),
       async handler(ctx, act, input) {
         const a = act as Assign;
         const s = a.settings;
         const scale = await assignScale(ctx.db, a);
+        await requireMarker(ctx, a, [input.userId]);
+        // with a rubric or marking guide the grade is the form's
+        const form = await gradingForm(ctx.db, a);
+        const filling = form?.method === 'rubric' ? input.rubric : input.guide;
+        if (form && filling) {
+          const error =
+            form.method === 'rubric'
+              ? rubricFillingError(form.definition, input.rubric!)
+              : guideFillingError(form.definition, input.guide!);
+          if (error) throw new Error(error);
+          input.grade =
+            form.method === 'rubric'
+              ? rubricGrade(form.definition, input.rubric!, gradeRange(a, scale))
+              : guideGrade(form.definition, input.guide!, gradeRange(a, scale));
+        } else if (form && input.grade !== null)
+          throw new Error(
+            form.method === 'rubric' ? 'Fill in the rubric' : 'Fill in the marking guide',
+          );
         if (input.grade !== null) {
           if (scale) {
             if (!Number.isInteger(input.grade) || input.grade < 1 || input.grade > scale.length)
@@ -719,8 +1051,46 @@ export const assign = defineModule<AssignSettingsT>({
               { maxBytes: 50 * 1024 * 1024 },
             );
           }
+          if (form) {
+            const key = {
+              definitionId: form.id,
+              userId: target,
+              attemptNumber,
+            };
+            if (filling)
+              await ctx.db.gradingInstance.upsert({
+                where: { definitionId_userId_attemptNumber: key },
+                create: {
+                  ...key,
+                  raterId: graderId,
+                  filling: filling as Prisma.InputJsonValue,
+                  grade: input.grade,
+                },
+                update: {
+                  raterId: graderId,
+                  filling: filling as Prisma.InputJsonValue,
+                  grade: input.grade,
+                },
+              });
+            else await ctx.db.gradingInstance.deleteMany({ where: key });
+          }
         }
-        // the gradebook gets the grade less the late penalty
+        // marking workflow: the stage chosen, or "in marking" once marking starts
+        if (s.markingWorkflow) {
+          if (input.workflowState) await moveStage(ctx, a, targets, input.workflowState);
+          else {
+            const flags = await flagsFor(ctx.db, a, targets);
+            await setFlags(
+              ctx.db,
+              a,
+              targets.filter((id) => flags.get(id)!.workflowState === 'NOTMARKED'),
+              { workflowState: 'INMARKING' },
+            );
+          }
+        }
+        if (input.allocatedMarkerId !== undefined && allocating(a))
+          await allocate(ctx, a, targets, input.allocatedMarkerId);
+        // the gradebook gets the grade less the late penalty, once released
         await pushGrades(ctx, a, targets, scale);
         const failed =
           s.gradePass !== undefined && input.grade !== null && input.grade < s.gradePass;
@@ -738,19 +1108,119 @@ export const assign = defineModule<AssignSettingsT>({
             },
           });
         }
-        await ctx.notify.send(targets, {
-          type: 'assign.graded',
-          title: { key: 'mod.assign.notify.gradedTitle', values: { name: a.name } },
-          url: `/course/${a.courseId}/a/${a.id}`,
-          courseId: a.courseId,
-          contextId: a.id,
-        });
+        await notifyGraded(ctx, a, targets);
         for (const target of targets)
           await ctx.log('assign.graded', {
             activityId: a.id,
             userId: target,
             grade: input.grade,
           });
+        return { ok: true };
+      },
+    }),
+    setWorkflowState: defineAction({
+      summary:
+        'Move students to a marking stage (marking workflow): markers mark, reviewers review, released grades reach students and the gradebook',
+      capability: 'mod.assign:grade',
+      input: z.object({ userIds: UserIds, state: z.enum(workflowStates) }),
+      async handler(ctx, act, input) {
+        const a = act as Assign;
+        if (!a.settings.markingWorkflow)
+          throw new ModuleError('CONFLICT', 'The assignment has no marking workflow');
+        const userIds = [...new Set(input.userIds)];
+        await requireMarker(ctx, a, userIds);
+        const moved = await moveStage(ctx, a, userIds, input.state);
+        await pushGrades(ctx, a, moved, await assignScale(ctx.db, a));
+        if (input.state === 'RELEASED') await notifyGraded(ctx, a, moved);
+        await ctx.log('assign.workflow', { activityId: a.id, state: input.state, n: moved.length });
+        return { moved: moved.length };
+      },
+    }),
+    allocateMarker: defineAction({
+      summary: 'Allocate students to a marker (null takes the marker away)',
+      capability: 'mod.assign:manageallocations',
+      input: z.object({ userIds: UserIds, markerId: z.string().uuid().nullable() }),
+      async handler(ctx, act, input) {
+        const a = act as Assign;
+        if (!allocating(a))
+          throw new ModuleError('CONFLICT', 'The assignment does not allocate markers');
+        await allocate(ctx, a, [...new Set(input.userIds)], input.markerId);
+        return { ok: true };
+      },
+    }),
+    revealIdentities: defineAction({
+      summary:
+        'Blind marking: reveal who is who. Cannot be undone; released grades then reach students and the gradebook',
+      capability: 'mod.assign:revealidentities',
+      input: z.object({}),
+      async handler(ctx, act) {
+        const a = act as Assign;
+        if (!a.settings.blindMarking)
+          throw new ModuleError('CONFLICT', 'The assignment is not marked blind');
+        if (await revealedAt(ctx.db, a)) return { ok: true };
+        await ctx.db.assignState.upsert({
+          where: { activityId: a.id },
+          create: { activityId: a.id, identitiesRevealedAt: ctx.now },
+          update: { identitiesRevealedAt: ctx.now },
+        });
+        const users = await pushAll(ctx, a);
+        await notifyGraded(ctx, a, users);
+        await ctx.log('assign.identities.revealed', { activityId: a.id });
+        return { ok: true };
+      },
+    }),
+    saveGradingDefinition: defineAction({
+      summary:
+        'Define the rubric or marking guide the assignment grades with; once used, texts and points may change but criteria and levels cannot come or go',
+      capability: 'grade:managegradingforms',
+      input: z.object({ method: z.enum(['rubric', 'guide']), definition: z.unknown() }),
+      async handler(ctx, a, input) {
+        const parsed =
+          input.method === 'rubric'
+            ? Rubric.safeParse(input.definition)
+            : Guide.safeParse(input.definition);
+        if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? 'Invalid form');
+        const definition = parsed.data;
+        const ids = definition.criteria.flatMap((c) => [
+          c.id,
+          ...('levels' in c ? c.levels.map((l) => `${c.id}/${l.id}`) : []),
+        ]);
+        if (new Set(ids).size !== ids.length)
+          throw new Error('Criteria and levels need different ids');
+        const key = {
+          activityId: a.id,
+          area: 'submission',
+          method: methodKey(input.method),
+        };
+        const prev = await ctx.db.gradingDefinition.findUnique({
+          where: { activityId_area_method: key },
+          include: { _count: { select: { instances: true } } },
+        });
+        if (prev?._count.instances) {
+          const before = (input.method === 'rubric' ? Rubric : Guide).safeParse(prev.definition);
+          if (before.success && !sameStructure(before.data, definition))
+            throw new ModuleError(
+              'CONFLICT',
+              'Students have been graded with this form: criteria and levels cannot be added or removed',
+            );
+        }
+        await ctx.db.gradingDefinition.upsert({
+          where: { activityId_area_method: key },
+          create: { ...key, definition: definition as Prisma.InputJsonValue },
+          update: { definition: definition as Prisma.InputJsonValue },
+        });
+        await ctx.log('assign.gradingform.saved', { activityId: a.id, method: input.method });
+        return { ok: true };
+      },
+    }),
+    deleteGradingDefinition: defineAction({
+      summary: 'Delete the rubric or marking guide with the forms filled with it (the grades stay)',
+      capability: 'grade:managegradingforms',
+      input: z.object({ method: z.enum(['rubric', 'guide']) }),
+      async handler(ctx, a, input) {
+        await ctx.db.gradingDefinition.deleteMany({
+          where: { activityId: a.id, area: 'submission', method: methodKey(input.method) },
+        });
         return { ok: true };
       },
     }),
@@ -770,12 +1240,18 @@ export const assign = defineModule<AssignSettingsT>({
       capability: 'mod.assign:grade',
       mutation: false,
       input: z.object({ userId: z.string().uuid(), criteria: z.string().max(5000).default('') }),
-      async handler(ctx, a, input) {
-        const sub = await latestFor(ctx.db, a as Assign, input.userId);
+      async handler(ctx, act, input) {
+        const a = act as Assign;
+        await requireMarker(ctx, a, [input.userId]);
+        const sub = await latestFor(ctx.db, a, input.userId);
         if (!sub) throw new Error('No submission');
+        // with a rubric or marking guide the assistant judges its criteria
+        const form = await gradingForm(ctx.db, a);
         return ctx.ai.suggestGrade({
           submissionId: sub.id,
-          criteria: input.criteria,
+          criteria: form
+            ? criteriaText(form.method, form.definition).slice(0, 20_000)
+            : input.criteria,
           userId: input.userId,
         });
       },
@@ -948,7 +1424,7 @@ export const assign = defineModule<AssignSettingsT>({
         });
         let pending = 0;
         for (const w of waiting) {
-          const owners = w.userId
+          const members = w.userId
             ? [w.userId]
             : w.groupId
               ? (
@@ -958,6 +1434,10 @@ export const assign = defineModule<AssignSettingsT>({
                   })
                 ).map((m) => m.userId)
               : [];
+          // with allocation, a marker counts the work of the students allocated to them
+          const mine = await markedBy(ctx, a, members);
+          if (!mine.length) continue;
+          const owners = members;
           const graded = await ctx.db.assignGrade.count({
             where: { activityId: a.id, attemptNumber: w.attemptNumber, userId: { in: owners } },
           });

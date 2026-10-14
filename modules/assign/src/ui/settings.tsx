@@ -151,6 +151,36 @@ export function AssignSettingsFields({ settings, scales }: SettingsFieldsProps<A
           checked={settings.preventSubmissionNotInGroup}
         />
       </fieldset>
+      <fieldset className="grid gap-3 rounded-lg border border-border p-4">
+        <legend className="px-1 text-sm font-medium">{t('marking.title')}</legend>
+        <Field
+          label={t('marking.method')}
+          htmlFor="as-gradingMethod"
+          hint={t('marking.methodHint')}
+        >
+          <Select
+            id="as-gradingMethod"
+            name="settings.gradingMethod"
+            defaultValue={settings.gradingMethod}
+          >
+            <option value="simple">{t('marking.methods.simple')}</option>
+            <option value="rubric">{t('marking.methods.rubric')}</option>
+            <option value="guide">{t('marking.methods.guide')}</option>
+          </Select>
+        </Field>
+        <Bool
+          name="markingWorkflow"
+          label={t('marking.workflow')}
+          checked={settings.markingWorkflow}
+        />
+        <Bool
+          name="markingAllocation"
+          label={t('marking.allocation')}
+          checked={settings.markingAllocation}
+        />
+        <Bool name="blindMarking" label={t('marking.blind')} checked={settings.blindMarking} />
+        <p className="text-xs text-muted-foreground">{t('marking.hint')}</p>
+      </fieldset>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t('reopen')} htmlFor="as-reopen">
           <Select id="as-reopen" name="settings.reopen" defaultValue={settings.reopen}>

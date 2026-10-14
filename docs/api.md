@@ -121,7 +121,7 @@ A learner's own report leaves out hidden items and categories.
 | quiz | `overview` | — | the window, attempts used and left, the attempt in progress, your grade, your attempts and which of them you may review |
 | quiz | `attempt` | `attemptId` | the questions of your attempt in progress, without correct answers; answer with `save` and `finish`. In the immediate and interactive behaviours each question also carries its state, whether `check` may be used, the tries left and the feedback of the last check |
 | quiz | `review` | `attemptId` | a finished attempt: answers, verdicts and marks, correct answers and feedback as far as the quiz's review settings allow; for teachers the steps of each answer |
-| assign | `status` | — | your dates (with your own or your group's), your team and who has submitted, whether you may submit or withdraw now, your submission (or your team's) and files, how late it is and the penalty, the latest grade with feedback and the penalty taken |
+| assign | `status` | — | your dates (with your own or your group's), your team and who has submitted, whether you may submit or withdraw now, your submission (or your team's) and files, how late it is and the penalty, the latest grade with feedback, the penalty taken and the rubric or marking guide as filled (once the grade is released and identities are revealed) |
 
 Private forum replies show only to their author, the recipient and moderators; in a Q&A forum other answers show once you have answered; separate groups keep their discussions apart. A discussion, attempt or submission that is not yours to see answers `404`. `attempt` answers `409` once the attempt is finished, and `review` answers `409` while it is still in progress.
 

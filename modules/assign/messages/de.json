@@ -79,6 +79,7 @@
       "graded": "Abgabe bewertet",
       "due": "Aufgabe bald fällig",
       "submittedTitle": "{user} hat abgegeben: {name}",
+      "submittedTitleBlind": "Teilnehmer/in {number} hat abgegeben: {name}",
       "gradedTitle": "Ihre Abgabe wurde bewertet: {name}",
       "dueTitle": "Morgen fällig: {name}"
     },
@@ -98,7 +99,8 @@
       "consentAccept": "Ich stimme zu",
       "consentTitle": "Vor der ersten Nutzung von KI",
       "limit": "KI-Anfragelimit erreicht, versuchen Sie es später erneut",
-      "refused": "Die KI hat die Verarbeitung dieser Abgabe abgelehnt"
+      "refused": "Die KI hat die Verarbeitung dieser Abgabe abgelehnt",
+      "formCriteria": "Der Assistent bewertet nach den Kriterien des Formulars der Aufgabe und füllt es aus."
     },
     "gradeScale": "Bewertungstyp",
     "gradeScaleHint": "Bei einer Skala wird die Bewertung aus deren Liste gewählt; die maximale Bewertung wird dann nicht verwendet.",
@@ -142,7 +144,8 @@
     "tabs": {
       "label": "Aufgabe",
       "submissions": "Abgaben",
-      "overrides": "Termine für Studierende und Gruppen"
+      "overrides": "Termine für Studierende und Gruppen",
+      "grading": "Erweiterte Bewertung"
     },
     "overrides": {
       "who": "Person oder Gruppe",
@@ -157,6 +160,92 @@
       "empty": "Noch niemand hat eigene Termine",
       "add": "Termine für eine Person oder Gruppe",
       "priorityHint": "Wer in mehreren Gruppen ist, erhält die Termine der höchsten Gruppe dieser Liste; eigene Termine gehen vor."
+    },
+    "marking": {
+      "title": "Bewertung",
+      "method": "Bewertungsmethode",
+      "methodHint": "Bewertungsraster oder Bewertungsrichtlinie legen Sie im Tab „Erweiterte Bewertung“ der Aufgabe fest.",
+      "methods": {
+        "simple": "Einfache direkte Bewertung",
+        "rubric": "Bewertungsraster",
+        "guide": "Bewertungsrichtlinie"
+      },
+      "workflow": "Bewertungsworkflow: Studierende erhalten Bewertungen nach der Freigabe",
+      "allocation": "Bewerter/innen zuweisen (mit dem Bewertungsworkflow)",
+      "blind": "Anonyme Bewertung: Bewerter/innen sehen Teilnehmernummern statt Namen",
+      "hint": "Die anonyme Bewertung kann nicht mehr geändert werden, sobald Studierende abgegeben haben. Bei anonymer Bewertung erreichen die Bewertungen Studierende und die Bewertungsübersicht erst, wenn die Identitäten aufgedeckt sind."
+    },
+    "workflow": {
+      "label": "Bewertungsstatus",
+      "setTo": "Status setzen",
+      "states": {
+        "NOTMARKED": "Nicht bewertet",
+        "INMARKING": "In Bewertung",
+        "READYFORREVIEW": "Bewertung abgeschlossen",
+        "INREVIEW": "In Prüfung",
+        "READYFORRELEASE": "Bereit zur Freigabe",
+        "RELEASED": "Freigegeben"
+      }
+    },
+    "allocation": {
+      "marker": "Bewerter/in",
+      "none": "Nicht zugewiesen",
+      "allocateTo": "Bewerter/in zuweisen",
+      "notYours": "Diese Person ist einer anderen Bewerterin oder einem anderen Bewerter zugewiesen."
+    },
+    "bulk": {
+      "title": "Mit ausgewählten Studierenden",
+      "select": "Auswahl",
+      "selectOne": "{name} auswählen",
+      "selectAll": "Alle auswählen",
+      "apply": "Anwenden",
+      "done": "Erledigt",
+      "noneChosen": "Wählen Sie zuerst Studierende in der Liste aus."
+    },
+    "blind": {
+      "participant": "Teilnehmer/in {n}",
+      "active": "Anonyme Bewertung: Studierende erscheinen als Teilnehmernummern. Bewertungen erreichen Studierende und die Bewertungsübersicht, sobald die Identitäten aufgedeckt sind.",
+      "reveal": "Identitäten der Studierenden aufdecken",
+      "revealConfirm": "Aufdecken, wer wer ist? Das kann nicht rückgängig gemacht werden: Freigegebene Bewertungen erreichen Studierende und die Bewertungsübersicht.",
+      "revealed": "Identitäten aufgedeckt",
+      "revealedAt": "Identitäten aufgedeckt am {date}."
+    },
+    "rubric": {
+      "title": "Bewertungsraster",
+      "criterion": "Kriterium {n}",
+      "description": "Beschreibung des Kriteriums",
+      "score": "Punkte",
+      "definition": "Beschreibung der Stufe",
+      "addLevel": "Stufe hinzufügen",
+      "removeLevel": "Stufe {n} entfernen",
+      "addCriterion": "Kriterium hinzufügen",
+      "removeCriterion": "Kriterium {n} entfernen",
+      "lockZeroPoints": "0 Punkte im Raster ergeben die niedrigste Bewertung",
+      "lockZeroPointsHint": "Sonst ergibt die niedrigste mögliche Punktzahl die niedrigste Bewertung, auch wenn sie über 0 liegt.",
+      "points": "{n, plural, one {# Punkt} other {# Punkte}}",
+      "remark": "Kommentar",
+      "save": "Formular speichern",
+      "saved": "Formular gespeichert",
+      "delete": "Formular löschen",
+      "deleteConfirm": "Formular und alles damit Ausgefüllte löschen? Die Bewertungen bleiben.",
+      "used": "Mit diesem Formular wurde bereits bewertet: Texte und Punkte können Sie ändern, Kriterien und Stufen aber nicht hinzufügen oder entfernen.",
+      "incomplete": "Wählen Sie für jedes Kriterium des Rasters eine Stufe.",
+      "gives": "Bewertung aus dem Formular",
+      "scoreOf": "{score} von {max}",
+      "chosen": "Gewählt"
+    },
+    "guide": {
+      "title": "Bewertungsrichtlinie",
+      "criterion": "Kriterium {n}",
+      "shortName": "Name des Kriteriums",
+      "maxScore": "Höchstpunktzahl",
+      "descriptionStudents": "Beschreibung für Studierende",
+      "descriptionMarkers": "Beschreibung für Bewerter/innen",
+      "addCriterion": "Kriterium hinzufügen",
+      "removeCriterion": "Kriterium {n} entfernen",
+      "scoreOf": "Punkte (von {max})",
+      "remark": "Kommentar",
+      "incomplete": "Vergeben Sie für jedes Kriterium der Richtlinie 0 Punkte bis zur Höchstpunktzahl."
     }
   }
 }

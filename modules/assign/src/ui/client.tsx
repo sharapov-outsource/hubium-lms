@@ -5,6 +5,15 @@ import { useEditorLabels } from '@hubium/editor/field';
 import type { AiGradeSuggestion } from '@hubium/module-sdk';
 import { callModuleAction, DateTimeInput } from '@hubium/module-sdk/form';
 import {
+  type GradeRange,
+  guideFillingError,
+  guideFromShares,
+  guideGrade,
+  rubricFillingError,
+  rubricFromShares,
+  rubricGrade,
+} from '@hubium/module-sdk/grading';
+import {
   Alert,
   Button,
   Card,
@@ -23,34 +32,9 @@ import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useRef, useState, useTransition } from 'react';
-
-function useAction(activityId: string) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  const run = (
-    action: string,
-    input: Record<string, unknown>,
-    files?: File[],
-    done?: () => void,
-    okMsg?: string,
-  ) =>
-    start(async () => {
-      const r = await callModuleAction(
-        activityId,
-        action,
-        input,
-        files?.length ? { list: files } : undefined,
-      );
-      if (!r.ok) {
-        toast.error(r.message ?? 'Error');
-        return;
-      }
-      if (okMsg) toast.success(okMsg);
-      done?.();
-      router.refresh();
-    });
-  return { pending, run };
-}
+import type { WorkflowState } from '../marking.ts';
+import { type FormFill, GuideFill, RubricFill } from './marking.tsx';
+import { useAction } from './use-action.ts';
 
 export function SubmissionForm({
   activityId,
@@ -248,6 +232,10 @@ export function GradeForm({
   nextUrl,
   ai,
   team = null,
+  form = null,
+  range,
+  workflow = null,
+  allocation = null,
 }: {
   activityId: string;
   courseId: string;
@@ -262,6 +250,13 @@ export function GradeForm({
   canReopen: boolean;
   nextUrl: string;
   ai?: { available: boolean; consentRequired: boolean; notice: string };
+  /** The rubric or marking guide the grade comes from, with what was filled so far. */
+  form?: FormFill | null;
+  range: GradeRange;
+  /** Marking workflow: the student's stage and the stages the user may set. */
+  workflow?: { state: WorkflowState; states: WorkflowState[] } | null;
+  /** Marker allocation, for those who allocate. */
+  allocation?: { markerId: string | null; markers: { id: string; name: string }[] } | null;
 }) {
   const t = useTranslations('mod.assign');
   const labels = useEditorLabels();
@@ -271,9 +266,32 @@ export function GradeForm({
   // Applying an AI suggestion remounts the editor with the draft as its initial value.
   const [draft, setDraft] = useState<{ key: number; html: string } | null>(null);
   const [scaleGrade, setScaleGrade] = useState(grade === null ? '' : String(grade));
+  const [fill, setFill] = useState<FormFill | null>(form);
+  const filled = fill ? Object.keys(fill.filling).length > 0 : false;
+  const formError = !fill
+    ? null
+    : !filled
+      ? null
+      : fill.method === 'rubric'
+        ? rubricFillingError(fill.definition, fill.filling)
+        : guideFillingError(fill.definition, fill.filling);
+  // the grade the form gives, as the server will store it
+  const formGrade =
+    fill && filled && !formError
+      ? fill.method === 'rubric'
+        ? rubricGrade(fill.definition, fill.filling, range)
+        : guideGrade(fill.definition, fill.filling, range)
+      : null;
   const applySuggestion = (s: AiGradeSuggestion) => {
+    // with a form the assistant's judgement of each criterion fills it in
+    if (fill)
+      setFill(
+        fill.method === 'rubric'
+          ? { ...fill, filling: rubricFromShares(fill.definition, s.criteria) }
+          : { ...fill, filling: guideFromShares(fill.definition, s.criteria) },
+      );
     // the assistant grades in points; on a scale take the matching share of its grades
-    if (scale)
+    else if (scale)
       setScaleGrade(
         String(
           Math.min(
@@ -296,14 +314,25 @@ export function GradeForm({
     const files = fd
       .getAll('feedbackFiles')
       .filter((f): f is File => f instanceof File && f.size > 0);
+    if (formError) {
+      toast.error(fill?.method === 'rubric' ? t('rubric.incomplete') : t('guide.incomplete'));
+      return;
+    }
+    const state = String(fd.get('workflowState') ?? '');
+    const marker = fd.get('allocatedMarkerId');
     run(
       'grade',
       {
         userId,
-        grade: raw === '' ? null : Number(raw),
+        grade: fill ? null : raw === '' ? null : Number(raw),
+        ...(fill && filled ? { [fill.method]: fill.filling } : {}),
         feedback: String(fd.get('feedback') ?? ''),
         reopen: fd.get('reopen') === 'on',
         applyToTeam: fd.get('applyToTeam') === 'on',
+        ...(workflow && state && state !== workflow.state ? { workflowState: state } : {}),
+        ...(allocation && marker !== null
+          ? { allocatedMarkerId: marker === '' ? null : marker }
+          : {}),
       },
       files,
       () => {
@@ -325,10 +354,35 @@ export function GradeForm({
             consentRequired={ai.consentRequired}
             notice={ai.notice}
             onApply={applySuggestion}
+            byForm={!!fill}
           />
         ) : null}
         <form ref={formRef} className="grid gap-4" onSubmit={(e) => e.preventDefault()}>
-          {scale ? (
+          {fill ? (
+            <>
+              {fill.method === 'rubric' ? (
+                <RubricFill
+                  rubric={fill.definition}
+                  value={fill.filling}
+                  onChange={(filling) => setFill({ ...fill, filling })}
+                />
+              ) : (
+                <GuideFill
+                  guide={fill.definition}
+                  value={fill.filling}
+                  onChange={(filling) => setFill({ ...fill, filling })}
+                />
+              )}
+              <p className="text-sm font-medium" aria-live="polite">
+                {t('rubric.gives')}:{' '}
+                {formGrade === null
+                  ? '—'
+                  : scale
+                    ? (scale[formGrade - 1] ?? '—')
+                    : `${formGrade} ${t('outOf', { max: gradeMax })}`}
+              </p>
+            </>
+          ) : scale ? (
             <Field label={t('grade')} htmlFor="assign-grade">
               <Select
                 id="assign-grade"
@@ -374,6 +428,33 @@ export function GradeForm({
           <Field label={t('feedbackFiles')} htmlFor="assign-ffiles">
             <Input id="assign-ffiles" name="feedbackFiles" type="file" multiple />
           </Field>
+          {workflow ? (
+            <Field label={t('workflow.label')} htmlFor="assign-workflow">
+              <Select id="assign-workflow" name="workflowState" defaultValue={workflow.state}>
+                {[...new Set([workflow.state, ...workflow.states])].map((s) => (
+                  <option key={s} value={s}>
+                    {t(`workflow.states.${s}`)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : null}
+          {allocation ? (
+            <Field label={t('allocation.marker')} htmlFor="assign-marker">
+              <Select
+                id="assign-marker"
+                name="allocatedMarkerId"
+                defaultValue={allocation.markerId ?? ''}
+              >
+                <option value="">{t('allocation.none')}</option>
+                {allocation.markers.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : null}
           {team && team.size > 1 ? (
             <label htmlFor="assign-team" className="flex items-center gap-2 text-sm">
               <Checkbox id="assign-team" name="applyToTeam" defaultChecked />
@@ -470,12 +551,15 @@ function AiGradeAssist({
   consentRequired,
   notice,
   onApply,
+  byForm = false,
 }: {
   activityId: string;
   userId: string;
   consentRequired: boolean;
   notice: string;
   onApply: (s: AiGradeSuggestion) => void;
+  /** The assistant judges the criteria of the assignment's rubric or marking guide. */
+  byForm?: boolean;
 }) {
   const t = useTranslations('mod.assign.ai');
   const router = useRouter();
@@ -522,14 +606,18 @@ function AiGradeAssist({
         </h3>
         <p className="text-xs text-muted-foreground">{t('hint')}</p>
       </div>
-      <Field label={t('criteria')} htmlFor="ai-criteria">
-        <Textarea
-          id="ai-criteria"
-          value={criteria}
-          onChange={(e) => setCriteria(e.target.value)}
-          className="min-h-16 text-sm"
-        />
-      </Field>
+      {byForm ? (
+        <p className="text-xs text-muted-foreground">{t('formCriteria')}</p>
+      ) : (
+        <Field label={t('criteria')} htmlFor="ai-criteria">
+          <Textarea
+            id="ai-criteria"
+            value={criteria}
+            onChange={(e) => setCriteria(e.target.value)}
+            className="min-h-16 text-sm"
+          />
+        </Field>
+      )}
       <Button
         type="button"
         variant="secondary"

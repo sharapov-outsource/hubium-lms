@@ -76,6 +76,10 @@ model User {
   assignSubmissions   AssignSubmission[]
   assignGrades        AssignGrade[]            @relation("AssignGradeUser")
   assignTeamSubmits   AssignTeamSubmit[]
+  assignFlags         AssignUserFlags[]        @relation("AssignUserFlagsUser")
+  assignMarking       AssignUserFlags[]        @relation("AssignUserFlagsMarker")
+  assignParticipants  AssignParticipant[]
+  gradingInstances    GradingInstance[]
   quizAttempts        QuizAttempt[]
   notifications       Notification[]           @relation("NotificationUser")
   notificationsActed  Notification[]           @relation("NotificationActor")

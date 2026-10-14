@@ -48,10 +48,10 @@ describe('.hubium backup and restore', () => {
         { completionMode: 'MANUAL' },
       )
     ).id;
-    await f.addActivity(
+    const essay = await f.addActivity(
       'assign',
       'Эссе',
-      { gradeMax: 20 },
+      { gradeMax: 20, gradingMethod: 'rubric' },
       {
         availability: {
           op: '&',
@@ -59,6 +59,25 @@ describe('.hubium backup and restore', () => {
         },
       },
     );
+    await t.db.gradingDefinition.create({
+      data: {
+        activityId: essay.id,
+        method: 'RUBRIC',
+        definition: {
+          criteria: [
+            {
+              id: 'c1',
+              description: 'Структура',
+              levels: [
+                { id: 'l0', score: 0, definition: 'Нет' },
+                { id: 'l1', score: 2, definition: 'Есть' },
+              ],
+            },
+          ],
+          lockZeroPoints: true,
+        },
+      },
+    });
     await importGift.run(sys, {
       courseId: f.courseId,
       gift: '::Q1:: 2+2? {=4 ~5}\n\n::Q2:: Небо синее {T}',
@@ -177,6 +196,12 @@ describe('.hubium backup and restore', () => {
       0.5,
       [{ text: '<p>Подумайте</p>', clearWrong: true, showNumCorrect: false }],
     ]);
+    // the rubric the essay is graded with comes along
+    const rubric = await t.db.gradingDefinition.findFirstOrThrow({
+      where: { activityId: assign.id },
+    });
+    expect(rubric.method).toBe('RUBRIC');
+    expect(JSON.stringify(rubric.definition)).toContain('Структура');
     // grade items and groups exist
     expect(
       await t.db.gradeItem.count({ where: { activityId: { in: [assign.id, quiz.id] } } }),

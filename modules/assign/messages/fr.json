@@ -79,6 +79,7 @@
       "graded": "Travail évalué",
       "due": "Devoir bientôt à remettre",
       "submittedTitle": "{user} a remis un travail : {name}",
+      "submittedTitleBlind": "Le participant {number} a remis son travail : {name}",
       "gradedTitle": "Votre travail a été évalué : {name}",
       "dueTitle": "À remettre demain : {name}"
     },
@@ -98,7 +99,8 @@
       "consentAccept": "J’accepte",
       "consentTitle": "Avant votre première utilisation de l’IA",
       "limit": "Limite de requêtes IA atteinte, réessayez plus tard",
-      "refused": "L’IA a refusé de traiter ce travail"
+      "refused": "L’IA a refusé de traiter ce travail",
+      "formCriteria": "L'assistant évalue selon les critères du formulaire du devoir et le remplit."
     },
     "gradeScale": "Évaluation",
     "gradeScaleHint": "Avec un barème, la note est choisie dans sa liste ; la note maximale n’est alors pas utilisée.",
@@ -142,7 +144,8 @@
     "tabs": {
       "label": "Devoir",
       "submissions": "Remises",
-      "overrides": "Dates des étudiants et groupes"
+      "overrides": "Dates des étudiants et groupes",
+      "grading": "Évaluation avancée"
     },
     "overrides": {
       "who": "Étudiant ou groupe",
@@ -157,6 +160,92 @@
       "empty": "Personne n’a encore de dates propres",
       "add": "Dates pour un étudiant ou un groupe",
       "priorityHint": "Un étudiant de plusieurs groupes reçoit les dates du groupe le plus haut de la liste ; ses propres dates priment."
+    },
+    "marking": {
+      "title": "Correction",
+      "method": "Méthode d'évaluation",
+      "methodHint": "Définissez la grille ou le guide d'évaluation dans l'onglet « Évaluation avancée » du devoir.",
+      "methods": {
+        "simple": "Évaluation simple directe",
+        "rubric": "Grille d'évaluation",
+        "guide": "Guide d'évaluation"
+      },
+      "workflow": "Flux de correction : les notes parviennent aux étudiants une fois publiées",
+      "allocation": "Attribuer des correcteurs (avec le flux de correction)",
+      "blind": "Correction anonyme : les correcteurs voient des numéros de participant au lieu des noms",
+      "hint": "La correction anonyme ne peut plus être modifiée une fois que des étudiants ont remis leur travail. Avec la correction anonyme, les notes parviennent aux étudiants et au carnet de notes après la levée de l'anonymat."
+    },
+    "workflow": {
+      "label": "Étape de correction",
+      "setTo": "Passer à l'étape",
+      "states": {
+        "NOTMARKED": "Non corrigé",
+        "INMARKING": "En correction",
+        "READYFORREVIEW": "Correction terminée",
+        "INREVIEW": "En révision",
+        "READYFORRELEASE": "Prêt à publier",
+        "RELEASED": "Publié"
+      }
+    },
+    "allocation": {
+      "marker": "Correcteur",
+      "none": "Non attribué",
+      "allocateTo": "Attribuer au correcteur",
+      "notYours": "Cet étudiant est attribué à un autre correcteur."
+    },
+    "bulk": {
+      "title": "Avec les étudiants sélectionnés",
+      "select": "Sélection",
+      "selectOne": "Sélectionner {name}",
+      "selectAll": "Tout sélectionner",
+      "apply": "Appliquer",
+      "done": "Terminé",
+      "noneChosen": "Sélectionnez d'abord des étudiants dans la liste."
+    },
+    "blind": {
+      "participant": "Participant {n}",
+      "active": "Correction anonyme : les étudiants apparaissent sous forme de numéros de participant. Les notes parviendront aux étudiants et au carnet de notes après la levée de l'anonymat.",
+      "reveal": "Lever l'anonymat des étudiants",
+      "revealConfirm": "Révéler qui est qui ? C'est irréversible : les notes publiées parviendront aux étudiants et au carnet de notes.",
+      "revealed": "Anonymat levé",
+      "revealedAt": "Anonymat levé le {date}."
+    },
+    "rubric": {
+      "title": "Grille d'évaluation",
+      "criterion": "Critère {n}",
+      "description": "Description du critère",
+      "score": "Points",
+      "definition": "Description du niveau",
+      "addLevel": "Ajouter un niveau",
+      "removeLevel": "Supprimer le niveau {n}",
+      "addCriterion": "Ajouter un critère",
+      "removeCriterion": "Supprimer le critère {n}",
+      "lockZeroPoints": "Un score de 0 point dans la grille donne la note la plus basse",
+      "lockZeroPointsHint": "Sinon, c'est le score le plus bas possible qui donne la note la plus basse, même s'il dépasse 0 point.",
+      "points": "{n, plural, one {# point} other {# points}}",
+      "remark": "Commentaire",
+      "save": "Enregistrer le formulaire",
+      "saved": "Formulaire enregistré",
+      "delete": "Supprimer le formulaire",
+      "deleteConfirm": "Supprimer le formulaire et tout ce qui a été rempli avec ? Les notes restent.",
+      "used": "Des étudiants ont été évalués avec ce formulaire : vous pouvez modifier les textes et les points, mais pas ajouter ou supprimer des critères et des niveaux.",
+      "incomplete": "Choisissez un niveau pour chaque critère de la grille.",
+      "gives": "Note du formulaire",
+      "scoreOf": "{score} sur {max}",
+      "chosen": "Choisi"
+    },
+    "guide": {
+      "title": "Guide d'évaluation",
+      "criterion": "Critère {n}",
+      "shortName": "Nom du critère",
+      "maxScore": "Score maximal",
+      "descriptionStudents": "Description pour les étudiants",
+      "descriptionMarkers": "Description pour les correcteurs",
+      "addCriterion": "Ajouter un critère",
+      "removeCriterion": "Supprimer le critère {n}",
+      "scoreOf": "Score (sur {max})",
+      "remark": "Commentaire",
+      "incomplete": "Donnez à chaque critère du guide un score entre 0 et son maximum."
     }
   }
 }

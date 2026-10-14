@@ -79,6 +79,7 @@
       "graded": "Consegna valutata",
       "due": "Compito in scadenza",
       "submittedTitle": "{user} ha consegnato: {name}",
+      "submittedTitleBlind": "Il partecipante {number} ha consegnato: {name}",
       "gradedTitle": "La consegna è stata valutata: {name}",
       "dueTitle": "Scadenza domani: {name}"
     },
@@ -98,7 +99,8 @@
       "consentAccept": "Accetto",
       "consentTitle": "Prima di usare l’IA per la prima volta",
       "limit": "Limite di richieste all’IA raggiunto, riprovare più tardi",
-      "refused": "L’IA ha rifiutato di elaborare questa consegna"
+      "refused": "L’IA ha rifiutato di elaborare questa consegna",
+      "formCriteria": "L'assistente valuta secondo i criteri del modulo del compito e lo compila."
     },
     "gradeScale": "Tipo di valutazione",
     "gradeScaleHint": "Con una scala la valutazione si sceglie dal suo elenco; la valutazione massima in tal caso non viene usata.",
@@ -142,7 +144,8 @@
     "tabs": {
       "label": "Compito",
       "submissions": "Consegne",
-      "overrides": "Date per studenti e gruppi"
+      "overrides": "Date per studenti e gruppi",
+      "grading": "Valutazione avanzata"
     },
     "overrides": {
       "who": "Studente o gruppo",
@@ -157,6 +160,92 @@
       "empty": "Nessuno ha ancora date proprie",
       "add": "Date per uno studente o un gruppo",
       "priorityHint": "Chi è in più gruppi riceve le date del gruppo più in alto in questo elenco; le date personali vengono prima."
+    },
+    "marking": {
+      "title": "Valutazione",
+      "method": "Metodo di valutazione",
+      "methodHint": "Definisci la rubrica o la guida di valutazione nella scheda «Valutazione avanzata» del compito.",
+      "methods": {
+        "simple": "Valutazione semplice diretta",
+        "rubric": "Rubrica",
+        "guide": "Guida di valutazione"
+      },
+      "workflow": "Flusso di valutazione: i voti arrivano agli studenti quando vengono rilasciati",
+      "allocation": "Assegna valutatori (con il flusso di valutazione)",
+      "blind": "Valutazione anonima: i valutatori vedono numeri di partecipante invece dei nomi",
+      "hint": "La valutazione anonima non può essere cambiata dopo le prime consegne. Con la valutazione anonima i voti arrivano agli studenti e al registro dopo la rivelazione delle identità."
+    },
+    "workflow": {
+      "label": "Stato della valutazione",
+      "setTo": "Imposta lo stato",
+      "states": {
+        "NOTMARKED": "Non valutato",
+        "INMARKING": "In valutazione",
+        "READYFORREVIEW": "Valutazione completata",
+        "INREVIEW": "In revisione",
+        "READYFORRELEASE": "Pronto per il rilascio",
+        "RELEASED": "Rilasciato"
+      }
+    },
+    "allocation": {
+      "marker": "Valutatore",
+      "none": "Non assegnato",
+      "allocateTo": "Assegna al valutatore",
+      "notYours": "Questo studente è assegnato a un altro valutatore."
+    },
+    "bulk": {
+      "title": "Con gli studenti selezionati",
+      "select": "Selezione",
+      "selectOne": "Seleziona {name}",
+      "selectAll": "Seleziona tutti",
+      "apply": "Applica",
+      "done": "Fatto",
+      "noneChosen": "Seleziona prima gli studenti nell'elenco."
+    },
+    "blind": {
+      "participant": "Partecipante {n}",
+      "active": "Valutazione anonima: gli studenti appaiono come numeri di partecipante. I voti arriveranno agli studenti e al registro dopo la rivelazione delle identità.",
+      "reveal": "Rivela l'identità degli studenti",
+      "revealConfirm": "Rivelare chi è chi? Non si può annullare: i voti rilasciati arriveranno agli studenti e al registro.",
+      "revealed": "Identità rivelate",
+      "revealedAt": "Identità rivelate il {date}."
+    },
+    "rubric": {
+      "title": "Rubrica",
+      "criterion": "Criterio {n}",
+      "description": "Descrizione del criterio",
+      "score": "Punti",
+      "definition": "Descrizione del livello",
+      "addLevel": "Aggiungi livello",
+      "removeLevel": "Rimuovi il livello {n}",
+      "addCriterion": "Aggiungi criterio",
+      "removeCriterion": "Rimuovi il criterio {n}",
+      "lockZeroPoints": "0 punti nella rubrica danno il voto più basso",
+      "lockZeroPointsHint": "Altrimenti il voto più basso corrisponde al punteggio minimo possibile, anche se supera 0 punti.",
+      "points": "{n, plural, one {# punto} other {# punti}}",
+      "remark": "Commento",
+      "save": "Salva il modulo",
+      "saved": "Modulo salvato",
+      "delete": "Elimina il modulo",
+      "deleteConfirm": "Eliminare il modulo e tutto ciò che è stato compilato con esso? I voti restano.",
+      "used": "Alcuni studenti sono già stati valutati con questo modulo: puoi cambiare testi e punti, ma non aggiungere o rimuovere criteri e livelli.",
+      "incomplete": "Scegli un livello per ogni criterio della rubrica.",
+      "gives": "Voto dal modulo",
+      "scoreOf": "{score} su {max}",
+      "chosen": "Scelto"
+    },
+    "guide": {
+      "title": "Guida di valutazione",
+      "criterion": "Criterio {n}",
+      "shortName": "Nome del criterio",
+      "maxScore": "Punteggio massimo",
+      "descriptionStudents": "Descrizione per gli studenti",
+      "descriptionMarkers": "Descrizione per i valutatori",
+      "addCriterion": "Aggiungi criterio",
+      "removeCriterion": "Rimuovi il criterio {n}",
+      "scoreOf": "Punti (su {max})",
+      "remark": "Commento",
+      "incomplete": "Assegna a ogni criterio della guida un punteggio da 0 al suo massimo."
     }
   }
 }

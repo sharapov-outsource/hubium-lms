@@ -84,3 +84,51 @@ model AssignOverride {
   @@unique([activityId, userId])
   @@unique([activityId, groupId])
 }
+
+/// Marking workflow, as Moodle's: grades reach students and the gradebook once released.
+enum AssignWorkflowState {
+  NOTMARKED
+  INMARKING
+  READYFORREVIEW
+  INREVIEW
+  READYFORRELEASE
+  RELEASED
+}
+
+/// A student's place in the marking workflow and the marker allocated to them.
+model AssignUserFlags {
+  id                String              @id @default(uuid(7)) @db.Uuid
+  activityId        String              @db.Uuid
+  userId            String              @db.Uuid
+  workflowState     AssignWorkflowState @default(NOTMARKED)
+  allocatedMarkerId String?             @db.Uuid
+  updatedAt         DateTime            @updatedAt @db.Timestamptz(3)
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation("AssignUserFlagsUser", fields: [userId], references: [id], onDelete: Cascade)
+  marker   User?    @relation("AssignUserFlagsMarker", fields: [allocatedMarkerId], references: [id], onDelete: SetNull)
+
+  @@unique([activityId, userId])
+}
+
+/// Blind marking: the number a student goes by until identities are revealed.
+model AssignParticipant {
+  id         String @id @default(uuid(7)) @db.Uuid
+  activityId String @db.Uuid
+  userId     String @db.Uuid
+  number     Int
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, userId])
+  @@unique([activityId, number])
+}
+
+/// Assignment state that teachers cannot edit back: identities once revealed stay so.
+model AssignState {
+  activityId           String    @id @db.Uuid
+  identitiesRevealedAt DateTime? @db.Timestamptz(3)
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+}

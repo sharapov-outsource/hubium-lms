@@ -1,4 +1,5 @@
 import { RichText } from '@hubium/editor/client';
+import { type Guide, GuideFilling, type Rubric, RubricFilling } from '@hubium/module-sdk/grading';
 import { groupsWhere } from '@hubium/module-sdk/groups';
 import type { ViewProps } from '@hubium/module-sdk/ui';
 import {
@@ -9,6 +10,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Checkbox,
   EmptyState,
   Table,
   TBody,
@@ -22,12 +24,22 @@ import Link from 'next/link';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import {
   type AssignSettingsT,
+  allocating,
   applyPenalty,
   assignGradeText,
   assignScale,
   effectiveDates,
+  flagsFor,
+  gradeRange,
+  gradingForm,
+  hidesNames,
   latestFor,
+  markedBy,
+  participantLabel,
+  participantNumbers,
   readAssignStatus,
+  revealedAt,
+  settableStates,
   teamMembers,
   teamOf,
 } from '../server.ts';
@@ -39,6 +51,7 @@ import {
   SubmissionForm,
   WithdrawButton,
 } from './client.tsx';
+import { BulkMarking, GradingFormEditor, RevealIdentities } from './marking.tsx';
 
 type Props = ViewProps<AssignSettingsT>;
 
@@ -227,8 +240,9 @@ async function StudentView({ activity: a, ctx }: Props) {
               })}
             </p>
           </CardHeader>
-          {lastGrade.feedback || feedbackFiles.length ? (
-            <CardContent className="grid gap-2">
+          {lastGrade.feedback || feedbackFiles.length || lastGrade.form ? (
+            <CardContent className="grid gap-3">
+              {lastGrade.form ? <FilledForm form={lastGrade.form} /> : null}
               {lastGrade.feedback ? <RichText html={lastGrade.feedback} /> : null}
               <FileList files={feedbackFiles} />
             </CardContent>
@@ -266,6 +280,54 @@ async function StudentView({ activity: a, ctx }: Props) {
   );
 }
 
+type Filled = NonNullable<
+  NonNullable<Awaited<ReturnType<typeof readAssignStatus>>['grade']>['form']
+>;
+
+/** The rubric or marking guide as the student's work was graded with it. */
+async function FilledForm({ form }: { form: Filled }) {
+  const t = await getTranslations('mod.assign');
+  return (
+    <section aria-label={form.method === 'rubric' ? t('rubric.title') : t('guide.title')}>
+      <ul className="grid gap-3">
+        {form.criteria.map((c) => (
+          <li key={c.id} className="grid gap-1.5 rounded-lg border border-border p-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <span className="font-medium">{c.name}</span>
+              <span className="text-sm tabular-nums text-muted-foreground">
+                {c.score === null ? '—' : t('rubric.scoreOf', { score: c.score, max: c.maxScore })}
+              </span>
+            </div>
+            {c.description ? (
+              <p className="whitespace-pre-wrap text-sm text-muted-foreground">{c.description}</p>
+            ) : null}
+            {c.levels.length ? (
+              <ul className="grid gap-1 sm:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))]">
+                {c.levels.map((l) => (
+                  <li
+                    key={l.id}
+                    className={
+                      l.id === c.levelId
+                        ? 'rounded-md border border-success bg-success/10 p-2 text-sm'
+                        : 'rounded-md border border-border p-2 text-sm text-muted-foreground'
+                    }
+                  >
+                    {l.id === c.levelId ? (
+                      <span className="sr-only">{t('rubric.chosen')}: </span>
+                    ) : null}
+                    {l.definition || '—'} ({t('rubric.points', { n: l.score })})
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {c.remark ? <p className="whitespace-pre-wrap text-sm">{c.remark}</p> : null}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function FileList({ files }: { files: { id: string; name: string; url: string }[] }) {
   if (!files.length) return null;
   return (
@@ -294,17 +356,56 @@ async function learners(ctx: Props['ctx'], activityId: string) {
   });
 }
 
+/**
+ * The students the user marks (with allocation, those allocated to them), each with the
+ * label markers see: the name, or the participant number while marking is blind (then in
+ * the order of the numbers, which tells nothing).
+ */
+async function markedLearners(ctx: Props['ctx'], a: Props['activity']) {
+  const t = await getTranslations('mod.assign');
+  const all = await learners(ctx, a.id);
+  const ids = new Set(
+    await markedBy(
+      ctx,
+      a,
+      all.map((u) => u.id),
+    ),
+  );
+  const users = all.filter((u) => ids.has(u.id));
+  const hide = await hidesNames(ctx, a);
+  const numbers = hide
+    ? await participantNumbers(
+        ctx.db,
+        a.id,
+        users.map((u) => u.id),
+      )
+    : new Map<string, number>();
+  const out = users.map((u) => ({
+    ...u,
+    label: participantLabel(u, numbers.get(u.id), hide, (n) => t('blind.participant', { n })),
+  }));
+  if (hide) out.sort((x, y) => (numbers.get(x.id) ?? 0) - (numbers.get(y.id) ?? 0));
+  return { users: out, hide };
+}
+
 async function TeacherOverview(props: Props) {
   const { activity: a, ctx, searchParams } = props;
   const t = await getTranslations('mod.assign');
   const canOverride = await ctx.perm.can('mod.assign:manageoverrides', a.id);
-  const tab = canOverride && searchParams.tab === 'overrides' ? 'overrides' : 'submissions';
+  const canForms =
+    a.settings.gradingMethod !== 'simple' && (await ctx.perm.can('grade:managegradingforms', a.id));
+  const tabs = [
+    'submissions' as const,
+    ...(canOverride ? ['overrides' as const] : []),
+    ...(canForms ? ['grading' as const] : []),
+  ];
+  const tab = tabs.find((k) => k === searchParams.tab) ?? 'submissions';
   const base = `/course/${a.courseId}/a/${a.id}`;
   return (
     <div className="grid gap-5">
-      {canOverride ? (
+      {tabs.length > 1 ? (
         <nav className="flex flex-wrap gap-1" aria-label={t('tabs.label')}>
-          {(['submissions', 'overrides'] as const).map((k) => (
+          {tabs.map((k) => (
             <Button key={k} asChild size="sm" variant={tab === k ? 'secondary' : 'ghost'}>
               <Link
                 href={k === 'submissions' ? base : `${base}?tab=${k}`}
@@ -316,7 +417,13 @@ async function TeacherOverview(props: Props) {
           ))}
         </nav>
       ) : null}
-      {tab === 'overrides' ? <OverridesTab {...props} /> : <Submissions {...props} />}
+      {tab === 'overrides' ? (
+        <OverridesTab {...props} />
+      ) : tab === 'grading' ? (
+        <GradingTab {...props} />
+      ) : (
+        <Submissions {...props} />
+      )}
     </div>
   );
 }
@@ -324,7 +431,47 @@ async function TeacherOverview(props: Props) {
 async function Submissions({ activity: a, ctx, searchParams }: Props) {
   const scale = await assignScale(ctx.db, a);
   const [t, format] = await Promise.all([getTranslations('mod.assign'), getFormatter()]);
-  const users = await learners(ctx, a.id);
+  const { users } = await markedLearners(ctx, a);
+  const workflow = a.settings.markingWorkflow;
+  const allocate = allocating(a);
+  const [flags, states, canAllocate, revealed, canReveal] = await Promise.all([
+    flagsFor(
+      ctx.db,
+      a,
+      users.map((u) => u.id),
+    ),
+    workflow ? settableStates(ctx, a) : [],
+    allocate ? ctx.perm.can('mod.assign:manageallocations', a.id) : false,
+    revealedAt(ctx.db, a),
+    ctx.perm.can('mod.assign:revealidentities', a.id),
+  ]);
+  const markers =
+    allocate && canAllocate
+      ? await ctx.db.user.findMany({
+          where: {
+            id: { in: await ctx.perm.usersWithCap('mod.assign:grade', a.id) },
+            deletedAt: null,
+          },
+          orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+          select: { id: true, name: true },
+        })
+      : null;
+  const markerNames = new Map(
+    (allocate
+      ? await ctx.db.user.findMany({
+          where: {
+            id: {
+              in: [...flags.values()].flatMap((f) =>
+                f.allocatedMarkerId ? [f.allocatedMarkerId] : [],
+              ),
+            },
+          },
+          select: { id: true, name: true },
+        })
+      : []
+    ).map((u) => [u.id, u.name]),
+  );
+  const bulk = (workflow && states.length > 0) || !!markers;
   const team = a.settings.teamSubmission;
   // each student's team: the one group of the assignment's groups they are in
   const memberships = team
@@ -384,6 +531,23 @@ async function Submissions({ activity: a, ctx, searchParams }: Props) {
         ))}
       </div>
       <Dates a={a} db={ctx.db} />
+      {a.settings.blindMarking ? (
+        <Alert variant="info" className="grid gap-2">
+          {revealed ? (
+            <span>
+              {t('blind.revealedAt', {
+                date: format.dateTime(revealed, { dateStyle: 'medium', timeStyle: 'short' }),
+              })}
+            </span>
+          ) : (
+            <>
+              <span>{t('blind.active')}</span>
+              {canReveal ? <RevealIdentities activityId={a.id} /> : null}
+            </>
+          )}
+        </Alert>
+      ) : null}
+      {bulk ? <BulkMarking activityId={a.id} states={states} markers={markers} /> : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <nav className="flex gap-1" aria-label={t('status')}>
           {[
@@ -411,9 +575,16 @@ async function Submissions({ activity: a, ctx, searchParams }: Props) {
       <Table>
         <THead>
           <Tr>
+            {bulk ? (
+              <Th>
+                <span className="sr-only">{t('bulk.select')}</span>
+              </Th>
+            ) : null}
             <Th>{t('student')}</Th>
             {team ? <Th>{t('team.title')}</Th> : null}
             <Th>{t('status')}</Th>
+            {workflow ? <Th>{t('workflow.label')}</Th> : null}
+            {allocate ? <Th>{t('allocation.marker')}</Th> : null}
             <Th>{t('lastModified')}</Th>
             <Th>{t('grade')}</Th>
             <Th />
@@ -422,7 +593,17 @@ async function Submissions({ activity: a, ctx, searchParams }: Props) {
         <TBody>
           {shown.map(({ u, s, g, needs, team: tm }) => (
             <Tr key={u.id}>
-              <Td className="font-medium">{u.name}</Td>
+              {bulk ? (
+                <Td>
+                  <Checkbox
+                    form="assign-bulk"
+                    name="users"
+                    value={u.id}
+                    aria-label={t('bulk.selectOne', { name: u.label })}
+                  />
+                </Td>
+              ) : null}
+              <Td className="font-medium">{u.label}</Td>
               {team ? <Td className="text-sm">{tm?.name ?? '—'}</Td> : null}
               <Td>
                 <Badge
@@ -431,6 +612,26 @@ async function Submissions({ activity: a, ctx, searchParams }: Props) {
                   {needs ? t('needsGrading') : t(`statuses.${s?.status ?? 'NEW'}`)}
                 </Badge>
               </Td>
+              {workflow ? (
+                <Td>
+                  <Badge
+                    variant={
+                      flags.get(u.id)?.workflowState === 'RELEASED'
+                        ? 'success'
+                        : flags.get(u.id)?.workflowState === 'NOTMARKED'
+                          ? 'neutral'
+                          : 'accent'
+                    }
+                  >
+                    {t(`workflow.states.${flags.get(u.id)?.workflowState ?? 'NOTMARKED'}`)}
+                  </Badge>
+                </Td>
+              ) : null}
+              {allocate ? (
+                <Td className="text-sm">
+                  {markerNames.get(flags.get(u.id)?.allocatedMarkerId ?? '') ?? '—'}
+                </Td>
+              ) : null}
               <Td className="text-sm text-muted-foreground">
                 {s ? format.dateTime(s.updatedAt, { dateStyle: 'short', timeStyle: 'short' }) : '—'}
               </Td>
@@ -446,7 +647,12 @@ async function Submissions({ activity: a, ctx, searchParams }: Props) {
               </Td>
               <Td className="text-right">
                 <Button asChild size="sm" variant={needs ? 'primary' : 'outline'}>
-                  <Link href={`${base}?grade=${u.id}`}>{t('gradeAction')}</Link>
+                  <Link
+                    href={`${base}?grade=${u.id}`}
+                    aria-label={`${t('gradeAction')}: ${u.label}`}
+                  >
+                    {t('gradeAction')}
+                  </Link>
                 </Button>
               </Td>
             </Tr>
@@ -536,13 +742,40 @@ async function OverridesTab({ activity: a, ctx }: Props) {
   );
 }
 
+/** Advanced grading: the rubric or marking guide the assignment grades with. */
+async function GradingTab({ activity: a, ctx }: Props) {
+  const method = a.settings.gradingMethod;
+  if (method === 'simple') return null;
+  const form = await gradingForm(ctx.db, a);
+  const used = form
+    ? (await ctx.db.gradingInstance.count({ where: { definitionId: form.id } })) > 0
+    : false;
+  return (
+    <div className="max-w-4xl">
+      <GradingFormEditor
+        activityId={a.id}
+        method={method}
+        initial={form?.definition ?? null}
+        used={used}
+      />
+    </div>
+  );
+}
+
 async function GradingPanel({ activity: a, ctx, userId }: Props & { userId: string }) {
   const scale = await assignScale(ctx.db, a);
   const [t, format] = await Promise.all([getTranslations('mod.assign'), getFormatter()]);
-  const users = await learners(ctx, a.id);
+  const { users, hide } = await markedLearners(ctx, a);
   const user = users.find((u) => u.id === userId);
   const base = `/course/${a.courseId}/a/${a.id}`;
-  if (!user) return <Alert variant="warning">{t('noSubmission')}</Alert>;
+  if (!user)
+    return (
+      <Alert variant="warning">
+        {(await learners(ctx, a.id)).some((u) => u.id === userId)
+          ? t('allocation.notYours')
+          : t('noSubmission')}
+      </Alert>
+    );
   const team = await teamOf(ctx.db, a, userId);
   const sub = await latestFor(ctx.db, a, userId, team);
   const members = team.kind === 'team' ? await teamMembers(ctx, a, team.groupId) : [];
@@ -562,6 +795,45 @@ async function GradingPanel({ activity: a, ctx, userId }: Props & { userId: stri
       : 0;
   const idx = users.findIndex((u) => u.id === userId);
   const next = users[idx + 1];
+  // the rubric or marking guide, with what was filled for this attempt
+  const form = await gradingForm(ctx.db, a);
+  const instance =
+    form && sub
+      ? await ctx.db.gradingInstance.findUnique({
+          where: {
+            definitionId_userId_attemptNumber: {
+              definitionId: form.id,
+              userId,
+              attemptNumber: sub.attemptNumber,
+            },
+          },
+        })
+      : null;
+  const fill = form
+    ? form.method === 'rubric'
+      ? {
+          method: 'rubric' as const,
+          definition: form.definition as Rubric,
+          filling: RubricFilling.safeParse(instance?.filling).data ?? {},
+        }
+      : {
+          method: 'guide' as const,
+          definition: form.definition as Guide,
+          filling: GuideFilling.safeParse(instance?.filling).data ?? {},
+        }
+    : null;
+  const flags = (await flagsFor(ctx.db, a, [userId])).get(userId)!;
+  const canAllocate = allocating(a) && (await ctx.perm.can('mod.assign:manageallocations', a.id));
+  const markers = canAllocate
+    ? await ctx.db.user.findMany({
+        where: {
+          id: { in: await ctx.perm.usersWithCap('mod.assign:grade', a.id) },
+          deletedAt: null,
+        },
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+        select: { id: true, name: true },
+      })
+    : [];
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -571,16 +843,20 @@ async function GradingPanel({ activity: a, ctx, userId }: Props & { userId: stri
         {next ? (
           <Button asChild variant="outline" size="sm">
             <Link href={`${base}?grade=${next.id}`}>
-              {t('next')}: {next.name} →
+              {t('next')}: {next.label} →
             </Link>
           </Button>
         ) : null}
       </div>
-      <h3 className="text-lg font-semibold">{t('gradingTitle', { name: user.name })}</h3>
+      <h3 className="text-lg font-semibold">{t('gradingTitle', { name: user.label })}</h3>
       {team.kind === 'blocked' ? (
         <Alert variant="warning">{t(`team.teacherBlocked.${team.reason}`)}</Alert>
       ) : null}
-      <div className="grid gap-5 lg:grid-cols-[1fr_24rem]">
+      <div
+        className={
+          form ? 'grid gap-5 lg:grid-cols-[1fr_28rem]' : 'grid gap-5 lg:grid-cols-[1fr_24rem]'
+        }
+      >
         <Card>
           <CardHeader>
             <CardTitle className="flex flex-wrap items-center gap-2">
@@ -622,7 +898,7 @@ async function GradingPanel({ activity: a, ctx, userId }: Props & { userId: stri
                 })}
               </p>
             ) : null}
-            {members.length ? (
+            {members.length && !hide ? (
               <p className="text-sm text-muted-foreground">
                 {t('team.members', { names: members.map((m) => m.name).join(', ') })}
               </p>
@@ -648,6 +924,14 @@ async function GradingPanel({ activity: a, ctx, userId }: Props & { userId: stri
             canReopen={a.settings.reopen !== 'none' && !!sub}
             nextUrl={next ? `${base}?grade=${next.id}` : base}
             team={team.kind === 'team' ? { name: team.name, size: members.length } : null}
+            form={fill}
+            range={gradeRange(a, scale)}
+            workflow={
+              a.settings.markingWorkflow
+                ? { state: flags.workflowState, states: await settableStates(ctx, a) }
+                : null
+            }
+            allocation={canAllocate ? { markerId: flags.allocatedMarkerId, markers } : null}
             ai={
               sub && (sub.onlineText || files.length)
                 ? await ctx.ai.status('GRADING_ASSIST', a.courseId)

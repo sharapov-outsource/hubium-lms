@@ -79,6 +79,7 @@
       "graded": "Submission graded",
       "due": "Assignment due soon",
       "submittedTitle": "{user} submitted: {name}",
+      "submittedTitleBlind": "Participant {number} submitted work: {name}",
       "gradedTitle": "Your submission was graded: {name}",
       "dueTitle": "Due tomorrow: {name}"
     },
@@ -98,7 +99,8 @@
       "consentAccept": "I accept",
       "consentTitle": "Before you first use AI",
       "limit": "AI request limit reached, try again later",
-      "refused": "The AI declined to process this submission"
+      "refused": "The AI declined to process this submission",
+      "formCriteria": "The assistant judges the criteria of the assignment's form and fills it in."
     },
     "gradeScale": "Grading",
     "gradeScaleHint": "On a scale the grade is picked from its list; the maximum grade is then not used.",
@@ -142,7 +144,8 @@
     "tabs": {
       "label": "Assignment",
       "submissions": "Submissions",
-      "overrides": "Dates for students and groups"
+      "overrides": "Dates for students and groups",
+      "grading": "Advanced grading"
     },
     "overrides": {
       "who": "Student or group",
@@ -157,6 +160,92 @@
       "empty": "No one has dates of their own yet",
       "add": "Dates for a student or group",
       "priorityHint": "A student in several groups gets the dates of the highest group in this list; their own dates come first."
+    },
+    "marking": {
+      "title": "Marking",
+      "method": "Grading method",
+      "methodHint": "Define the rubric or marking guide on the assignment's “Advanced grading” tab.",
+      "methods": {
+        "simple": "Simple direct grading",
+        "rubric": "Rubric",
+        "guide": "Marking guide"
+      },
+      "workflow": "Use marking workflow: grades reach students when released",
+      "allocation": "Allocate markers (with the marking workflow)",
+      "blind": "Blind marking: markers see participant numbers instead of names",
+      "hint": "Blind marking cannot be changed once students have submitted. With blind marking, grades reach students and the gradebook after identities are revealed."
+    },
+    "workflow": {
+      "label": "Marking stage",
+      "setTo": "Set marking stage",
+      "states": {
+        "NOTMARKED": "Not marked",
+        "INMARKING": "In marking",
+        "READYFORREVIEW": "Marking completed",
+        "INREVIEW": "In review",
+        "READYFORRELEASE": "Ready for release",
+        "RELEASED": "Released"
+      }
+    },
+    "allocation": {
+      "marker": "Marker",
+      "none": "Not allocated",
+      "allocateTo": "Allocate to marker",
+      "notYours": "This student is allocated to another marker."
+    },
+    "bulk": {
+      "title": "With selected students",
+      "select": "Select",
+      "selectOne": "Select {name}",
+      "selectAll": "Select all",
+      "apply": "Apply",
+      "done": "Done",
+      "noneChosen": "Select students in the list first."
+    },
+    "blind": {
+      "participant": "Participant {n}",
+      "active": "Blind marking: students appear as participant numbers. Grades reach students and the gradebook once identities are revealed.",
+      "reveal": "Reveal student identities",
+      "revealConfirm": "Reveal who is who? This cannot be undone: released grades will reach students and the gradebook.",
+      "revealed": "Identities revealed",
+      "revealedAt": "Identities were revealed on {date}."
+    },
+    "rubric": {
+      "title": "Rubric",
+      "criterion": "Criterion {n}",
+      "description": "Criterion description",
+      "score": "Points",
+      "definition": "Level description",
+      "addLevel": "Add level",
+      "removeLevel": "Remove level {n}",
+      "addCriterion": "Add criterion",
+      "removeCriterion": "Remove criterion {n}",
+      "lockZeroPoints": "A rubric score of 0 points is the lowest grade",
+      "lockZeroPointsHint": "Otherwise the lowest possible score gives the lowest grade, even when it is more than 0 points.",
+      "points": "{n, plural, one {# point} other {# points}}",
+      "remark": "Comment",
+      "save": "Save the form",
+      "saved": "Form saved",
+      "delete": "Delete the form",
+      "deleteConfirm": "Delete the form and everything filled in with it? The grades stay.",
+      "used": "Students have been graded with this form: you can change texts and points, but not add or remove criteria and levels.",
+      "incomplete": "Choose a level for every criterion of the rubric.",
+      "gives": "Grade from the form",
+      "scoreOf": "{score} of {max}",
+      "chosen": "Chosen"
+    },
+    "guide": {
+      "title": "Marking guide",
+      "criterion": "Criterion {n}",
+      "shortName": "Criterion name",
+      "maxScore": "Maximum score",
+      "descriptionStudents": "Description for students",
+      "descriptionMarkers": "Description for markers",
+      "addCriterion": "Add criterion",
+      "removeCriterion": "Remove criterion {n}",
+      "scoreOf": "Score (out of {max})",
+      "remark": "Comment",
+      "incomplete": "Give every criterion of the marking guide a score from 0 to its maximum."
     }
   }
 }

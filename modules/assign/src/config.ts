@@ -1,4 +1,5 @@
 import { bool, isoDate, optionalNumber } from '@hubium/module-sdk/fields';
+import { gradingMethods } from '@hubium/module-sdk/grading';
 import { z } from 'zod';
 
 export const AssignSettings = z
@@ -29,6 +30,14 @@ export const AssignSettings = z
     requireAllTeamMembers: bool(false),
     /** Students in no group cannot submit (otherwise they submit alone). */
     preventSubmissionNotInGroup: bool(false),
+    /** How grades are given: a number (or scale grade), a rubric or a marking guide. */
+    gradingMethod: z.enum(gradingMethods).default('simple'),
+    /** Grades go through marking stages and reach students once released. */
+    markingWorkflow: bool(false),
+    /** Each student gets a marker (with the marking workflow). */
+    markingAllocation: bool(false),
+    /** Markers see participant numbers, not names, until identities are revealed. */
+    blindMarking: bool(false),
   })
   .refine((s) => s.allowText || s.allowFiles, {
     message: 'Allow text or files',

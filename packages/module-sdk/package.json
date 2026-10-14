@@ -12,7 +12,8 @@
     "./fields": "./src/fields.ts",
     "./net": "./src/net.ts",
     "./crypto": "./src/crypto.ts",
-    "./groups": "./src/groups.ts"
+    "./groups": "./src/groups.ts",
+    "./grading": "./src/grading.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

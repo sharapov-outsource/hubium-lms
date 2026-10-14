@@ -1,12 +1,14 @@
 import type { ActivityRef, ModuleCtx } from '@hubium/module-sdk';
 import type { AssignSettingsT } from './config.ts';
 import { effectiveDates } from './dates.ts';
+import { flagsFor, gradeReleased, isBlind } from './marking.ts';
 import { applyPenalty, latePenalty, lateSeconds } from './penalty.ts';
 
 // The one way assignment grades reach the gradebook: each student's latest grade, less the
 // late penalty for the work it grades. The penalty and lateness are kept with the grade so
 // the student and the teacher see how the gradebook figure came about. A grade overridden
-// in the gradebook stays as it is (the gradebook keeps its override).
+// in the gradebook stays as it is (the gradebook keeps its override). A grade that is not
+// released yet (marking workflow) or still blind leaves the gradebook empty, as Moodle's.
 
 export async function pushGrades(
   ctx: ModuleCtx,
@@ -14,6 +16,8 @@ export async function pushGrades(
   userIds: string[],
   scale: string[] | null,
 ) {
+  const blind = await isBlind(ctx.db, a);
+  const flags = await flagsFor(ctx.db, a, userIds);
   for (const userId of userIds) {
     const g = await ctx.db.assignGrade.findFirst({
       where: { activityId: a.id, userId },
@@ -40,13 +44,16 @@ export async function pushGrades(
       data: { penalty: percent || null, lateSeconds: late || null },
     });
     const raw = g.grade === null ? null : Number(g.grade);
+    const released = gradeReleased(a, flags.get(userId)!.workflowState, blind);
     await ctx.grades.setGrades(a.id, [
-      {
-        userId,
-        rawGrade: raw === null ? null : applyPenalty(raw, percent),
-        feedback: g.feedback,
-        gradedById: g.graderId,
-      },
+      released
+        ? {
+            userId,
+            rawGrade: raw === null ? null : applyPenalty(raw, percent),
+            feedback: g.feedback,
+            gradedById: g.graderId,
+          }
+        : { userId, rawGrade: null, feedback: null, gradedById: null },
     ]);
     await ctx.completion.recompute(a.id, userId);
   }

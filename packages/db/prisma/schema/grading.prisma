@@ -1,0 +1,40 @@
+// Advanced grading forms (rubrics, marking guides) of activities, and their fillings.
+// Shared by modules: an activity defines a form for an area (e.g. "submission").
+
+enum GradingMethod {
+  RUBRIC
+  GUIDE
+}
+
+model GradingDefinition {
+  id         String        @id @default(uuid(7)) @db.Uuid
+  activityId String        @db.Uuid
+  area       String        @default("submission")
+  method     GradingMethod
+  /// The criteria and their options (see @hubium/module-sdk/grading).
+  definition Json
+  createdAt  DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime      @updatedAt @db.Timestamptz(3)
+
+  activity  Activity          @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  instances GradingInstance[]
+
+  @@unique([activityId, area, method])
+}
+
+/// A form filled for one student's attempt, and the grade it gives.
+model GradingInstance {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  definitionId  String   @db.Uuid
+  userId        String   @db.Uuid
+  attemptNumber Int      @default(0)
+  raterId       String?  @db.Uuid
+  filling       Json
+  grade         Decimal? @db.Decimal(12, 5)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
+  definition GradingDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([definitionId, userId, attemptNumber])
+}

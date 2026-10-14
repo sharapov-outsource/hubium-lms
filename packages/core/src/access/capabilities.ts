@@ -84,11 +84,20 @@ export const coreCapabilities = {
   'ai:tutor': { level: 'COURSE', archetypes: [U] },
   // activities (shared by all modules)
   'activity:view': { level: 'ACTIVITY', archetypes: [M, ET, T, S, O, G] },
+  /** Rubrics and marking guides of an activity. */
+  'grade:managegradingforms': { level: 'ACTIVITY', archetypes: [M, ET] },
   // assignment
   'mod.assign:submit': { level: 'ACTIVITY', archetypes: [S], excludeAdmin: true },
   'mod.assign:grade': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.assign:grantextension': { level: 'ACTIVITY', archetypes: [M, ET] },
   'mod.assign:manageoverrides': { level: 'ACTIVITY', archetypes: [M, ET] },
+  // marking workflow: review and release grades, allocate markers
+  'mod.assign:reviewgrades': { level: 'ACTIVITY', archetypes: [M, ET] },
+  'mod.assign:releasegrades': { level: 'ACTIVITY', archetypes: [M, ET] },
+  'mod.assign:manageallocations': { level: 'ACTIVITY', archetypes: [M, ET] },
+  // blind marking: reveal who is who, or see it while marking stays blind
+  'mod.assign:revealidentities': { level: 'ACTIVITY', archetypes: [M, ET] },
+  'mod.assign:viewblinddetails': { level: 'ACTIVITY', archetypes: [M], risk: ['personal'] },
   // quiz
   'mod.quiz:attempt': { level: 'ACTIVITY', archetypes: [S], excludeAdmin: true },
   'mod.quiz:grade': { level: 'ACTIVITY', archetypes: [M, ET, T] },

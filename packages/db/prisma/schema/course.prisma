@@ -151,6 +151,10 @@ model Activity {
   assignSubmissions  AssignSubmission[]
   assignGrades       AssignGrade[]
   assignOverrides    AssignOverride[]
+  assignUserFlags    AssignUserFlags[]
+  assignParticipants AssignParticipant[]
+  assignState        AssignState?
+  gradingDefinitions GradingDefinition[]
   quizSlots          QuizSlot[]
   quizAttempts       QuizAttempt[]
   quizOverrides      QuizOverride[]
