@@ -943,7 +943,10 @@
       "NUMERICAL": "Numerisch",
       "MATCH": "Zuordnung",
       "ESSAY": "Freitext",
-      "DESCRIPTION": "Beschreibung (ohne Antwort)"
+      "DESCRIPTION": "Beschreibung (ohne Antwort)",
+      "ORDERING": "Anordnung",
+      "GAPSELECT": "Lückentextauswahl",
+      "DDWTOS": "Drag-and-Drop auf Text"
     },
     "name": "Fragetitel",
     "text": "Fragetext",
@@ -1011,6 +1014,65 @@
       "addHint": "Hinweis hinzufügen",
       "clearWrong": "Falsche Antworten löschen",
       "showNumCorrect": "Anzahl richtiger Antworten zeigen"
+    },
+    "ordering": {
+      "itemsHint": "Die Elemente in der richtigen Reihenfolge. Lernende sehen sie gemischt, nie schon richtig.",
+      "item": "Element {n}",
+      "addItem": "Element hinzufügen",
+      "up": "Element {n} nach oben",
+      "down": "Element {n} nach unten",
+      "grading": "Bewertung",
+      "gradings": {
+        "allOrNothing": "Alles oder nichts",
+        "absolutePosition": "Absolute Position",
+        "relativeToCorrect": "Relativ zur richtigen Position",
+        "relativeNextExcludeLast": "Relativ zum nächsten Element (ohne letztes)",
+        "relativeNextIncludeLast": "Relativ zum nächsten Element (mit letztem)",
+        "relativeOnePreviousAndNext": "Relativ zum vorigen und nächsten Element",
+        "relativeAllPreviousAndNext": "Relativ zu allen vorigen und nächsten Elementen",
+        "longestOrderedSubset": "Längste geordnete Teilfolge",
+        "longestContiguousSubset": "Längste zusammenhängende Teilfolge"
+      },
+      "gradingHints": {
+        "allOrNothing": "Volle Punkte nur, wenn jedes Element stimmt.",
+        "absolutePosition": "Ein Punkt je Element an seinem Platz.",
+        "relativeToCorrect": "Jedes Element punktet nach seinem Abstand zum richtigen Platz.",
+        "relativeNextExcludeLast": "Ein Punkt je Element, dem das richtige nächste folgt.",
+        "relativeNextIncludeLast": "Ebenso, und ein Punkt für das richtige letzte Element.",
+        "relativeOnePreviousAndNext": "Punkte für die richtigen Nachbarn jedes Elements.",
+        "relativeAllPreviousAndNext": "Punkte für jedes Paar in richtiger Reihenfolge.",
+        "longestOrderedSubset": "Die längste Folge in richtiger Reihenfolge, mit Lücken.",
+        "longestContiguousSubset": "Die längste Folge benachbarter Elemente in richtiger Reihenfolge."
+      },
+      "select": "Gezeigte Elemente",
+      "selects": {
+        "all": "Alle",
+        "random": "Einige, zufällig",
+        "contiguous": "Einige, aufeinanderfolgend"
+      },
+      "selectCount": "Wie viele",
+      "layout": "Anordnung",
+      "layouts": {
+        "vertical": "Vertikal",
+        "horizontal": "Horizontal"
+      },
+      "numbering": "Nummerierung",
+      "noNumbering": "Keine",
+      "showGrading": "In der Überprüfung die Punkte je Element zeigen"
+    },
+    "gaps": {
+      "help": "Schreiben Sie [[1]], [[2]], … in den Fragetext, wo die Lücken sind: [[n]] ist eine Lücke, deren richtige Antwort Auswahl n ist. Eine Lücke bietet die Auswahlen der Gruppe ihrer richtigen Antwort.",
+      "choice": "Auswahl {n}",
+      "group": "Gruppe der Auswahl {n}",
+      "groupN": "Gruppe {n}",
+      "infinite": "Unbegrenzt",
+      "addChoice": "Auswahl hinzufügen"
+    },
+    "combined": {
+      "title": "Feedback zur ganzen Antwort",
+      "feedbackCorrect": "Für jede richtige Antwort",
+      "feedbackPartial": "Für jede teilweise richtige Antwort",
+      "feedbackIncorrect": "Für jede falsche Antwort"
     }
   },
   "notifications": {

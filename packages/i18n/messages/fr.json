@@ -943,7 +943,10 @@
       "NUMERICAL": "Numérique",
       "MATCH": "Appariement",
       "ESSAY": "Composition",
-      "DESCRIPTION": "Description (sans réponse)"
+      "DESCRIPTION": "Description (sans réponse)",
+      "ORDERING": "Mise en ordre",
+      "GAPSELECT": "Sélectionner les mots manquants",
+      "DDWTOS": "Glisser-déposer dans le texte"
     },
     "name": "Nom",
     "text": "Texte de la question",
@@ -1011,6 +1014,65 @@
       "addHint": "Ajouter un indice",
       "clearWrong": "Effacer les réponses incorrectes",
       "showNumCorrect": "Afficher le nombre de bonnes réponses"
+    },
+    "ordering": {
+      "itemsHint": "Les éléments dans le bon ordre. Les apprenants les voient mélangés, jamais déjà en ordre.",
+      "item": "Élément {n}",
+      "addItem": "Ajouter un élément",
+      "up": "Monter l’élément {n}",
+      "down": "Descendre l’élément {n}",
+      "grading": "Évaluation",
+      "gradings": {
+        "allOrNothing": "Tout ou rien",
+        "absolutePosition": "Position absolue",
+        "relativeToCorrect": "Relatif à la position correcte",
+        "relativeNextExcludeLast": "Relatif à l’élément suivant (sans le dernier)",
+        "relativeNextIncludeLast": "Relatif à l’élément suivant (avec le dernier)",
+        "relativeOnePreviousAndNext": "Relatif aux éléments précédent et suivant",
+        "relativeAllPreviousAndNext": "Relatif à tous les éléments précédents et suivants",
+        "longestOrderedSubset": "Plus longue sous-suite ordonnée",
+        "longestContiguousSubset": "Plus longue sous-suite contiguë"
+      },
+      "gradingHints": {
+        "allOrNothing": "Tous les points seulement si chaque élément est à sa place.",
+        "absolutePosition": "Un point par élément à sa place.",
+        "relativeToCorrect": "Chaque élément marque selon sa distance à sa place.",
+        "relativeNextExcludeLast": "Un point par élément suivi du bon élément.",
+        "relativeNextIncludeLast": "Idem, plus un point pour le bon dernier élément.",
+        "relativeOnePreviousAndNext": "Des points pour les bons voisins de chaque élément.",
+        "relativeAllPreviousAndNext": "Des points pour chaque paire d’éléments dans le bon ordre.",
+        "longestOrderedSubset": "La plus longue suite d’éléments dans le bon ordre, avec des trous.",
+        "longestContiguousSubset": "La plus longue suite d’éléments voisins dans le bon ordre."
+      },
+      "select": "Éléments affichés",
+      "selects": {
+        "all": "Tous",
+        "random": "Certains, au hasard",
+        "contiguous": "Certains, consécutifs dans le bon ordre"
+      },
+      "selectCount": "Combien",
+      "layout": "Disposition",
+      "layouts": {
+        "vertical": "Verticale",
+        "horizontal": "Horizontale"
+      },
+      "numbering": "Numérotation",
+      "noNumbering": "Aucune",
+      "showGrading": "Afficher le score de chaque élément dans la relecture"
+    },
+    "gaps": {
+      "help": "Écrivez [[1]], [[2]], … dans le texte là où sont les trous : [[n]] est un trou dont la bonne réponse est le choix n. Un trou propose les choix du groupe de sa bonne réponse.",
+      "choice": "Choix {n}",
+      "group": "Groupe du choix {n}",
+      "groupN": "Groupe {n}",
+      "infinite": "Illimité",
+      "addChoice": "Ajouter un choix"
+    },
+    "combined": {
+      "title": "Feedback sur la réponse entière",
+      "feedbackCorrect": "Pour toute réponse correcte",
+      "feedbackPartial": "Pour toute réponse partiellement correcte",
+      "feedbackIncorrect": "Pour toute réponse incorrecte"
     }
   },
   "notifications": {

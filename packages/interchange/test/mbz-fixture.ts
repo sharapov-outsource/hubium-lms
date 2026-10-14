@@ -132,6 +132,23 @@ export async function mbzFixture(): Promise<Buffer> {
       <question_bank_entry id="7"><questioncategoryid>2</questioncategoryid><question_version><question_versions id="8"><version>1</version><questions>
         <question id="70"><name>Формула</name><questiontext>x+y</questiontext><defaultmark>1</defaultmark><qtype>calculated</qtype></question>
       </questions></question_versions></question_version></question_bank_entry>
+      <question_bank_entry id="8"><questioncategoryid>2</questioncategoryid><question_version><question_versions id="9"><version>1</version><questions>
+        <question id="80"><name>Порядок</name><questiontext>&lt;p&gt;Этапы&lt;/p&gt;</questiontext><defaultmark>1</defaultmark><penalty>0.3333333</penalty><qtype>ordering</qtype>
+          <plugin_qtype_ordering_question><answers>
+            <answer id="802"><answertext>&lt;p&gt;Выполнить&lt;/p&gt;</answertext><answerformat>1</answerformat><fraction>2.0000000</fraction><feedback></feedback></answer>
+            <answer id="801"><answertext>&lt;p&gt;Написать&lt;/p&gt;</answertext><answerformat>1</answerformat><fraction>1.0000000</fraction><feedback></feedback></answer>
+            <answer id="803"><answertext>&lt;p&gt;Проверить&lt;/p&gt;</answertext><answerformat>1</answerformat><fraction>3.0000000</fraction><feedback></feedback></answer>
+          </answers><ordering id="1"><layouttype>1</layouttype><selecttype>0</selecttype><selectcount>3</selectcount><gradingtype>5</gradingtype><showgrading>0</showgrading><numberingstyle>abc</numberingstyle><correctfeedback>Верно</correctfeedback><partiallycorrectfeedback></partiallycorrectfeedback><incorrectfeedback></incorrectfeedback><shownumcorrect>1</shownumcorrect></ordering></plugin_qtype_ordering_question>
+        </question>
+      </questions></question_versions></question_version></question_bank_entry>
+      <question_bank_entry id="9"><questioncategoryid>2</questioncategoryid><question_version><question_versions id="10"><version>1</version><questions>
+        <question id="90"><name>Перетаскивание</name><questiontext>&lt;p&gt;[[1]] — список, [[2]] — кортеж&lt;/p&gt;</questiontext><defaultmark>1</defaultmark><qtype>ddwtos</qtype>
+          <plugin_qtype_ddwtos_question><answers>
+            <answer id="901"><answertext>list</answertext><answerformat>0</answerformat><fraction>0</fraction><feedback>O:8:"stdClass":2:{s:9:"draggroup";s:1:"1";s:8:"infinite";i:0;}</feedback></answer>
+            <answer id="902"><answertext>tuple</answertext><answerformat>0</answerformat><fraction>0</fraction><feedback>O:8:"stdClass":2:{s:9:"draggroup";s:1:"2";s:8:"infinite";i:1;}</feedback></answer>
+          </answers><ddwtos id="1"><shuffleanswers>0</shuffleanswers><correctfeedback></correctfeedback><partiallycorrectfeedback></partiallycorrectfeedback><incorrectfeedback></incorrectfeedback></ddwtos></plugin_qtype_ddwtos_question>
+        </question>
+      </questions></question_versions></question_version></question_bank_entry>
     </question_bank_entries>
   </question_category>
 </question_categories>`,

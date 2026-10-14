@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LiveQuestion, LiveState, PublicQuestion } from '../public.ts';
-import { questionBodies } from './qtypes.tsx';
+import { bodyShowsText, questionBodies } from './qtypes.tsx';
 
 const TIME_WARNINGS = [10, 5, 1];
 
@@ -363,8 +363,10 @@ export function AttemptPlayer({
                   {flags[q.slot] ? t('flagged') : t('flag')}
                 </Button>
               </div>
-              {/* biome-ignore lint/security/noDangerouslySetInnerHtml: question text is sanitised on save */}
-              <div className="prose-content" dangerouslySetInnerHTML={{ __html: q.text }} />
+              {bodyShowsText(q.type) ? null : (
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: question text is sanitised on save
+                <div className="prose-content" dangerouslySetInnerHTML={{ __html: q.text }} />
+              )}
               <QuestionBody
                 q={q}
                 value={answers[q.slot]}

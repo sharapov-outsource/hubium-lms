@@ -2,9 +2,11 @@ import type { QuestionTypeDef, QuestionTypeDefs } from '../registry.ts';
 import type { QuestionType } from '../types.ts';
 import { description } from './description.ts';
 import { essay } from './essay.ts';
+import { ddwtos, gapselect } from './gaps.ts';
 import { match } from './match.ts';
 import { multichoice } from './multichoice.ts';
 import { numerical } from './numerical.ts';
+import { ordering } from './ordering.ts';
 import { shortanswer } from './shortanswer.ts';
 import { truefalse } from './truefalse.ts';
 
@@ -16,6 +18,9 @@ export const questionTypeDefs = {
   MATCH: match,
   ESSAY: essay,
   DESCRIPTION: description,
+  ORDERING: ordering,
+  GAPSELECT: gapselect,
+  DDWTOS: ddwtos,
 } satisfies QuestionTypeDefs;
 
 /** The definition of a question type (the loose signature suits snapshots read from JSON). */

@@ -15,7 +15,13 @@ import type { Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { createTranslator } from '@hubium/i18n/packs';
 import { invalidIpListEntries } from '@hubium/module-sdk/net';
-import { type Hint, Hints, type QuestionType, questionDataSchemas } from '@hubium/questions';
+import {
+  checkQuestionText,
+  type Hint,
+  Hints,
+  type QuestionType,
+  questionDataSchemas,
+} from '@hubium/questions';
 import { XMLParser } from 'fast-xml-parser';
 import tar from 'tar-stream';
 import {
@@ -26,6 +32,14 @@ import {
   unzipLimited,
 } from './archive.ts';
 import { addMissingSections, discardCourse } from './hubium.ts';
+import {
+  ddwtosOptions,
+  orderingGrading,
+  orderingLayout,
+  orderingNumbering,
+  orderingSelect,
+  orderingShowGrading,
+} from './moodle-qtypes.ts';
 
 // Moodle course backup (.mbz) import for Moodle 4.1–5.x: course, sections, the common
 // activities, question bank and files. Anything unsupported becomes a label and is
@@ -307,10 +321,71 @@ function mapMoodleQuestion(q: Node): { type: QuestionType; data: unknown } | nul
     }
     case 'description':
       return { type: 'DESCRIPTION', data: {} };
+    case 'ordering': {
+      const o = (plugin.ordering ?? {}) as Node;
+      return {
+        type: 'ORDERING',
+        data: {
+          // an answer's fraction is its place in the right order
+          items: [...answers]
+            .sort((a, b) => num(a.fraction) - num(b.fraction))
+            .map((a, i) => ({ id: `i${i + 1}`, text: plainText(txt(a.answertext)) }))
+            .filter((i) => i.text),
+          grading: orderingGrading(txt(o.gradingtype) || '1'),
+          select: orderingSelect(txt(o.selecttype) || '0'),
+          selectCount: Math.max(2, num(o.selectcount, 6)),
+          layout: orderingLayout(txt(o.layouttype)),
+          numbering: orderingNumbering(txt(o.numberingstyle)),
+          showGrading: orderingShowGrading(txt(o.showgrading) || '1'),
+          ...combinedFeedback(o),
+        },
+      };
+    }
+    case 'gapselect':
+    case 'ddwtos': {
+      const o = (plugin[qtype] ?? {}) as Node;
+      return {
+        type: qtype === 'ddwtos' ? 'DDWTOS' : 'GAPSELECT',
+        data: {
+          shuffle: txt(o.shuffleanswers) !== '0',
+          choices: answers.map((a, i) => {
+            // the group is kept in the answer's feedback (serialised with "unlimited" for ddwtos)
+            const opts =
+              qtype === 'ddwtos'
+                ? ddwtosOptions(txt(a.feedback))
+                : { group: num(a.feedback, 1) || 1, infinite: false };
+            return {
+              id: `c${i + 1}`,
+              text: plainText(txt(a.answertext)),
+              group: opts.group,
+              ...(qtype === 'ddwtos' ? { infinite: opts.infinite } : {}),
+            };
+          }),
+          ...combinedFeedback(o),
+        },
+      };
+    }
     default:
       return null;
   }
 }
+
+const plainText = (s: string) =>
+  s
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/** Feedback for right, partly right and wrong responses. */
+const combinedFeedback = (o: Node) => ({
+  feedbackCorrect: sanitizeRichText(txt(o.correctfeedback)),
+  feedbackPartial: sanitizeRichText(txt(o.partiallycorrectfeedback)),
+  feedbackIncorrect: sanitizeRichText(txt(o.incorrectfeedback)),
+});
 
 // ── import ───────────────────────────────────────────────────────────────────
 
@@ -516,12 +591,18 @@ export async function importMbz(
               warnings.push(`Question "${name}": ${parsed.error.issues[0]?.message ?? 'invalid'}`);
               continue;
             }
+            const text = sanitizeRichText(txt(q.questiontext));
+            const textError = checkQuestionText(mapped.type, text, parsed.data);
+            if (textError) {
+              warnings.push(`Question "${name}": ${textError}`);
+              continue;
+            }
             const created2 = await db.question.create({
               data: {
                 categoryId: fallbackCategory,
                 type: mapped.type,
                 name: name.slice(0, 255),
-                text: sanitizeRichText(txt(q.questiontext)),
+                text,
                 generalFeedback: sanitizeRichText(txt(q.generalfeedback)),
                 defaultMark: mapped.type === 'DESCRIPTION' ? 0 : num(q.defaultmark, 1),
                 penalty: Math.min(1, Math.max(0, num(q.penalty))),

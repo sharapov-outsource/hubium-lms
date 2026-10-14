@@ -219,6 +219,27 @@
         "TRYAGAIN": "Waiting for another try",
         "COMPLETE": "Complete"
       }
+    },
+    "order": {
+      "help": "Put the items in order with the arrow buttons.",
+      "list": "Items to put in order",
+      "up": "Move up: {item}",
+      "down": "Move down: {item}",
+      "left": "Move left: {item}",
+      "right": "Move right: {item}",
+      "moved": "{item}: position {n} of {total}",
+      "scores": "Score for each item"
+    },
+    "gaps": {
+      "gap": "Gap {n}",
+      "empty": "empty",
+      "bank": "Answers",
+      "pick": "Pick an answer, then the gap for it, or drag it there. Pick a filled gap to empty it.",
+      "placed": "“{choice}” is in gap {n}",
+      "cleared": "Gap {n} is empty",
+      "wrongGroup": "This answer does not go in gap {n}",
+      "useLists": "Answer with lists instead",
+      "useDrag": "Answer by dragging"
     }
   }
 }

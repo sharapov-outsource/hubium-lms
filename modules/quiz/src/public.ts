@@ -1,5 +1,6 @@
 import {
   type PublicFields,
+  publicText,
   type QuestionSnapshot,
   type QuestionType,
   typeDef,
@@ -55,7 +56,8 @@ export function toPublicQuestion(qa: {
     slot: qa.slot,
     page: qa.page,
     type: s.type,
-    text: s.text,
+    // gaps renumbered by place, so the text does not tell the right choices
+    text: publicText(s),
     maxMark: Number(qa.maxMark),
     response: qa.response,
     flagged: qa.flagged,

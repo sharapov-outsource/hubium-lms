@@ -5,17 +5,14 @@ import { Button, Checkbox, Field, Input, Select } from '@hubium/ui';
 import { Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { ComponentType } from 'react';
+import { GapFields, gapDefaults, OrderingFields, orderingDefaults } from './qtypes-order-gaps';
+import { type Data, type FieldsProps, listHelpers, nid } from './qtypes-shared';
 
 // The answer fields of each question type in the question editor: its defaults for a new
 // question and its form. The table is complete by type, so a new question type does not
 // build until it has an editor here.
 
-export type Data = Record<string, unknown>;
-
-export interface FieldsProps {
-  data: Data;
-  setData: (d: Data) => void;
-}
+export type { Data, FieldsProps } from './qtypes-shared';
 
 const FRACTIONS: [string, string][] = [
   ['1', 'p100'],
@@ -27,24 +24,6 @@ const FRACTIONS: [string, string][] = [
   ['-0.5', 'm50'],
   ['-1', 'm100'],
 ];
-let seq = 0;
-export const nid = (p: string) => `${p}${Date.now().toString(36)}${(seq++).toString(36)}`;
-
-/** Helpers for the lists in a question's data (answers, pairs). */
-function listHelpers({ data, setData }: FieldsProps) {
-  const list = <T,>(key: string) => (data[key] as T[]) ?? [];
-  return {
-    list,
-    setItem: (key: string, i: number, patch: Data) =>
-      setData({
-        ...data,
-        [key]: list<Data>(key).map((x, j) => (j === i ? { ...x, ...patch } : x)),
-      }),
-    removeItem: (key: string, i: number) =>
-      setData({ ...data, [key]: list<Data>(key).filter((_, j) => j !== i) }),
-  };
-}
-
 export function FractionSelect({
   value,
   onChange,
@@ -443,4 +422,7 @@ export const editorParts = {
   },
   ESSAY: { defaults: () => ({ minWords: 0, maxWords: 0, graderInfo: '' }), Fields: EssayFields },
   DESCRIPTION: { defaults: () => ({}), Fields: null },
+  ORDERING: { defaults: orderingDefaults, Fields: OrderingFields },
+  GAPSELECT: { defaults: gapDefaults(false), Fields: (p) => <GapFields {...p} drag={false} /> },
+  DDWTOS: { defaults: gapDefaults(true), Fields: (p) => <GapFields {...p} drag /> },
 } satisfies Record<QuestionType, EditorPart>;

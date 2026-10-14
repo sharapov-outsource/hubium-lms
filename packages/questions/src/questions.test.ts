@@ -49,6 +49,33 @@ const fixtures: { [K in QuestionType]: QuestionSnapshot & { type: K } } = (() =>
     }),
     ESSAY: q('ESSAY', { minWords: 10, graderInfo: 'look for the thesis' }),
     DESCRIPTION: q('DESCRIPTION', {}),
+    ORDERING: q('ORDERING', {
+      items: [
+        { id: 'i1', text: 'first' },
+        { id: 'i2', text: 'second' },
+        { id: 'i3', text: 'third' },
+      ],
+      feedbackCorrect: 'well done',
+    }),
+    GAPSELECT: {
+      ...q('GAPSELECT', {
+        choices: [
+          { id: 'c1', text: 'cat', group: 1 },
+          { id: 'c2', text: 'dog', group: 1 },
+        ],
+        feedbackCorrect: 'well done',
+      }),
+      text: '<p>The [[2]] barks</p>',
+    },
+    DDWTOS: {
+      ...q('DDWTOS', {
+        choices: [
+          { id: 'c1', text: 'cat', group: 1 },
+          { id: 'c2', text: 'dog', group: 1 },
+        ],
+      }),
+      text: '<p>The [[2]] barks</p>',
+    },
   };
 })();
 

@@ -26,6 +26,7 @@ import {
   readReview,
   sumMaxMarks,
 } from '../server.ts';
+import { blankGaps } from './blank-gaps.ts';
 import {
   AttemptActions,
   DeleteOverrideButton,
@@ -276,8 +277,11 @@ async function ReviewPage({ activity: a, ctx, attemptId }: Props & { attemptId: 
               </div>
             </CardHeader>
             <CardContent className="grid gap-3">
-              {/* biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised on save */}
-              <div className="prose-content" dangerouslySetInnerHTML={{ __html: qa.text }} />
+              <div
+                className="prose-content"
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised on save; gaps become blanks
+                dangerouslySetInnerHTML={{ __html: qa.gapPlaces ? blankGaps(qa.text) : qa.text }}
+              />
               {typeDef(qa.type).grading !== 'none' ? (
                 <div className="rounded-md bg-muted p-3 text-sm">
                   <p className="text-xs text-muted-foreground">{t('yourAnswer')}</p>
@@ -287,6 +291,25 @@ async function ReviewPage({ activity: a, ctx, attemptId }: Props & { attemptId: 
                   ) : (
                     <p>{answer ? tf(answer) : t('notAnswered')}</p>
                   )}
+                </div>
+              ) : null}
+              {qa.partScores?.length ? (
+                <div className="grid gap-1 text-sm">
+                  <p className="text-xs font-medium text-muted-foreground">{t('order.scores')}</p>
+                  <ol className="grid gap-1">
+                    {qa.partScores.map((p, i) => (
+                      <li
+                        // biome-ignore lint/suspicious/noArrayIndexKey: positions of one fixed answer
+                        key={i}
+                        className="flex items-center justify-between gap-3 rounded-md bg-muted px-2 py-1"
+                      >
+                        <span className="min-w-0 break-words">{p.text}</span>
+                        <span className="shrink-0 tabular-nums text-xs text-muted-foreground">
+                          {p.fraction === null ? '—' : `${Math.round(p.fraction * 100)}%`}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
               ) : null}
               {qa.answerFeedback.length ? (

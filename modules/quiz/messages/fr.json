@@ -219,6 +219,27 @@
         "TRYAGAIN": "En attente d’un nouvel essai",
         "COMPLETE": "Terminée"
       }
+    },
+    "order": {
+      "help": "Mettez les éléments en ordre avec les boutons fléchés.",
+      "list": "Éléments à ordonner",
+      "up": "Monter : {item}",
+      "down": "Descendre : {item}",
+      "left": "Vers la gauche : {item}",
+      "right": "Vers la droite : {item}",
+      "moved": "{item} : position {n} sur {total}",
+      "scores": "Score de chaque élément"
+    },
+    "gaps": {
+      "gap": "Trou {n}",
+      "empty": "vide",
+      "bank": "Réponses",
+      "pick": "Choisissez une réponse, puis son trou, ou faites-la glisser. Choisir un trou rempli le vide.",
+      "placed": "« {choice} » est dans le trou {n}",
+      "cleared": "Le trou {n} est vide",
+      "wrongGroup": "Cette réponse ne va pas dans le trou {n}",
+      "useLists": "Répondre avec des listes",
+      "useDrag": "Répondre en glissant"
     }
   }
 }

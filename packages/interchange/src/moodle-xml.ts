@@ -2,10 +2,24 @@ import { type RequestContext, ValidationError } from '@hubium/core';
 import type { Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { createTranslator } from '@hubium/i18n/packs';
-import { type Hint, Hints, type QuestionType, questionDataSchemas } from '@hubium/questions';
+import {
+  checkQuestionText,
+  type Hint,
+  Hints,
+  type QuestionType,
+  questionDataSchemas,
+} from '@hubium/questions';
 import { XMLBuilder, XMLParser } from 'fast-xml-parser';
+import {
+  orderingGrading,
+  orderingGradingName,
+  orderingLayout,
+  orderingNumbering,
+  orderingSelect,
+  orderingShowGrading,
+} from './moodle-qtypes.ts';
 
-// Moodle XML question format: import (7 question types, category paths, base64 images,
+// Moodle XML question format: import (10 question types, category paths, base64 images,
 // feedback, fractions, hints) and export of a course question bank.
 
 type Node = Record<string, unknown>;
@@ -213,9 +227,69 @@ function mapQuestion(q: Node, path: string[], untitled: string): ParsedQuestion 
       };
     case 'description':
       return { ...base, defaultMark: 0, type: 'DESCRIPTION', data: {} };
+    case 'ordering': {
+      // the answers come in the right order
+      const select = txt(q.selecttype ?? q.logical) || 'RANDOM';
+      return {
+        ...base,
+        type: 'ORDERING',
+        data: {
+          items: answers
+            .map((a, i) => ({ id: `i${i + 1}`, text: plain(html(a)) }))
+            .filter((i) => i.text),
+          grading: orderingGrading(txt(q.gradingtype) || 'RELATIVE'),
+          select: orderingSelect(select),
+          selectCount: Math.max(2, num(q.selectcount ?? q.studentsee, 6)),
+          layout: orderingLayout(txt(q.layouttype)),
+          numbering: orderingNumbering(txt(q.numberingstyle)),
+          showGrading: orderingShowGrading(txt(q.showgrading) || 'SHOW'),
+          ...combinedFeedback(q),
+        },
+      };
+    }
+    case 'gapselect': {
+      // modern files list <selectoption>s; old ones answers with the group as feedback
+      const options = arr(q.selectoption as Node | Node[]);
+      const choices = options.length
+        ? options.map((o, i) => ({ id: `c${i + 1}`, text: plain(txt(o)), group: num(o.group, 1) }))
+        : answers.map((a, i) => ({
+            id: `c${i + 1}`,
+            text: plain(txt(a)),
+            group: num(txt(a.feedback), 1),
+          }));
+      return {
+        ...base,
+        type: 'GAPSELECT',
+        data: { shuffle: txt(q.shuffleanswers) !== '0', choices, ...combinedFeedback(q) },
+      };
+    }
+    case 'ddwtos':
+      return {
+        ...base,
+        type: 'DDWTOS',
+        data: {
+          shuffle: txt(q.shuffleanswers) !== '0',
+          choices: arr(q.dragbox as Node | Node[]).map((d, i) => ({
+            id: `c${i + 1}`,
+            text: plain(txt(d)),
+            group: num(d.group, 1),
+            infinite: 'infinite' in d,
+          })),
+          ...combinedFeedback(q),
+        },
+      };
     default:
       return null;
   }
+}
+
+/** Feedback for right, partly right and wrong responses. */
+function combinedFeedback(q: Node) {
+  return {
+    feedbackCorrect: sanitizeRichText(html(q.correctfeedback)),
+    feedbackPartial: sanitizeRichText(html(q.partiallycorrectfeedback)),
+    feedbackIncorrect: sanitizeRichText(html(q.incorrectfeedback)),
+  };
 }
 
 /** Parses Moodle XML; category entries set the path for the questions that follow. */
@@ -226,7 +300,10 @@ export function parseMoodleXml(xml: string, untitled = 'Question'): ParseResult 
     attributeNamePrefix: '@_',
     parseTagValue: false,
     trimValues: true,
-    isArray: (name) => ['question', 'answer', 'subquestion', 'file', 'tag'].includes(name),
+    isArray: (name) =>
+      ['question', 'answer', 'subquestion', 'file', 'tag', 'selectoption', 'dragbox'].includes(
+        name,
+      ),
   });
   const doc = parser.parse(xml) as Node;
   const quiz = doc.quiz as Node | undefined;
@@ -252,6 +329,12 @@ export function parseMoodleXml(xml: string, untitled = 'Question'): ParseResult 
       const parsed = schema.safeParse(mapped.data);
       if (!parsed.success) {
         out.errors.push({ name, message: parsed.error.issues[0]?.message ?? 'Invalid question' });
+        continue;
+      }
+      // gaps in the text must match the choices
+      const textError = checkQuestionText(mapped.type, mapped.text, parsed.data);
+      if (textError) {
+        out.errors.push({ name, message: textError });
         continue;
       }
       out.questions.push({ ...mapped, data: parsed.data });
@@ -316,6 +399,15 @@ export async function importMoodleXml(ctx: RequestContext, courseId: string, xml
 // ── export ───────────────────────────────────────────────────────────────────
 
 const cdata = (s: string) => ({ text: { '#cdata': s } });
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+type Combined = { feedbackCorrect: string; feedbackPartial: string; feedbackIncorrect: string };
+const combinedNodes = (d: Combined): Node => ({
+  correctfeedback: { '@_format': 'html', ...cdata(d.feedbackCorrect) },
+  partiallycorrectfeedback: { '@_format': 'html', ...cdata(d.feedbackPartial) },
+  incorrectfeedback: { '@_format': 'html', ...cdata(d.feedbackIncorrect) },
+});
 
 function exportQuestion(q: {
   type: string;
@@ -448,6 +540,52 @@ function exportQuestion(q: {
     }
     case 'DESCRIPTION':
       return { '@_type': 'description', ...head };
+    case 'ORDERING': {
+      const d = q.data as {
+        items: { text: string }[];
+        grading: Parameters<typeof orderingGradingName>[0];
+        select: string;
+        selectCount: number;
+        layout: string;
+        numbering: string;
+        showGrading: boolean;
+      } & Combined;
+      return {
+        '@_type': 'ordering',
+        ...head,
+        layouttype: d.layout.toUpperCase(),
+        selecttype: d.select.toUpperCase(),
+        selectcount: String(d.select === 'all' ? d.items.length : d.selectCount),
+        gradingtype: orderingGradingName(d.grading),
+        showgrading: d.showGrading ? 'SHOW' : 'HIDE',
+        numberingstyle: d.numbering,
+        ...combinedNodes(d),
+        answer: d.items.map((it, i) => ({
+          '@_fraction': String(i + 1),
+          '@_format': 'html',
+          ...cdata(escapeHtml(it.text)),
+        })),
+      };
+    }
+    case 'GAPSELECT':
+    case 'DDWTOS': {
+      const d = q.data as {
+        shuffle: boolean;
+        choices: { text: string; group: number; infinite?: boolean }[];
+      } & Combined;
+      const drag = type === 'DDWTOS';
+      return {
+        '@_type': drag ? 'ddwtos' : 'gapselect',
+        ...head,
+        shuffleanswers: d.shuffle ? '1' : '0',
+        ...combinedNodes(d),
+        [drag ? 'dragbox' : 'selectoption']: d.choices.map((c) => ({
+          text: c.text,
+          group: String(c.group),
+          ...(drag && c.infinite ? { infinite: '' } : {}),
+        })),
+      };
+    }
     default: {
       // every question type needs a branch here: this stops the build otherwise
       const missing: never = type;

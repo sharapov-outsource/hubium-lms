@@ -219,6 +219,27 @@
         "TRYAGAIN": "Wartet auf neuen Versuch",
         "COMPLETE": "Abgeschlossen"
       }
+    },
+    "order": {
+      "help": "Bringen Sie die Elemente mit den Pfeiltasten in die richtige Reihenfolge.",
+      "list": "Zu ordnende Elemente",
+      "up": "Nach oben: {item}",
+      "down": "Nach unten: {item}",
+      "left": "Nach links: {item}",
+      "right": "Nach rechts: {item}",
+      "moved": "{item}: Platz {n} von {total}",
+      "scores": "Punkte je Element"
+    },
+    "gaps": {
+      "gap": "Lücke {n}",
+      "empty": "leer",
+      "bank": "Antworten",
+      "pick": "Wählen Sie eine Antwort und dann ihre Lücke, oder ziehen Sie sie hinein. Eine gefüllte Lücke wird beim Wählen geleert.",
+      "placed": "„{choice}“ steht in Lücke {n}",
+      "cleared": "Lücke {n} ist leer",
+      "wrongGroup": "Diese Antwort passt nicht in Lücke {n}",
+      "useLists": "Mit Listen antworten",
+      "useDrag": "Durch Ziehen antworten"
     }
   }
 }

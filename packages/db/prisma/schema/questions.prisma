@@ -8,6 +8,9 @@ enum QuestionType {
   MATCH
   ESSAY
   DESCRIPTION
+  ORDERING
+  GAPSELECT
+  DDWTOS
 }
 
 enum QuestionStatus {

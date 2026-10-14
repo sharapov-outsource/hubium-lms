@@ -944,7 +944,10 @@
       "NUMERICAL": "Numerical",
       "MATCH": "Matching",
       "ESSAY": "Essay",
-      "DESCRIPTION": "Description (no answer)"
+      "DESCRIPTION": "Description (no answer)",
+      "ORDERING": "Ordering",
+      "GAPSELECT": "Select missing words",
+      "DDWTOS": "Drag and drop into text"
     },
     "name": "Name",
     "text": "Question text",
@@ -1012,6 +1015,65 @@
       "addHint": "Add a hint",
       "clearWrong": "Clear incorrect responses",
       "showNumCorrect": "Show the number of correct responses"
+    },
+    "ordering": {
+      "itemsHint": "Items in the right order. Learners see them shuffled, never already in order.",
+      "item": "Item {n}",
+      "addItem": "Add an item",
+      "up": "Move item {n} up",
+      "down": "Move item {n} down",
+      "grading": "Grading",
+      "gradings": {
+        "allOrNothing": "All or nothing",
+        "absolutePosition": "Absolute position",
+        "relativeToCorrect": "Relative to the correct position",
+        "relativeNextExcludeLast": "Relative to the next item (excluding last)",
+        "relativeNextIncludeLast": "Relative to the next item (including last)",
+        "relativeOnePreviousAndNext": "Relative to both the previous and next items",
+        "relativeAllPreviousAndNext": "Relative to all the previous and next items",
+        "longestOrderedSubset": "Longest ordered subset",
+        "longestContiguousSubset": "Longest contiguous subset"
+      },
+      "gradingHints": {
+        "allOrNothing": "Full marks only when every item is in place.",
+        "absolutePosition": "A point for each item in its right place.",
+        "relativeToCorrect": "Each item scores by how far it is from its right place.",
+        "relativeNextExcludeLast": "A point for each item followed by its right next item.",
+        "relativeNextIncludeLast": "As above, and a point for the right last item.",
+        "relativeOnePreviousAndNext": "Points for each item’s right item before and after.",
+        "relativeAllPreviousAndNext": "Points for every pair of items in the right order.",
+        "longestOrderedSubset": "The longest run of items in the right order, gaps allowed.",
+        "longestContiguousSubset": "The longest run of items next to each other in the right order."
+      },
+      "select": "Items shown",
+      "selects": {
+        "all": "All",
+        "random": "Some, drawn at random",
+        "contiguous": "Some, next to each other in the right order"
+      },
+      "selectCount": "How many",
+      "layout": "Layout",
+      "layouts": {
+        "vertical": "Vertical",
+        "horizontal": "Horizontal"
+      },
+      "numbering": "Numbering",
+      "noNumbering": "None",
+      "showGrading": "Show how each item scored in review"
+    },
+    "gaps": {
+      "help": "Write [[1]], [[2]], … in the question text where the gaps go: [[n]] is a gap whose right answer is choice n. A gap offers the choices of its right choice’s group.",
+      "choice": "Choice {n}",
+      "group": "Group of choice {n}",
+      "groupN": "Group {n}",
+      "infinite": "Unlimited",
+      "addChoice": "Add a choice"
+    },
+    "combined": {
+      "title": "Feedback for the whole response",
+      "feedbackCorrect": "For any correct response",
+      "feedbackPartial": "For any partially correct response",
+      "feedbackIncorrect": "For any incorrect response"
     }
   },
   "notifications": {

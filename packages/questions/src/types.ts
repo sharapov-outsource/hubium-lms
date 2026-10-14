@@ -72,6 +72,69 @@ export const EssayData = z.object({
 
 export const DescriptionData = z.object({});
 
+/** Feedback by how right the whole response is (Moodle's combined feedback). */
+const CombinedFeedback = {
+  feedbackCorrect: z.string().max(5000).default(''),
+  feedbackPartial: z.string().max(5000).default(''),
+  feedbackIncorrect: z.string().max(5000).default(''),
+};
+
+/** The ways an order is graded, as Moodle's ordering question. */
+export const orderingGradings = [
+  'allOrNothing',
+  'absolutePosition',
+  'relativeToCorrect',
+  'relativeNextExcludeLast',
+  'relativeNextIncludeLast',
+  'relativeOnePreviousAndNext',
+  'relativeAllPreviousAndNext',
+  'longestOrderedSubset',
+  'longestContiguousSubset',
+] as const;
+export type OrderingGrading = (typeof orderingGradings)[number];
+export const orderingNumberings = ['none', 'abc', 'ABCD', '123', 'iii', 'IIII'] as const;
+
+export const OrderingData = z.object({
+  /** In the right order. */
+  items: z
+    .array(z.object({ id: z.string().min(1), text: z.string().min(1).max(2000) }))
+    .min(2)
+    .max(30),
+  grading: z.enum(orderingGradings).default('relativeNextExcludeLast'),
+  /** all items, or `selectCount` of them: any, or next to each other in the right order */
+  select: z.enum(['all', 'random', 'contiguous']).default('all'),
+  selectCount: z.number().int().min(2).max(30).default(6),
+  layout: z.enum(['vertical', 'horizontal']).default('vertical'),
+  numbering: z.enum(orderingNumberings).default('none'),
+  /** Review shows how each item scored. */
+  showGrading: z.boolean().default(true),
+  ...CombinedFeedback,
+});
+
+const GapChoice = z.object({
+  id: z.string().min(1),
+  text: z.string().trim().min(1).max(500),
+  /** A gap takes the choices of its right choice's group. */
+  group: z.number().int().min(1).max(20).default(1),
+});
+
+/** Gaps [[n]] in the question text, each answered from a list; n names the right choice. */
+export const GapSelectData = z.object({
+  shuffle: z.boolean().default(true),
+  choices: z.array(GapChoice).min(2).max(60),
+  ...CombinedFeedback,
+});
+
+/** As GapSelectData, answered by dragging; an unlimited choice can fill several gaps. */
+export const DdwtosData = z.object({
+  shuffle: z.boolean().default(true),
+  choices: z
+    .array(GapChoice.extend({ infinite: z.boolean().default(false) }))
+    .min(2)
+    .max(60),
+  ...CombinedFeedback,
+});
+
 export const questionDataSchemas = {
   MULTICHOICE: MultichoiceData,
   TRUEFALSE: TrueFalseData,
@@ -80,6 +143,9 @@ export const questionDataSchemas = {
   MATCH: MatchData,
   ESSAY: EssayData,
   DESCRIPTION: DescriptionData,
+  ORDERING: OrderingData,
+  GAPSELECT: GapSelectData,
+  DDWTOS: DdwtosData,
 } as const;
 
 export type QuestionType = keyof typeof questionDataSchemas;
@@ -112,7 +178,10 @@ export interface QuestionSnapshot {
   /** Share of the mark lost for each wrong try in interactive mode (0..1). */
   penalty?: number;
   hints?: Hint[];
-  /** Per-attempt presentation order (answer ids / pair ids / choice texts). */
+  /**
+   * Per-attempt presentation: the order of answer ids, pair ids or ordering items, and
+   * the choices (match texts, gap choice ids).
+   */
   order?: string[];
   choices?: string[];
 }
@@ -125,6 +194,11 @@ export const ResponseSchemas = {
   MATCH: z.object({ choices: z.record(z.string(), z.string()) }),
   ESSAY: z.object({ text: z.string().max(100_000) }),
   DESCRIPTION: z.object({}),
+  /** Item ids in the learner's order. */
+  ORDERING: z.object({ order: z.array(z.string().max(100)).max(30).default([]) }),
+  /** Gap number (1, 2, … in the order of the text) → choice id. */
+  GAPSELECT: z.object({ gaps: z.record(z.string(), z.string().max(100)).default({}) }),
+  DDWTOS: z.object({ gaps: z.record(z.string(), z.string().max(100)).default({}) }),
 } as const;
 
 export type QuestionResponse = z.output<(typeof ResponseSchemas)[QuestionType]>;

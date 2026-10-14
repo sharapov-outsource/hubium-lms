@@ -943,7 +943,10 @@
       "NUMERICAL": "Numerica",
       "MATCH": "Corrispondenza",
       "ESSAY": "Componimento",
-      "DESCRIPTION": "Descrizione (senza risposta)"
+      "DESCRIPTION": "Descrizione (senza risposta)",
+      "ORDERING": "Ordinamento",
+      "GAPSELECT": "Seleziona parole mancanti",
+      "DDWTOS": "Trascina e rilascia nel testo"
     },
     "name": "Nome",
     "text": "Testo della domanda",
@@ -1011,6 +1014,65 @@
       "addHint": "Aggiungi un suggerimento",
       "clearWrong": "Cancella le risposte errate",
       "showNumCorrect": "Mostra il numero di risposte giuste"
+    },
+    "ordering": {
+      "itemsHint": "Gli elementi nell’ordine giusto. Gli studenti li vedono mescolati, mai già in ordine.",
+      "item": "Elemento {n}",
+      "addItem": "Aggiungi un elemento",
+      "up": "Sposta su l’elemento {n}",
+      "down": "Sposta giù l’elemento {n}",
+      "grading": "Valutazione",
+      "gradings": {
+        "allOrNothing": "Tutto o niente",
+        "absolutePosition": "Posizione assoluta",
+        "relativeToCorrect": "Relativa alla posizione corretta",
+        "relativeNextExcludeLast": "Relativa all’elemento successivo (escluso l’ultimo)",
+        "relativeNextIncludeLast": "Relativa all’elemento successivo (incluso l’ultimo)",
+        "relativeOnePreviousAndNext": "Relativa agli elementi precedente e successivo",
+        "relativeAllPreviousAndNext": "Relativa a tutti gli elementi precedenti e successivi",
+        "longestOrderedSubset": "Sottosequenza ordinata più lunga",
+        "longestContiguousSubset": "Sottosequenza contigua più lunga"
+      },
+      "gradingHints": {
+        "allOrNothing": "Punteggio pieno solo se ogni elemento è al suo posto.",
+        "absolutePosition": "Un punto per ogni elemento al suo posto.",
+        "relativeToCorrect": "Ogni elemento vale in base alla distanza dal suo posto.",
+        "relativeNextExcludeLast": "Un punto per ogni elemento seguito da quello giusto.",
+        "relativeNextIncludeLast": "Come sopra, più un punto per l’ultimo elemento giusto.",
+        "relativeOnePreviousAndNext": "Punti per i vicini giusti di ogni elemento.",
+        "relativeAllPreviousAndNext": "Punti per ogni coppia di elementi nell’ordine giusto.",
+        "longestOrderedSubset": "La sequenza più lunga nell’ordine giusto, anche con salti.",
+        "longestContiguousSubset": "La sequenza più lunga di elementi vicini nell’ordine giusto."
+      },
+      "select": "Elementi mostrati",
+      "selects": {
+        "all": "Tutti",
+        "random": "Alcuni, a caso",
+        "contiguous": "Alcuni, consecutivi nell’ordine giusto"
+      },
+      "selectCount": "Quanti",
+      "layout": "Disposizione",
+      "layouts": {
+        "vertical": "Verticale",
+        "horizontal": "Orizzontale"
+      },
+      "numbering": "Numerazione",
+      "noNumbering": "Nessuna",
+      "showGrading": "Mostrare nella revisione il punteggio di ogni elemento"
+    },
+    "gaps": {
+      "help": "Scrivete [[1]], [[2]], … nel testo dove vanno gli spazi: [[n]] è uno spazio la cui risposta giusta è la scelta n. Uno spazio offre le scelte del gruppo della sua risposta giusta.",
+      "choice": "Scelta {n}",
+      "group": "Gruppo della scelta {n}",
+      "groupN": "Gruppo {n}",
+      "infinite": "Illimitata",
+      "addChoice": "Aggiungi una scelta"
+    },
+    "combined": {
+      "title": "Feedback sull’intera risposta",
+      "feedbackCorrect": "Per ogni risposta corretta",
+      "feedbackPartial": "Per ogni risposta parzialmente corretta",
+      "feedbackIncorrect": "Per ogni risposta errata"
     }
   },
   "notifications": {

@@ -13,7 +13,10 @@ import {
 export { parseNumber } from './qtypes/text.ts';
 export type { GradeResult } from './registry.ts';
 
-type Gradable = Pick<QuestionSnapshot, 'type' | 'data' | 'order' | 'choices'>;
+type Gradable = Pick<QuestionSnapshot, 'type' | 'data' | 'order' | 'choices'> & {
+  /** Types with gaps in the text need it. */
+  text?: string;
+};
 
 export function gradeResponse(q: Gradable, raw: unknown): GradeResult {
   const parsed = ResponseSchemas[q.type].safeParse(raw ?? {});
@@ -39,6 +42,24 @@ export function correctResponse(q: Gradable): QuestionResponse | null {
 export function isAnswered(type: QuestionType, raw: unknown): boolean {
   if (!raw || typeof raw !== 'object') return false;
   return typeDef(type).isAnswered(raw as Record<string, unknown>);
+}
+
+/** The question text as the learner sees it. */
+export function publicText(q: Gradable & { text: string }): string {
+  return typeDef(q.type).publicText?.(q as QuestionView, q.text) ?? q.text;
+}
+
+/** What is wrong with a question's text for its type, or null. */
+export function checkQuestionText(type: QuestionType, text: string, data: unknown): string | null {
+  return typeDef(type).checkText?.(text, data as never) ?? null;
+}
+
+/** Per-part scores for review (an ordering's items), or null. */
+export function reviewParts(q: Gradable, raw: unknown) {
+  const def = typeDef(q.type);
+  const parsed = ResponseSchemas[q.type].safeParse(raw ?? {});
+  if (!def.reviewParts || !parsed.success) return null;
+  return def.reviewParts(q as QuestionView, parsed.data as never);
 }
 
 /** The response as text for review screens (choices by their text, matches as pairs). */

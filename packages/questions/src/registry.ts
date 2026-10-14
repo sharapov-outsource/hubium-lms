@@ -19,6 +19,8 @@ export type ResponseOf<T extends QuestionType> = z.output<(typeof ResponseSchema
 export interface QuestionView<T extends QuestionType = QuestionType> {
   type: T;
   data: QuestionData<T>;
+  /** The question text: types with gaps in it read them from here. */
+  text?: string;
   order?: string[];
   choices?: string[];
 }
@@ -34,6 +36,23 @@ export const PublicFields = z.object({
   matchChoices: z.array(z.string()).optional(),
   minWords: z.number().optional(),
   maxWords: z.number().optional(),
+  orderItems: z.array(z.object({ id: z.string(), text: z.string() })).optional(),
+  orderLayout: z.enum(['vertical', 'horizontal']).optional(),
+  orderNumbering: z.string().optional(),
+  /** The gaps of the text: [[1]], [[2]], … in order, each taking choices of its group. */
+  gapPlaces: z.array(z.object({ place: z.number(), group: z.number() })).optional(),
+  gapChoices: z
+    .array(
+      z.object({
+        id: z.string(),
+        text: z.string(),
+        group: z.number(),
+        infinite: z.boolean().optional(),
+      }),
+    )
+    .optional(),
+  /** Answered by dragging choices into the gaps (or picking them) rather than from lists. */
+  gapDrag: z.boolean().optional(),
 });
 export type PublicFields = z.output<typeof PublicFields>;
 
@@ -63,6 +82,18 @@ export interface QuestionTypeDef<T extends QuestionType> {
   /** The response as text for review screens. */
   answerText(q: QuestionView<T>, r: Record<string, unknown>): string;
   publicView(q: QuestionView<T>): PublicFields;
+  /**
+   * The question text as the learner sees it, when the type marks it up (gaps renumbered
+   * so they do not tell the right choice).
+   */
+  publicText?(q: QuestionView<T>, text: string): string;
+  /** What is wrong with the question text for this type's data, or null. */
+  checkText?(text: string, data: QuestionData<T>): string | null;
+  /** Per-part scores shown in review (an ordering's items), when the question shows them. */
+  reviewParts?(
+    q: QuestionView<T>,
+    r: ResponseOf<T>,
+  ): { text: string; fraction: number | null }[] | null;
   /** The whole GIFT question; absent when GIFT cannot express the type. */
   gift?(data: QuestionData<T>, p: GiftParts): string;
   /** Right parts of a response, for the hint "show the number of correct responses". */

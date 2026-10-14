@@ -50,8 +50,47 @@ const SAMPLE = `<?xml version="1.0" encoding="UTF-8"?>
   <question type="description">
     <name><text>Справка</text></name><questiontext><text>Далее — вопросы по спискам</text></questiontext>
   </question>
+  <question type="ordering">
+    <name><text>Порядок</text></name><questiontext format="html"><text>Расставьте этапы</text></questiontext>
+    <layouttype>VERTICAL</layouttype><selecttype>RANDOM</selecttype><selectcount>2</selectcount>
+    <gradingtype>ABSOLUTE_POSITION</gradingtype><showgrading>SHOW</showgrading><numberingstyle>123</numberingstyle>
+    <correctfeedback format="html"><text>Отлично</text></correctfeedback>
+    <answer fraction="1" format="html"><text>Написать</text></answer>
+    <answer fraction="2" format="html"><text>Выполнить</text></answer>
+    <answer fraction="3" format="html"><text>Проверить</text></answer>
+  </question>
+  <question type="gapselect">
+    <name><text>Пропуски</text></name><questiontext format="html"><text>[[1]] изменяемый, [[2]] нет</text></questiontext>
+    <shuffleanswers>1</shuffleanswers>
+    <selectoption><text>list</text><group>1</group></selectoption>
+    <selectoption><text>tuple</text><group>1</group></selectoption>
+  </question>
+  <question type="ddwtos">
+    <name><text>Перетаскивание</text></name><questiontext format="html"><text>[[1]] и снова [[1]]</text></questiontext>
+    <shuffleanswers>0</shuffleanswers>
+    <dragbox><text>list</text><group>1</group><infinite/></dragbox>
+    <dragbox><text>dict</text><group>1</group></dragbox>
+  </question>
+  <question type="ddwtos">
+    <name><text>Битый</text></name><questiontext format="html"><text>[[3]]</text></questiontext>
+    <dragbox><text>list</text><group>1</group></dragbox>
+    <dragbox><text>dict</text><group>1</group></dragbox>
+  </question>
   <question type="calculated"><name><text>Формула</text></name><questiontext><text>x</text></questiontext></question>
 </quiz>`;
+
+const TYPES = [
+  'MULTICHOICE',
+  'TRUEFALSE',
+  'SHORTANSWER',
+  'NUMERICAL',
+  'MATCH',
+  'ESSAY',
+  'DESCRIPTION',
+  'ORDERING',
+  'GAPSELECT',
+  'DDWTOS',
+];
 
 const HINTS = [
   { text: 'Подумайте о точке', clearWrong: false, showNumCorrect: true },
@@ -59,20 +98,30 @@ const HINTS = [
 ];
 
 describe('Moodle XML', () => {
-  it('parses the seven supported types', () => {
+  it('parses the supported types', () => {
     const r = parseMoodleXml(SAMPLE);
-    expect(r.questions.map((q) => q.type)).toEqual([
-      'MULTICHOICE',
-      'TRUEFALSE',
-      'SHORTANSWER',
-      'NUMERICAL',
-      'MATCH',
-      'ESSAY',
-      'DESCRIPTION',
-    ]);
+    expect(r.questions.map((q) => q.type)).toEqual(TYPES);
     expect(r.errors).toEqual([
+      { name: 'Битый', message: 'No choice for [[3]]' },
       { name: 'Формула', message: 'Unsupported question type: calculated' },
     ]);
+    const [, , , , , , , ord, gap, drag] = r.questions;
+    expect(ord!.data).toMatchObject({
+      items: [{ text: 'Написать' }, { text: 'Выполнить' }, { text: 'Проверить' }],
+      grading: 'absolutePosition',
+      select: 'random',
+      selectCount: 2,
+      numbering: '123',
+      feedbackCorrect: 'Отлично',
+    });
+    expect(gap!.data).toMatchObject({ choices: [{ text: 'list' }, { text: 'tuple' }] });
+    expect(drag!.data).toMatchObject({
+      shuffle: false,
+      choices: [
+        { text: 'list', infinite: true },
+        { text: 'dict', infinite: false },
+      ],
+    });
     const [mc, tf, sa, nu, ma, es] = r.questions;
     expect(mc).toMatchObject({
       categoryPath: ['Python', 'Основы'],
@@ -115,7 +164,7 @@ describe('Moodle XML', () => {
       const f = await courseFixture(t.db, 'MXML1');
       const teacher = await ctxFor(t.db, f.users.teacher!);
       const r = await importMoodleXml(teacher, f.courseId, SAMPLE);
-      expect(r.created).toBe(7);
+      expect(r.created).toBe(10);
       const cats = await t.db.questionCategory.findMany({ where: { contextId: f.courseId } });
       expect(cats.map((c) => c.name).sort()).toEqual(['Python', 'Основы']);
       const xml = await exportMoodleXml(teacher, f.courseId);
@@ -123,15 +172,10 @@ describe('Moodle XML', () => {
       expect(xml).toContain('$course$/top/Python/Основы');
       const again = parseMoodleXml(xml);
       expect(again.errors).toEqual([]);
-      expect(again.questions.map((q) => q.type)).toEqual([
-        'MULTICHOICE',
-        'TRUEFALSE',
-        'SHORTANSWER',
-        'NUMERICAL',
-        'MATCH',
-        'ESSAY',
-        'DESCRIPTION',
-      ]);
+      expect(again.questions.map((q) => q.type)).toEqual(TYPES);
+      // the new types come back as they went out
+      const first = parseMoodleXml(SAMPLE).questions;
+      for (const k of [7, 8, 9]) expect(again.questions[k]!.data).toEqual(first[k]!.data);
       expect(again.questions[3]!.data).toMatchObject({ answers: [{ value: 3, fraction: 1 }] });
       expect(again.questions[0]!.hints).toEqual(HINTS);
       expect(again.questions[1]!.hints).toEqual([]);

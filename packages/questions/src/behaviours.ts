@@ -54,7 +54,7 @@ export interface Outcome {
 type Replayable = Pick<
   QuestionSnapshot,
   'type' | 'data' | 'order' | 'choices' | 'penalty' | 'hints'
->;
+> & { text?: string };
 
 /** The behaviour a question really has: graded-by-hand and ungraded ones defer. */
 export function behaviourOf(q: Pick<QuestionSnapshot, 'type'>, b: Behaviour): Behaviour {

@@ -22,7 +22,7 @@ describe('.mbz import', () => {
       moodleRelease: '4.5 (Build: 20241007)',
       sections: 2,
       activities: 7,
-      questions: 2,
+      questions: 4,
     });
     expect(report.warnings.join('\n')).toContain('Формула');
     expect(report.warnings.join('\n')).toContain('Новости');
@@ -117,6 +117,25 @@ describe('.mbz import', () => {
       where: { contextId: report.courseId },
     });
     expect(cat.name).toBe('По умолчанию для курса');
+    // ordering (items by their place) and drag and drop into text
+    const byName = async (name: string) =>
+      t.db.question.findFirstOrThrow({ where: { categoryId: cat.id, name } });
+    expect((await byName('Порядок')).data).toMatchObject({
+      items: [{ text: 'Написать' }, { text: 'Выполнить' }, { text: 'Проверить' }],
+      grading: 'longestOrderedSubset',
+      select: 'all',
+      layout: 'horizontal',
+      numbering: 'abc',
+      showGrading: false,
+      feedbackCorrect: 'Верно',
+    });
+    expect((await byName('Перетаскивание')).data).toMatchObject({
+      shuffle: false,
+      choices: [
+        { text: 'list', group: 1, infinite: false },
+        { text: 'tuple', group: 2, infinite: true },
+      ],
+    });
     expect(slots[2]!.categoryId).toBe(cat.id);
   });
 

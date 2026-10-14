@@ -1,6 +1,7 @@
 import type { Db, Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import {
+  checkQuestionText,
   Hint,
   parseGift,
   type QuestionType,
@@ -153,6 +154,9 @@ export const saveQuestion = defineOperation({
       throw new ValidationError({ text: ['Question text is required'] });
     }
     const data = validateData(input.type, input.data) as Prisma.InputJsonValue;
+    // gaps in the text must match the choices
+    const textError = checkQuestionText(input.type, sanitizeRichText(input.text), data);
+    if (textError) throw new ValidationError({ text: [textError] });
     const values = {
       categoryId: input.categoryId,
       type: input.type,

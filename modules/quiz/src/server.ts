@@ -28,6 +28,7 @@ import {
   ResponseSchemas,
   replay,
   answerText as responseText,
+  reviewParts,
   type Step,
   shuffle,
   subSeed,
@@ -917,6 +918,8 @@ export interface ReviewQuestion extends PublicQuestion {
   generalFeedback: string | null;
   /** Feedback for the answer given, when answers may be shown. */
   answerFeedback: string[];
+  /** How each part scored (an ordering's items), when the question shows it. */
+  partScores: { text: string; fraction: number | null }[] | null;
   comment: string | null;
   /** Teachers: what happened to the question, step by step. */
   history: ReviewStep[] | null;
@@ -998,6 +1001,7 @@ export async function readReview(ctx: ModuleCtx, a: Quiz, attemptId: string) {
       mark: showMarks && qa.mark !== null ? Number(qa.mark) : null,
       correctResponse: correct,
       correctAnswerText: correct ? answerText(snap, correct) : null,
+      partScores: showAnswers && showMarks ? reviewParts(snap, qa.response) : null,
       generalFeedback: showAnswers ? (snap.generalFeedback ?? null) : null,
       answerFeedback: showAnswers ? feedbackHtml(replay(snap, steps, behaviour).feedback) : [],
       comment: qa.comment || null,
@@ -1321,6 +1325,10 @@ export const quiz = defineModule<QuizSettingsT>({
             answerFeedback: z
               .array(z.string())
               .describe('feedback for the answer given (sanitised HTML), as the quiz allows'),
+            partScores: z
+              .array(z.object({ text: z.string(), fraction: z.number().nullable() }))
+              .nullable()
+              .describe("how each part scored (an ordering's items), when the question shows it"),
             comment: z.string().nullable().describe("the teacher's comment"),
             history: z
               .array(

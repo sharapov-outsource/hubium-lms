@@ -7,18 +7,14 @@ import { Input, Label, Select } from '@hubium/ui';
 import { cn } from '@hubium/ui/cn';
 import { useTranslations } from 'next-intl';
 import type { ComponentType } from 'react';
-import type { PublicQuestion } from '../public.ts';
+import type { BodyProps } from './body.ts';
+import { DragText, GapSelect } from './gaps.tsx';
+import { Ordering } from './ordering.tsx';
 
 // How each question type is answered in an attempt. The table is complete by type, so a
 // new question type does not build until it has a body here.
 
-export interface BodyProps {
-  q: PublicQuestion;
-  value: Record<string, unknown>;
-  onChange: (v: unknown) => void;
-  /** A checked answer: shown, not changed (immediate and interactive behaviours). */
-  readOnly?: boolean;
-}
+export type { BodyProps } from './body.ts';
 
 function Multichoice({ q, value, onChange, readOnly }: BodyProps) {
   const t = useTranslations('mod.quiz');
@@ -166,4 +162,10 @@ export const questionBodies = {
   MATCH: Match,
   ESSAY: Essay,
   DESCRIPTION: Nothing,
+  ORDERING: Ordering,
+  GAPSELECT: GapSelect,
+  DDWTOS: DragText,
 } satisfies Record<QuestionType, ComponentType<BodyProps>>;
+
+/** Types whose body shows the question text itself (with its gaps). */
+export const bodyShowsText = (type: QuestionType) => type === 'GAPSELECT' || type === 'DDWTOS';

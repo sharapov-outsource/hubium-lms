@@ -219,6 +219,27 @@
         "TRYAGAIN": "In attesa di un nuovo tentativo",
         "COMPLETE": "Completata"
       }
+    },
+    "order": {
+      "help": "Mettete gli elementi in ordine con i pulsanti a freccia.",
+      "list": "Elementi da ordinare",
+      "up": "Su: {item}",
+      "down": "Giù: {item}",
+      "left": "A sinistra: {item}",
+      "right": "A destra: {item}",
+      "moved": "{item}: posizione {n} di {total}",
+      "scores": "Punteggio di ogni elemento"
+    },
+    "gaps": {
+      "gap": "Spazio {n}",
+      "empty": "vuoto",
+      "bank": "Risposte",
+      "pick": "Scegliete una risposta, poi il suo spazio, oppure trascinatela. Scegliere uno spazio pieno lo svuota.",
+      "placed": "«{choice}» è nello spazio {n}",
+      "cleared": "Lo spazio {n} è vuoto",
+      "wrongGroup": "Questa risposta non va nello spazio {n}",
+      "useLists": "Rispondere con elenchi",
+      "useDrag": "Rispondere trascinando"
     }
   }
 }
