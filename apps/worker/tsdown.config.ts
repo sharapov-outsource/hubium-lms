@@ -1,3 +1,4 @@
+import { buildInfo } from '@hubium/tooling/build-info';
 import { defineConfig } from 'tsdown';
 
 // Bundles workspace packages (source-only) into one file. Third-party code reached through
@@ -10,4 +11,6 @@ export default defineConfig({
   outDir: 'dist',
   clean: true,
   deps: { alwaysBundle: [/^@hubium\//], onlyBundle: false },
+  // process.env.HUBIUM_VERSION etc. in the logs, as the web app has them
+  env: buildInfo(),
 });

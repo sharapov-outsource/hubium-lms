@@ -1,0 +1,28 @@
+[Unit]
+Description=Hubium LMS web server
+Documentation=https://github.com/sharapov-outsource/hubium/blob/main/docs/operations.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hubium
+Group=hubium
+# Settings: /etc/hubium/hubium.env (read by bin/hubium)
+ExecStart=/opt/hubium/current/bin/hubium web
+Restart=on-failure
+RestartSec=5
+UMask=0027
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/hubium
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target

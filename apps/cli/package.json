@@ -1,0 +1,28 @@
+{
+  "name": "@hubium/cli",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "author": "Alexander S. <alexander@sharapov.biz>",
+  "description": "The hubium command: migrations, seed, checks and maintenance of an installation.",
+  "type": "module",
+  "scripts": {
+    "build": "tsdown",
+    "start": "node --env-file-if-exists=../../.env dist/hubium.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hubium/core": "workspace:*",
+    "@hubium/db": "workspace:*",
+    "@hubium/modules": "workspace:*"
+  },
+  "devDependencies": {
+    "@hubium/tooling": "workspace:*",
+    "@types/node": "^24",
+    "dotenv": "18.0.7",
+    "tsdown": "0.23.1",
+    "typescript": "~7.0.2",
+    "vitest": "5.0.4"
+  }
+}

@@ -6,6 +6,7 @@
 .env
 .env.*
 !.env.example
+!.env.production.example
 .storage
 e2e/test-results
 e2e/playwright-report

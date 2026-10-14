@@ -1,0 +1,33 @@
+[Unit]
+Description=Hubium LMS video transcoding worker
+Documentation=https://github.com/sharapov-outsource/hubium/blob/main/docs/operations.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hubium
+Group=hubium
+# Settings: /etc/hubium/hubium.env (read by bin/hubium)
+# Only the media queue, with its own health port and limits: ffmpeg takes what it gets.
+Environment=WORKER_QUEUES=media WORKER_HEALTH_PORT=3002
+ExecStart=/opt/hubium/current/bin/hubium worker
+MemoryMax=2G
+CPUQuota=200%
+Nice=10
+Restart=on-failure
+RestartSec=5
+UMask=0027
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/hubium
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,43 @@
+#!/bin/sh
+# Hubium LMS launcher: `hubium web`, `hubium worker`, or a command of the CLI (`hubium help`).
+# Settings come from the environment and from HUBIUM_ENV_FILE (default
+# /etc/hubium/hubium.env), which Node reads itself; variables already set (by systemd or
+# docker compose) take precedence over the file.
+set -eu
+
+self=$(readlink -f "$0" 2>/dev/null || echo "$0")
+HUBIUM_HOME=${HUBIUM_HOME:-$(cd "$(dirname "$self")/.." && pwd)}
+if [ -x "$HUBIUM_HOME/node/bin/node" ]; then
+  NODE="$HUBIUM_HOME/node/bin/node"
+else
+  NODE=node
+fi
+ENV_FILE=${HUBIUM_ENV_FILE:-/etc/hubium/hubium.env}
+
+run() {
+  exec "$NODE" --env-file-if-exists="$ENV_FILE" "$@"
+}
+
+case "${1:-}" in
+  web)
+    shift
+    run "$HUBIUM_HOME/web/apps/web/server.js" "$@"
+    ;;
+  worker)
+    shift
+    run "$HUBIUM_HOME/worker/main.mjs" "$@"
+    ;;
+  healthcheck)
+    # Container health: the web server or the worker, whichever this container runs.
+    exec "$NODE" -e '
+      const urls = [
+        `http://127.0.0.1:${process.env.PORT || 3000}/api/health`,
+        `http://127.0.0.1:${process.env.WORKER_HEALTH_PORT || 3001}/healthz`,
+      ];
+      Promise.any(urls.map((u) => fetch(u).then((r) => (r.ok ? r : Promise.reject()))))
+        .then(() => process.exit(0), () => process.exit(1));'
+    ;;
+  *)
+    run "$HUBIUM_HOME/cli/hubium.mjs" "$@"
+    ;;
+esac

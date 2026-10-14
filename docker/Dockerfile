@@ -1,5 +1,9 @@
 # syntax=docker/dockerfile:1.7
-# Multi-target image: `--target web`, `--target worker`, `--target worker-media`, `--target migrate`.
+# Targets:
+#   hubium        web server, worker and the hubium command (ENTRYPOINT hubium, CMD web)
+#   hubium-media  the same with ffmpeg, running the media worker (video transcoding)
+#   bundle        the release archive: --target bundle --output type=local,dest=<dir>
+# All three hold the same /opt/hubium, assembled once by scripts/bundle.sh.
 
 ARG NODE_VERSION=24-trixie-slim
 
@@ -22,55 +26,56 @@ FROM deps AS build
 COPY . .
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --offline --frozen-lockfile --store-dir /pnpm/store
-# Commit shown in the sidebar and on the environment page (the context has no .git).
+# Commit shown in the sidebar, on the environment page and by `hubium version` (the context
+# has no .git).
 ARG BUILD_COMMIT=""
 # Server modules create their database and auth clients on import, which `next build` does
 # while collecting routes; nothing connects. These placeholders never reach the images.
-RUN BUILD_COMMIT="$BUILD_COMMIT" DATABASE_URL=postgresql://build:build@127.0.0.1:1/build \
+RUN export BUILD_COMMIT="$BUILD_COMMIT" \
+ && DATABASE_URL=postgresql://build:build@127.0.0.1:1/build \
     APP_SECRET=build-time-placeholder-not-used-at-runtime \
     pnpm --filter @hubium/web build \
- && pnpm --filter @hubium/worker build
+ && pnpm --filter @hubium/worker build \
+ && pnpm --filter @hubium/cli build \
+ && sh scripts/bundle.sh /opt/hubium
 
-# ── web: Next.js standalone server ──────────────────────────────────────────────
-FROM node:${NODE_VERSION} AS web
+# ── hubium: web, worker and CLI ─────────────────────────────────────────────────
+FROM node:${NODE_VERSION} AS hubium
 # Local files live in /data, owned by the app user: unfinished uploads, and with
 # STORAGE_DRIVER=fs the files themselves. compose.yml shares one volume there between web
 # and the workers.
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 \
-    STORAGE_FS_ROOT=/data
-WORKDIR /app
+    STORAGE_FS_ROOT=/data HUBIUM_HOME=/opt/hubium PATH=/opt/hubium/bin:$PATH
 RUN useradd --system --uid 1001 hubium && mkdir -p /data && chown hubium /data
-COPY --from=build --chown=hubium /app/apps/web/.next/standalone ./
-COPY --from=build --chown=hubium /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=build --chown=hubium /app/apps/web/public ./apps/web/public
+COPY --from=build /opt/hubium /opt/hubium
+LABEL org.opencontainers.image.title="Hubium LMS" \
+      org.opencontainers.image.description="Open-source learning management system: web server, worker and the hubium command" \
+      org.opencontainers.image.source="https://github.com/sharapov-outsource/hubium" \
+      org.opencontainers.image.licenses="AGPL-3.0-only"
 USER hubium
+WORKDIR /opt/hubium
 EXPOSE 3000
-HEALTHCHECK --interval=15s --timeout=5s --start-period=30s CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-CMD ["node", "apps/web/server.js"]
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s CMD ["hubium", "healthcheck"]
+ENTRYPOINT ["hubium"]
+CMD ["web"]
 
-# ── worker: bundled pg-boss consumers ───────────────────────────────────────────
-FROM node:${NODE_VERSION} AS worker
-ENV NODE_ENV=production STORAGE_FS_ROOT=/data
-WORKDIR /app
-RUN useradd --system --uid 1001 hubium && mkdir -p /data && chown hubium /data
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/apps/worker/node_modules ./apps/worker/node_modules
-COPY --from=build /app/packages ./packages
-COPY --from=build /app/apps/worker/dist ./apps/worker/dist
-COPY --from=build /app/apps/worker/package.json ./apps/worker/
-USER hubium
-WORKDIR /app/apps/worker
-HEALTHCHECK --interval=15s --timeout=5s --start-period=30s CMD node -e "fetch('http://127.0.0.1:3001/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-CMD ["node", "dist/main.mjs"]
-
-# ── worker-media: worker + ffmpeg for video transcoding ─────────────────────────
-FROM worker AS worker-media
+# ── hubium-media: the worker with ffmpeg for video transcoding ──────────────────
+FROM hubium AS hubium-media
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 USER hubium
 ENV WORKER_QUEUES=media
+LABEL org.opencontainers.image.description="Hubium LMS worker with ffmpeg for video transcoding"
+CMD ["worker"]
 
-# ── migrate: one-shot migrations, storage bucket and idempotent seed ────────────
-FROM build AS migrate
-WORKDIR /app
-CMD ["sh", "-c", "pnpm --filter @hubium/db migrate:deploy && pnpm storage:init && pnpm db:seed --profile ${SEED_PROFILE:-minimal}"]
+# ── bundle: hubium-<version>-linux-<arch>.tar.gz with Node.js inside ────────────
+FROM build AS archive
+ARG TARGETARCH
+RUN version=$(cat /opt/hubium/VERSION) \
+ && arch=$([ "$TARGETARCH" = amd64 ] && echo x64 || echo "$TARGETARCH") \
+ && name="hubium-$version-linux-$arch" \
+ && sh scripts/bundle.sh "/tmp/$name" /usr/local/bin/node \
+ && mkdir /out && tar -C /tmp -czf "/out/$name.tar.gz" "$name"
+
+FROM scratch AS bundle
+COPY --from=archive /out/ /

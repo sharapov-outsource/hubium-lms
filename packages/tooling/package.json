@@ -9,6 +9,10 @@
     "./tsconfig/base.json": "./tsconfig/base.json",
     "./tsconfig/node.json": "./tsconfig/node.json",
     "./tsconfig/react-library.json": "./tsconfig/react-library.json",
-    "./tsconfig/nextjs.json": "./tsconfig/nextjs.json"
+    "./tsconfig/nextjs.json": "./tsconfig/nextjs.json",
+    "./build-info": {
+      "types": "./build-info.d.mts",
+      "default": "./build-info.mjs"
+    }
   }
 }

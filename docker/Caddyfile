@@ -1,4 +1,6 @@
-# Site addresses are the app's public URLs (APP_URL, CONTENT_HOST, S3_PUBLIC_URL).
+# Site addresses are the app's public URLs (APP_URL, CONTENT_HOST, S3_PUBLIC_URL); the
+# upstreams default to the compose services. On a server without Docker set
+# HUBIUM_WEB=127.0.0.1:3000 (install-hubium.sh writes the values into the file instead).
 
 # JSON access log on stdout. Tokens in URLs (content links, unsubscribe and calendar feed
 # paths, ?token= in sign-in mails) are replaced, and the Referer, which may carry them, is
@@ -18,7 +20,7 @@
 {$APP_URL} {
 	import access_log
 	encode zstd gzip
-	reverse_proxy web:3000 {
+	reverse_proxy {$HUBIUM_WEB:web:3000} {
 		flush_interval -1
 	}
 }
@@ -26,11 +28,11 @@
 # Untrusted content (SCORM, raw HTML) on its own origin; the app only answers /c/* here.
 {$CONTENT_HOST} {
 	import access_log
-	reverse_proxy web:3000
+	reverse_proxy {$HUBIUM_WEB:web:3000}
 }
 
 # Presigned S3 URLs only; the bucket itself is private. The Host header must reach the
-# storage unchanged because the URL signature covers it.
-{$S3_PUBLIC_URL} {
-	reverse_proxy s3:9000
+# storage unchanged because the URL signature covers it. Unused with STORAGE_DRIVER=fs.
+{$S3_PUBLIC_URL:https://files.localhost} {
+	reverse_proxy {$HUBIUM_S3:s3:9000}
 }

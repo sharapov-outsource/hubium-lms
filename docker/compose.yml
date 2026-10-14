@@ -1,26 +1,42 @@
-# Production stack: `docker compose -f docker/compose.yml --env-file .env up -d --build`
-# (prefix it with `BUILD_COMMIT=$(git rev-parse HEAD)` to show the commit in the app).
-# Start from .env.production.example. The three public URLs below are used by the app and
-# by Caddy alike; the defaults (*.localhost) work for a trial run on one machine.
+# Hubium LMS in Docker. Start from .env.production.example (install-hubium.sh writes it):
+#   docker compose -f docker/compose.yml --env-file .env pull     # a published release
+#   docker compose -f docker/compose.yml --env-file .env up -d
+# From a source checkout, build the images instead: `up -d --build` (prefix it with
+# BUILD_COMMIT=$(git rev-parse HEAD) to show the commit in the app).
+#
+# Optional services are profiles, chosen with COMPOSE_PROFILES in .env:
+#   db       PostgreSQL with pgvector (without it, set DATABASE_URL to your server)
+#   s3       S3-compatible storage (RustFS) for STORAGE_DRIVER=s3 (or point S3_* elsewhere)
+#   caddy    HTTPS for APP_URL, CONTENT_HOST and S3_PUBLIC_URL (without it, proxy
+#            127.0.0.1:3000 yourself)
+#   media    the video transcoding worker (needed by the video activity)
+#   mailpit  catches mail until SMTP_URL points at a real server
 name: hubium
-# The same arguments for every image, so they share one build stage.
-x-build-args: &build-args
-  BUILD_COMMIT: ${BUILD_COMMIT:-}
+x-build: &build
+  context: ..
+  dockerfile: docker/Dockerfile
+  args:
+    BUILD_COMMIT: ${BUILD_COMMIT:-}
+x-image: &image ${HUBIUM_IMAGE:-ghcr.io/sharapov-outsource/hubium-lms}:${HUBIUM_VERSION:-latest}
 x-app-env: &app-env
-  DATABASE_URL: postgresql://hubium:${POSTGRES_PASSWORD:-hubium}@db:5432/hubium
+  DATABASE_URL: ${DATABASE_URL:-postgresql://hubium:${POSTGRES_PASSWORD:-hubium}@db:5432/hubium}
   APP_URL: ${APP_URL:-https://lms.localhost}
   CONTENT_HOST: ${CONTENT_HOST:-https://content.localhost}
   APP_SECRET: ${APP_SECRET:?APP_SECRET is required}
-  STORAGE_DRIVER: s3
-  S3_ENDPOINT: http://s3:9000
+  STORAGE_DRIVER: ${STORAGE_DRIVER:-fs}
+  S3_ENDPOINT: ${S3_ENDPOINT:-http://s3:9000}
   S3_PUBLIC_URL: ${S3_PUBLIC_URL:-https://files.localhost}
-  S3_BUCKET: hubium
+  S3_REGION: ${S3_REGION:-us-east-1}
+  S3_BUCKET: ${S3_BUCKET:-hubium}
   S3_ACCESS_KEY: ${S3_ACCESS_KEY:-hubium}
-  S3_SECRET_KEY: ${S3_SECRET_KEY:?S3_SECRET_KEY is required}
+  S3_SECRET_KEY: ${S3_SECRET_KEY:-}
   SMTP_URL: ${SMTP_URL:-smtp://mailpit:1025}
   MAIL_FROM: ${MAIL_FROM:-Hubium LMS <no-reply@hubium.local>}
-  SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@hubium.local}
-  SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Admin12345!}
+  BBB_URL: ${BBB_URL:-}
+  BBB_SECRET: ${BBB_SECRET:-}
+  JITSI_DOMAIN: ${JITSI_DOMAIN:-}
+  JITSI_APP_ID: ${JITSI_APP_ID:-}
+  JITSI_APP_SECRET: ${JITSI_APP_SECRET:-}
   AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID:-}
   AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET:-}
   AUTH_YANDEX_ID: ${AUTH_YANDEX_ID:-}
@@ -29,9 +45,12 @@ x-app-env: &app-env
   AUTH_VK_SECRET: ${AUTH_VK_SECRET:-}
   # JSON log lines on stdout (docker compose logs); see docs/operations.md
   LOG_LEVEL: ${LOG_LEVEL:-info}
+x-after-migrate: &after-migrate
+  migrate: { condition: service_completed_successfully }
 
 services:
   db:
+    profiles: [db]
     # Keep the Debian release of an existing cluster: a different glibc changes collations.
     image: pgvector/pgvector:0.8.7-pg18-bookworm
     environment:
@@ -48,13 +67,16 @@ services:
   # S3-compatible object storage. Browsers reach it only through presigned URLs on
   # S3_PUBLIC_URL (see Caddyfile); any other S3 service works through the S3_* settings.
   s3:
+    profiles: [s3]
     image: rustfs/rustfs:1.0.1
     environment:
       RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-hubium}
-      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?S3_SECRET_KEY is required}
+      # Required with this profile. Compose reads every service, so instead of failing for
+      # all, the storage stays unhealthy without it and nothing that depends on it starts.
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-}
     volumes: [s3:/data]
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:9000/health"]
+      test: ["CMD-SHELL", "[ -n \"$$RUSTFS_SECRET_KEY\" ] && curl -fsS http://localhost:9000/health"]
       interval: 5s
       retries: 30
     restart: unless-stopped
@@ -62,59 +84,69 @@ services:
   # Catches outgoing mail until SMTP_URL points at a real server. The UI listens on the
   # host's loopback only: http://127.0.0.1:8025 (it shows password-reset links).
   mailpit:
+    profiles: [mailpit]
     image: axllent/mailpit:v1.31
     ports: ["127.0.0.1:8025:8025"]
     restart: unless-stopped
 
+  # Migrations, the S3 bucket and the idempotent seed, before every start.
   migrate:
-    build: { context: .., dockerfile: docker/Dockerfile, target: migrate, args: *build-args }
+    image: *image
+    command: ["migrate", "--seed", "${SEED_PROFILE:-minimal}"]
     environment:
       <<: *app-env
       HUBIUM_SERVICE: migrate
-      # minimal: the administrator only; demo: also sample courses and users
-      SEED_PROFILE: ${SEED_PROFILE:-minimal}
+      # read only while the administrator does not exist yet
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@hubium.local}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+    healthcheck: { disable: true }
     depends_on:
-      db: { condition: service_healthy }
-      s3: { condition: service_healthy }
+      db: { condition: service_healthy, required: false }
+      s3: { condition: service_healthy, required: false }
 
+  # Its build section makes the image migrate and worker use too.
   web:
-    build: { context: .., dockerfile: docker/Dockerfile, target: web, args: *build-args }
+    image: *image
+    build: { <<: *build, target: hubium }
     environment:
       <<: *app-env
       HUBIUM_SERVICE: web
-    # Unfinished uploads are written here and the worker's cron removes abandoned ones.
+    # For a reverse proxy of your own instead of the caddy profile.
+    ports: ["${HUBIUM_WEB_BIND:-127.0.0.1:3000}:3000"]
+    # Unfinished uploads (and with STORAGE_DRIVER=fs the files) are written here; the
+    # worker's cron removes abandoned uploads.
     volumes: [data:/data]
-    depends_on:
-      migrate: { condition: service_completed_successfully }
+    depends_on: *after-migrate
     restart: unless-stopped
 
   worker:
-    build: { context: .., dockerfile: docker/Dockerfile, target: worker, args: *build-args }
+    image: *image
+    command: ["worker"]
     environment:
       <<: *app-env
       HUBIUM_SERVICE: worker
       WORKER_QUEUES: default
     volumes: [data:/data]
-    depends_on:
-      migrate: { condition: service_completed_successfully }
+    depends_on: *after-migrate
     restart: unless-stopped
 
   worker-media:
-    build: { context: .., dockerfile: docker/Dockerfile, target: worker-media, args: *build-args }
+    profiles: [media]
+    image: ${HUBIUM_IMAGE:-ghcr.io/sharapov-outsource/hubium-lms}-media:${HUBIUM_VERSION:-latest}
+    build: { <<: *build, target: hubium-media }
     environment:
       <<: *app-env
       HUBIUM_SERVICE: worker-media
       WORKER_QUEUES: media
-      WORKER_HEALTH_PORT: "3001"
     volumes: [data:/data]
-    depends_on:
-      migrate: { condition: service_completed_successfully }
+    depends_on: *after-migrate
     deploy:
       resources:
         limits: { cpus: "2", memory: 2g }
     restart: unless-stopped
 
   caddy:
+    profiles: [caddy]
     image: caddy:2.11
     ports: ["80:80", "443:443"]
     volumes:
@@ -124,7 +156,9 @@ services:
       APP_URL: ${APP_URL:-https://lms.localhost}
       CONTENT_HOST: ${CONTENT_HOST:-https://content.localhost}
       S3_PUBLIC_URL: ${S3_PUBLIC_URL:-https://files.localhost}
-    depends_on: [web, s3]
+    depends_on:
+      web: { condition: service_started }
+      s3: { condition: service_healthy, required: false }
     restart: unless-stopped
 
 volumes:

@@ -103,13 +103,20 @@ jobs:
       CONTENT_HOST: https://content.localhost
       SMTP_URL: smtp://mailpit:1025
       APP_SECRET: ci-secret-ci-secret-ci-secret-ci-secret-0000
+      # every optional service, and S3 storage (the native job covers local files)
+      COMPOSE_PROFILES: db,s3,caddy,media,mailpit
+      STORAGE_DRIVER: s3
       S3_SECRET_KEY: ci-s3-secret-ci-s3-secret
+      HUBIUM_VERSION: ci
       BUILD_COMMIT: ${{ github.sha }}
       SEED_PROFILE: demo
+      SEED_ADMIN_PASSWORD: Admin12345!
     steps:
       - uses: actions/checkout@v7
       - name: Build images
         run: docker compose -f docker/compose.yml build
+      - name: Image sizes
+        run: docker image ls --format '{{.Repository}}:{{.Tag}} {{.Size}}' | grep hubium
       - name: Start the stack
         run: docker compose -f docker/compose.yml up -d --wait --wait-timeout 300
       - uses: pnpm/setup@v3
