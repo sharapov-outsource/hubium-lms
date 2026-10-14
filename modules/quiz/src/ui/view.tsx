@@ -1,5 +1,4 @@
 import type { ViewProps } from '@hubium/module-sdk/ui';
-import { correctResponse, type QuestionData, type QuestionSnapshot } from '@hubium/questions';
 import {
   Alert,
   Badge,
@@ -19,12 +18,11 @@ import {
 import { cn } from '@hubium/ui/cn';
 import Link from 'next/link';
 import { getFormatter, getTranslations } from 'next-intl/server';
-import { toPublicQuestion } from '../public.ts';
 import {
-  effectiveQuiz,
   type QuizSettingsT,
-  quizIsOpen,
-  reviewAllowed,
+  readAttempt,
+  readQuizOverview,
+  readReview,
   sumMaxMarks,
 } from '../server.ts';
 import {
@@ -57,27 +55,10 @@ function base(a: Props['activity']) {
 async function StudentView({ activity: a, ctx }: Props) {
   const [t, format] = await Promise.all([getTranslations('mod.quiz'), getFormatter()]);
   if (ctx.actor.kind !== 'user') return null;
-  const userId = ctx.actor.userId;
-  const [e, attempts, slotCount] = await Promise.all([
-    effectiveQuiz(ctx.db, a, userId),
-    ctx.db.quizAttempt.findMany({
-      where: { activityId: a.id, userId, preview: false },
-      orderBy: { attemptNumber: 'asc' },
-      include: { questions: { select: { maxMark: true } } },
-    }),
-    ctx.db.quizSlot.count({ where: { activityId: a.id } }),
-  ]);
-  const open = quizIsOpen(e, ctx.now);
-  const inProgress = attempts.find((x) => x.state === 'IN_PROGRESS');
-  const left = e.attempts ? e.attempts - attempts.length : Number.POSITIVE_INFINITY;
-  const canAttempt = await ctx.perm.can('mod.quiz:attempt', a.id);
-  const item = await ctx.db.gradeItem.findFirst({ where: { activityId: a.id, itemNumber: 0 } });
-  const grade = item
-    ? await ctx.db.grade.findUnique({
-        where: { gradeItemId_userId: { gradeItemId: item.id, userId } },
-      })
-    : null;
-  const canReview = reviewAllowed(a.settings, e.closeAt, ctx.now);
+  const o = await readQuizOverview(ctx, a);
+  const e = { openAt: o.openAt, closeAt: o.closeAt, timeLimitSec: o.timeLimitSec };
+  const slotCount = o.questions;
+  const attempts = o.attempts;
   return (
     <div className="grid max-w-3xl gap-5">
       <Card>
@@ -87,8 +68,8 @@ async function StudentView({ activity: a, ctx }: Props) {
             <p>{t('info.timeLimit', { min: Math.round(e.timeLimitSec / 60) })}</p>
           ) : null}
           <p>
-            {e.attempts
-              ? t('info.attempts', { used: attempts.length, total: e.attempts })
+            {o.attemptsAllowed
+              ? t('info.attempts', { used: attempts.length, total: o.attemptsAllowed })
               : t('info.attemptsUnlimited', { used: attempts.length })}
           </p>
           {e.openAt && e.openAt > ctx.now ? (
@@ -107,11 +88,11 @@ async function StudentView({ activity: a, ctx }: Props) {
           ) : null}
         </CardContent>
       </Card>
-      {grade?.finalGrade !== null && grade?.finalGrade !== undefined ? (
+      {o.grade !== null ? (
         <Alert variant="success" className="text-base font-medium">
-          {t('yourGrade', { grade: fmt(Number(grade.finalGrade)), max: a.settings.gradeMax })}
+          {t('yourGrade', { grade: fmt(o.grade), max: o.gradeMax })}
         </Alert>
-      ) : attempts.some((x) => x.needsManualGrading) ? (
+      ) : o.pendingGrade ? (
         <Alert>{t('pendingGrade')}</Alert>
       ) : null}
       {attempts.length ? (
@@ -126,11 +107,7 @@ async function StudentView({ activity: a, ctx }: Props) {
           </THead>
           <TBody>
             {attempts.map((x) => {
-              const max = sumMaxMarks(x.questions);
-              const g =
-                x.sumGrades !== null && max
-                  ? (Number(x.sumGrades) / max) * a.settings.gradeMax
-                  : null;
+              const g = x.grade;
               return (
                 <Tr key={x.id}>
                   <Td>{x.attemptNumber}</Td>
@@ -154,7 +131,7 @@ async function StudentView({ activity: a, ctx }: Props) {
                           : '—'}
                   </Td>
                   <Td className="text-right">
-                    {x.state === 'FINISHED' && (canReview || a.settings.reviewMarks) ? (
+                    {x.reviewable ? (
                       <Button asChild size="sm" variant="ghost">
                         <Link href={`${base(a)}?review=${x.id}`}>{t('review')}</Link>
                       </Button>
@@ -166,15 +143,15 @@ async function StudentView({ activity: a, ctx }: Props) {
           </TBody>
         </Table>
       ) : null}
-      {!canAttempt ? null : !slotCount ? (
+      {!o.canAttempt ? null : !slotCount ? (
         <Alert variant="warning">{t('empty')}</Alert>
-      ) : inProgress ? (
+      ) : o.inProgressAttemptId ? (
         <Button asChild size="lg" className="w-fit">
-          <Link href={`${base(a)}?attempt=${inProgress.id}`}>{t('continue')}</Link>
+          <Link href={`${base(a)}?attempt=${o.inProgressAttemptId}`}>{t('continue')}</Link>
         </Button>
-      ) : !open.ok ? (
-        <Alert variant="warning">{t(open.reason)}</Alert>
-      ) : left <= 0 ? (
+      ) : o.closedReason ? (
+        <Alert variant="warning">{t(o.closedReason)}</Alert>
+      ) : o.attemptsLeft === 0 ? (
         <Alert>{t('noAttemptsLeft')}</Alert>
       ) : (
         <AttemptActions activityId={a.id} baseUrl={base(a)} label={t('start')} />
@@ -185,18 +162,8 @@ async function StudentView({ activity: a, ctx }: Props) {
 
 async function AttemptPage({ activity: a, ctx, attemptId }: Props & { attemptId: string }) {
   const t = await getTranslations('mod.quiz');
-  const at = await ctx.db.quizAttempt.findUnique({
-    where: { id: attemptId },
-    include: { questions: { orderBy: { slot: 'asc' } } },
-  });
-  if (
-    !at ||
-    at.activityId !== a.id ||
-    ctx.actor.kind !== 'user' ||
-    at.userId !== ctx.actor.userId
-  ) {
-    return <Alert variant="destructive">{t('closed')}</Alert>;
-  }
+  const at = await readAttempt(ctx, a, attemptId);
+  if (!at) return <Alert variant="destructive">{t('closed')}</Alert>;
   if (at.state !== 'IN_PROGRESS')
     return (
       <ReviewPage
@@ -212,56 +179,22 @@ async function AttemptPage({ activity: a, ctx, attemptId }: Props & { attemptId:
     <AttemptPlayer
       activityId={a.id}
       attemptId={at.id}
-      questions={at.questions.map(toPublicQuestion)}
+      questions={at.questions}
       dueAt={at.dueAt?.toISOString() ?? null}
-      serverNow={Date.now()}
+      serverNow={at.serverNow.getTime()}
       backUrl={base(a)}
       reviewUrl={`${base(a)}?review=${at.id}`}
     />
   );
 }
 
-function answerText(snap: QuestionSnapshot, resp: unknown): string {
-  const r = (resp ?? {}) as Record<string, unknown>;
-  switch (snap.type) {
-    case 'MULTICHOICE': {
-      const d = snap.data as QuestionData<'MULTICHOICE'>;
-      const sel = (r.selected as string[]) ?? [];
-      return d.answers
-        .filter((x) => sel.includes(x.id))
-        .map((x) => x.text)
-        .join('; ');
-    }
-    case 'TRUEFALSE':
-      return r.value === undefined || r.value === null ? '' : String(r.value);
-    case 'MATCH': {
-      const d = snap.data as QuestionData<'MATCH'>;
-      const c = (r.choices as Record<string, string>) ?? {};
-      return d.pairs.map((p) => `${p.question} → ${c[p.id] ?? '—'}`).join('; ');
-    }
-    default:
-      return typeof r.text === 'string' ? r.text : '';
-  }
-}
-
 async function ReviewPage({ activity: a, ctx, attemptId }: Props & { attemptId: string }) {
   const [t, format] = await Promise.all([getTranslations('mod.quiz'), getFormatter()]);
-  const at = await ctx.db.quizAttempt.findUnique({
-    where: { id: attemptId },
-    include: { questions: { orderBy: { slot: 'asc' } }, user: { select: { name: true } } },
-  });
-  if (!at || at.activityId !== a.id) return <Alert variant="destructive">{t('closed')}</Alert>;
-  const own = ctx.actor.kind === 'user' && at.userId === ctx.actor.userId;
-  const teacher = await ctx.perm.can('mod.quiz:viewreports', a.id);
-  if (!own && !teacher) return <Alert variant="destructive">{t('closed')}</Alert>;
+  const r = await readReview(ctx, a, attemptId);
   // No review (answers, feedback, verdicts) while the student can still change answers.
-  if (!teacher && !at.preview && at.state === 'IN_PROGRESS')
-    return <Alert variant="destructive">{t('closed')}</Alert>;
+  if (!r || r === 'inProgress') return <Alert variant="destructive">{t('closed')}</Alert>;
+  const { attempt: at, teacher, showMarks } = r;
   const canGrade = await ctx.perm.can('mod.quiz:grade', a.id);
-  const e = await effectiveQuiz(ctx.db, a, at.userId);
-  const showAnswers = teacher || at.preview || reviewAllowed(a.settings, e.closeAt, ctx.now);
-  const showMarks = teacher || at.preview || a.settings.reviewMarks;
-  const max = sumMaxMarks(at.questions);
   const tf = (v: string) => (v === 'true' ? t('trueLabel') : v === 'false' ? t('falseLabel') : v);
   return (
     <div className="grid max-w-3xl gap-4">
@@ -270,37 +203,23 @@ async function ReviewPage({ activity: a, ctx, attemptId }: Props & { attemptId: 
           <Link href={teacher ? `${base(a)}?tab=results` : base(a)}>← {t('backToQuiz')}</Link>
         </Button>
         <span className="text-sm text-muted-foreground">
-          {teacher ? `${at.user.name} · ` : ''}
+          {teacher && at.userName ? `${at.userName} · ` : ''}
           {t('attempt', { n: at.attemptNumber })}
           {at.finishedAt
             ? ` · ${format.dateTime(at.finishedAt, { dateStyle: 'medium', timeStyle: 'short' })}`
             : ''}
         </span>
       </div>
-      {showMarks && at.sumGrades !== null ? (
-        <Alert variant={at.needsManualGrading ? 'info' : 'success'} className="font-medium">
-          {at.needsManualGrading
+      {showMarks && r.grade !== null ? (
+        <Alert variant={r.pendingGrade ? 'info' : 'success'} className="font-medium">
+          {r.pendingGrade
             ? t('pendingGrade')
-            : t('yourGrade', {
-                grade: fmt(max ? (Number(at.sumGrades) / max) * a.settings.gradeMax : 0),
-                max: a.settings.gradeMax,
-              })}
+            : t('yourGrade', { grade: fmt(r.grade), max: r.gradeMax })}
         </Alert>
       ) : null}
-      {at.questions.map((qa) => {
-        const snap = qa.snapshot as unknown as QuestionSnapshot;
-        const frac = qa.fraction === null ? null : Number(qa.fraction);
-        const verdict = qa.needsGrading
-          ? 'needsGrading'
-          : frac === null
-            ? null
-            : frac >= 0.9999
-              ? 'correct'
-              : frac > 0
-                ? 'partial'
-                : 'incorrect';
-        const answer = answerText(snap, qa.response);
-        const correct = showAnswers ? correctResponse(snap) : null;
+      {r.questions.map((qa) => {
+        const verdict = qa.verdict;
+        const answer = qa.answerText;
         return (
           <Card
             key={qa.id}
@@ -313,7 +232,7 @@ async function ReviewPage({ activity: a, ctx, attemptId }: Props & { attemptId: 
             <CardHeader className="flex-row items-start justify-between gap-2">
               <CardTitle>{t('question', { n: qa.slot })}</CardTitle>
               <div className="flex flex-wrap items-center gap-2">
-                {verdict && showMarks ? (
+                {verdict ? (
                   <Badge
                     variant={
                       verdict === 'correct'
@@ -326,11 +245,11 @@ async function ReviewPage({ activity: a, ctx, attemptId }: Props & { attemptId: 
                     {t(verdict)}
                   </Badge>
                 ) : null}
-                {showMarks && Number(qa.maxMark) > 0 ? (
+                {showMarks && qa.maxMark > 0 ? (
                   <span className="text-xs text-muted-foreground">
                     {t('marks', {
-                      mark: qa.mark === null ? '—' : fmt(Number(qa.mark)),
-                      max: fmt(Number(qa.maxMark)),
+                      mark: qa.mark === null ? '—' : fmt(qa.mark),
+                      max: fmt(qa.maxMark),
                     })}
                   </span>
                 ) : null}
@@ -338,11 +257,11 @@ async function ReviewPage({ activity: a, ctx, attemptId }: Props & { attemptId: 
             </CardHeader>
             <CardContent className="grid gap-3">
               {/* biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised on save */}
-              <div className="prose-content" dangerouslySetInnerHTML={{ __html: snap.text }} />
-              {snap.type !== 'DESCRIPTION' ? (
+              <div className="prose-content" dangerouslySetInnerHTML={{ __html: qa.text }} />
+              {qa.type !== 'DESCRIPTION' ? (
                 <div className="rounded-md bg-muted p-3 text-sm">
                   <p className="text-xs text-muted-foreground">{t('yourAnswer')}</p>
-                  {snap.type === 'ESSAY' && answer ? (
+                  {qa.type === 'ESSAY' && answer ? (
                     // biome-ignore lint/security/noDangerouslySetInnerHtml: essay HTML is sanitised on save
                     <div className="prose-content" dangerouslySetInnerHTML={{ __html: answer }} />
                   ) : (
@@ -350,12 +269,12 @@ async function ReviewPage({ activity: a, ctx, attemptId }: Props & { attemptId: 
                   )}
                 </div>
               ) : null}
-              {correct && verdict !== 'correct' ? (
+              {qa.correctAnswerText && verdict !== 'correct' ? (
                 <p className="text-sm text-success">
-                  {t('correctAnswer', { answer: tf(answerText(snap, correct)) })}
+                  {t('correctAnswer', { answer: tf(qa.correctAnswerText) })}
                 </p>
               ) : null}
-              {showAnswers && snap.generalFeedback ? (
+              {qa.generalFeedback ? (
                 <div className="text-sm">
                   <p className="text-xs font-medium text-muted-foreground">
                     {t('generalFeedback')}
@@ -363,7 +282,7 @@ async function ReviewPage({ activity: a, ctx, attemptId }: Props & { attemptId: 
                   <div
                     className="prose-content"
                     // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised on save
-                    dangerouslySetInnerHTML={{ __html: snap.generalFeedback }}
+                    dangerouslySetInnerHTML={{ __html: qa.generalFeedback }}
                   />
                 </div>
               ) : null}
@@ -374,12 +293,12 @@ async function ReviewPage({ activity: a, ctx, attemptId }: Props & { attemptId: 
                   <div className="prose-content" dangerouslySetInnerHTML={{ __html: qa.comment }} />
                 </div>
               ) : null}
-              {canGrade && snap.type === 'ESSAY' && at.state === 'FINISHED' ? (
+              {canGrade && qa.type === 'ESSAY' && at.state === 'FINISHED' ? (
                 <GradeQuestionForm
                   activityId={a.id}
                   questionAttemptId={qa.id}
-                  max={Number(qa.maxMark)}
-                  mark={qa.mark === null ? null : Number(qa.mark)}
+                  max={qa.maxMark}
+                  mark={qa.mark}
                 />
               ) : null}
             </CardContent>

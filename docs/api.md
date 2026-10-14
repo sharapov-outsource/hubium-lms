@@ -104,6 +104,26 @@ Courses carry `idNumber`, the key of the course in your other systems (unique; s
 
 A learner's own report leaves out hidden items and categories.
 
+## Module data
+
+`GET /activities/{id}/queries/{name}` reads what the module's pages show, with the same rules: the activity must be open to you, and each query applies its module's own visibility rules. A read-only token is enough. Parameters are query-string values; the spec documents every query's parameters and result as `Query.<module>.<query>`. Dates are ISO strings.
+
+| Module | Query | Parameters | Returns |
+|---|---|---|---|
+| forum | `discussions` | `page`, `pageSize` (≤ 50) | discussions you may see (pinned first), unread counts, whether you may start one, your subscription, the groups you may post to |
+| forum | `discussion` | `discussionId` | the discussion and its posts as a flat list (`parentId` gives the tree), attachments, what you may edit or delete; it does not mark posts read (`markRead` does) |
+| quiz | `overview` | — | the window, attempts used and left, the attempt in progress, your grade, your attempts and which of them you may review |
+| quiz | `attempt` | `attemptId` | the questions of your attempt in progress, without correct answers; answer with `save` and `finish` |
+| quiz | `review` | `attemptId` | a finished attempt: answers, verdicts and marks, correct answers and feedback as far as the quiz's review settings allow |
+| assign | `status` | — | your dates (with extensions), whether you may submit or withdraw now, your submission and files, the latest grade with feedback |
+
+Private forum replies show only to their author, the recipient and moderators; in a Q&A forum other answers show once you have answered; separate groups keep their discussions apart. A discussion, attempt or submission that is not yours to see answers `404`. `attempt` answers `409` once the attempt is finished, and `review` answers `409` while it is still in progress.
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "https://lms.example.org/api/v1/activities/$QUIZ/queries/review?attemptId=$ATTEMPT"
+```
+
 ## Module actions
 
 What an activity can do depends on its module (`moduleKey` in `/courses/{id}/contents`). `POST /activities/{id}/actions/{name}` runs one action with the same checks as the web interface: the activity must be open to you and the action's capability is required. The reference page lists every action with its capability and input schema; the spec carries each schema as `Action.<module>.<action>`. Actions of an activity type turned off in **Administration → Modules** answer `403`; `GET /activities/{id}` answers `404` for such activities.

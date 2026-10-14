@@ -259,6 +259,22 @@ export interface ModuleAction<I extends z.ZodType = z.ZodType, O = unknown> {
   handler(ctx: ModuleCtx, a: ActivityRef, input: z.output<I>): Promise<O>;
 }
 
+/**
+ * A read of an activity's data for API clients (GET /api/v1/activities/{id}/queries/{name}):
+ * no side effects and no transaction. Core first checks that the caller may open the
+ * activity; the handler applies the module's own visibility rules. `input` is read from
+ * query parameters, so its fields are flat and coerced (z.coerce.number() for numbers).
+ * `output` documents the result in the API reference.
+ */
+export interface ModuleQuery<I extends z.ZodType = z.ZodType, O = unknown> {
+  summary?: string;
+  input: I;
+  output?: z.ZodType;
+  /** Capability required at the activity context. */
+  capability?: string;
+  handler(ctx: ModuleCtx, a: ActivityRef, input: z.output<I>): Promise<O>;
+}
+
 export interface ActivityModule<S = Record<string, unknown>> {
   key: string;
   archetype: 'activity' | 'resource' | 'inline';
@@ -308,6 +324,7 @@ export interface ActivityModule<S = Record<string, unknown>> {
     path: string[],
   ): Promise<Response>;
   actions?: Record<string, ModuleAction>;
+  queries?: Record<string, ModuleQuery>;
   /**
    * AI integration. Text from `extract` (plain text with Markdown-style headings, or
    * sanitised HTML, which core converts) is indexed
@@ -381,4 +398,23 @@ export function parseSettings<S>(m: ActivityModule<S>, raw: unknown): S {
 /** Typed helper so action handlers infer their input from the zod schema. */
 export function defineAction<I extends z.ZodType, O>(a: ModuleAction<I, O>): ModuleAction {
   return a as unknown as ModuleAction;
+}
+
+/**
+ * An error with an API status for module handlers: a plain Error becomes 400 Bad Request,
+ * this one answers 404, 403 or 409 (e.g. "Discussion not found").
+ */
+export class ModuleError extends Error {
+  constructor(
+    readonly status: 'NOT_FOUND' | 'FORBIDDEN' | 'CONFLICT',
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ModuleError';
+  }
+}
+
+/** Typed helper so query handlers infer their input from the zod schema. */
+export function defineQuery<I extends z.ZodType, O>(q: ModuleQuery<I, O>): ModuleQuery {
+  return q as unknown as ModuleQuery;
 }

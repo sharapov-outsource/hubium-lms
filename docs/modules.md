@@ -65,6 +65,7 @@ Actions run in a transaction by default (`mutation: false` opts out, e.g. for sl
 | `calendar.events(a)` | open/due dates shown in calendars |
 | `lifecycle` | `onCreate`, `onUpdate`, `onDelete`, `onUserUnenrolled` |
 | `actions` | typed, capability-checked operations |
+| `queries` | typed reads for API clients (`GET /api/v1/activities/{id}/queries/{name}`); share the read functions with the module's pages; throw `ModuleError('NOT_FOUND', …)` for what the user may not see |
 | `http(ctx, req, path)` | endpoints under `/api/mod/<key>/…` (streaming, callbacks) |
 | `content(ctx, grant, req, path)` | untrusted content served from `CONTENT_HOST` with a signed token (SCORM) |
 | `jobs`, `cron` | background work on the `default` or `media` queue |

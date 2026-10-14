@@ -1,6 +1,14 @@
 import type { Prisma } from '@hubium/db';
 import { excerpt, isEmptyRichText, sanitizeRichText } from '@hubium/editor/server';
-import { type ActivityRef, defineAction, defineModule, type ModuleCtx } from '@hubium/module-sdk';
+import {
+  type ActivityRef,
+  defineAction,
+  defineModule,
+  defineQuery,
+  type ModuleCtx,
+  ModuleError,
+  type ModuleFile,
+} from '@hubium/module-sdk';
 import { bool } from '@hubium/module-sdk/fields';
 import { z } from 'zod';
 
@@ -108,6 +116,200 @@ export function postVisible(
 ): boolean {
   return !p.privateToUserId || moderator || p.authorId === userId || p.privateToUserId === userId;
 }
+
+// ── reading (the forum page and the API queries share these) ────────────────────
+
+export const DISCUSSIONS_PAGE = 30;
+
+/** A page of the discussions the user may see, newest activity first, pinned on top. */
+export async function readDiscussions(
+  ctx: ModuleCtx,
+  a: Forum,
+  opts: { page?: number; pageSize?: number } = {},
+) {
+  const me = uid(ctx);
+  const pageSize = opts.pageSize ?? DISCUSSIONS_PAGE;
+  const page = Math.max(1, opts.page ?? 1);
+  const moderator = await isModerator(ctx, a);
+  const canStart =
+    (await ctx.perm.can('mod.forum:startdiscussion', a.id)) &&
+    (a.settings.type === 'general' || moderator);
+  const groupFilter = await visibleGroupFilter(ctx, a, me);
+  const where = {
+    activityId: a.id,
+    ...(groupFilter ? { OR: [{ groupId: null }, { groupId: { in: groupFilter } }] } : {}),
+  };
+  const [discussions, total, sub] = await Promise.all([
+    ctx.db.forumDiscussion.findMany({
+      where,
+      orderBy: [{ pinned: 'desc' }, { lastPostAt: 'desc' }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: {
+        author: { select: { name: true } },
+        group: { select: { name: true } },
+        readStates: { where: { userId: me } },
+      },
+    }),
+    ctx.db.forumDiscussion.count({ where }),
+    subscriptionState(ctx, a, me),
+  ]);
+  const unread = await Promise.all(
+    discussions.map((d) =>
+      ctx.db.forumPost.count({
+        where: {
+          discussionId: d.id,
+          deletedAt: null,
+          authorId: { not: me },
+          ...(d.readStates[0] ? { createdAt: { gt: d.readStates[0].lastReadAt } } : {}),
+          ...(moderator ? {} : { OR: [{ privateToUserId: null }, { privateToUserId: me }] }),
+        },
+      }),
+    ),
+  );
+  // Members choose one of their groups for a new discussion; moderators also post to all.
+  const groups =
+    a.groupMode === 'NONE'
+      ? []
+      : await ctx.db.group.findMany({
+          where: moderator
+            ? forumGroupsWhere(a)
+            : { id: { in: await userGroupIds(ctx.db, a, me) } },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        });
+  return {
+    page,
+    pageSize,
+    total,
+    canStart,
+    moderator,
+    subscribed: sub.forum,
+    groups,
+    items: discussions.map((d, i) => ({
+      id: d.id,
+      title: d.title,
+      pinned: d.pinned,
+      locked: d.locked,
+      groupId: d.groupId,
+      groupName: d.group?.name ?? null,
+      authorName: d.author?.name ?? null,
+      replies: Math.max(0, d.postCount - 1),
+      unread: unread[i]!,
+      lastPostAt: d.lastPostAt,
+    })),
+  };
+}
+
+export interface ForumPostView {
+  id: string;
+  parentId: string | null;
+  authorId: string | null;
+  /** null for a deleted account */
+  authorName: string | null;
+  /** empty for a deleted post */
+  contentHtml: string;
+  privateToUserId: string | null;
+  deleted: boolean;
+  editable: boolean;
+  deletable: boolean;
+  createdAt: Date;
+  editedAt: Date | null;
+  attachments: ModuleFile[];
+}
+
+/**
+ * A discussion with the posts the user may see, oldest first (a flat list; `parentId`
+ * gives the tree). Private replies show only to their author, recipient and moderators;
+ * in a Q&A forum other replies stay hidden until the user has replied. Reading does not
+ * mark posts as read. `null` when the discussion is not there for this user.
+ */
+export async function readDiscussion(ctx: ModuleCtx, a: Forum, discussionId: string) {
+  const me = uid(ctx);
+  const d = await ctx.db.forumDiscussion.findUnique({
+    where: { id: discussionId },
+    include: { group: { select: { name: true } } },
+  });
+  if (!d || d.activityId !== a.id || !(await canSeeDiscussion(ctx, a, d, me))) return null;
+  const moderator = await isModerator(ctx, a);
+  const [canPost, locked, sub] = await Promise.all([
+    ctx.perm.can('mod.forum:post', a.id),
+    qandaLocked(ctx, a, d.id, me),
+    subscriptionState(ctx, a, me, d.id),
+  ]);
+  const myGroups = d.groupId && !moderator ? await userGroupIds(ctx.db, a, me) : [];
+  const inGroup = !d.groupId || moderator || myGroups.includes(d.groupId);
+  const [rows, files] = await Promise.all([
+    ctx.db.forumPost.findMany({
+      where: { discussionId: d.id },
+      orderBy: { createdAt: 'asc' },
+      include: { author: { select: { name: true } } },
+    }),
+    ctx.files.list(a.id, 'attachment'),
+  ]);
+  const visible = rows.filter(
+    (p) =>
+      postVisible(p, me, moderator) &&
+      // Q&A: until the user replies, only the question and their own posts are shown
+      (!locked || p.parentId === null || p.authorId === me),
+  );
+  const shown = new Set(visible.map((p) => p.id));
+  const hasReplies = new Set(visible.map((p) => p.parentId).filter((x) => x && shown.has(x)));
+  const now = Date.now();
+  const posts: ForumPostView[] = visible.map((p) => {
+    const editable =
+      !p.deletedAt &&
+      (moderator ||
+        (p.authorId === me && now - p.createdAt.getTime() <= a.settings.editMinutes * 60_000));
+    return {
+      id: p.id,
+      parentId: p.parentId,
+      authorId: p.authorId,
+      authorName: p.author?.name ?? null,
+      contentHtml: p.deletedAt ? '' : p.contentHtml,
+      privateToUserId: p.privateToUserId,
+      deleted: !!p.deletedAt,
+      editable,
+      deletable: editable && (moderator || !hasReplies.has(p.id)),
+      createdAt: p.createdAt,
+      editedAt: p.editedAt,
+      attachments: p.deletedAt ? [] : files.filter((f) => f.itemId === p.id),
+    };
+  });
+  return {
+    discussion: {
+      id: d.id,
+      title: d.title,
+      pinned: d.pinned,
+      locked: d.locked,
+      groupId: d.groupId,
+      groupName: d.group?.name ?? null,
+      createdAt: d.createdAt,
+    },
+    moderator,
+    canReply: canPost && inGroup && (!d.locked || moderator),
+    canReplyPrivately: moderator && a.settings.allowPrivateReplies,
+    qandaLocked: locked,
+    subscribed: sub.discussion,
+    posts,
+  };
+}
+
+const DiscussionOut = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  pinned: z.boolean(),
+  locked: z.boolean(),
+  groupId: z.string().uuid().nullable(),
+  groupName: z.string().nullable(),
+});
+const FileOut = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  mimeType: z.string(),
+  size: z.number(),
+  url: z.string(),
+});
 
 async function loadDiscussion(ctx: ModuleCtx, a: Forum, discussionId: string) {
   const d = await ctx.db.forumDiscussion.findUnique({ where: { id: discussionId } });
@@ -308,6 +510,66 @@ export const forum = defineModule<ForumSettingsT>({
     },
   },
   extractText: (a) => a.name,
+  queries: {
+    discussions: defineQuery({
+      summary: 'Discussions the user may see, pinned first, with unread counts',
+      input: z.object({
+        page: z.coerce.number().int().min(1).default(1),
+        pageSize: z.coerce.number().int().min(1).max(50).default(DISCUSSIONS_PAGE),
+      }),
+      output: z.object({
+        page: z.number(),
+        pageSize: z.number(),
+        total: z.number(),
+        canStart: z.boolean(),
+        moderator: z.boolean(),
+        subscribed: z.boolean(),
+        groups: z.array(z.object({ id: z.string().uuid(), name: z.string() })),
+        items: z.array(
+          DiscussionOut.extend({
+            authorName: z.string().nullable(),
+            replies: z.number(),
+            unread: z.number(),
+            lastPostAt: z.string(),
+          }),
+        ),
+      }),
+      handler: (ctx, a, input) => readDiscussions(ctx, a as Forum, input),
+    }),
+    discussion: defineQuery({
+      summary: 'A discussion and the posts the user may see (flat, parentId gives the tree)',
+      input: z.object({ discussionId: z.string().uuid() }),
+      output: z.object({
+        discussion: DiscussionOut.extend({ createdAt: z.string() }),
+        moderator: z.boolean(),
+        canReply: z.boolean(),
+        canReplyPrivately: z.boolean(),
+        qandaLocked: z.boolean().describe('Q&A forum: other replies show once the user replied'),
+        subscribed: z.boolean(),
+        posts: z.array(
+          z.object({
+            id: z.string().uuid(),
+            parentId: z.string().uuid().nullable(),
+            authorId: z.string().uuid().nullable(),
+            authorName: z.string().nullable(),
+            contentHtml: z.string(),
+            privateToUserId: z.string().uuid().nullable(),
+            deleted: z.boolean(),
+            editable: z.boolean(),
+            deletable: z.boolean(),
+            createdAt: z.string(),
+            editedAt: z.string().nullable(),
+            attachments: z.array(FileOut),
+          }),
+        ),
+      }),
+      async handler(ctx, a, { discussionId }) {
+        const r = await readDiscussion(ctx, a as Forum, discussionId);
+        if (!r) throw new ModuleError('NOT_FOUND', 'Discussion not found');
+        return r;
+      },
+    }),
+  },
   actions: {
     startDiscussion: defineAction({
       summary: 'Start a discussion, optionally in a group, with attachments',

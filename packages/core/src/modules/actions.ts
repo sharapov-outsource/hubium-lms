@@ -1,3 +1,4 @@
+import { ModuleError } from '@hubium/module-sdk';
 import type { RequestContext } from '../context.ts';
 import { getActivityAccess } from '../courses/activities.ts';
 import { AppError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
@@ -50,11 +51,43 @@ export async function actionInputFromForm(form: {
   return input as Record<string, unknown>;
 }
 
-/** Module handlers throw plain Errors with messages for the user: a bad request, not a crash. */
+/**
+ * Module handlers throw plain Errors with messages for the user (a bad request, not a crash)
+ * or a ModuleError that names its status.
+ */
 function userError(e: unknown): unknown {
+  if (e instanceof ModuleError) return new AppError(e.status, e.message, { cause: e });
   return e instanceof Error && Object.getPrototypeOf(e) === Error.prototype && !('code' in e)
     ? new AppError('BAD_REQUEST', e.message, { cause: e })
     : e;
+}
+
+/** The activity and its module, when the caller may open it (actions and queries alike). */
+async function openModuleActivity(ctx: RequestContext, activityId: string) {
+  const { activity, canOpen, moduleDisabled } = await getActivityAccess(ctx, activityId);
+  if (moduleDisabled)
+    throw new ForbiddenError('This activity type is turned off by the administrator');
+  if (!canOpen || activity.deletedAt) throw new ForbiddenError('Activity is not available');
+  return { activity, module: requireModule(activity.moduleKey) };
+}
+
+/** Runs `ActivityModule.queries[name]`: a read, with the same access checks as actions. */
+export function runModuleQuery(
+  ctx: RequestContext,
+  activityId: string,
+  name: string,
+  raw: unknown,
+): Promise<unknown> {
+  return withActorScope(ctx.actor, async () => {
+    const { activity, module: m } = await openModuleActivity(ctx, activityId);
+    const query = m.queries?.[name];
+    if (!query) throw new NotFoundError(`Query ${name}`);
+    if (query.capability) await ctx.perm.require(query.capability as never, activityId);
+    const input = parseInput(query.input, raw);
+    return query.handler(buildModuleCtx(ctx), toActivityRef(activity), input);
+  }).catch((e) => {
+    throw userError(e);
+  });
 }
 
 async function runAction(
@@ -63,11 +96,7 @@ async function runAction(
   name: string,
   raw: unknown,
 ): Promise<unknown> {
-  const { activity, canOpen, moduleDisabled } = await getActivityAccess(ctx, activityId);
-  if (moduleDisabled)
-    throw new ForbiddenError('This activity type is turned off by the administrator');
-  if (!canOpen || activity.deletedAt) throw new ForbiddenError('Activity is not available');
-  const m = requireModule(activity.moduleKey);
+  const { activity, module: m } = await openModuleActivity(ctx, activityId);
   const action = m.actions?.[name];
   if (!action) throw new NotFoundError(`Action ${name}`);
   if (action.capability) await ctx.perm.require(action.capability as never, activityId);

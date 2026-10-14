@@ -1,18 +1,28 @@
 import type { Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
-import { type ActivityRef, defineAction, defineModule, type ModuleCtx } from '@hubium/module-sdk';
+import {
+  type ActivityRef,
+  defineAction,
+  defineModule,
+  defineQuery,
+  type ModuleCtx,
+  ModuleError,
+} from '@hubium/module-sdk';
 import { bool, isoDate, optionalNumber } from '@hubium/module-sdk/fields';
 import {
+  correctResponse,
   gradeResponse,
   presentQuestion,
   type QuestionData,
   type QuestionSnapshot,
   type QuestionType,
+  questionTypes,
   ResponseSchemas,
   shuffle,
   subSeed,
 } from '@hubium/questions';
 import { z } from 'zod';
+import { type PublicQuestion, toPublicQuestion } from './public.ts';
 
 // mod-quiz: question slots (fixed or random from a category), timed attempts with
 // frozen question snapshots, automatic grading and manual grading of essays.
@@ -469,6 +479,211 @@ export function reviewAllowed(s: QuizSettingsT, closeAt: Date | null, now: Date)
   return true;
 }
 
+// ── reading (the quiz page and the API queries share these) ─────────────────────
+
+type Quiz = ActivityRef<QuizSettingsT>;
+
+const scaled = (sum: unknown, max: number, gradeMax: number) =>
+  sum === null || sum === undefined || !max ? null : (Number(sum) / max) * gradeMax;
+
+/** The learner's view of the quiz: window, attempts, grade and what they may do next. */
+export async function readQuizOverview(ctx: ModuleCtx, a: Quiz) {
+  if (ctx.actor.kind !== 'user') throw new Error('Sign in required');
+  const userId = ctx.actor.userId;
+  const [e, attempts, questions, canAttempt, item] = await Promise.all([
+    effectiveQuiz(ctx.db, a, userId),
+    ctx.db.quizAttempt.findMany({
+      where: { activityId: a.id, userId, preview: false },
+      orderBy: { attemptNumber: 'asc' },
+      include: { questions: { select: { maxMark: true } } },
+    }),
+    ctx.db.quizSlot.count({ where: { activityId: a.id } }),
+    ctx.perm.can('mod.quiz:attempt', a.id),
+    ctx.db.gradeItem.findFirst({ where: { activityId: a.id, itemNumber: 0 } }),
+  ]);
+  const grade = item
+    ? await ctx.db.grade.findUnique({
+        where: { gradeItemId_userId: { gradeItemId: item.id, userId } },
+      })
+    : null;
+  const open = quizIsOpen(e, ctx.now);
+  const canReview = reviewAllowed(a.settings, e.closeAt, ctx.now);
+  return {
+    questions,
+    timeLimitSec: e.timeLimitSec || null,
+    /** null: unlimited */
+    attemptsAllowed: e.attempts || null,
+    attemptsLeft: e.attempts ? Math.max(0, e.attempts - attempts.length) : null,
+    openAt: e.openAt,
+    closeAt: e.closeAt,
+    isOpen: open.ok,
+    closedReason: open.ok ? null : open.reason,
+    canAttempt,
+    inProgressAttemptId: attempts.find((x) => x.state === 'IN_PROGRESS')?.id ?? null,
+    gradeMax: a.settings.gradeMax,
+    grade:
+      grade?.finalGrade === null || grade?.finalGrade === undefined
+        ? null
+        : Number(grade.finalGrade),
+    pendingGrade: attempts.some((x) => x.needsManualGrading),
+    reviewAllowed: canReview,
+    attempts: attempts.map((x) => ({
+      id: x.id,
+      attemptNumber: x.attemptNumber,
+      state: x.state,
+      startedAt: x.startedAt,
+      finishedAt: x.finishedAt,
+      needsManualGrading: x.needsManualGrading,
+      grade:
+        x.state === 'FINISHED'
+          ? scaled(x.sumGrades, sumMaxMarks(x.questions), a.settings.gradeMax)
+          : null,
+      reviewable: x.state === 'FINISHED' && (canReview || a.settings.reviewMarks),
+    })),
+  };
+}
+
+/**
+ * The user's own attempt in progress, as the player shows it: no fractions and no correct
+ * answers. `null` when it is not theirs; `{ finished }` when it is no longer in progress.
+ */
+export async function readAttempt(ctx: ModuleCtx, a: Quiz, attemptId: string) {
+  const at = await ctx.db.quizAttempt.findUnique({
+    where: { id: attemptId },
+    include: { questions: { orderBy: { slot: 'asc' } } },
+  });
+  if (!at || at.activityId !== a.id || ctx.actor.kind !== 'user' || at.userId !== ctx.actor.userId)
+    return null;
+  return {
+    id: at.id,
+    attemptNumber: at.attemptNumber,
+    state: at.state,
+    dueAt: at.dueAt,
+    serverNow: new Date(),
+    questions: at.state === 'IN_PROGRESS' ? at.questions.map(toPublicQuestion) : [],
+  };
+}
+
+/** A response as text for review screens (choices by their text, matches as pairs). */
+export function answerText(snap: QuestionSnapshot, resp: unknown): string {
+  const r = (resp ?? {}) as Record<string, unknown>;
+  switch (snap.type) {
+    case 'MULTICHOICE': {
+      const d = snap.data as QuestionData<'MULTICHOICE'>;
+      const sel = (r.selected as string[]) ?? [];
+      return d.answers
+        .filter((x) => sel.includes(x.id))
+        .map((x) => x.text)
+        .join('; ');
+    }
+    case 'TRUEFALSE':
+      return r.value === undefined || r.value === null ? '' : String(r.value);
+    case 'MATCH': {
+      const d = snap.data as QuestionData<'MATCH'>;
+      const c = (r.choices as Record<string, string>) ?? {};
+      return d.pairs.map((p) => `${p.question} → ${c[p.id] ?? '—'}`).join('; ');
+    }
+    default:
+      return typeof r.text === 'string' ? r.text : '';
+  }
+}
+
+export type ReviewVerdict = 'correct' | 'partial' | 'incorrect' | 'needsGrading';
+
+export interface ReviewQuestion extends PublicQuestion {
+  id: string;
+  answerText: string;
+  /** null unless marks may be shown */
+  verdict: ReviewVerdict | null;
+  mark: number | null;
+  correctResponse: unknown;
+  correctAnswerText: string | null;
+  generalFeedback: string | null;
+  comment: string | null;
+}
+
+/**
+ * A finished attempt for review: its owner (once it is finished) or a teacher. Correct
+ * answers and general feedback follow the quiz's review setting, marks its `reviewMarks`;
+ * teachers and previews see everything. `null` when the user may not see it,
+ * `'inProgress'` while the learner can still change answers.
+ */
+export async function readReview(ctx: ModuleCtx, a: Quiz, attemptId: string) {
+  const at = await ctx.db.quizAttempt.findUnique({
+    where: { id: attemptId },
+    include: { questions: { orderBy: { slot: 'asc' } }, user: { select: { name: true } } },
+  });
+  if (!at || at.activityId !== a.id) return null;
+  const own = ctx.actor.kind === 'user' && at.userId === ctx.actor.userId;
+  const teacher = await ctx.perm.can('mod.quiz:viewreports', a.id);
+  if (!own && !teacher) return null;
+  if (!teacher && !at.preview && at.state === 'IN_PROGRESS') return 'inProgress' as const;
+  const e = await effectiveQuiz(ctx.db, a, at.userId);
+  const showAnswers = teacher || at.preview || reviewAllowed(a.settings, e.closeAt, ctx.now);
+  const showMarks = teacher || at.preview || a.settings.reviewMarks;
+  const max = sumMaxMarks(at.questions);
+  const questions: ReviewQuestion[] = at.questions.map((qa) => {
+    const snap = qa.snapshot as unknown as QuestionSnapshot;
+    const frac = qa.fraction === null ? null : Number(qa.fraction);
+    const verdict: ReviewVerdict | null = qa.needsGrading
+      ? 'needsGrading'
+      : frac === null
+        ? null
+        : frac >= 0.9999
+          ? 'correct'
+          : frac > 0
+            ? 'partial'
+            : 'incorrect';
+    const correct = showAnswers ? correctResponse(snap) : null;
+    return {
+      ...toPublicQuestion(qa),
+      id: qa.id,
+      answerText: answerText(snap, qa.response),
+      verdict: showMarks ? verdict : null,
+      mark: showMarks && qa.mark !== null ? Number(qa.mark) : null,
+      correctResponse: correct,
+      correctAnswerText: correct ? answerText(snap, correct) : null,
+      generalFeedback: showAnswers ? (snap.generalFeedback ?? null) : null,
+      comment: qa.comment || null,
+    };
+  });
+  return {
+    attempt: {
+      id: at.id,
+      attemptNumber: at.attemptNumber,
+      state: at.state,
+      preview: at.preview,
+      userId: at.userId,
+      userName: teacher ? at.user.name : null,
+      startedAt: at.startedAt,
+      finishedAt: at.finishedAt,
+    },
+    teacher,
+    showAnswers,
+    showMarks,
+    gradeMax: a.settings.gradeMax,
+    grade: showMarks ? scaled(at.sumGrades, max, a.settings.gradeMax) : null,
+    pendingGrade: at.needsManualGrading,
+    questions,
+  };
+}
+
+const QuestionOut = z.object({
+  slot: z.number(),
+  page: z.number(),
+  type: z.enum(questionTypes as [QuestionType, ...QuestionType[]]),
+  text: z.string().describe('sanitised HTML'),
+  maxMark: z.number(),
+  options: z.array(z.object({ id: z.string(), text: z.string() })).optional(),
+  multiple: z.boolean().optional(),
+  matchRows: z.array(z.object({ id: z.string(), text: z.string() })).optional(),
+  matchChoices: z.array(z.string()).optional(),
+  minWords: z.number().optional(),
+  maxWords: z.number().optional(),
+  response: z.unknown().describe('the saved answer, in the shape the save action takes'),
+  flagged: z.boolean(),
+});
+
 export const quiz = defineModule<QuizSettingsT>({
   key: 'quiz',
   archetype: 'activity',
@@ -598,6 +813,102 @@ export const quiz = defineModule<QuizSettingsT>({
       }
       return 'complete';
     },
+  },
+  queries: {
+    overview: defineQuery({
+      summary: "The learner's quiz: window, attempts left, grade and their attempts",
+      input: z.object({}),
+      output: z.object({
+        questions: z.number(),
+        timeLimitSec: z.number().nullable(),
+        attemptsAllowed: z.number().nullable().describe('null: unlimited'),
+        attemptsLeft: z.number().nullable(),
+        openAt: z.string().nullable(),
+        closeAt: z.string().nullable(),
+        isOpen: z.boolean(),
+        closedReason: z.enum(['notOpen', 'closed']).nullable(),
+        canAttempt: z.boolean(),
+        inProgressAttemptId: z.string().uuid().nullable(),
+        gradeMax: z.number(),
+        grade: z.number().nullable(),
+        pendingGrade: z.boolean(),
+        reviewAllowed: z.boolean().describe('correct answers and feedback may be shown now'),
+        attempts: z.array(
+          z.object({
+            id: z.string().uuid(),
+            attemptNumber: z.number(),
+            state: z.enum(['IN_PROGRESS', 'OVERDUE', 'FINISHED', 'ABANDONED']),
+            startedAt: z.string(),
+            finishedAt: z.string().nullable(),
+            needsManualGrading: z.boolean(),
+            grade: z.number().nullable(),
+            reviewable: z.boolean(),
+          }),
+        ),
+      }),
+      handler: (ctx, a) => readQuizOverview(ctx, a as Quiz),
+    }),
+    attempt: defineQuery({
+      summary: "Questions of the user's attempt in progress, without answers or fractions",
+      capability: 'mod.quiz:attempt',
+      input: z.object({ attemptId: z.string().uuid() }),
+      output: z.object({
+        id: z.string().uuid(),
+        attemptNumber: z.number(),
+        state: z.literal('IN_PROGRESS'),
+        dueAt: z.string().nullable().describe('the attempt closes itself at this time'),
+        serverNow: z.string(),
+        questions: z.array(QuestionOut),
+      }),
+      async handler(ctx, a, { attemptId }) {
+        const r = await readAttempt(ctx, a as Quiz, attemptId);
+        if (!r) throw new ModuleError('NOT_FOUND', 'Attempt not found');
+        if (r.state !== 'IN_PROGRESS')
+          throw new ModuleError('CONFLICT', 'The attempt is finished; read it with review');
+        return r;
+      },
+    }),
+    review: defineQuery({
+      summary: 'A finished attempt with answers, marks and feedback as the quiz allows',
+      input: z.object({ attemptId: z.string().uuid() }),
+      output: z.object({
+        attempt: z.object({
+          id: z.string().uuid(),
+          attemptNumber: z.number(),
+          state: z.enum(['IN_PROGRESS', 'OVERDUE', 'FINISHED', 'ABANDONED']),
+          preview: z.boolean(),
+          userId: z.string().uuid(),
+          userName: z.string().nullable().describe('for teachers'),
+          startedAt: z.string(),
+          finishedAt: z.string().nullable(),
+        }),
+        teacher: z.boolean(),
+        showAnswers: z.boolean(),
+        showMarks: z.boolean(),
+        gradeMax: z.number(),
+        grade: z.number().nullable(),
+        pendingGrade: z.boolean(),
+        questions: z.array(
+          QuestionOut.extend({
+            id: z.string().uuid(),
+            answerText: z.string(),
+            verdict: z.enum(['correct', 'partial', 'incorrect', 'needsGrading']).nullable(),
+            mark: z.number().nullable(),
+            correctResponse: z.unknown().describe('null unless answers may be shown'),
+            correctAnswerText: z.string().nullable(),
+            generalFeedback: z.string().nullable(),
+            comment: z.string().nullable().describe("the teacher's comment"),
+          }),
+        ),
+      }),
+      async handler(ctx, a, { attemptId }) {
+        const r = await readReview(ctx, a as Quiz, attemptId);
+        if (!r) throw new ModuleError('NOT_FOUND', 'Attempt not found');
+        if (r === 'inProgress')
+          throw new ModuleError('CONFLICT', 'The attempt is in progress; finish it first');
+        return r;
+      },
+    }),
   },
   actions: {
     // ── editing ──

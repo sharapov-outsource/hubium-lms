@@ -1,6 +1,12 @@
 import type { Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
-import { type ActivityRef, defineAction, defineModule, type ModuleCtx } from '@hubium/module-sdk';
+import {
+  type ActivityRef,
+  defineAction,
+  defineModule,
+  defineQuery,
+  type ModuleCtx,
+} from '@hubium/module-sdk';
 import { bool, isoDate, optionalNumber } from '@hubium/module-sdk/fields';
 import { z } from 'zod';
 
@@ -125,6 +131,77 @@ export function assignGradeText(
   outOf: (max: number) => string,
 ): string {
   return scale ? (scale[Math.round(grade) - 1] ?? '—') : `${grade} ${outOf(gradeMax)}`;
+}
+
+// ── reading (the assignment page and the API query share this) ─────────────────
+
+/**
+ * The user's own assignment: dates with their extension, whether they may submit now, the
+ * latest submission with its files, and the latest grade with feedback (the grade of an
+ * earlier attempt stays visible while a new one is open).
+ */
+export async function readAssignStatus(ctx: ModuleCtx, a: ActivityRef<AssignSettingsT>) {
+  const me = userId(ctx);
+  const [scale, canSubmit, sub, dates] = await Promise.all([
+    assignScale(ctx.db, a),
+    ctx.perm.can('mod.assign:submit', a.id),
+    latestSubmission(ctx.db, a.id, me),
+    effectiveDates(ctx.db, a, me),
+  ]);
+  const files = sub ? await ctx.files.list(a.id, 'submission', sub.id) : [];
+  const current = sub
+    ? await ctx.db.assignGrade.findUnique({
+        where: {
+          activityId_userId_attemptNumber: {
+            activityId: a.id,
+            userId: me,
+            attemptNumber: sub.attemptNumber,
+          },
+        },
+      })
+    : null;
+  const last =
+    current ??
+    (await ctx.db.assignGrade.findFirst({
+      where: { activityId: a.id, userId: me },
+      orderBy: { attemptNumber: 'desc' },
+    }));
+  const [grader, feedbackFiles] = last
+    ? await Promise.all([
+        last.graderId
+          ? ctx.db.user.findUnique({ where: { id: last.graderId }, select: { name: true } })
+          : null,
+        ctx.files
+          .list(a.id, 'feedback', me)
+          .then((fs) => fs.filter((f) => f.path === `/${last.attemptNumber}/`)),
+      ])
+    : [null, []];
+  const window = canSubmitNow(dates, ctx.now);
+  const status = sub?.status ?? 'NEW';
+  return {
+    dates,
+    canSubmit,
+    window: { open: window.ok, reason: window.reason ?? null },
+    status,
+    attemptNumber: sub?.attemptNumber ?? 0,
+    editable: canSubmit && window.ok && status !== 'SUBMITTED',
+    canWithdraw: status === 'SUBMITTED' && window.ok && !current,
+    submission: sub
+      ? { id: sub.id, onlineText: sub.onlineText, submittedAt: sub.submittedAt, files }
+      : null,
+    gradeMax: a.settings.gradeMax,
+    scale,
+    grade: last
+      ? {
+          attemptNumber: last.attemptNumber,
+          value: last.grade === null ? null : Number(last.grade),
+          feedback: last.feedback,
+          gradedAt: last.gradedAt,
+          graderName: grader?.name ?? null,
+          feedbackFiles,
+        }
+      : null,
+  };
 }
 
 export const assign = defineModule<AssignSettingsT>({
@@ -288,6 +365,54 @@ export const assign = defineModule<AssignSettingsT>({
       },
     },
   ],
+  queries: {
+    status: defineQuery({
+      summary: "The user's own submission, dates with extensions, grade and feedback",
+      input: z.object({}),
+      output: z.object({
+        dates: z.object({
+          openAt: z.string().nullable(),
+          dueAt: z.string().nullable(),
+          cutoffAt: z.string().nullable(),
+          extended: z.boolean(),
+        }),
+        canSubmit: z.boolean().describe('the user has the capability to submit'),
+        window: z.object({
+          open: z.boolean(),
+          reason: z.enum(['notOpen', 'closed']).nullable(),
+        }),
+        status: z.enum(['NEW', 'DRAFT', 'SUBMITTED', 'REOPENED']),
+        attemptNumber: z.number(),
+        editable: z.boolean().describe('saveSubmission is possible now'),
+        canWithdraw: z.boolean().describe('revertToDraft is possible now'),
+        submission: z
+          .object({
+            id: z.string().uuid(),
+            onlineText: z.string(),
+            submittedAt: z.string().nullable(),
+            files: z.array(
+              z.object({ id: z.string(), name: z.string(), size: z.number(), url: z.string() }),
+            ),
+          })
+          .nullable(),
+        gradeMax: z.number(),
+        scale: z.array(z.string()).nullable().describe('scale grades, worst first'),
+        grade: z
+          .object({
+            attemptNumber: z.number(),
+            value: z.number().nullable().describe('points, or a 1-based scale position'),
+            feedback: z.string(),
+            gradedAt: z.string(),
+            graderName: z.string().nullable(),
+            feedbackFiles: z.array(
+              z.object({ id: z.string(), name: z.string(), size: z.number(), url: z.string() }),
+            ),
+          })
+          .nullable(),
+      }),
+      handler: (ctx, a) => readAssignStatus(ctx, a as ActivityRef<AssignSettingsT>),
+    }),
+  },
   actions: {
     saveSubmission: defineAction({
       summary: 'Save your submission: online text and files; `submit: true` sends it for grading',

@@ -257,6 +257,76 @@ describe('REST API v1', () => {
     expect(ev.status).toBe(200);
   });
 
+  it('reads module data with a read-only token', async () => {
+    const forumId = (await f.addActivity('forum', 'Обсуждения', {})).id;
+    const start = await call(tokens.student!, `/activities/${forumId}/actions/startDiscussion`, {
+      method: 'POST',
+      body: JSON.stringify({ title: 'Привет', message: '<p>Всем привет</p>' }),
+    });
+    expect(start.status).toBe(200);
+    const list = await call(
+      tokens.readonly!,
+      `/activities/${forumId}/queries/discussions?pageSize=5`,
+    );
+    expect(list.status).toBe(200);
+    const { data } = (await list.json()) as {
+      data: { total: number; pageSize: number; items: { id: string; lastPostAt: string }[] };
+    };
+    expect(data).toMatchObject({ total: 1, pageSize: 5 });
+    expect(data.items[0]!.lastPostAt).toMatch(/^\d{4}-\d\d-\d\dT/);
+    const one = await call(
+      tokens.readonly!,
+      `/activities/${forumId}/queries/discussion?discussionId=${data.items[0]!.id}`,
+    );
+    expect(((await one.json()) as { data: { posts: unknown[] } }).data.posts).toHaveLength(1);
+    // the status of someone else's submission is never theirs to read, and errors keep shape
+    const status = await call(tokens.readonly!, `/activities/${assignId}/queries/status`);
+    expect(((await status.json()) as { data: { submission: null } }).data.submission).toBeNull();
+    const missing = await call(
+      tokens.readonly!,
+      `/activities/${forumId}/queries/discussion?discussionId=00000000-0000-7000-8000-000000000000`,
+    );
+    expect(missing.status).toBe(404);
+    expect(await missing.json()).toMatchObject({ code: 'NOT_FOUND' });
+    const invalid = await call(
+      tokens.readonly!,
+      `/activities/${forumId}/queries/discussions?page=0`,
+    );
+    expect(invalid.status).toBe(400);
+    expect(await invalid.json()).toMatchObject({ code: 'VALIDATION' });
+    expect((await call(tokens.readonly!, `/activities/${forumId}/queries/nope`)).status).toBe(404);
+    // a read-only token still cannot run actions
+    const write = await call(tokens.readonly!, `/activities/${forumId}/actions/markRead`, {
+      method: 'POST',
+      body: JSON.stringify({ discussionId: data.items[0]!.id }),
+    });
+    expect(write.status).toBe(403);
+  });
+
+  it('returns action results with file sizes', async () => {
+    const forumId = (await f.addActivity('forum', 'С файлами', {})).id;
+    const form = new FormData();
+    form.set('input', JSON.stringify({ title: 'Файл', message: '<p>См. вложение</p>' }));
+    form.append('files', new File(['hello'], 'hello.txt', { type: 'text/plain' }));
+    const r = await api.request(`/api/v1/activities/${forumId}/actions/startDiscussion`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokens.student!}` },
+      body: form,
+    });
+    expect(r.status).toBe(200);
+    const { data } = (await r.json()) as { data: { discussionId: string } };
+    const read = await call(
+      tokens.student!,
+      `/activities/${forumId}/queries/discussion?discussionId=${data.discussionId}`,
+    );
+    const post = (
+      (await read.json()) as {
+        data: { posts: { attachments: { name: string; size: number }[] }[] };
+      }
+    ).data.posts[0]!;
+    expect(post.attachments).toEqual([expect.objectContaining({ name: 'hello.txt', size: 5 })]);
+  });
+
   it('takes files as multipart parts and as resumable uploads', async () => {
     const token = await mint(f.users.student3!);
     const form = new FormData();
@@ -571,6 +641,19 @@ describe('REST API v1', () => {
       '/api/v1/activities/{id}/actions/{name}'
     ]!.post;
     expect(run.description).toContain('| quiz | `regrade` | `mod.quiz:grade` |');
+    // and every module query from its parameters and result schema
+    expect(schemas['Query.quiz.review']).toMatchObject({
+      type: 'object',
+      properties: { showAnswers: { type: 'boolean' }, questions: { type: 'array' } },
+    });
+    expect(schemas['Query.forum.discussions']?.properties).toHaveProperty('items');
+    const read = (spec as { paths: Record<string, { get: Record<string, unknown> }> }).paths[
+      '/api/v1/activities/{id}/queries/{name}'
+    ]!.get;
+    expect(read.description).toContain('| assign | `status` |');
+    expect((read.parameters as { name: string }[]).map((p) => p.name)).toEqual(
+      expect.arrayContaining(['id', 'name', 'discussionId', 'attemptId', 'page']),
+    );
     // the reference page runs only Scalar's bundle from this origin, under a strict CSP
     const docs = await api.request('/api/v1/docs');
     expect(docs.status).toBe(200);

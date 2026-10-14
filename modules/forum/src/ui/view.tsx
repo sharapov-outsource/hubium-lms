@@ -5,14 +5,11 @@ import { ArrowLeft, FileIcon, Lock, Pin } from 'lucide-react';
 import Link from 'next/link';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import {
+  DISCUSSIONS_PAGE,
+  type ForumPostView,
   type ForumSettingsT,
-  forumGroupsWhere,
-  isModerator,
-  postVisible,
-  qandaLocked,
-  subscriptionState,
-  userGroupIds,
-  visibleGroupFilter,
+  readDiscussion,
+  readDiscussions,
 } from '../server.ts';
 import {
   MarkRead,
@@ -23,8 +20,6 @@ import {
 } from './client.tsx';
 
 type Props = ViewProps<ForumSettingsT>;
-
-const PAGE = 30;
 
 const initials = (name: string) =>
   name
@@ -43,61 +38,17 @@ export async function ForumView(props: Props) {
 }
 
 async function ForumIndex({ activity: a, ctx, searchParams }: Props) {
-  const me = ctx.actor.kind === 'user' ? ctx.actor.userId : '';
   const [t, format] = await Promise.all([getTranslations('mod.forum'), getFormatter()]);
-  const moderator = await isModerator(ctx, a);
-  const canStart =
-    (await ctx.perm.can('mod.forum:startdiscussion', a.id)) &&
-    (a.settings.type === 'general' || moderator);
-  const groupFilter = await visibleGroupFilter(ctx, a, me);
   const page = Math.max(1, Number(searchParams.page ?? 1) || 1);
-  const where = {
-    activityId: a.id,
-    ...(groupFilter ? { OR: [{ groupId: null }, { groupId: { in: groupFilter } }] } : {}),
-  };
-  const [discussions, total, sub] = await Promise.all([
-    ctx.db.forumDiscussion.findMany({
-      where,
-      orderBy: [{ pinned: 'desc' }, { lastPostAt: 'desc' }],
-      skip: (page - 1) * PAGE,
-      take: PAGE,
-      include: {
-        author: { select: { name: true } },
-        group: { select: { name: true } },
-        readStates: { where: { userId: me } },
-      },
-    }),
-    ctx.db.forumDiscussion.count({ where }),
-    subscriptionState(ctx, a, me),
-  ]);
-  const unread = await Promise.all(
-    discussions.map((d) =>
-      ctx.db.forumPost.count({
-        where: {
-          discussionId: d.id,
-          deletedAt: null,
-          authorId: { not: me },
-          ...(d.readStates[0] ? { createdAt: { gt: d.readStates[0].lastReadAt } } : {}),
-          ...(moderator ? {} : { OR: [{ privateToUserId: null }, { privateToUserId: me }] }),
-        },
-      }),
-    ),
-  );
-  // Members choose a group for new discussions; moderators may also post to everyone.
-  const groups =
-    a.groupMode === 'NONE'
-      ? []
-      : moderator
-        ? await ctx.db.group.findMany({
-            where: forumGroupsWhere(a),
-            select: { id: true, name: true },
-            orderBy: { name: 'asc' },
-          })
-        : await ctx.db.group.findMany({
-            where: { id: { in: await userGroupIds(ctx.db, a, me) } },
-            select: { id: true, name: true },
-            orderBy: { name: 'asc' },
-          });
+  const {
+    items: discussions,
+    total,
+    canStart,
+    moderator,
+    subscribed,
+    groups,
+  } = await readDiscussions(ctx, a, { page });
+  const PAGE = DISCUSSIONS_PAGE;
   const base = `/course/${a.courseId}/a/${a.id}`;
   return (
     <div className="grid gap-4">
@@ -114,7 +65,7 @@ async function ForumIndex({ activity: a, ctx, searchParams }: Props) {
           <span />
         )}
         {a.settings.subscription === 'optional' || a.settings.subscription === 'auto' ? (
-          <SubscribeButton activityId={a.id} subscribed={sub.forum} />
+          <SubscribeButton activityId={a.id} subscribed={subscribed} />
         ) : null}
       </div>
       {a.settings.type === 'qanda' ? <Alert>{t('qandaHint')}</Alert> : null}
@@ -129,7 +80,7 @@ async function ForumIndex({ activity: a, ctx, searchParams }: Props) {
             </Tr>
           </THead>
           <TBody>
-            {discussions.map((d, i) => (
+            {discussions.map((d) => (
               <Tr key={d.id}>
                 <Td>
                   <div className="flex flex-wrap items-center gap-2">
@@ -142,14 +93,14 @@ async function ForumIndex({ activity: a, ctx, searchParams }: Props) {
                     <Link href={`${base}?d=${d.id}`} className="font-medium hover:underline">
                       {d.title}
                     </Link>
-                    {unread[i] ? (
-                      <Badge variant="accent">{t('unread', { n: unread[i]! })}</Badge>
+                    {d.unread ? (
+                      <Badge variant="accent">{t('unread', { n: d.unread })}</Badge>
                     ) : null}
-                    {d.group ? <Badge>{d.group.name}</Badge> : null}
+                    {d.groupName ? <Badge>{d.groupName}</Badge> : null}
                   </div>
                 </Td>
-                <Td className="hidden text-sm sm:table-cell">{d.author?.name ?? '—'}</Td>
-                <Td className="text-right tabular-nums">{Math.max(0, d.postCount - 1)}</Td>
+                <Td className="hidden text-sm sm:table-cell">{d.authorName ?? '—'}</Td>
+                <Td className="text-right tabular-nums">{d.replies}</Td>
                 <Td className="hidden text-sm text-muted-foreground md:table-cell">
                   {format.relativeTime(d.lastPostAt)}
                 </Td>
@@ -172,18 +123,7 @@ async function ForumIndex({ activity: a, ctx, searchParams }: Props) {
   );
 }
 
-interface PostNode {
-  id: string;
-  parentId: string | null;
-  authorId: string | null;
-  authorName: string;
-  contentHtml: string;
-  privateToUserId: string | null;
-  createdAt: Date;
-  editedAt: Date | null;
-  deleted: boolean;
-  children: PostNode[];
-}
+type PostNode = ForumPostView & { children: PostNode[] };
 
 async function DiscussionView({
   activity: a,
@@ -193,69 +133,21 @@ async function DiscussionView({
   const me = ctx.actor.kind === 'user' ? ctx.actor.userId : '';
   const [t, format] = await Promise.all([getTranslations('mod.forum'), getFormatter()]);
   const base = `/course/${a.courseId}/a/${a.id}`;
-  const d = await ctx.db.forumDiscussion.findUnique({
-    where: { id: discussionId },
-    include: { group: { select: { name: true } } },
-  });
-  const groupFilter = await visibleGroupFilter(ctx, a, me);
-  if (
-    !d ||
-    d.activityId !== a.id ||
-    (groupFilter && d.groupId && !groupFilter.includes(d.groupId))
-  ) {
-    return <Alert variant="warning">{t('notFound')}</Alert>;
-  }
-  const moderator = await isModerator(ctx, a);
-  const [canPost, locked, sub] = await Promise.all([
-    ctx.perm.can('mod.forum:post', a.id),
-    qandaLocked(ctx, a, d.id, me),
-    subscriptionState(ctx, a, me, d.id),
-  ]);
-  const myGroups = d.groupId && !moderator ? await userGroupIds(ctx.db, a, me) : [];
-  const inGroup = !d.groupId || moderator || myGroups.includes(d.groupId);
-  const rows = await ctx.db.forumPost.findMany({
-    where: { discussionId: d.id },
-    orderBy: { createdAt: 'asc' },
-    include: { author: { select: { name: true } } },
-  });
-  const files = await ctx.files.list(a.id, 'attachment');
-  const visible = rows.filter(
-    (p) =>
-      postVisible(p, me, moderator) &&
-      // Q&A: until the user replies, only the question and their own posts are shown
-      (!locked || p.parentId === null || p.authorId === me),
-  );
-  const nodes = new Map<string, PostNode>(
-    visible.map((p) => [
-      p.id,
-      {
-        id: p.id,
-        parentId: p.parentId,
-        authorId: p.authorId,
-        authorName: p.author?.name ?? t('deletedUser'),
-        contentHtml: p.deletedAt ? '' : p.contentHtml,
-        privateToUserId: p.privateToUserId,
-        createdAt: p.createdAt,
-        editedAt: p.editedAt,
-        deleted: !!p.deletedAt,
-        children: [],
-      },
-    ]),
-  );
+  const r = await readDiscussion(ctx, a, discussionId);
+  if (!r) return <Alert variant="warning">{t('notFound')}</Alert>;
+  const { discussion: d, moderator, canReply, canReplyPrivately } = r;
+  const locked = r.qandaLocked;
+  const nodes = new Map<string, PostNode>(r.posts.map((p) => [p.id, { ...p, children: [] }]));
   const roots: PostNode[] = [];
   for (const n of nodes.values()) {
     const parent = n.parentId ? nodes.get(n.parentId) : undefined;
     if (parent) parent.children.push(n);
     else if (!n.parentId) roots.push(n);
   }
-  const now = Date.now();
-  const editable = (p: PostNode) =>
-    !p.deleted &&
-    (moderator ||
-      (p.authorId === me && now - p.createdAt.getTime() <= a.settings.editMinutes * 60_000));
 
   const renderPost = (p: PostNode, depth: number) => {
-    const attachments = files.filter((f) => f.itemId === p.id);
+    const attachments = p.attachments;
+    const authorName = p.authorName ?? t('deletedUser');
     return (
       <li key={p.id} className="grid gap-3">
         <article
@@ -268,10 +160,10 @@ async function DiscussionView({
               aria-hidden
               className="grid size-8 place-items-center rounded-full bg-accent-soft text-xs font-semibold text-accent"
             >
-              {initials(p.authorName)}
+              {initials(authorName)}
             </span>
             <span id={`pa-${p.id}`} className="font-medium">
-              {p.authorName}
+              {authorName}
             </span>
             <time dateTime={p.createdAt.toISOString()} className="text-muted-foreground">
               {format.dateTime(p.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}
@@ -304,10 +196,10 @@ async function DiscussionView({
               activityId={a.id}
               postId={p.id}
               html={p.contentHtml}
-              canReply={canPost && inGroup && (!d.locked || moderator)}
-              canPrivate={moderator && a.settings.allowPrivateReplies && p.authorId !== me}
-              canEdit={editable(p)}
-              canDelete={editable(p) && (moderator || p.children.length === 0)}
+              canReply={canReply}
+              canPrivate={canReplyPrivately && p.authorId !== me}
+              canEdit={p.editable}
+              canDelete={p.deletable}
               isRoot={p.parentId === null}
               maxAttachments={a.settings.maxAttachments}
               backUrl={base}
@@ -340,11 +232,11 @@ async function DiscussionView({
         <h2 className="text-xl font-semibold">{d.title}</h2>
         {d.pinned ? <Badge variant="accent">{t('pinned')}</Badge> : null}
         {d.locked ? <Badge variant="warning">{t('locked')}</Badge> : null}
-        {d.group ? <Badge>{d.group.name}</Badge> : null}
+        {d.groupName ? <Badge>{d.groupName}</Badge> : null}
       </div>
       <div className="flex flex-wrap gap-2">
         {a.settings.subscription === 'optional' || a.settings.subscription === 'auto' ? (
-          <SubscribeButton activityId={a.id} discussionId={d.id} subscribed={sub.discussion} />
+          <SubscribeButton activityId={a.id} discussionId={d.id} subscribed={r.subscribed} />
         ) : null}
         {moderator ? (
           <ModerateButtons
@@ -357,7 +249,7 @@ async function DiscussionView({
       </div>
       {d.locked ? <Alert variant="warning">{t('lockedHint')}</Alert> : null}
       {locked ? <Alert>{t('qandaLocked')}</Alert> : null}
-      <ul className="grid gap-3">{roots.map((r) => renderPost(r, 0))}</ul>
+      <ul className="grid gap-3">{roots.map((root) => renderPost(root, 0))}</ul>
       {!roots.length ? (
         <Card>
           <CardContent className="pt-6 text-sm text-muted-foreground">{t('empty')}</CardContent>

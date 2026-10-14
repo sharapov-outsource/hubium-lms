@@ -40,6 +40,7 @@ import {
   revokeApiToken,
   rotateWebhookSecret,
   runModuleAction,
+  runModuleQuery,
   searchCatalog,
   sendMessage,
   toActionError,
@@ -52,7 +53,7 @@ import { fromAcceptLanguage, isLocale } from '@hubium/i18n';
 import { log } from '@hubium/log';
 import type { Context, MiddlewareHandler } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { documentModuleActions } from './actions-doc.ts';
+import { documentModuleActions, documentModuleQueries } from './actions-doc.ts';
 import { DOCS_CSP, docsPage, scalarBundle } from './docs.ts';
 import { rateLimit } from './rate-limit.ts';
 
@@ -103,6 +104,10 @@ const security = [{ bearerAuth: [] }];
 const Id = z.string().uuid();
 const IdParam = z.object({ id: Id.openapi({ param: { name: 'id', in: 'path' } }) });
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
+
+/** Module results as JSON: dates as ISO strings, bigints (file sizes) as numbers. */
+const toJson = (data: unknown): unknown =>
+  JSON.parse(JSON.stringify(data ?? null, (_k, v) => (typeof v === 'bigint' ? Number(v) : v)));
 
 // ── schemas ──────────────────────────────────────────────────────────────────
 
@@ -1074,7 +1079,34 @@ export function createApi(opts: ApiOptions) {
         ? await actionInputFromForm(c.req.valid('form'))
         : c.req.valid('json');
       const data = await runModuleAction(ctxOf(c), p.id, p.name, input);
-      return c.json({ data: JSON.parse(JSON.stringify(data ?? null)) }, 200);
+      return c.json({ data: toJson(data) }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/activities/{id}/queries/{name}',
+      tags: ['Activities'],
+      summary: 'Read module data (e.g. forum "discussions", quiz "review", assign "status")',
+      description:
+        'What an activity offers to read depends on its module (`moduleKey`); the inputs are query parameters. The same visibility rules apply as in the web interface. Queries of activity types turned off in Administration → Modules answer 403.',
+      security,
+      request: {
+        params: IdParam.extend({
+          name: z
+            .string()
+            .regex(/^[a-zA-Z][\w-]*$/)
+            .openapi({ param: { name: 'name', in: 'path' } }),
+        }),
+        // the query's own parameters, read below; the spec lists them (actions-doc.ts)
+      },
+      responses: { 200: ok(z.object({ data: z.unknown() })), ...errors },
+    }),
+    async (c) => {
+      const p = c.req.valid('param');
+      const data = await runModuleQuery(ctxOf(c), p.id, p.name, c.req.query());
+      return c.json({ data: toJson(data) }, 200);
     },
   );
 
@@ -1585,8 +1617,10 @@ export function createApi(opts: ApiOptions) {
   // Built on first use: modules register their actions when the app starts.
   let spec: Record<string, unknown> | undefined;
   app.get('/openapi.json', (c) => {
-    spec ??= documentModuleActions(
-      app.getOpenAPI31Document(specConfig) as unknown as Record<string, unknown>,
+    spec ??= documentModuleQueries(
+      documentModuleActions(
+        app.getOpenAPI31Document(specConfig) as unknown as Record<string, unknown>,
+      ),
     );
     return c.json(spec);
   });

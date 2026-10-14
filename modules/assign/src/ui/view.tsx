@@ -22,8 +22,8 @@ import {
   type AssignSettingsT,
   assignGradeText,
   assignScale,
-  canSubmitNow,
   effectiveDates,
+  readAssignStatus,
 } from '../server.ts';
 import { ExtensionForm, GradeForm, SubmissionForm, WithdrawButton } from './client.tsx';
 
@@ -91,44 +91,15 @@ export async function AssignView(props: Props) {
 }
 
 async function StudentView({ activity: a, ctx }: Props) {
-  const scale = await assignScale(ctx.db, a);
   const [t, format] = await Promise.all([getTranslations('mod.assign'), getFormatter()]);
   if (ctx.actor.kind !== 'user') return null;
   const userId = ctx.actor.userId;
-  const canSubmit = await ctx.perm.can('mod.assign:submit', a.id);
-  const sub = await ctx.db.assignSubmission.findFirst({
-    where: { activityId: a.id, userId, latest: true },
-  });
-  const files = sub ? await ctx.files.list(a.id, 'submission', sub.id) : [];
-  const grade = sub
-    ? await ctx.db.assignGrade.findUnique({
-        where: {
-          activityId_userId_attemptNumber: {
-            activityId: a.id,
-            userId,
-            attemptNumber: sub.attemptNumber,
-          },
-        },
-      })
-    : null;
-  const lastGrade =
-    grade ??
-    (await ctx.db.assignGrade.findFirst({
-      where: { activityId: a.id, userId },
-      orderBy: { attemptNumber: 'desc' },
-    }));
-  const grader = lastGrade?.graderId
-    ? await ctx.db.user.findUnique({ where: { id: lastGrade.graderId }, select: { name: true } })
-    : null;
-  const feedbackFiles = lastGrade
-    ? (await ctx.files.list(a.id, 'feedback', userId)).filter(
-        (f) => f.path === `/${lastGrade.attemptNumber}/`,
-      )
-    : [];
-  const dates = await effectiveDates(ctx.db, a, userId);
-  const window = canSubmitNow(dates, ctx.now);
-  const status = sub?.status ?? 'NEW';
-  const editable = canSubmit && window.ok && status !== 'SUBMITTED';
+  const st = await readAssignStatus(ctx, a);
+  const { canSubmit, status, editable, scale } = st;
+  const sub = st.submission;
+  const files = sub?.files ?? [];
+  const lastGrade = st.grade;
+  const feedbackFiles = lastGrade?.feedbackFiles ?? [];
   return (
     <div className="grid max-w-3xl gap-5">
       <Card>
@@ -143,12 +114,12 @@ async function StudentView({ activity: a, ctx }: Props) {
             >
               {t(`statuses.${status}`)}
             </Badge>
-            {sub && sub.attemptNumber > 0 ? (
-              <Badge>{t('attempt', { n: sub.attemptNumber + 1 })}</Badge>
+            {sub && st.attemptNumber > 0 ? (
+              <Badge>{t('attempt', { n: st.attemptNumber + 1 })}</Badge>
             ) : null}
           </div>
-          {!window.ok && canSubmit && status !== 'SUBMITTED' ? (
-            <Alert variant="warning">{t(window.reason!)}</Alert>
+          {st.window.reason && canSubmit && status !== 'SUBMITTED' ? (
+            <Alert variant="warning">{t(st.window.reason)}</Alert>
           ) : null}
         </CardContent>
       </Card>
@@ -157,15 +128,15 @@ async function StudentView({ activity: a, ctx }: Props) {
           <CardHeader>
             <CardTitle>
               {t('grade')}:{' '}
-              {lastGrade.grade === null
+              {lastGrade.value === null
                 ? '—'
-                : assignGradeText(Number(lastGrade.grade), scale, a.settings.gradeMax, (max) =>
+                : assignGradeText(lastGrade.value, scale, a.settings.gradeMax, (max) =>
                     t('outOf', { max }),
                   )}
             </CardTitle>
             <p className="text-xs text-muted-foreground">
               {t('gradedBy', {
-                name: grader?.name ?? '—',
+                name: lastGrade.graderName ?? '—',
                 date: format.dateTime(lastGrade.gradedAt, {
                   dateStyle: 'medium',
                   timeStyle: 'short',
@@ -200,9 +171,7 @@ async function StudentView({ activity: a, ctx }: Props) {
           <CardContent className="grid gap-3">
             {sub.onlineText ? <RichText html={sub.onlineText} /> : null}
             <FileList files={files} />
-            {status === 'SUBMITTED' && window.ok && !grade ? (
-              <WithdrawButton activityId={a.id} />
-            ) : null}
+            {st.canWithdraw ? <WithdrawButton activityId={a.id} /> : null}
           </CardContent>
         </Card>
       ) : null}
