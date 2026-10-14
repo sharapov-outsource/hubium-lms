@@ -115,6 +115,42 @@ export function AssignSettingsFields({ settings, scales }: SettingsFieldsProps<A
         </Field>
       ) : null}
       <Bool name="submitButton" label={t('submitButton')} checked={settings.submitButton} />
+      <Bool
+        name="requireStatement"
+        label={t('requireStatement')}
+        checked={settings.requireStatement}
+      />
+      <fieldset className="grid gap-3 rounded-lg border border-border p-4">
+        <legend className="px-1 text-sm font-medium">{t('penalty.title')}</legend>
+        <p className="text-xs text-muted-foreground">{t('penalty.hint')}</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Num
+            name="latePenaltyPerDay"
+            label={t('penalty.perDay')}
+            value={settings.latePenaltyPerDay}
+          />
+          <Num name="latePenaltyCap" label={t('penalty.cap')} value={settings.latePenaltyCap} />
+        </div>
+      </fieldset>
+      <fieldset className="grid gap-2 rounded-lg border border-border p-4">
+        <legend className="px-1 text-sm font-medium">{t('team.title')}</legend>
+        <p className="text-xs text-muted-foreground">{t('team.hint')}</p>
+        <Bool
+          name="teamSubmission"
+          label={t('team.submission')}
+          checked={settings.teamSubmission}
+        />
+        <Bool
+          name="requireAllTeamMembers"
+          label={t('team.requireAll')}
+          checked={settings.requireAllTeamMembers}
+        />
+        <Bool
+          name="preventSubmissionNotInGroup"
+          label={t('team.preventNoGroup')}
+          checked={settings.preventSubmissionNotInGroup}
+        />
+      </fieldset>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t('reopen')} htmlFor="as-reopen">
           <Select id="as-reopen" name="settings.reopen" defaultValue={settings.reopen}>

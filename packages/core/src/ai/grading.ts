@@ -66,11 +66,16 @@ export function pseudonymise(text: string, identifiers: (string | null | undefin
 
 export async function suggestGrade(
   ctx: RequestContext,
-  input: { submissionId: string; criteria?: string },
+  input: { submissionId: string; criteria?: string; userId?: string },
 ) {
   const sub = await ctx.db.assignSubmission.findUnique({
     where: { id: input.submissionId },
-    include: { activity: true, user: true },
+    include: {
+      activity: true,
+      user: true,
+      // a team's work: every member's name is the author's
+      group: { include: { members: { include: { user: true } } } },
+    },
   });
   if (!sub) throw new NotFoundError('Submission');
   const a = sub.activity;
@@ -83,8 +88,10 @@ export async function suggestGrade(
     include: { blob: true },
     orderBy: { sortOrder: 'asc' },
   });
-  const u = sub.user;
-  const ids = [
+  const authors = sub.user ? [sub.user] : (sub.group?.members.map((m) => m.user) ?? []);
+  const student = sub.userId ?? input.userId ?? authors[0]?.id;
+  if (!student) throw new NotFoundError('Submission');
+  const ids = authors.flatMap((u) => [
     u.name,
     u.firstName,
     u.lastName,
@@ -94,7 +101,8 @@ export async function suggestGrade(
     u.displayUsername,
     u.email,
     u.email.split('@')[0],
-  ];
+  ]);
+  if (sub.group) ids.push(sub.group.name);
   // Documents (PDF, Word, slides, text) are read like course files, through the cached
   // extraction; their text is pseudonymised with the rest of the submission below. File
   // names often carry the author's name ("Ivanov_essay.pdf") too.
@@ -159,7 +167,7 @@ export async function suggestGrade(
     data: {
       activityId: a.id,
       submissionId: sub.id,
-      userId: sub.userId,
+      userId: student,
       requestedById: ctx.perm.userId!,
       suggestedGrade: grade,
       breakdown: r.criteria,

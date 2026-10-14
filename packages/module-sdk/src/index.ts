@@ -116,7 +116,12 @@ export interface ModuleAi {
     courseId: string,
   ): Promise<{ available: boolean; consentRequired: boolean; notice: string }>;
   acceptConsent(feature: 'GRADING_ASSIST'): Promise<void>;
-  suggestGrade(input: { submissionId: string; criteria?: string }): Promise<AiGradeSuggestion>;
+  /** `userId`: the student being graded (a team's submission has no student of its own). */
+  suggestGrade(input: {
+    submissionId: string;
+    criteria?: string;
+    userId?: string;
+  }): Promise<AiGradeSuggestion>;
   markSuggestion(id: string, status: 'APPLIED' | 'DISCARDED'): Promise<void>;
 }
 

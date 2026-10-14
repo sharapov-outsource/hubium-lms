@@ -102,6 +102,61 @@
     },
     "gradeScale": "Bewertungstyp",
     "gradeScaleHint": "Bei einer Skala wird die Bewertung aus deren Liste gewählt; die maximale Bewertung wird dann nicht verwendet.",
-    "gradePoints": "Punkte"
+    "gradePoints": "Punkte",
+    "requireStatement": "Studierende bestätigen vor der Abgabe, dass die Arbeit ihre eigene ist",
+    "statement": "Diese Arbeit ist meine eigene, außer wo ich anderes angegeben habe.",
+    "statementTeam": "Diese Arbeit ist die eigene unseres Teams, außer wo wir anderes angegeben haben.",
+    "statementAccepted": "Eigenständigkeitserklärung bestätigt {date}",
+    "groupDates": "Gruppentermine",
+    "penalty": {
+      "title": "Verspätungsabzug",
+      "hint": "Eine nach der Frist abgegebene Arbeit verliert diesen Anteil der Bewertung je angefangenem Tag, höchstens bis zur Grenze. Bewertungen nach Skala erhalten keinen Abzug.",
+      "perDay": "Prozent je angefangenem Tag",
+      "cap": "Höchstens Prozent insgesamt",
+      "lateNow": "Die Frist ist vorbei: jetzt abgegeben ist die Arbeit {days, plural, one {# Tag} other {# Tage}} zu spät und verliert {percent} % der Bewertung.",
+      "submittedLate": "{days, plural, one {# Tag} other {# Tage}} zu spät abgegeben: die Bewertung verliert {percent} %.",
+      "breakdown": "Bewertung {grade} minus {percent} % für {days, plural, one {# Tag} other {# Tage}} Verspätung: {final}",
+      "teacherLate": "{days, plural, one {# Tag} other {# Tage}} zu spät abgegeben: in die Bewertungsübersicht geht die Bewertung minus {percent} %."
+    },
+    "team": {
+      "title": "Team",
+      "hint": "Teams sind die Gruppen der Gruppierung der Aufgabe, ohne eine alle Gruppen des Kurses.",
+      "submission": "Studierende geben in Teams ab",
+      "requireAll": "Jedes Teammitglied muss abgeben",
+      "preventNoGroup": "Studierende ohne Gruppe können nicht abgeben (sonst geben sie allein ab)",
+      "work": "Teamarbeit: {name}",
+      "waiting": "Sie haben abgegeben: die Arbeit geht ein, sobald alle im Team abgegeben haben.",
+      "memberSubmitted": "abgegeben",
+      "memberNotSubmitted": "noch nicht",
+      "members": "Teammitglieder: {names}",
+      "applyToAll": "Das ganze Team ({name}, {n, plural, one {# Mitglied} other {# Mitglieder}}) gleich bewerten",
+      "blocked": {
+        "noGroup": "Diese Aufgabe wird im Team abgegeben und Sie sind in keiner Gruppe: wenden Sie sich an Ihre Lehrkraft.",
+        "severalGroups": "Sie sind in mehreren Teams dieser Aufgabe: bitten Sie Ihre Lehrkraft, eines zu behalten."
+      },
+      "teacherBlocked": {
+        "noGroup": "Diese Person ist in keiner Gruppe und kann nicht abgeben.",
+        "severalGroups": "Diese Person ist in mehreren Gruppen der Aufgabe und kann erst abgeben, wenn eine bleibt."
+      }
+    },
+    "tabs": {
+      "label": "Aufgabe",
+      "submissions": "Abgaben",
+      "overrides": "Termine für Studierende und Gruppen"
+    },
+    "overrides": {
+      "who": "Person oder Gruppe",
+      "choose": "Auswählen…",
+      "group": "Gruppe: {name}",
+      "saved": "Termine gespeichert",
+      "save": "Termine speichern",
+      "up": "{name} nach oben",
+      "down": "{name} nach unten",
+      "remove": "Termine von {name} entfernen",
+      "removed": "Termine entfernt",
+      "empty": "Noch niemand hat eigene Termine",
+      "add": "Termine für eine Person oder Gruppe",
+      "priorityHint": "Wer in mehreren Gruppen ist, erhält die Termine der höchsten Gruppe dieser Liste; eigene Termine gehen vor."
+    }
   }
 }

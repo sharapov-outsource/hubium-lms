@@ -102,6 +102,61 @@
     },
     "gradeScale": "Tipo di valutazione",
     "gradeScaleHint": "Con una scala la valutazione si sceglie dal suo elenco; la valutazione massima in tal caso non viene usata.",
-    "gradePoints": "Punti"
+    "gradePoints": "Punti",
+    "requireStatement": "Gli studenti dichiarano che il lavoro è loro prima della consegna",
+    "statement": "Questo lavoro è mio, salvo dove ho indicato altrimenti.",
+    "statementTeam": "Questo lavoro è del nostro gruppo, salvo dove abbiamo indicato altrimenti.",
+    "statementAccepted": "Dichiarazione di originalità accettata {date}",
+    "groupDates": "Date del gruppo",
+    "penalty": {
+      "title": "Penalità per il ritardo",
+      "hint": "Un lavoro consegnato dopo la scadenza perde questa parte del voto per ogni giorno iniziato, fino al limite. I voti su scala non sono penalizzati.",
+      "perDay": "Percentuale per giorno iniziato",
+      "cap": "Percentuale massima",
+      "lateNow": "La scadenza è passata: consegnato ora, il lavoro è in ritardo di {days, plural, one {# giorno} other {# giorni}} e perde il {percent}% del voto.",
+      "submittedLate": "Consegnato con {days, plural, one {# giorno} other {# giorni}} di ritardo: il voto perde il {percent}%.",
+      "breakdown": "Voto {grade} meno il {percent}% per {days, plural, one {# giorno} other {# giorni}} di ritardo: {final}",
+      "teacherLate": "Consegnato con {days, plural, one {# giorno} other {# giorni}} di ritardo: nel registro va il voto meno il {percent}%."
+    },
+    "team": {
+      "title": "Gruppo",
+      "hint": "I gruppi di consegna sono quelli del raggruppamento del compito, o tutti i gruppi del corso senza raggruppamento.",
+      "submission": "Gli studenti consegnano in gruppo",
+      "requireAll": "Ogni membro del gruppo deve consegnare",
+      "preventNoGroup": "Chi non è in un gruppo non può consegnare (altrimenti consegna da solo)",
+      "work": "Lavoro di gruppo: {name}",
+      "waiting": "Avete consegnato: il lavoro parte quando tutti i membri del gruppo lo avranno fatto.",
+      "memberSubmitted": "consegnato",
+      "memberNotSubmitted": "non ancora",
+      "members": "Membri del gruppo: {names}",
+      "applyToAll": "Valutare allo stesso modo tutto il gruppo ({name}, {n, plural, one {# membro} other {# membri}})",
+      "blocked": {
+        "noGroup": "Questo compito si consegna in gruppo e non siete in nessun gruppo: chiedete al docente.",
+        "severalGroups": "Siete in più gruppi per questo compito: chiedete al docente di tenerne uno."
+      },
+      "teacherBlocked": {
+        "noGroup": "Questo studente non è in nessun gruppo e non può consegnare.",
+        "severalGroups": "Questo studente è in più gruppi del compito e non può consegnare finché non ne resta uno."
+      }
+    },
+    "tabs": {
+      "label": "Compito",
+      "submissions": "Consegne",
+      "overrides": "Date per studenti e gruppi"
+    },
+    "overrides": {
+      "who": "Studente o gruppo",
+      "choose": "Scegliere…",
+      "group": "Gruppo: {name}",
+      "saved": "Date salvate",
+      "save": "Salva date",
+      "up": "Alza {name}",
+      "down": "Abbassa {name}",
+      "remove": "Rimuovi le date di {name}",
+      "removed": "Date rimosse",
+      "empty": "Nessuno ha ancora date proprie",
+      "add": "Date per uno studente o un gruppo",
+      "priorityHint": "Chi è in più gruppi riceve le date del gruppo più in alto in questo elenco; le date personali vengono prima."
+    }
   }
 }

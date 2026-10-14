@@ -14,7 +14,7 @@ async function readAll(stream: Readable): Promise<Uint8Array> {
 
 const safe = (s: string) => s.replace(/[\\/:*?"<>|]+/g, '_').slice(0, 100);
 
-/** All latest submissions of an assignment as a ZIP: one folder per student. */
+/** All latest submissions of an assignment as a ZIP: one folder per student or team. */
 export async function GET(_req: Request, { params }: { params: Promise<{ activityId: string }> }) {
   const { activityId } = await params;
   const ctx = await getContext();
@@ -26,13 +26,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ activit
     return new Response('Forbidden', { status: 403 });
   const subs = await db.assignSubmission.findMany({
     where: { activityId, latest: true, status: { in: ['SUBMITTED', 'DRAFT'] } },
-    include: { user: { select: { name: true, username: true, id: true } } },
+    include: {
+      user: { select: { name: true, username: true, id: true } },
+      group: { select: { name: true, id: true } },
+    },
   });
   const storage = getStorage();
   const entries: Record<string, Uint8Array> = {};
   let total = 0;
   for (const s of subs) {
-    const folder = `${safe(s.user.name)}_${s.user.username ?? s.user.id.slice(0, 8)}`;
+    const folder = s.user
+      ? `${safe(s.user.name)}_${s.user.username ?? s.user.id.slice(0, 8)}`
+      : s.group
+        ? `${safe(s.group.name)}_${s.group.id.slice(0, 8)}`
+        : `submission_${s.id.slice(0, 8)}`;
     if (s.onlineText)
       entries[`${folder}/onlinetext.html`] = new TextEncoder().encode(
         `<!doctype html><meta charset="utf-8">${s.onlineText}`,

@@ -102,6 +102,61 @@
     },
     "gradeScale": "Évaluation",
     "gradeScaleHint": "Avec un barème, la note est choisie dans sa liste ; la note maximale n’est alors pas utilisée.",
-    "gradePoints": "Points"
+    "gradePoints": "Points",
+    "requireStatement": "Les étudiants déclarent que le travail est le leur avant de le remettre",
+    "statement": "Ce travail est le mien, sauf mention contraire.",
+    "statementTeam": "Ce travail est celui de notre équipe, sauf mention contraire.",
+    "statementAccepted": "Déclaration d’authenticité acceptée {date}",
+    "groupDates": "Dates du groupe",
+    "penalty": {
+      "title": "Pénalité de retard",
+      "hint": "Un travail remis après l’échéance perd cette part de sa note par jour commencé, dans la limite du plafond. Les notes sur barème ne sont pas pénalisées.",
+      "perDay": "Pourcentage par jour commencé",
+      "cap": "Pourcentage maximal",
+      "lateNow": "L’échéance est passée : remis maintenant, le travail aura {days, plural, one {# jour} other {# jours}} de retard et perdra {percent} % de sa note.",
+      "submittedLate": "Remis avec {days, plural, one {# jour} other {# jours}} de retard : la note perd {percent} %.",
+      "breakdown": "Note {grade} moins {percent} % pour {days, plural, one {# jour} other {# jours}} de retard : {final}",
+      "teacherLate": "Remis avec {days, plural, one {# jour} other {# jours}} de retard : le carnet reçoit la note moins {percent} %."
+    },
+    "team": {
+      "title": "Équipe",
+      "hint": "Les équipes sont les groupes du groupement du devoir, ou tous les groupes du cours sans groupement.",
+      "submission": "Les étudiants remettent en équipe",
+      "requireAll": "Chaque membre de l’équipe doit remettre",
+      "preventNoGroup": "Les étudiants sans groupe ne peuvent pas remettre (sinon ils remettent seuls)",
+      "work": "Travail d’équipe : {name}",
+      "waiting": "Vous avez remis : le travail part quand tous les membres de l’équipe l’auront fait.",
+      "memberSubmitted": "remis",
+      "memberNotSubmitted": "pas encore",
+      "members": "Membres de l’équipe : {names}",
+      "applyToAll": "Noter toute l’équipe ({name}, {n, plural, one {# membre} other {# membres}}) de la même façon",
+      "blocked": {
+        "noGroup": "Ce devoir se remet en équipe et vous n’êtes dans aucun groupe : demandez à votre enseignant.",
+        "severalGroups": "Vous êtes dans plusieurs équipes pour ce devoir : demandez à votre enseignant d’en garder une."
+      },
+      "teacherBlocked": {
+        "noGroup": "Cet étudiant n’est dans aucun groupe et ne peut pas remettre.",
+        "severalGroups": "Cet étudiant est dans plusieurs groupes du devoir et ne peut pas remettre tant qu’il n’en reste qu’un."
+      }
+    },
+    "tabs": {
+      "label": "Devoir",
+      "submissions": "Remises",
+      "overrides": "Dates des étudiants et groupes"
+    },
+    "overrides": {
+      "who": "Étudiant ou groupe",
+      "choose": "Choisir…",
+      "group": "Groupe : {name}",
+      "saved": "Dates enregistrées",
+      "save": "Enregistrer les dates",
+      "up": "Monter {name}",
+      "down": "Descendre {name}",
+      "remove": "Supprimer les dates de {name}",
+      "removed": "Dates supprimées",
+      "empty": "Personne n’a encore de dates propres",
+      "add": "Dates pour un étudiant ou un groupe",
+      "priorityHint": "Un étudiant de plusieurs groupes reçoit les dates du groupe le plus haut de la liste ; ses propres dates priment."
+    }
   }
 }

@@ -88,6 +88,7 @@ export const coreCapabilities = {
   'mod.assign:submit': { level: 'ACTIVITY', archetypes: [S], excludeAdmin: true },
   'mod.assign:grade': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.assign:grantextension': { level: 'ACTIVITY', archetypes: [M, ET] },
+  'mod.assign:manageoverrides': { level: 'ACTIVITY', archetypes: [M, ET] },
   // quiz
   'mod.quiz:attempt': { level: 'ACTIVITY', archetypes: [S], excludeAdmin: true },
   'mod.quiz:grade': { level: 'ACTIVITY', archetypes: [M, ET, T] },

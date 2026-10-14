@@ -71,13 +71,15 @@ model Group {
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
 
-  course           Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  members          GroupMember[]
-  groupings        GroupingGroup[]
-  conversation     Conversation?
-  announcements    Announcement[]
-  forumDiscussions ForumDiscussion[]
-  quizOverrides    QuizOverride[]
+  course            Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  members           GroupMember[]
+  groupings         GroupingGroup[]
+  assignSubmissions AssignSubmission[]
+  assignOverrides   AssignOverride[]
+  conversation      Conversation?
+  announcements     Announcement[]
+  forumDiscussions  ForumDiscussion[]
+  quizOverrides     QuizOverride[]
 
   @@unique([courseId, name])
 }

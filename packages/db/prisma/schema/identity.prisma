@@ -75,6 +75,7 @@ model User {
   grades              Grade[]
   assignSubmissions   AssignSubmission[]
   assignGrades        AssignGrade[]            @relation("AssignGradeUser")
+  assignTeamSubmits   AssignTeamSubmit[]
   quizAttempts        QuizAttempt[]
   notifications       Notification[]           @relation("NotificationUser")
   notificationsActed  Notification[]           @relation("NotificationActor")

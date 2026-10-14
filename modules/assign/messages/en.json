@@ -102,6 +102,61 @@
     },
     "gradeScale": "Grading",
     "gradeScaleHint": "On a scale the grade is picked from its list; the maximum grade is then not used.",
-    "gradePoints": "Points"
+    "gradePoints": "Points",
+    "requireStatement": "Students accept that the work is their own before submitting",
+    "statement": "This work is my own, except where I have said otherwise.",
+    "statementTeam": "This work is our team’s own, except where we have said otherwise.",
+    "statementAccepted": "Statement of authorship accepted {date}",
+    "groupDates": "Group dates",
+    "penalty": {
+      "title": "Late penalty",
+      "hint": "Work submitted after the due date loses this share of its grade for every started day, up to the cap. Grades on a scale take no penalty.",
+      "perDay": "Percent per started day",
+      "cap": "Most percent in all",
+      "lateNow": "The due date has passed: submitted now, the work is {days, plural, one {# day} other {# days}} late and loses {percent}% of its grade.",
+      "submittedLate": "Submitted {days, plural, one {# day} other {# days}} late: the grade loses {percent}%.",
+      "breakdown": "Grade {grade} less {percent}% for {days, plural, one {# day} other {# days}} late: {final}",
+      "teacherLate": "Submitted {days, plural, one {# day} other {# days}} late: the gradebook gets the grade less {percent}%."
+    },
+    "team": {
+      "title": "Team",
+      "hint": "Teams are the groups of the assignment’s grouping, or all groups of the course without one.",
+      "submission": "Students submit in teams",
+      "requireAll": "Every team member must submit",
+      "preventNoGroup": "Students in no group cannot submit (otherwise they submit alone)",
+      "work": "Team work: {name}",
+      "waiting": "You have submitted: the work goes in once every member of the team has.",
+      "memberSubmitted": "submitted",
+      "memberNotSubmitted": "not yet",
+      "members": "Team members: {names}",
+      "applyToAll": "Grade the whole team ({name}, {n, plural, one {# member} other {# members}}) alike",
+      "blocked": {
+        "noGroup": "This assignment is submitted in teams and you are in no group yet: ask your teacher.",
+        "severalGroups": "You are in several teams for this assignment: ask your teacher to keep one."
+      },
+      "teacherBlocked": {
+        "noGroup": "This student is in no group and cannot submit.",
+        "severalGroups": "This student is in several of the assignment’s groups and cannot submit until one is kept."
+      }
+    },
+    "tabs": {
+      "label": "Assignment",
+      "submissions": "Submissions",
+      "overrides": "Dates for students and groups"
+    },
+    "overrides": {
+      "who": "Student or group",
+      "choose": "Choose…",
+      "group": "Group: {name}",
+      "saved": "Dates saved",
+      "save": "Save dates",
+      "up": "Raise {name}",
+      "down": "Lower {name}",
+      "remove": "Remove dates of {name}",
+      "removed": "Dates removed",
+      "empty": "No one has dates of their own yet",
+      "add": "Dates for a student or group",
+      "priorityHint": "A student in several groups gets the dates of the highest group in this list; their own dates come first."
+    }
   }
 }

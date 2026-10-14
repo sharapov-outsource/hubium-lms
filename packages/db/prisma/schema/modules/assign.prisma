@@ -7,23 +7,44 @@ enum AssignSubmissionStatus {
   REOPENED
 }
 
+/// A student's submission, or a team's (groupId, no userId) when the assignment takes
+/// team submissions.
 model AssignSubmission {
-  id            String                 @id @default(uuid(7)) @db.Uuid
-  activityId    String                 @db.Uuid
-  userId        String                 @db.Uuid
-  attemptNumber Int                    @default(0)
-  status        AssignSubmissionStatus @default(NEW)
-  onlineText    String                 @default("")
-  latest        Boolean                @default(true)
-  submittedAt   DateTime?              @db.Timestamptz(3)
-  createdAt     DateTime               @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime               @updatedAt @db.Timestamptz(3)
+  id                  String                 @id @default(uuid(7)) @db.Uuid
+  activityId          String                 @db.Uuid
+  userId              String?                @db.Uuid
+  groupId             String?                @db.Uuid
+  attemptNumber       Int                    @default(0)
+  status              AssignSubmissionStatus @default(NEW)
+  onlineText          String                 @default("")
+  latest              Boolean                @default(true)
+  submittedAt         DateTime?              @db.Timestamptz(3)
+  /// The author accepted the statement that the work is their own.
+  statementAcceptedAt DateTime?              @db.Timestamptz(3)
+  createdAt           DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime               @updatedAt @db.Timestamptz(3)
 
-  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activity    Activity           @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user        User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group       Group?             @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  teamSubmits AssignTeamSubmit[]
 
   @@unique([activityId, userId, attemptNumber])
+  @@unique([activityId, groupId, attemptNumber])
   @@index([activityId, latest, status])
+}
+
+/// A team member's "submit" when every member must submit the team's work.
+model AssignTeamSubmit {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  submissionId String   @db.Uuid
+  userId       String   @db.Uuid
+  submittedAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  submission AssignSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, userId])
 }
 
 model AssignGrade {
@@ -35,6 +56,9 @@ model AssignGrade {
   feedback      String   @default("")
   graderId      String?  @db.Uuid
   gradedAt      DateTime @default(now()) @db.Timestamptz(3)
+  /// The late penalty applied in the gradebook, in percent, and how late the work was.
+  penalty       Decimal? @db.Decimal(5, 2)
+  lateSeconds   Int?
 
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
   user     User     @relation("AssignGradeUser", fields: [userId], references: [id], onDelete: Cascade)
@@ -50,9 +74,13 @@ model AssignOverride {
   dueAt                DateTime? @db.Timestamptz(3)
   cutoffAt             DateTime? @db.Timestamptz(3)
   allowSubmissionsFrom DateTime? @db.Timestamptz(3)
+  /// Group overrides: the lowest number wins for a student in several groups.
+  sortOrder            Int       @default(0)
   createdAt            DateTime  @default(now()) @db.Timestamptz(3)
 
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  group    Group?   @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@unique([activityId, userId])
+  @@unique([activityId, groupId])
 }

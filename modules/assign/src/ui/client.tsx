@@ -19,6 +19,7 @@ import {
   Textarea,
 } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
+import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useRef, useState, useTransition } from 'react';
@@ -60,6 +61,8 @@ export function SubmissionForm({
   submitButton,
   text,
   files,
+  requireStatement = false,
+  teamName = null,
 }: {
   activityId: string;
   courseId: string;
@@ -69,6 +72,10 @@ export function SubmissionForm({
   submitButton: boolean;
   text: string;
   files: { id: string; name: string; url: string }[];
+  /** The student accepts that the work is their own before submitting. */
+  requireStatement?: boolean;
+  /** Team submissions: the team whose work this is. */
+  teamName?: string | null;
 }) {
   const t = useTranslations('mod.assign');
   const labels = useEditorLabels();
@@ -76,6 +83,7 @@ export function SubmissionForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [remove, setRemove] = useState<Set<string>>(new Set());
   const [confirm, setConfirm] = useState(false);
+  const [statement, setStatement] = useState(false);
   void courseId;
   const send = (submit: boolean) => {
     const fd = new FormData(formRef.current!);
@@ -84,7 +92,12 @@ export function SubmissionForm({
       .filter((f): f is File => f instanceof File && f.size > 0);
     run(
       'saveSubmission',
-      { text: String(fd.get('text') ?? ''), submit, removeFiles: [...remove] },
+      {
+        text: String(fd.get('text') ?? ''),
+        submit,
+        removeFiles: [...remove],
+        statement: requireStatement && statement,
+      },
       newFiles,
       () => {
         setRemove(new Set());
@@ -96,10 +109,23 @@ export function SubmissionForm({
       submit ? t('submitted') : t('saved'),
     );
   };
+  const statementBox = requireStatement ? (
+    <label htmlFor="assign-statement" className="flex items-start gap-2 text-sm">
+      <Checkbox
+        id="assign-statement"
+        className="mt-0.5"
+        checked={statement}
+        onChange={(e) => setStatement(e.target.checked)}
+      />
+      {teamName ? t('statementTeam') : t('statement')}
+    </label>
+  ) : null;
+  // submitting needs the statement accepted, when the assignment asks for it
+  const blocked = requireStatement && !statement;
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('yourText')}</CardTitle>
+        <CardTitle>{teamName ? t('team.work', { name: teamName }) : t('yourText')}</CardTitle>
       </CardHeader>
       <CardContent>
         <form ref={formRef} className="grid gap-4" onSubmit={(e) => e.preventDefault()}>
@@ -153,8 +179,9 @@ export function SubmissionForm({
           {confirm ? (
             <Alert variant="warning" className="grid gap-2">
               <span>{t('submitConfirm')}</span>
+              {statementBox}
               <div className="flex gap-2">
-                <Button type="button" disabled={pending} onClick={() => send(true)}>
+                <Button type="button" disabled={pending || blocked} onClick={() => send(true)}>
                   {t('submit')}
                 </Button>
                 <Button type="button" variant="ghost" onClick={() => setConfirm(false)}>
@@ -179,9 +206,12 @@ export function SubmissionForm({
                   </Button>
                 </>
               ) : (
-                <Button type="button" disabled={pending} onClick={() => send(false)}>
-                  {t('submit')}
-                </Button>
+                <>
+                  {statementBox}
+                  <Button type="button" disabled={pending || blocked} onClick={() => send(false)}>
+                    {t('submit')}
+                  </Button>
+                </>
               )}
             </div>
           )}
@@ -217,10 +247,13 @@ export function GradeForm({
   canReopen,
   nextUrl,
   ai,
+  team = null,
 }: {
   activityId: string;
   courseId: string;
   userId: string;
+  /** Team submissions: the student's team, whose members can be graded alike. */
+  team?: { name: string; size: number } | null;
   gradeMax: number;
   /** Grades of the scale, worst first, when the assignment is graded on one. */
   scale?: string[] | null;
@@ -270,6 +303,7 @@ export function GradeForm({
         grade: raw === '' ? null : Number(raw),
         feedback: String(fd.get('feedback') ?? ''),
         reopen: fd.get('reopen') === 'on',
+        applyToTeam: fd.get('applyToTeam') === 'on',
       },
       files,
       () => {
@@ -340,6 +374,12 @@ export function GradeForm({
           <Field label={t('feedbackFiles')} htmlFor="assign-ffiles">
             <Input id="assign-ffiles" name="feedbackFiles" type="file" multiple />
           </Field>
+          {team && team.size > 1 ? (
+            <label htmlFor="assign-team" className="flex items-center gap-2 text-sm">
+              <Checkbox id="assign-team" name="applyToTeam" defaultChecked />
+              {t('team.applyToAll', { name: team.name, n: team.size })}
+            </label>
+          ) : null}
           {canReopen ? (
             <label htmlFor="assign-reopen" className="flex items-center gap-2 text-sm">
               <Checkbox id="assign-reopen" name="reopen" />
@@ -559,5 +599,138 @@ function AiGradeAssist({
         </div>
       ) : null}
     </section>
+  );
+}
+
+/** Dates for one student or a group (the teacher's overrides tab). */
+export function OverrideForm({
+  activityId,
+  users,
+  groups,
+}: {
+  activityId: string;
+  users: { id: string; name: string }[];
+  groups: { id: string; name: string }[];
+}) {
+  const t = useTranslations('mod.assign');
+  const { pending, run } = useAction(activityId);
+  const [who, setWho] = useState('');
+  // a new form after each save: the date pickers start empty again
+  const [round, setRound] = useState(0);
+  const save = (form: HTMLFormElement) => {
+    const fd = new FormData(form);
+    const iso = (k: string) => {
+      const v = String(fd.get(k) ?? '');
+      return v ? new Date(v).toISOString() : null;
+    };
+    const [kind, id] = who.split(':');
+    run(
+      'setOverride',
+      {
+        ...(kind === 'g' ? { groupId: id } : { userId: id }),
+        allowSubmissionsFrom: iso('allowSubmissionsFrom'),
+        dueAt: iso('dueAt'),
+        cutoffAt: iso('cutoffAt'),
+      },
+      undefined,
+      () => {
+        setWho('');
+        setRound((r) => r + 1);
+      },
+      t('overrides.saved'),
+    );
+  };
+  return (
+    <form
+      key={round}
+      className="grid gap-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        save(e.currentTarget);
+      }}
+    >
+      <Field label={t('overrides.who')} htmlFor="ao-who">
+        <Select id="ao-who" value={who} onChange={(e) => setWho(e.target.value)}>
+          <option value="">{t('overrides.choose')}</option>
+          {groups.map((g) => (
+            <option key={g.id} value={`g:${g.id}`}>
+              {t('overrides.group', { name: g.name })}
+            </option>
+          ))}
+          {users.map((u) => (
+            <option key={u.id} value={`u:${u.id}`}>
+              {u.name}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <Field label={t('openAt')} htmlFor="ao-open">
+        <DateTimeInput id="ao-open" name="allowSubmissionsFrom" defaultTime="00:00" />
+      </Field>
+      <Field label={t('dueAt')} htmlFor="ao-due">
+        <DateTimeInput id="ao-due" name="dueAt" defaultTime="23:59" />
+      </Field>
+      <Field label={t('cutoffAt')} htmlFor="ao-cutoff">
+        <DateTimeInput id="ao-cutoff" name="cutoffAt" defaultTime="23:59" />
+      </Field>
+      <Button type="submit" disabled={pending || !who} className="w-fit">
+        {t('overrides.save')}
+      </Button>
+    </form>
+  );
+}
+
+/** Raise, lower or remove an override. */
+export function OverrideActions({
+  activityId,
+  id,
+  name,
+  move,
+}: {
+  activityId: string;
+  id: string;
+  name: string;
+  /** Group overrides can move up or down in priority. */
+  move?: { up: boolean; down: boolean };
+}) {
+  const t = useTranslations('mod.assign');
+  const { pending, run } = useAction(activityId);
+  return (
+    <span className="inline-flex gap-1">
+      {move ? (
+        <>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            disabled={pending || !move.up}
+            aria-label={t('overrides.up', { name })}
+            onClick={() => run('moveOverride', { id, direction: 'up' })}
+          >
+            <ArrowUp />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            disabled={pending || !move.down}
+            aria-label={t('overrides.down', { name })}
+            onClick={() => run('moveOverride', { id, direction: 'down' })}
+          >
+            <ArrowDown />
+          </Button>
+        </>
+      ) : null}
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        disabled={pending}
+        aria-label={t('overrides.remove', { name })}
+        onClick={() => run('deleteOverride', { id }, undefined, undefined, t('overrides.removed'))}
+      >
+        <Trash2 />
+      </Button>
+    </span>
   );
 }
