@@ -1,4 +1,4 @@
-import { listModules } from '@hubium/core';
+import { listModules, scheduledTasks } from '@hubium/core';
 import { BASE_LOCALE, locales } from '@hubium/i18n';
 import { createTranslator, packReport } from '@hubium/i18n/packs';
 import { describe, expect, it } from 'vitest';
@@ -21,6 +21,14 @@ describe('module registries', () => {
         expect(t(key), key).not.toBe(key);
         for (const l of locales) expect(packReport(l).missing, `${l}: ${key}`).not.toContain(key);
       }
+    }
+  });
+  it('every scheduled task has a name in every language', () => {
+    const t = createTranslator(BASE_LOCALE);
+    for (const task of scheduledTasks()) {
+      const key = `tasks.names.${task.name.replaceAll('.', '_')}`;
+      expect(t(key), key).not.toBe(key);
+      for (const l of locales) expect(packReport(l).missing, `${l}: ${key}`).not.toContain(key);
     }
   });
 });

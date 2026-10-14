@@ -89,6 +89,7 @@ test('main pages fit a phone screen', async ({ page }) => {
     '/admin/settings/general',
     '/admin/settings/maintenance',
     '/admin/environment',
+    '/admin/tasks',
     '/admin/users/upload-relations',
   ])
     await expectNoSideScroll(page, path);

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { setSetting } from './db';
+import { setSetting, sql } from './db';
 import { ADMIN, DEMO_PASSWORD, expectAccessible, login } from './helpers';
 
 // Admin → Environment runs live checks; the metrics endpoint stays closed without a token.
@@ -62,4 +62,50 @@ test('maintenance mode lets only administrators in', async ({ page, request }) =
       .poll(async () => (await request.get('/api/v1/me')).status(), { timeout: 20_000 })
       .toBe(401);
   }
+});
+
+test('Administration → Tasks runs a task now and retries a failed run', async ({ page }) => {
+  await login(page, ADMIN.login, ADMIN.password);
+  await page.goto('/admin/tasks');
+  await expectAccessible(page);
+  // the heartbeat runs every minute
+  await expect(page.getByRole('listitem', { name: 'Пульс воркера' })).toContainText('Готово');
+
+  const cleanup = page.getByRole('listitem', { name: 'Удаление истёкших сеансов' });
+  await cleanup.getByRole('button', { name: /Запустить сейчас/ }).click();
+  await expect(page.getByText('Задача поставлена в очередь').first()).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        (
+          await sql<{ n: number }>(
+            `SELECT count(*)::int AS n FROM pgboss.job
+             WHERE name = 'auth.sessions.cleanup' AND state = 'completed' AND retry_limit = 0`,
+          )
+        )[0]!.n,
+      { timeout: 30_000 },
+    )
+    .toBeGreaterThan(0);
+
+  // a failed run goes back to the worker
+  const [failed] = await sql<{ id: string }>(
+    `INSERT INTO pgboss.job (name, state, output, retry_limit, started_on, completed_on)
+     VALUES ('webhooks.prune', 'failed', '{"message":"Receiver gone (e2e)"}', 0, now(), now())
+     RETURNING id::text`,
+  );
+  await page.goto('/admin/tasks?name=webhooks.prune&state=failed');
+  await expect(page.getByText('Receiver gone (e2e)').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Повторить' }).first().click();
+  await expect(page.getByText('Задача поставлена в очередь').first()).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        (
+          await sql<{ state: string }>(`SELECT state::text FROM pgboss.job WHERE id = $1`, [
+            failed!.id,
+          ])
+        )[0]?.state,
+      { timeout: 30_000 },
+    )
+    .toBe('completed');
 });

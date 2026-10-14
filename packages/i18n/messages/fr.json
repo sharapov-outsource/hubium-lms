@@ -514,7 +514,8 @@
     "courseFields": "Champs de cours",
     "maintenance": "Maintenance",
     "maintenanceOn": "Le mode maintenance est actif : seuls les administrateurs peuvent utiliser le site.",
-    "maintenanceSettings": "Réglages de la maintenance"
+    "maintenanceSettings": "Réglages de la maintenance",
+    "tasks": "Tâches"
   },
   "email": {
     "footer": "Vous recevez cet e-mail car vous avez un compte sur ce site.",
@@ -2066,5 +2067,54 @@
     "defaultMessage": "Une maintenance est en cours. Merci de revenir plus tard.",
     "until": "Fin prévue : {time}",
     "adminSignIn": "Connexion des administrateurs"
+  },
+  "tasks": {
+    "title": "Tâches",
+    "description": "Ce que le worker exécute selon un calendrier et le résultat des exécutions. Le journal garde 30 jours.",
+    "scheduled": "Planifiées",
+    "schedule": "Calendrier",
+    "lastRun": "Dernière exécution {time}",
+    "neverRun": "Pas encore exécutée",
+    "lastFailure": "Échec {time}",
+    "runNow": "Exécuter maintenant",
+    "queued": "La tâche est en file d’attente",
+    "log": "Journal",
+    "logHint": "Toutes les exécutions des 30 derniers jours, planifiées et ponctuelles (e-mails, imports, webhooks), les plus récentes d’abord.",
+    "task": "Tâche",
+    "allTasks": "Toutes les tâches",
+    "state": "État",
+    "allStates": "Tous les états",
+    "filter": "Afficher",
+    "emptyLog": "Aucune exécution.",
+    "retry": "Relancer",
+    "retries": "relances : {n}",
+    "ms": "{n} ms",
+    "seconds": "{n} s",
+    "states": {
+      "created": "En file",
+      "retry": "En attente de relance",
+      "active": "En cours",
+      "completed": "Terminée",
+      "cancelled": "Annulée",
+      "failed": "Échec"
+    },
+    "names": {
+      "system_heartbeat": "Pouls du worker",
+      "email_digest": "Résumés des notifications par e-mail",
+      "announcements_publish": "Publication des annonces du site",
+      "calendar_reminders": "Rappels des événements du calendrier",
+      "enrol_expire": "Fin des inscriptions aux cours",
+      "notifications_prune": "Purge des anciennes notifications",
+      "webhooks_prune": "Purge du journal des webhooks",
+      "files_gc": "Suppression des fichiers inutilisés",
+      "auth_ldapSync": "Synchronisation LDAP",
+      "auth_sessions_cleanup": "Suppression des sessions expirées",
+      "assign_due_reminder": "Rappels d’échéance des devoirs",
+      "livesession_poll": "État des webinaires",
+      "livesession_recordings_sync": "Enregistrements des webinaires",
+      "lti_cleanup": "Nettoyage des données LTI",
+      "quiz_overdue_sweep": "Clôture des tentatives de test en retard",
+      "livesession_remind": "Rappels des webinaires"
+    }
   }
 }

@@ -514,7 +514,8 @@
     "courseFields": "Campi del corso",
     "maintenance": "Manutenzione",
     "maintenanceOn": "La modalità manutenzione è attiva: solo gli amministratori possono usare il sito.",
-    "maintenanceSettings": "Impostazioni della manutenzione"
+    "maintenanceSettings": "Impostazioni della manutenzione",
+    "tasks": "Attività"
   },
   "email": {
     "footer": "Questa email è stata inviata perché l’indirizzo è associato a un account su questo sito.",
@@ -2066,5 +2067,54 @@
     "defaultMessage": "Stiamo effettuando una manutenzione. Torna più tardi.",
     "until": "Fine prevista: {time}",
     "adminSignIn": "Accesso per gli amministratori"
+  },
+  "tasks": {
+    "title": "Attività",
+    "description": "Cosa esegue il worker in background secondo una pianificazione e com’è andata. Il registro conserva 30 giorni.",
+    "scheduled": "Pianificate",
+    "schedule": "Pianificazione",
+    "lastRun": "Ultima esecuzione {time}",
+    "neverRun": "Non ancora eseguita",
+    "lastFailure": "Fallita {time}",
+    "runNow": "Esegui ora",
+    "queued": "L’attività è in coda",
+    "log": "Registro",
+    "logHint": "Tutte le esecuzioni degli ultimi 30 giorni, pianificate e singole (e-mail, importazioni, webhook), dalle più recenti.",
+    "task": "Attività",
+    "allTasks": "Tutte le attività",
+    "state": "Stato",
+    "allStates": "Tutti gli stati",
+    "filter": "Mostra",
+    "emptyLog": "Nessuna esecuzione.",
+    "retry": "Riprova",
+    "retries": "tentativi: {n}",
+    "ms": "{n} ms",
+    "seconds": "{n} s",
+    "states": {
+      "created": "In coda",
+      "retry": "In attesa di riprova",
+      "active": "In esecuzione",
+      "completed": "Completata",
+      "cancelled": "Annullata",
+      "failed": "Fallita"
+    },
+    "names": {
+      "system_heartbeat": "Battito del worker",
+      "email_digest": "Riepiloghi delle notifiche via e-mail",
+      "announcements_publish": "Pubblicazione degli annunci del sito",
+      "calendar_reminders": "Promemoria degli eventi del calendario",
+      "enrol_expire": "Fine delle iscrizioni ai corsi",
+      "notifications_prune": "Pulizia delle notifiche vecchie",
+      "webhooks_prune": "Pulizia del registro dei webhook",
+      "files_gc": "Eliminazione dei file inutilizzati",
+      "auth_ldapSync": "Sincronizzazione LDAP",
+      "auth_sessions_cleanup": "Eliminazione delle sessioni scadute",
+      "assign_due_reminder": "Promemoria delle scadenze dei compiti",
+      "livesession_poll": "Stato dei webinar",
+      "livesession_recordings_sync": "Registrazioni dei webinar",
+      "lti_cleanup": "Pulizia dei dati LTI",
+      "quiz_overdue_sweep": "Chiusura dei tentativi di quiz scaduti",
+      "livesession_remind": "Promemoria dei webinar"
+    }
   }
 }

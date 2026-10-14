@@ -107,6 +107,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 - Activity modules turned on or off for the whole site; a module that is off keeps its activities and grades until it is turned on again.
 - Settings: general, branding (accent colour with automatic contrast correction, plus a logo), registration, sign-in methods, email with a test send, and maintenance mode, in which only administrators use the site and everyone else gets a message (also `hubium maintenance on|off`).
 - An environment page that checks the database, worker, job queue, storage, SMTP, content origin, Web Push, AI and ffmpeg.
+- A tasks page: scheduled tasks with their last run and a run-now button, and a 30-day log of every run with retry for failed ones.
 
 ### Integrations
 

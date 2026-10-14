@@ -515,7 +515,8 @@
     "courseFields": "Course fields",
     "maintenance": "Maintenance",
     "maintenanceOn": "Maintenance mode is on: only administrators can use the site.",
-    "maintenanceSettings": "Maintenance settings"
+    "maintenanceSettings": "Maintenance settings",
+    "tasks": "Tasks"
   },
   "email": {
     "footer": "You received this email because you have an account on this site.",
@@ -2067,5 +2068,54 @@
     "defaultMessage": "We are doing some maintenance. Please come back later.",
     "until": "Expected to end: {time}",
     "adminSignIn": "Sign in for administrators"
+  },
+  "tasks": {
+    "title": "Tasks",
+    "description": "What the background worker runs on a schedule and how the runs went. The log keeps 30 days.",
+    "scheduled": "Scheduled",
+    "schedule": "Schedule",
+    "lastRun": "Last run {time}",
+    "neverRun": "Not run yet",
+    "lastFailure": "Failed {time}",
+    "runNow": "Run now",
+    "queued": "The task is queued",
+    "log": "Log",
+    "logHint": "Every run of the last 30 days, scheduled and one-off (emails, imports, webhooks), newest first.",
+    "task": "Task",
+    "allTasks": "All tasks",
+    "state": "State",
+    "allStates": "All states",
+    "filter": "Show",
+    "emptyLog": "No runs.",
+    "retry": "Retry",
+    "retries": "retries: {n}",
+    "ms": "{n} ms",
+    "seconds": "{n} s",
+    "states": {
+      "created": "Queued",
+      "retry": "Waiting to retry",
+      "active": "Running",
+      "completed": "Done",
+      "cancelled": "Cancelled",
+      "failed": "Failed"
+    },
+    "names": {
+      "system_heartbeat": "Worker heartbeat",
+      "email_digest": "Notification digests by email",
+      "announcements_publish": "Publish site announcements",
+      "calendar_reminders": "Calendar event reminders",
+      "enrol_expire": "End course enrolments",
+      "notifications_prune": "Prune old notifications",
+      "webhooks_prune": "Prune the webhook log",
+      "files_gc": "Delete unused files",
+      "auth_ldapSync": "LDAP synchronisation",
+      "auth_sessions_cleanup": "Delete expired sessions",
+      "assign_due_reminder": "Assignment due reminders",
+      "livesession_poll": "Webinar status",
+      "livesession_recordings_sync": "Webinar recordings",
+      "lti_cleanup": "Clean up LTI data",
+      "quiz_overdue_sweep": "Close overdue quiz attempts",
+      "livesession_remind": "Webinar reminders"
+    }
   }
 }

@@ -56,6 +56,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     { key: 'languages', href: '/admin/languages', label: t('languages'), show: config },
     { key: 'settings', href: '/admin/settings/general', label: t('siteSettings'), show: config },
     { key: 'environment', href: '/admin/environment', label: t('environment'), show: config },
+    { key: 'tasks', href: '/admin/tasks', label: t('tasks'), show: config },
   ].filter((i) => i.show);
   return (
     <div>

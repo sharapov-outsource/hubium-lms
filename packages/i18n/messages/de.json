@@ -514,7 +514,8 @@
     "courseFields": "Kursfelder",
     "maintenance": "Wartung",
     "maintenanceOn": "Der Wartungsmodus ist an: Nur Administratoren können die Website nutzen.",
-    "maintenanceSettings": "Wartungseinstellungen"
+    "maintenanceSettings": "Wartungseinstellungen",
+    "tasks": "Aufgaben"
   },
   "email": {
     "footer": "Sie erhalten diese E-Mail, weil Sie ein Konto auf dieser Website haben.",
@@ -2066,5 +2067,54 @@
     "defaultMessage": "Die Website wird gerade gewartet. Bitte kommen Sie später wieder.",
     "until": "Voraussichtliches Ende: {time}",
     "adminSignIn": "Anmeldung für Administratoren"
+  },
+  "tasks": {
+    "title": "Aufgaben",
+    "description": "Was der Hintergrund-Worker nach Zeitplan ausführt und wie die Läufe verliefen. Das Protokoll reicht 30 Tage zurück.",
+    "scheduled": "Geplant",
+    "schedule": "Zeitplan",
+    "lastRun": "Letzter Lauf {time}",
+    "neverRun": "Noch nicht gelaufen",
+    "lastFailure": "Fehlgeschlagen {time}",
+    "runNow": "Jetzt ausführen",
+    "queued": "Die Aufgabe ist eingereiht",
+    "log": "Protokoll",
+    "logHint": "Alle Läufe der letzten 30 Tage, geplante und einmalige (E-Mails, Importe, Webhooks), neueste zuerst.",
+    "task": "Aufgabe",
+    "allTasks": "Alle Aufgaben",
+    "state": "Status",
+    "allStates": "Alle Status",
+    "filter": "Anzeigen",
+    "emptyLog": "Keine Läufe.",
+    "retry": "Wiederholen",
+    "retries": "Wiederholungen: {n}",
+    "ms": "{n} ms",
+    "seconds": "{n} s",
+    "states": {
+      "created": "Eingereiht",
+      "retry": "Wartet auf Wiederholung",
+      "active": "Läuft",
+      "completed": "Erledigt",
+      "cancelled": "Abgebrochen",
+      "failed": "Fehlgeschlagen"
+    },
+    "names": {
+      "system_heartbeat": "Worker-Herzschlag",
+      "email_digest": "Benachrichtigungs-Zusammenfassungen per E-Mail",
+      "announcements_publish": "Website-Ankündigungen veröffentlichen",
+      "calendar_reminders": "Erinnerungen an Kalendertermine",
+      "enrol_expire": "Kurseinschreibungen beenden",
+      "notifications_prune": "Alte Benachrichtigungen bereinigen",
+      "webhooks_prune": "Webhook-Protokoll bereinigen",
+      "files_gc": "Unbenutzte Dateien löschen",
+      "auth_ldapSync": "LDAP-Synchronisierung",
+      "auth_sessions_cleanup": "Abgelaufene Sitzungen löschen",
+      "assign_due_reminder": "Erinnerungen an Aufgabenfristen",
+      "livesession_poll": "Webinarstatus",
+      "livesession_recordings_sync": "Webinaraufzeichnungen",
+      "lti_cleanup": "LTI-Daten bereinigen",
+      "quiz_overdue_sweep": "Überfällige Testversuche abschließen",
+      "livesession_remind": "Webinar-Erinnerungen"
+    }
   }
 }

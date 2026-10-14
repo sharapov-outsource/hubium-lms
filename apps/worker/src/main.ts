@@ -1,6 +1,11 @@
 import './service.ts';
 import { createServer } from 'node:http';
-import { ensureSystemContext, startCacheListener, syncCapabilities } from '@hubium/core';
+import {
+  ensureSystemContext,
+  startCacheListener,
+  syncCapabilities,
+  TASK_LOG_DAYS,
+} from '@hubium/core';
 import { getBoss, stopBoss } from '@hubium/core/jobs/jobs';
 import { getDb } from '@hubium/db';
 import { log } from '@hubium/log';
@@ -18,6 +23,7 @@ const db = getDb();
 const logger = log('worker');
 const jobs = log('jobs');
 let healthy = false;
+const KEEP_SECONDS = TASK_LOG_DAYS * 86_400;
 
 /**
  * Runs one job and logs it: done at debug level, failures at error (or warn for failures
@@ -47,7 +53,11 @@ async function main() {
   await startCacheListener();
   const boss = await getBoss({ role: 'worker' });
   for (const def of allHandlers.filter((h) => roles.includes(h.queue ?? 'default'))) {
-    if (!(await boss.getQueue(def.name))) await boss.createQueue(def.name);
+    // finished jobs stay as long as Administration → Tasks shows them
+    const queue = await boss.getQueue(def.name);
+    if (!queue) await boss.createQueue(def.name, { deleteAfterSeconds: KEEP_SECONDS });
+    else if (queue.deleteAfterSeconds !== KEEP_SECONDS)
+      await boss.updateQueue(def.name, { deleteAfterSeconds: KEEP_SECONDS });
     await boss.work(def.name, { batchSize: def.batchSize ?? 1 }, async (batch) => {
       if (batch.length === 1) return run(def, batch[0]!);
       // A batch is settled job by job: one failure must not retry (and so repeat, e.g.

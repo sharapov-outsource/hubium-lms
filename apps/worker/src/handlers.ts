@@ -2,6 +2,7 @@ import {
   BULK_USERS_JOB,
   type BulkAction,
   COMPLETION_RECOMPUTE_JOB,
+  CORE_SCHEDULE,
   deliverWebhook,
   expireEnrolments,
   INDEX_COURSE_JOB,
@@ -64,7 +65,7 @@ export const coreHandlers: JobHandlerDef[] = [
   {
     // Proves to Admin → Environment and /api/metrics that scheduled jobs run.
     name: 'system.heartbeat',
-    cron: '* * * * *',
+    cron: CORE_SCHEDULE['system.heartbeat'],
     async handler(_data: never, { db }) {
       return recordHeartbeat(db);
     },
@@ -92,21 +93,21 @@ export const coreHandlers: JobHandlerDef[] = [
   {
     // Users get their digest at their own local hour; the job runs every hour.
     name: 'email.digest',
-    cron: '0 * * * *',
+    cron: CORE_SCHEDULE['email.digest'],
     async handler(_data: never, { db }) {
       return { sent: await sendDigests(db) };
     },
   },
   {
     name: 'announcements.publish',
-    cron: '* * * * *',
+    cron: CORE_SCHEDULE['announcements.publish'],
     async handler(_data: never, { db }) {
       return { published: await publishDueAnnouncements(db) };
     },
   },
   {
     name: 'calendar.reminders',
-    cron: '10 * * * *',
+    cron: CORE_SCHEDULE['calendar.reminders'],
     async handler(_data: never, { db }) {
       return { notified: await sendCalendarReminders(db) };
     },
@@ -120,14 +121,14 @@ export const coreHandlers: JobHandlerDef[] = [
   {
     // Access already ends with endsAt; this keeps statuses and reports in step.
     name: 'enrol.expire',
-    cron: '5 * * * *',
+    cron: CORE_SCHEDULE['enrol.expire'],
     async handler(_data: never, { db }) {
       return { expired: await expireEnrolments(db) };
     },
   },
   {
     name: 'notifications.prune',
-    cron: '41 4 * * *',
+    cron: CORE_SCHEDULE['notifications.prune'],
     async handler(_data: never, { db }) {
       return { deleted: await pruneNotifications(db) };
     },
@@ -170,14 +171,14 @@ export const coreHandlers: JobHandlerDef[] = [
   },
   {
     name: 'webhooks.prune',
-    cron: '29 4 * * *',
+    cron: CORE_SCHEDULE['webhooks.prune'],
     async handler(_data: never, { db }) {
       return { deleted: await pruneWebhookDeliveries(db) };
     },
   },
   {
     name: 'files.gc',
-    cron: '17 3 * * *',
+    cron: CORE_SCHEDULE['files.gc'],
     async handler(_data: never, { db }) {
       return { deleted: await garbageCollectBlobs(db), uploads: await cleanupUploads(db) };
     },
@@ -191,14 +192,14 @@ export const coreHandlers: JobHandlerDef[] = [
   {
     // directory accounts follow the directory (does nothing while LDAP is off)
     name: LDAP_SYNC_JOB,
-    cron: '47 2 * * *',
+    cron: CORE_SCHEDULE[LDAP_SYNC_JOB],
     async handler(_data: never, { db }) {
       return syncLdapUsers(db);
     },
   },
   {
     name: 'auth.sessions.cleanup',
-    cron: '23 * * * *',
+    cron: CORE_SCHEDULE['auth.sessions.cleanup'],
     async handler(_data: never, { db }) {
       const now = new Date();
       const [s, v] = await Promise.all([
