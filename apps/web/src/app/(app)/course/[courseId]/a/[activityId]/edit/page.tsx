@@ -1,12 +1,14 @@
 import {
+  getAllSettings,
   getCourseAccess,
   getModule,
+  isModuleEnabled,
   listScales,
   parseAvailability,
   toActivityRef,
 } from '@hubium/core';
 import { fileUrl } from '@hubium/core/files/files';
-import { Button, PageHeader } from '@hubium/ui';
+import { Alert, Button, PageHeader } from '@hubium/ui';
 import Link from 'next/link';
 import { forbidden, notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
@@ -54,6 +56,19 @@ export default async function EditActivityPage({
     getTranslations('permissions'),
     ctx.perm.can('role:review', activityId),
   ]);
+  // Settings of a type that is turned off cannot be saved (updateActivity refuses them).
+  if (!isModuleEnabled(await getAllSettings(db), a.moduleKey)) {
+    const tcourse = await getTranslations('course');
+    return (
+      <>
+        <PageHeader title={t('edit', { name: a.name })} />
+        <Alert variant="warning">{tcourse('moduleDisabled')}</Alert>
+        <Button asChild variant="secondary" className="w-fit">
+          <Link href={`/course/${courseId}`}>{tcourse('tabs.course')}</Link>
+        </Button>
+      </>
+    );
+  }
   const [activities, groups, groupings, course, files] = await Promise.all([
     db.activity.findMany({
       where: { courseId, deletedAt: null, completionMode: { not: 'NONE' }, id: { not: a.id } },

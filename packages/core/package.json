@@ -46,6 +46,7 @@
     "@hubium/mod-quiz": "workspace:*",
     "@hubium/mod-scorm": "workspace:*",
     "@hubium/mod-video": "workspace:*",
+    "@hubium/modules": "workspace:*",
     "@hubium/tooling": "workspace:*",
     "@types/node": "^24",
     "@types/nodemailer": "8.0.2",

@@ -1,6 +1,8 @@
+import { getAllSettings, isModuleEnabled } from '@hubium/core';
 import { forbidden } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
+import { db } from '@/server/db';
 import { sectionTitle } from '@/server/page-title';
 import { getContext, requireUser } from '@/server/session';
 import { AdminNav } from './admin-nav';
@@ -21,6 +23,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   ]);
   if (!users && !roles && !config && !categories && !cohorts) forbidden();
   const t = await getTranslations('admin');
+  const lti = isModuleEnabled(await getAllSettings(db), 'lti');
   const items = [
     { key: 'overview', href: '/admin', label: t('overview'), show: true, exact: true },
     { key: 'users', href: '/admin/users', label: t('users'), show: users },
@@ -36,7 +39,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     { key: 'roles', href: '/admin/roles', label: t('roles'), show: roles },
     { key: 'permissions', href: '/admin/permissions', label: t('permissionCheck'), show: roles },
     { key: 'grades', href: '/admin/grades', label: t('grades'), show: config },
-    { key: 'lti', href: '/admin/lti', label: t('lti'), show: config },
+    { key: 'modules', href: '/admin/modules', label: t('modules'), show: config },
+    { key: 'lti', href: '/admin/lti', label: t('lti'), show: config && lti },
     { key: 'webhooks', href: '/admin/webhooks', label: t('webhooks'), show: config },
     { key: 'ai', href: '/admin/ai', label: t('ai'), show: config },
     { key: 'policies', href: '/admin/policies', label: t('policies'), show: config },

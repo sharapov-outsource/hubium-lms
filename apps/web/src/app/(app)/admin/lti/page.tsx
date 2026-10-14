@@ -1,5 +1,7 @@
+import { getAllSettings, isModuleEnabled } from '@hubium/core';
 import { platformInfo } from '@hubium/mod-lti/server';
-import { Badge, Card, CardContent, CardHeader, CardTitle, PageHeader } from '@hubium/ui';
+import { Alert, Badge, Card, CardContent, CardHeader, CardTitle, PageHeader } from '@hubium/ui';
+import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 import { CommandButton } from '@/components/confirm-button';
 import { deleteLtiToolAction, rotateLtiKeyAction } from '@/server/actions/lti';
@@ -27,6 +29,21 @@ export default async function LtiToolsPage({
 }) {
   await requireCapability('site:config');
   const [t, sp] = await Promise.all([getTranslations('adminLti'), searchParams]);
+  if (!isModuleEnabled(await getAllSettings(db), 'lti'))
+    return (
+      <div className="grid max-w-4xl gap-6">
+        <PageHeader title={t('title')} description={t('description')} className="mb-0" />
+        <Alert variant="warning">
+          {t.rich('turnedOff', {
+            link: (chunks) => (
+              <Link href="/admin/modules" className="underline">
+                {chunks}
+              </Link>
+            ),
+          })}
+        </Alert>
+      </div>
+    );
   const tools = await db.ltiTool.findMany({ orderBy: { name: 'asc' } });
   const editing = sp.edit ? tools.find((x) => x.id === sp.edit) : undefined;
   const platform = platformInfo();

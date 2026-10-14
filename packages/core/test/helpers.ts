@@ -5,13 +5,7 @@ loadEnv({ path: path.resolve(import.meta.dirname, '../../../.env'), quiet: true 
 
 import type { Db } from '@hubium/db';
 import { createTestDatabase, type TestDatabase } from '@hubium/db/testing';
-import { assignModules } from '@hubium/mod-assign/server';
-import { contentModules } from '@hubium/mod-content/server';
-import { forumModules } from '@hubium/mod-forum/server';
-import { livesessionModules } from '@hubium/mod-livesession/server';
-import { quizModules } from '@hubium/mod-quiz/server';
-import { scormModules } from '@hubium/mod-scorm/server';
-import { videoModules } from '@hubium/mod-video/server';
+import { serverModules } from '@hubium/modules';
 import { afterAll, beforeAll } from 'vitest';
 import {
   invalidatePermissionCaches,
@@ -23,18 +17,8 @@ import { registerModules } from '../src/modules/registry.ts';
 import { seed } from '../src/seed/seed.ts';
 import '../src/bootstrap.ts';
 
-registerModules([
-  ...contentModules,
-  ...assignModules,
-  ...quizModules,
-  ...forumModules,
-  ...videoModules,
-  ...livesessionModules,
-  ...scormModules,
-  ...ltiModules,
-] as never);
+registerModules(serverModules as never);
 
-import { ltiModules } from '@hubium/mod-lti/server';
 import { type CapturedJob, setJobSink } from '../src/jobs/jobs.ts';
 import { setMailTransport } from '../src/mail/mail.ts';
 import { invalidateSettingsCache } from '../src/settings/settings.ts';

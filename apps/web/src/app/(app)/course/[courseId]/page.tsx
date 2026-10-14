@@ -1,8 +1,8 @@
 import {
+  enabledModules,
   getCourseAccess,
   getCourseOutline,
   getModule,
-  listModules,
   recordCourseAccess,
   toActivityRef,
 } from '@hubium/core';
@@ -52,7 +52,7 @@ export default async function CoursePage({
       ? await db.courseCompletion.findUnique({ where: { courseId_userId: { courseId, userId } } })
       : null;
   const tracked = outline.some((s) => s.activities.some((a) => a.completion !== null));
-  const modules = listModules().map((m) => ({
+  const modules = (await enabledModules(db)).map((m) => ({
     key: m.key,
     icon: m.icon,
     archetype: m.archetype,
@@ -154,11 +154,11 @@ export default async function CoursePage({
               </p>
             ) : null}
             <ul className="divide-y divide-border">
-              {s.activities.map(({ activity: a, available, completion }) => {
+              {s.activities.map(({ activity: a, available, completion, moduleDisabled }) => {
                 const m = getModule(a.moduleKey);
                 const ui = getModuleUI(a.moduleKey);
                 const ref = m ? toActivityRef(a) : null;
-                if (m?.archetype === 'inline' && ui?.Inline && ref) {
+                if (m?.archetype === 'inline' && ui?.Inline && ref && !moduleDisabled) {
                   const Inline = ui.Inline as (p: { activity: unknown }) => React.ReactNode;
                   return (
                     <li key={a.id} id={`a-${a.id}`} className="flex items-start gap-3 px-5 py-3">
@@ -168,7 +168,12 @@ export default async function CoursePage({
                       {editing ? (
                         <ActivityMenu
                           courseId={courseId}
-                          activity={{ id: a.id, name: a.name, visibility: a.visibility }}
+                          activity={{
+                            id: a.id,
+                            name: a.name,
+                            visibility: a.visibility,
+                            disabled: moduleDisabled,
+                          }}
                           sections={sectionsForMove}
                         />
                       ) : null}
@@ -196,6 +201,9 @@ export default async function CoursePage({
                           <Badge variant="warning">{t('hiddenFromStudents')}</Badge>
                         ) : null}
                         {a.visibility === 'STEALTH' ? <Badge>{t('stealthBadge')}</Badge> : null}
+                        {moduleDisabled ? (
+                          <Badge variant="warning">{t('moduleDisabledBadge')}</Badge>
+                        ) : null}
                         {reason ? (
                           <span className="flex items-center gap-1">
                             <Lock className="size-3" aria-hidden />
@@ -222,7 +230,12 @@ export default async function CoursePage({
                     {editing ? (
                       <ActivityMenu
                         courseId={courseId}
-                        activity={{ id: a.id, name: a.name, visibility: a.visibility }}
+                        activity={{
+                          id: a.id,
+                          name: a.name,
+                          visibility: a.visibility,
+                          disabled: moduleDisabled,
+                        }}
                         sections={sectionsForMove}
                       />
                     ) : null}

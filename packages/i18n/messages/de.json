@@ -374,7 +374,8 @@
     "webhooks": "Webhooks",
     "profileFields": "Profilfelder",
     "grades": "Bewertungen",
-    "languages": "Sprachen"
+    "languages": "Sprachen",
+    "modules": "Module"
   },
   "email": {
     "footer": "Sie erhalten diese E-Mail, weil Sie ein Konto auf dieser Website haben.",
@@ -523,6 +524,8 @@
     "resources": "Materialien",
     "hiddenFromStudents": "Für Teilnehmer/innen verborgen",
     "notAvailable": "Nicht verfügbar",
+    "moduleDisabled": "Dieser Aktivitätstyp wurde von der Administration deaktiviert. Teilnehmer/innen sehen die Aktivität nicht; ihre Daten bleiben erhalten.",
+    "moduleDisabledBadge": "Deaktiviert",
     "restricted": "Verfügbar, wenn: {conditions}",
     "moveUp": "Nach oben",
     "moveDown": "Nach unten",
@@ -1116,6 +1119,7 @@
   "adminLti": {
     "title": "LTI-1.3-Tools",
     "description": "Externe Dienste, die Trainer/innen zu Kursen hinzufügen können",
+    "turnedOff": "Der Aktivitätstyp LTI ist deaktiviert. Aktivieren Sie ihn unter <link>Website-Administration → Module</link>, um Tools zu registrieren.",
     "platform": "Plattformdaten für die Tool-Konfiguration",
     "issuer": "Issuer",
     "authUrl": "OIDC-Auth-URL",
@@ -1486,5 +1490,18 @@
     "orphaned": "{n, plural, one {# Person hat} other {# Personen haben}} eine deaktivierte Sprache gewählt.",
     "detectBrowser": "Sprache von Gästen erkennen",
     "detectBrowserHint": "Solange keine Sprache gewählt ist, sehen Gäste und Nutzer/innen ohne eigene Sprache die Website in der Sprache ihres Browsers, sofern diese aktiviert ist."
+  },
+  "adminModules": {
+    "title": "Aktivitätsmodule",
+    "description": "Legen Sie fest, welche Aktivitätstypen Trainer/innen hinzufügen und Teilnehmer/innen öffnen können.",
+    "types": "Aktivitätstypen",
+    "hint": "Inhaltstypen (Textseite, Link, Textfeld, Datei) sind immer aktiv: Kursimporte greifen auf sie zurück.",
+    "module": "Modul",
+    "activities": "Aktivitäten",
+    "courses": "Kurse",
+    "enabled": "Aktiv",
+    "required": "Immer aktiv",
+    "keepsData": "Das Deaktivieren löscht nichts. Die Aktivitäten bleiben in den Kursen und in der Bewertungsübersicht: Teilnehmer/innen sehen sie nicht mehr, Trainer/innen sehen sie ausgegraut, und alles ist wieder da, sobald der Typ aktiviert wird.",
+    "trackedWarning": "Aktivitäten deaktivierter Typen zählen zum Kursabschluss ({modules}). Teilnehmer/innen können sie erst abschließen, wenn die Typen wieder aktiviert werden oder die Aktivitäten nicht mehr erforderlich sind."
   }
 }

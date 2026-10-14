@@ -18,6 +18,8 @@ export const settingDefs = {
   'i18n.disabledLocales': z.array(z.string()).default([]),
   /** Show guests the site in their browser's language when it is enabled. */
   'i18n.detectBrowser': z.boolean().default(true),
+  /** Activity types turned off in Administration → Modules (see settings/modules.ts). */
+  'modules.disabled': z.array(z.string()).default([]),
   'site.defaultTimezone': z.string().default('Europe/Moscow'),
   'branding.accent': hex.default('#4f46e5'),
   'branding.logoFileId': z.string().uuid().nullable().default(null),
@@ -52,7 +54,7 @@ export function defaultSettings(): AllSettings {
   return out as AllSettings;
 }
 
-export async function getAllSettings(db: Db): Promise<AllSettings> {
+export async function getAllSettings(db: Db | Prisma.TransactionClient): Promise<AllSettings> {
   if (cache) return cache;
   const rows = await db.siteSetting.findMany({
     where: { key: { in: Object.keys(settingDefs) } },
@@ -67,7 +69,10 @@ export async function getAllSettings(db: Db): Promise<AllSettings> {
   return cache;
 }
 
-export async function getSetting<K extends SettingKey>(db: Db, key: K): Promise<SettingValue<K>> {
+export async function getSetting<K extends SettingKey>(
+  db: Db | Prisma.TransactionClient,
+  key: K,
+): Promise<SettingValue<K>> {
   return (await getAllSettings(db))[key];
 }
 

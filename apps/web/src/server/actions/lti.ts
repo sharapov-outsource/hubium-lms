@@ -1,6 +1,6 @@
 'use server';
 
-import { ValidationError } from '@hubium/core';
+import { assertModuleEnabled, ValidationError } from '@hubium/core';
 import { rotateKey, saveTool } from '@hubium/mod-lti/server';
 import { revalidatePath } from 'next/cache';
 import { ZodError } from 'zod';
@@ -11,6 +11,7 @@ import { requireCapability } from '../session';
 export async function saveLtiToolAction(fd: FormData) {
   return runAction(async () => {
     await requireCapability('site:config');
+    await assertModuleEnabled(db, 'lti');
     const v = formToObject(fd);
     try {
       const tool = await saveTool(db, {
@@ -41,6 +42,7 @@ export async function deleteLtiToolAction(id: string) {
 export async function rotateLtiKeyAction() {
   return runAction(async () => {
     await requireCapability('site:config');
+    await assertModuleEnabled(db, 'lti');
     await rotateKey(db);
     revalidatePath('/admin/lti');
     return null;

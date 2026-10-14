@@ -1,4 +1,10 @@
-import { getCourseAccess, getModule, listScales } from '@hubium/core';
+import {
+  getAllSettings,
+  getCourseAccess,
+  getModule,
+  isModuleEnabled,
+  listScales,
+} from '@hubium/core';
 import { PageHeader } from '@hubium/ui';
 import { forbidden, notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
@@ -34,7 +40,7 @@ export default async function NewActivityPage({
   if (!access.canManageActivities) forbidden();
   const m = sp.module ? getModule(sp.module) : undefined;
   const ui = sp.module ? getModuleUI(sp.module) : undefined;
-  if (!m || !ui) notFound();
+  if (!m || !ui || !isModuleEnabled(await getAllSettings(db), m.key)) notFound();
   const section = sp.section
     ? await db.courseSection.findFirst({ where: { id: sp.section, courseId } })
     : await db.courseSection.findFirst({ where: { courseId }, orderBy: { rank: 'asc' } });

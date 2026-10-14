@@ -1038,7 +1038,7 @@ export function createApi(opts: ApiOptions) {
       tags: ['Activities'],
       summary: 'Run a module action (e.g. assign "saveSubmission", forum "reply")',
       description:
-        'The actions an activity offers depend on its module (`moduleKey`). Send the input as JSON, or as multipart/form-data with the JSON in `input` when the action takes files (`files` parts, at most 10 MB per request; use POST /uploads for video and SCORM packages).',
+        'The actions an activity offers depend on its module (`moduleKey`). Send the input as JSON, or as multipart/form-data with the JSON in `input` when the action takes files (`files` parts, at most 10 MB per request; use POST /uploads for video and SCORM packages). Actions of activity types turned off in Administration → Modules answer 403.',
       security,
       request: {
         params: IdParam.extend({

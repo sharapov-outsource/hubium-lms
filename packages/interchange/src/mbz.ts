@@ -1,9 +1,11 @@
 import { Readable } from 'node:stream';
 import {
   buildModuleCtx,
-  createActivity,
   createCourse,
+  disabledTypesIn,
+  disabledTypesWarning,
   getModule,
+  importActivity,
   type RequestContext,
   toActivityRef,
   ValidationError,
@@ -529,7 +531,7 @@ export async function importMbz(
       };
       const placeholder = async (why: string) => {
         warnings.push(`"${name}" (${modname}): ${why}`);
-        await createActivity.run(ctx, {
+        await importActivity.run(ctx, {
           ...base,
           moduleKey: 'label',
           settings: { content: `<p><strong>${name.replace(/[<>&]/g, '')}</strong></p>${intro}` },
@@ -543,11 +545,11 @@ export async function importMbz(
               txt(data.content),
               await storeArea(contextid, 'mod_page', 'content'),
             );
-            await createActivity.run(ctx, { ...base, moduleKey: 'page', settings: { content } });
+            await importActivity.run(ctx, { ...base, moduleKey: 'page', settings: { content } });
             break;
           }
           case 'label':
-            await createActivity.run(ctx, {
+            await importActivity.run(ctx, {
               ...base,
               intro: '',
               moduleKey: 'label',
@@ -560,7 +562,7 @@ export async function importMbz(
               await placeholder('link is not http(s)');
               continue;
             }
-            await createActivity.run(ctx, {
+            await importActivity.run(ctx, {
               ...base,
               moduleKey: 'url',
               settings: { url, display: 'newtab' },
@@ -569,7 +571,7 @@ export async function importMbz(
           }
           case 'resource':
           case 'folder': {
-            const { id } = await createActivity.run(ctx, {
+            const { id } = await importActivity.run(ctx, {
               ...base,
               moduleKey: 'file',
               settings: { display: 'list' },
@@ -598,7 +600,7 @@ export async function importMbz(
           }
           case 'assign': {
             const grade = num(data.grade, 100);
-            await createActivity.run(ctx, {
+            await importActivity.run(ctx, {
               ...base,
               moduleKey: 'assign',
               settings: {
@@ -619,7 +621,7 @@ export async function importMbz(
               '3': 'FIRST',
               '4': 'LAST',
             };
-            const { id } = await createActivity.run(ctx, {
+            const { id } = await importActivity.run(ctx, {
               ...base,
               moduleKey: 'quiz',
               settings: {
@@ -683,7 +685,7 @@ export async function importMbz(
               );
               continue;
             }
-            await createActivity.run(ctx, {
+            await importActivity.run(ctx, {
               ...base,
               moduleKey: 'forum',
               settings: { type: type === 'qanda' ? 'qanda' : 'general' },
@@ -702,7 +704,7 @@ export async function importMbz(
               await placeholder('SCORM package file is missing');
               continue;
             }
-            const { id } = await createActivity.run(ctx, {
+            const { id } = await importActivity.run(ctx, {
               ...base,
               moduleKey: 'scorm',
               settings: { gradeMax: num(data.maxgrade, 100) || 100 },
@@ -733,7 +735,7 @@ export async function importMbz(
             }
             const start = date(data.openingtime) ?? new Date(Date.now() + 86_400_000).toISOString();
             const close = num(data.closingtime);
-            await createActivity.run(ctx, {
+            await importActivity.run(ctx, {
               ...base,
               moduleKey: 'livesession',
               settings: {
@@ -770,7 +772,7 @@ export async function importMbz(
       activities: activityCount,
       questions: questionCount,
       files: fileCount,
-      warnings,
+      warnings: [...warnings, ...disabledTypesWarning(await disabledTypesIn(db, courseId))],
     };
   }
 }

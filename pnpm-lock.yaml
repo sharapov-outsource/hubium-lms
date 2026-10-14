@@ -231,6 +231,9 @@ importers:
       '@hubium/module-sdk':
         specifier: workspace:*
         version: link:../../packages/module-sdk
+      '@hubium/modules':
+        specifier: workspace:*
+        version: link:../../packages/modules
       '@hubium/questions':
         specifier: workspace:*
         version: link:../../packages/questions
@@ -325,30 +328,9 @@ importers:
       '@hubium/log':
         specifier: workspace:*
         version: link:../../packages/log
-      '@hubium/mod-assign':
+      '@hubium/modules':
         specifier: workspace:*
-        version: link:../../modules/assign
-      '@hubium/mod-content':
-        specifier: workspace:*
-        version: link:../../modules/content
-      '@hubium/mod-forum':
-        specifier: workspace:*
-        version: link:../../modules/forum
-      '@hubium/mod-livesession':
-        specifier: workspace:*
-        version: link:../../modules/livesession
-      '@hubium/mod-lti':
-        specifier: workspace:*
-        version: link:../../modules/lti
-      '@hubium/mod-quiz':
-        specifier: workspace:*
-        version: link:../../modules/quiz
-      '@hubium/mod-scorm':
-        specifier: workspace:*
-        version: link:../../modules/scorm
-      '@hubium/mod-video':
-        specifier: workspace:*
-        version: link:../../modules/video
+        version: link:../../packages/modules
     devDependencies:
       '@hubium/tooling':
         specifier: workspace:*
@@ -958,6 +940,9 @@ importers:
       '@hubium/mod-video':
         specifier: workspace:*
         version: link:../../modules/video
+      '@hubium/modules':
+        specifier: workspace:*
+        version: link:../modules
       '@hubium/tooling':
         specifier: workspace:*
         version: link:../tooling
@@ -1225,6 +1210,43 @@ importers:
       vitest:
         specifier: 5.0.4
         version: 5.0.4(@opentelemetry/api@1.9.0)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/modules:
+    dependencies:
+      '@hubium/mod-assign':
+        specifier: workspace:*
+        version: link:../../modules/assign
+      '@hubium/mod-content':
+        specifier: workspace:*
+        version: link:../../modules/content
+      '@hubium/mod-forum':
+        specifier: workspace:*
+        version: link:../../modules/forum
+      '@hubium/mod-livesession':
+        specifier: workspace:*
+        version: link:../../modules/livesession
+      '@hubium/mod-lti':
+        specifier: workspace:*
+        version: link:../../modules/lti
+      '@hubium/mod-quiz':
+        specifier: workspace:*
+        version: link:../../modules/quiz
+      '@hubium/mod-scorm':
+        specifier: workspace:*
+        version: link:../../modules/scorm
+      '@hubium/mod-video':
+        specifier: workspace:*
+        version: link:../../modules/video
+    devDependencies:
+      '@hubium/tooling':
+        specifier: workspace:*
+        version: link:../tooling
+      '@types/node':
+        specifier: ^24
+        version: 24.19.2
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
 
   packages/questions:
     dependencies:

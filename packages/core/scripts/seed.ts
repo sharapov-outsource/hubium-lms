@@ -5,25 +5,9 @@ loadEnv({ path: path.resolve(import.meta.dirname, '../../../.env'), quiet: true 
 
 const { createDb } = await import('@hubium/db');
 const { registerModules } = await import('../src/modules/registry.ts');
-const { contentModules } = await import('@hubium/mod-content/server');
-const { assignModules } = await import('@hubium/mod-assign/server');
-const { quizModules } = await import('@hubium/mod-quiz/server');
-const { forumModules } = await import('@hubium/mod-forum/server');
-const { videoModules } = await import('@hubium/mod-video/server');
-const { livesessionModules } = await import('@hubium/mod-livesession/server');
-const { scormModules } = await import('@hubium/mod-scorm/server');
-const { ltiModules } = await import('@hubium/mod-lti/server');
+const { serverModules } = await import('@hubium/modules');
 await import('../src/bootstrap.ts');
-registerModules([
-  ...contentModules,
-  ...assignModules,
-  ...quizModules,
-  ...forumModules,
-  ...videoModules,
-  ...livesessionModules,
-  ...scormModules,
-  ...ltiModules,
-] as never);
+registerModules(serverModules as never);
 const { seed } = await import('../src/seed/seed.ts');
 
 const profile = process.argv.includes('--profile')

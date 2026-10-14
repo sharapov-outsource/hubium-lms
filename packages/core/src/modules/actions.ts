@@ -63,7 +63,9 @@ async function runAction(
   name: string,
   raw: unknown,
 ): Promise<unknown> {
-  const { activity, canOpen } = await getActivityAccess(ctx, activityId);
+  const { activity, canOpen, moduleDisabled } = await getActivityAccess(ctx, activityId);
+  if (moduleDisabled)
+    throw new ForbiddenError('This activity type is turned off by the administrator');
   if (!canOpen || activity.deletedAt) throw new ForbiddenError('Activity is not available');
   const m = requireModule(activity.moduleKey);
   const action = m.actions?.[name];

@@ -9,13 +9,19 @@ Modules **never import `@hubium/core`** (dependency-cruiser enforces it). Everyt
 ```
 modules/glossary/
   package.json          # name @hubium/mod-glossary, exports ./server, ./ui, ./messages/*
-  messages/{ru,en}.json # strings under "mod.glossary.*"
-  src/server.ts         # defineModule(...) — loaded by web and worker
+  messages/<code>.json  # strings under "mod.glossary.*", one file per language
+  src/server.ts         # defineModule(...) — loaded by web, worker and the CLI
   src/ui/*.tsx          # settings form and activity view (React server/client components)
 packages/db/prisma/schema/modules/glossary.prisma   # tables, if any
 ```
 
-Register the module in `apps/web/src/modules/{server.ts,ui.tsx,messages.ts}`, `apps/worker/src/modules.ts` and the core test helpers (`packages/core/test/helpers.ts`).
+Register the module in two lists: the server side in `packages/modules/src/index.ts` (web, worker, CLI, seed and core's tests all load it from there) and the UI side in `apps/web/src/modules/ui.tsx`. Add `@hubium/mod-glossary` to the dependencies of `packages/modules` and `apps/web`. The message files are found by `pnpm i18n:index`, which `pnpm install` runs.
+
+## Turning a module off
+
+Every module in the build is on until an administrator turns it off in **Administration → Modules** (`hubium modules disable <key>` from the command line). Nothing is deleted: activities of a turned-off type stay in their courses and the gradebook, learners stop seeing them, editors see them greyed out, and nothing can be added, edited, copied or run in them. Imports and course restores keep them. The module's cron jobs, notifications, calendar dates, to-do items and HTTP routes pause with it; queued jobs still finish.
+
+The content types (`page`, `url`, `label`, `file`) are always on, because imports fall back to them. A module's own code does not need to check: core does it in the course outline, in `getActivityAccess` and in the create, update and duplicate operations.
 
 ## Minimal module
 

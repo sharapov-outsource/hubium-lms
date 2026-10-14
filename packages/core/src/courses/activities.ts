@@ -3,7 +3,7 @@ import { sanitizeRichText } from '@hubium/editor/server';
 import { parseSettings } from '@hubium/module-sdk';
 import { z } from 'zod';
 import { createContext } from '../access/contexts.ts';
-import type { RequestContext } from '../context.ts';
+import type { MutationContext, RequestContext } from '../context.ts';
 import { NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { enqueue } from '../jobs/jobs.ts';
@@ -12,7 +12,8 @@ import { optionalText } from '../lib/zod.ts';
 import { buildModuleCtx, toActivityRef } from '../modules/module-ctx.ts';
 import { requireModule } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
-import { getSetting } from '../settings/settings.ts';
+import { assertModuleEnabled, isModuleEnabled } from '../settings/modules.ts';
+import { getAllSettings, getSetting } from '../settings/settings.ts';
 import { profileValueText } from '../users/profile-fields.ts';
 import {
   type AvailabilityFacts,
@@ -183,74 +184,84 @@ async function scheduleAiIndex(ctx: RequestContext, activityId: string) {
   );
 }
 
-export const createActivity = defineOperation({
-  name: 'activity.create',
-  input: ActivityInput,
-  authorize: (ctx, i) => ctx.perm.require('course:manageactivities', i.courseId),
-  async handler(ctx, input) {
-    const section = await ctx.tx.courseSection.findUnique({ where: { id: input.sectionId } });
-    if (!section || section.courseId !== input.courseId)
-      throw new ValidationError({ sectionId: ['Unknown section'] });
-    const settings = validateSettings(input.moduleKey, input.settings);
-    const completionRules = validateCompletion(
-      input.moduleKey,
-      input.completionMode,
-      input.completionRules,
-    );
-    const availability = validateAvailability(input.availability);
-    const groups = await groupSetup(ctx.tx, input.courseId, input);
-    const id = uuidv7();
-    await createContext(ctx.tx, id, 'ACTIVITY', input.courseId);
-    const a = await ctx.tx.activity.create({
-      data: {
-        id,
-        courseId: input.courseId,
-        sectionId: input.sectionId,
-        moduleKey: input.moduleKey,
-        rank: await rankAtEnd(ctx.tx, input.sectionId),
-        name: input.name,
-        intro: sanitizeRichText(input.intro),
-        showIntro: input.showIntro,
-        visibility: input.visibility,
-        completionMode: input.completionMode,
-        completionRules: completionRules as Prisma.InputJsonValue,
-        completionExpectedAt: input.completionExpectedAt,
-        ...groups,
-        availability,
-        idNumber: input.idNumber,
-        settings,
-        createdById: ctx.perm.userId,
-      },
-    });
-    const m = requireModule(a.moduleKey);
-    const mctx = buildModuleCtx(ctx, ctx.tx);
-    await m.lifecycle?.onCreate?.(mctx, toActivityRef(a));
-    if (m.grading) await mctx.grades.syncItems(a.id).catch(() => {});
-    await syncCalendar(ctx.tx, a);
-    await logEvent(ctx.tx, {
-      name: 'activity.created',
-      actorId: ctx.perm.userId,
-      courseId: a.courseId,
-      contextId: a.id,
-      objectType: a.moduleKey,
-      objectId: a.id,
-      origin: ctx.origin,
-    });
-    await scheduleAiIndex(ctx, id);
-    return { id };
-  },
-});
+/**
+ * Activities are created from the types that are turned on; restored backups and imports
+ * bring theirs back whatever the state, so turning a type on again shows them.
+ */
+const activityCreate = (name: string, restoring: boolean) =>
+  defineOperation({
+    name,
+    input: ActivityInput,
+    async authorize(ctx, i) {
+      await ctx.perm.require('course:manageactivities', i.courseId);
+      if (!restoring) await assertModuleEnabled(ctx.db, i.moduleKey);
+    },
+    handler: (ctx, input) => insertActivity(ctx, input),
+  });
+
+async function insertActivity(ctx: MutationContext, input: z.output<typeof ActivityInput>) {
+  const section = await ctx.tx.courseSection.findUnique({ where: { id: input.sectionId } });
+  if (!section || section.courseId !== input.courseId)
+    throw new ValidationError({ sectionId: ['Unknown section'] });
+  const settings = validateSettings(input.moduleKey, input.settings);
+  const completionRules = validateCompletion(
+    input.moduleKey,
+    input.completionMode,
+    input.completionRules,
+  );
+  const availability = validateAvailability(input.availability);
+  const groups = await groupSetup(ctx.tx, input.courseId, input);
+  const id = uuidv7();
+  await createContext(ctx.tx, id, 'ACTIVITY', input.courseId);
+  const a = await ctx.tx.activity.create({
+    data: {
+      id,
+      courseId: input.courseId,
+      sectionId: input.sectionId,
+      moduleKey: input.moduleKey,
+      rank: await rankAtEnd(ctx.tx, input.sectionId),
+      name: input.name,
+      intro: sanitizeRichText(input.intro),
+      showIntro: input.showIntro,
+      visibility: input.visibility,
+      completionMode: input.completionMode,
+      completionRules: completionRules as Prisma.InputJsonValue,
+      completionExpectedAt: input.completionExpectedAt,
+      ...groups,
+      availability,
+      idNumber: input.idNumber,
+      settings,
+      createdById: ctx.perm.userId,
+    },
+  });
+  const m = requireModule(a.moduleKey);
+  const mctx = buildModuleCtx(ctx, ctx.tx);
+  await m.lifecycle?.onCreate?.(mctx, toActivityRef(a));
+  if (m.grading) await mctx.grades.syncItems(a.id).catch(() => {});
+  await syncCalendar(ctx.tx, a);
+  await logEvent(ctx.tx, {
+    name: 'activity.created',
+    actorId: ctx.perm.userId,
+    courseId: a.courseId,
+    contextId: a.id,
+    objectType: a.moduleKey,
+    objectId: a.id,
+    origin: ctx.origin,
+  });
+  await scheduleAiIndex(ctx, id);
+  return { id };
+}
+
+export const createActivity = activityCreate('activity.create', false);
+/** createActivity for course restore and import: also types that are turned off. */
+export const importActivity = activityCreate('activity.import', true);
 
 export const updateActivity = defineOperation({
   name: 'activity.update',
   input: ActivityInput.omit({ courseId: true, sectionId: true, moduleKey: true }).extend({
     id: z.string().uuid(),
   }),
-  async authorize(ctx, i) {
-    const a = await ctx.db.activity.findUnique({ where: { id: i.id }, select: { courseId: true } });
-    if (!a) throw new NotFoundError('Activity');
-    await ctx.perm.require('course:manageactivities', a.courseId);
-  },
+  authorize: (ctx, i) => authorizeActivity(ctx, i.id, { enabledType: true }),
   async handler(ctx, input) {
     const prev = await ctx.tx.activity.findUniqueOrThrow({ where: { id: input.id } });
     const settings = validateSettings(prev.moduleKey, input.settings);
@@ -306,10 +317,19 @@ export const updateActivity = defineOperation({
   },
 });
 
-async function authorizeActivity(ctx: RequestContext, id: string) {
-  const a = await ctx.db.activity.findUnique({ where: { id }, select: { courseId: true } });
+/** Editing and copying also need the activity's type to be turned on. */
+async function authorizeActivity(
+  ctx: RequestContext,
+  id: string,
+  opts: { enabledType?: boolean } = {},
+) {
+  const a = await ctx.db.activity.findUnique({
+    where: { id },
+    select: { courseId: true, moduleKey: true },
+  });
   if (!a) throw new NotFoundError('Activity');
   await ctx.perm.require('course:manageactivities', a.courseId);
+  if (opts.enabledType) await assertModuleEnabled(ctx.db, a.moduleKey);
 }
 
 export const setActivityVisibility = defineOperation({
@@ -434,7 +454,7 @@ export const purgeActivity = defineOperation({
 export const duplicateActivity = defineOperation({
   name: 'activity.duplicate',
   input: z.object({ id: z.string().uuid() }),
-  authorize: (ctx, i) => authorizeActivity(ctx, i.id),
+  authorize: (ctx, i) => authorizeActivity(ctx, i.id, { enabledType: true }),
   async handler(ctx, { id }) {
     const a = await ctx.tx.activity.findUniqueOrThrow({ where: { id } });
     const next = await ctx.tx.activity.findFirst({
@@ -480,6 +500,8 @@ export interface OutlineActivity {
   listed: boolean;
   /** Viewer can open it (availability satisfied or can manage). */
   available: boolean;
+  /** Its type is turned off (or missing from this build): listed to editors only, unopenable. */
+  moduleDisabled: boolean;
   availabilityMissing: import('./availability.ts').Condition[];
   completion: CompletionState | null;
 }
@@ -580,10 +602,11 @@ export async function getCourseOutline(
   if (!access.canView || (access.course.deletedAt && !ctx.perm.isSiteAdmin))
     throw new NotFoundError('Course');
   const userId = ctx.perm.userId;
-  const [sections, activities, facts] = await Promise.all([
+  const [sections, activities, facts, settings] = await Promise.all([
     ctx.db.courseSection.findMany({ where: { courseId }, orderBy: { rank: 'asc' } }),
     ctx.db.activity.findMany({ where: { courseId, deletedAt: null }, orderBy: { rank: 'asc' } }),
     loadAvailabilityFacts(ctx, courseId, userId),
+    getAllSettings(ctx.db),
   ]);
   const manage = access.canManageActivities || access.canViewHidden;
   const completionMap = new Map<string, CompletionState>();
@@ -601,12 +624,16 @@ export async function getCourseOutline(
       .filter((a) => a.sectionId === s.id)
       .map((a): OutlineActivity => {
         const av = evaluateAvailability(parseAvailability(a.availability), facts);
-        const listed = manage || (a.visibility === 'SHOWN' && !av.hidden);
-        const available = manage || (a.visibility !== 'HIDDEN' && av.available && sAvail.available);
+        const moduleDisabled = !isModuleEnabled(settings, a.moduleKey);
+        const listed = manage || (!moduleDisabled && a.visibility === 'SHOWN' && !av.hidden);
+        const available =
+          !moduleDisabled &&
+          (manage || (a.visibility !== 'HIDDEN' && av.available && sAvail.available));
         return {
           activity: a,
           listed,
           available,
+          moduleDisabled,
           availabilityMissing: [...sAvail.missing, ...av.missing],
           completion:
             a.completionMode === 'NONE' ? null : (completionMap.get(a.id) ?? 'INCOMPLETE'),
@@ -644,8 +671,10 @@ export async function getActivityAccess(ctx: RequestContext, activityId: string)
     ? await getCourseOutline(ctx, a.courseId, { includeUnlisted: true })
     : [];
   const entry = outline.flatMap((s) => s.activities).find((x) => x.activity.id === a.id);
+  const moduleDisabled = !isModuleEnabled(await getAllSettings(ctx.db), a.moduleKey);
   const canOpen =
     !a.deletedAt &&
+    !moduleDisabled &&
     access.canView &&
     (access.canManageActivities || access.canViewHidden || (entry?.available ?? false)) &&
     ((await ctx.perm.can('activity:view', a.id)) || access.isGuest || access.canManageActivities);
@@ -659,6 +688,8 @@ export async function getActivityAccess(ctx: RequestContext, activityId: string)
     access,
     canOpen,
     listed,
+    /** Its type is turned off: nobody opens it; editors are told why. */
+    moduleDisabled,
     /** Whether the user meets the restrictions (editors may open it anyway). */
     available: entry?.available ?? false,
     completion: entry?.completion ?? null,

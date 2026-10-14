@@ -1,0 +1,30 @@
+{
+  "name": "@hubium/modules",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "author": "Alexander S. <alexander@sharapov.biz>",
+  "description": "The activity modules of this build: one server-side list for web, worker, CLI, seed and tests.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hubium/mod-assign": "workspace:*",
+    "@hubium/mod-content": "workspace:*",
+    "@hubium/mod-forum": "workspace:*",
+    "@hubium/mod-livesession": "workspace:*",
+    "@hubium/mod-lti": "workspace:*",
+    "@hubium/mod-quiz": "workspace:*",
+    "@hubium/mod-scorm": "workspace:*",
+    "@hubium/mod-video": "workspace:*"
+  },
+  "devDependencies": {
+    "@hubium/tooling": "workspace:*",
+    "@types/node": "^24",
+    "typescript": "~7.0.2"
+  }
+}

@@ -46,6 +46,7 @@ export default async function ActivityPage({
     access,
     canOpen,
     listed,
+    moduleDisabled,
     missing,
   } = await getActivityAccess(ctx, activityId).catch(() => notFound());
   if (a.courseId !== courseId || a.deletedAt) notFound();
@@ -62,9 +63,11 @@ export default async function ActivityPage({
         <Alert variant="warning" className="flex items-start gap-2">
           <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
-            {missing.length
-              ? t('restricted', { conditions: await describeConditions(missing) })
-              : t('notAvailable')}
+            {moduleDisabled
+              ? t('moduleDisabled')
+              : missing.length
+                ? t('restricted', { conditions: await describeConditions(missing) })
+                : t('notAvailable')}
           </span>
         </Alert>
         <Button asChild variant="secondary" className="w-fit">

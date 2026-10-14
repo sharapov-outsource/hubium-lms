@@ -1,4 +1,5 @@
-import { buildModuleCtx, getModule } from '@hubium/core';
+import { buildModuleCtx, getAllSettings, getModule, isModuleEnabled } from '@hubium/core';
+import { db } from '@/server/db';
 import { getContext } from '@/server/session';
 
 export const dynamic = 'force-dynamic';
@@ -11,7 +12,8 @@ async function handle(
 ) {
   const { module, path } = await params;
   const m = getModule(module);
-  if (!m?.http) return new Response('Not found', { status: 404 });
+  if (!m?.http || !isModuleEnabled(await getAllSettings(db), m.key))
+    return new Response('Not found', { status: 404 });
   const ctx = await getContext();
   return m.http(buildModuleCtx(ctx), req, path);
 }

@@ -6,6 +6,8 @@ import { activeCourseUserIds } from '../enrol/participants.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { notifyUsers } from '../notifications/notifications.ts';
 import { defineOperation } from '../operation.ts';
+import { isModuleEnabled } from '../settings/modules.ts';
+import { getAllSettings } from '../settings/settings.ts';
 
 type Tx = Prisma.TransactionClient | Db;
 
@@ -59,16 +61,21 @@ export async function listUserEvents(
     orderBy: { startsAt: 'asc' },
     include: { course: { select: { fullName: true } } },
   });
-  // Hide events of deleted or hidden activities.
+  // Hide events of deleted or hidden activities and of activity types that are turned off.
   const actIds = events.map((e) => e.activityId).filter((x): x is string => !!x);
   const acts = actIds.length
     ? await db.activity.findMany({
         where: { id: { in: actIds } },
-        select: { id: true, deletedAt: true, visibility: true },
+        select: { id: true, deletedAt: true, visibility: true, moduleKey: true },
       })
     : [];
+  const settings = await getAllSettings(db);
   const hidden = new Set(
-    acts.filter((a) => a.deletedAt || a.visibility !== 'SHOWN').map((a) => a.id),
+    acts
+      .filter(
+        (a) => a.deletedAt || a.visibility !== 'SHOWN' || !isModuleEnabled(settings, a.moduleKey),
+      )
+      .map((a) => a.id),
   );
   return events
     .filter((e) => !e.activityId || !hidden.has(e.activityId))

@@ -106,7 +106,7 @@ A learner's own report leaves out hidden items and categories.
 
 ## Module actions
 
-What an activity can do depends on its module (`moduleKey` in `/courses/{id}/contents`). `POST /activities/{id}/actions/{name}` runs one action with the same checks as the web interface: the activity must be open to you and the action's capability is required. The reference page lists every action with its capability and input schema; the spec carries each schema as `Action.<module>.<action>`.
+What an activity can do depends on its module (`moduleKey` in `/courses/{id}/contents`). `POST /activities/{id}/actions/{name}` runs one action with the same checks as the web interface: the activity must be open to you and the action's capability is required. The reference page lists every action with its capability and input schema; the spec carries each schema as `Action.<module>.<action>`. Actions of an activity type turned off in **Administration → Modules** answer `403`; `GET /activities/{id}` answers `404` for such activities.
 
 Actions that take files (assignment `saveSubmission` and `grade`, forum posts, video captions) accept `multipart/form-data`: the JSON input in an `input` part and each file as a `files` part, up to 10 MB per request.
 

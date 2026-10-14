@@ -1,11 +1,13 @@
 import {
   addSection,
   buildModuleCtx,
-  createActivity,
   createCourse,
+  disabledTypesIn,
+  disabledTypesWarning,
   ensureCourseGradebook,
   ForbiddenError,
   getModule,
+  importActivity,
   type RequestContext,
   syncGradeItemsFor,
   toActivityRef,
@@ -633,7 +635,7 @@ export async function restoreCourse(
         warnings.push(
           `Unknown activity type "${a.moduleKey}" (${a.name}) was replaced with a label`,
         );
-        const { id } = await createActivity.run(ctx, {
+        const { id } = await importActivity.run(ctx, {
           courseId,
           sectionId,
           moduleKey: 'label',
@@ -644,7 +646,7 @@ export async function restoreCourse(
         continue;
       }
       try {
-        const { id } = await createActivity.run(ctx, {
+        const { id } = await importActivity.run(ctx, {
           courseId,
           sectionId,
           moduleKey: a.moduleKey,
@@ -715,7 +717,7 @@ export async function restoreCourse(
       });
     }
     for (const { row, id } of created) {
-      // Same checks as createActivity, which only saw the archive's settings before ids were mapped.
+      // Same checks as importActivity, which only saw the archive's settings before ids were mapped.
       await db.activity.update({
         where: { id },
         data: {
@@ -791,7 +793,7 @@ export async function restoreCourse(
       activities: created.length,
       questions: b.course.questions.length,
       files: fileCount,
-      warnings,
+      warnings: [...warnings, ...disabledTypesWarning(await disabledTypesIn(db, courseId))],
     };
   } catch (e) {
     // do not leave a half-restored course behind

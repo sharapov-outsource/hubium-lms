@@ -14,6 +14,7 @@ import {
   logEvent,
   profileValuesFromForm,
   saveLanguageSettings,
+  saveModuleSettings,
   setRoleCapability,
   setRoleOverride,
   setSettings,
@@ -229,6 +230,16 @@ export async function saveLanguagesAction(fd: FormData) {
       defaultLocale,
       enabled,
       detectBrowser: fd.get('detectBrowser') === 'on',
+    });
+    revalidatePath('/', 'layout');
+    return null;
+  });
+}
+
+export async function saveModulesAction(fd: FormData) {
+  return runAction(async () => {
+    await saveModuleSettings.run(await getContext(), {
+      enabled: [...new Set(fd.getAll('enabled').map(String))],
     });
     revalidatePath('/', 'layout');
     return null;

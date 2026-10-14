@@ -374,7 +374,8 @@
     "webhooks": "Webhooks",
     "profileFields": "Champs de profil",
     "grades": "Notes",
-    "languages": "Langues"
+    "languages": "Langues",
+    "modules": "Modules"
   },
   "email": {
     "footer": "Vous recevez cet e-mail car vous avez un compte sur ce site.",
@@ -523,6 +524,8 @@
     "resources": "Ressources",
     "hiddenFromStudents": "Caché aux étudiants",
     "notAvailable": "Non disponible",
+    "moduleDisabled": "Ce type d’activité a été désactivé par l’administrateur. Les participants ne voient pas l’activité ; ses données sont conservées.",
+    "moduleDisabledBadge": "Désactivé",
     "restricted": "Disponible si : {conditions}",
     "moveUp": "Monter",
     "moveDown": "Descendre",
@@ -1116,6 +1119,7 @@
   "adminLti": {
     "title": "Outils LTI 1.3",
     "description": "Services externes que les enseignants peuvent ajouter aux cours",
+    "turnedOff": "Le type d’activité LTI est désactivé. Activez-le dans <link>Administration → Modules</link> pour enregistrer des outils.",
     "platform": "Informations sur la plateforme pour la configuration de l’outil",
     "issuer": "Issuer",
     "authUrl": "URL d’authentification OIDC",
@@ -1486,5 +1490,18 @@
     "orphaned": "{n, plural, one {# utilisateur a} other {# utilisateurs ont}} choisi une langue désactivée.",
     "detectBrowser": "Détecter la langue des visiteurs",
     "detectBrowserHint": "Tant qu’ils n’ont pas choisi de langue, les visiteurs et les utilisateurs sans langue définie voient le site dans la langue de leur navigateur, si elle est activée."
+  },
+  "adminModules": {
+    "title": "Modules d’activité",
+    "description": "Choisissez les types d’activités que les enseignants peuvent ajouter et que les participants peuvent ouvrir.",
+    "types": "Types d’activités",
+    "hint": "Les types de contenu (page, lien, étiquette, fichier) restent toujours activés : les imports de cours s’appuient sur eux.",
+    "module": "Module",
+    "activities": "Activités",
+    "courses": "Cours",
+    "enabled": "Activé",
+    "required": "Toujours activé",
+    "keepsData": "Désactiver un type ne supprime rien. Ses activités restent dans les cours et le carnet de notes : les participants ne les voient plus, les enseignants les voient grisées, et tout revient lorsque le type est réactivé.",
+    "trackedWarning": "Des activités de types désactivés comptent pour l’achèvement du cours ({modules}). Les participants ne pourront pas les achever tant que ces types ne seront pas réactivés ou que ces activités resteront requises."
   }
 }

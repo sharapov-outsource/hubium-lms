@@ -8,7 +8,13 @@ import { createCategory } from '../courses/categories.ts';
 import { createCourse } from '../courses/courses.ts';
 import { enrolUsers, updateSelfEnrolment } from '../enrol/enrol.ts';
 import { createGroup, setGroupMembers } from '../groups/groups.ts';
-import { setSettings } from '../settings/settings.ts';
+import { isModuleEnabled } from '../settings/modules.ts';
+import { getAllSettings, setSettings } from '../settings/settings.ts';
+
+/** The demo leaves out activity types turned off in Administration → Modules. */
+async function enabled(db: Db, key: string): Promise<boolean> {
+  return isModuleEnabled(await getAllSettings(db), key);
+}
 
 function systemCtx(db: Db): RequestContext {
   return {
@@ -229,18 +235,20 @@ export async function seedDemoAssessment(db: Db, courseId: string) {
   const target = sections[2] ?? sections.at(-1)!;
   const due = new Date(Date.now() + 5 * 86_400_000);
   due.setUTCHours(20, 59, 0, 0);
-  await createActivity.run(ctx, {
-    courseId,
-    sectionId: target.id,
-    moduleKey: 'assign',
-    name: 'Домашнее задание: калькулятор',
-    intro:
-      '<p>Напишите программу, которая читает два числа и выводит их сумму, разность и произведение. Прикрепите файл <code>.py</code> или вставьте код в ответ.</p>',
-    showIntro: true,
-    completionMode: 'AUTO',
-    completionRules: { module: { submit: true } },
-    settings: { dueAt: due.toISOString(), gradeMax: 10, gradePass: 6, maxFiles: 3 },
-  });
+  if (await enabled(db, 'assign'))
+    await createActivity.run(ctx, {
+      courseId,
+      sectionId: target.id,
+      moduleKey: 'assign',
+      name: 'Домашнее задание: калькулятор',
+      intro:
+        '<p>Напишите программу, которая читает два числа и выводит их сумму, разность и произведение. Прикрепите файл <code>.py</code> или вставьте код в ответ.</p>',
+      showIntro: true,
+      completionMode: 'AUTO',
+      completionRules: { module: { submit: true } },
+      settings: { dueAt: due.toISOString(), gradeMax: 10, gradePass: 6, maxFiles: 3 },
+    });
+  if (!(await enabled(db, 'quiz'))) return;
   const { id: quizId } = await createActivity.run(ctx, {
     courseId,
     sectionId: target.id,
@@ -259,6 +267,7 @@ export async function seedDemoAssessment(db: Db, courseId: string) {
 
 /** Demo forum with a discussion and a course announcement (idempotent). */
 export async function seedDemoComms(db: Db, courseId: string) {
+  if (!(await enabled(db, 'forum'))) return;
   if (await db.activity.findFirst({ where: { courseId, moduleKey: 'forum' } })) return;
   const ctx = systemCtx(db);
   const people = Object.fromEntries(
@@ -340,15 +349,17 @@ export async function seedDemoMedia(db: Db, courseId: string) {
     orderBy: { rank: 'asc' },
   });
   const target = sections[1] ?? sections[0]!;
-  await createActivity.run(ctx, {
-    courseId,
-    sectionId: target.id,
-    moduleKey: 'video',
-    name: 'Видеолекция: переменные и типы',
-    completionMode: 'AUTO',
-    completionRules: { module: { minPercent: 90 } },
-    settings: { source: 'embed', embedUrl: 'https://www.youtube.com/watch?v=kqtD5dpn9C8' },
-  });
+  if (await enabled(db, 'video'))
+    await createActivity.run(ctx, {
+      courseId,
+      sectionId: target.id,
+      moduleKey: 'video',
+      name: 'Видеолекция: переменные и типы',
+      completionMode: 'AUTO',
+      completionRules: { module: { minPercent: 90 } },
+      settings: { source: 'embed', embedUrl: 'https://www.youtube.com/watch?v=kqtD5dpn9C8' },
+    });
+  if (!(await enabled(db, 'livesession'))) return;
   const start = new Date(Date.now() + 2 * 86_400_000);
   start.setUTCHours(15, 0, 0, 0);
   await createActivity.run(ctx, {

@@ -11,6 +11,7 @@ import { provideModuleServices } from '../modules/module-ctx.ts';
 import { getModule } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
 import { publishRealtime } from '../realtime.ts';
+import { isModuleEnabled } from '../settings/modules.ts';
 import { getAllSettings, siteLocale, userLocale } from '../settings/settings.ts';
 import { PUSH_JOB, pushConfig } from './push.ts';
 
@@ -172,6 +173,9 @@ export async function deliverNotifications(
 
 provideModuleServices({
   notify: (ctx, tx) => async (userIds, n) => {
+    // Module notifications are typed `<module>.<name>`: none from types that are turned off.
+    const key = n.type.split('.')[0]!;
+    if (getModule(key) && !isModuleEnabled(await getAllSettings(tx), key)) return;
     await notifyUsers(tx, userIds, {
       ...n,
       actorId: ctx.actor.kind === 'user' ? ctx.actor.userId : null,

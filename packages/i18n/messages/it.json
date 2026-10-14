@@ -374,7 +374,8 @@
     "webhooks": "Webhook",
     "profileFields": "Campi del profilo",
     "grades": "Valutazioni",
-    "languages": "Lingue"
+    "languages": "Lingue",
+    "modules": "Moduli"
   },
   "email": {
     "footer": "Questa email è stata inviata perché l’indirizzo è associato a un account su questo sito.",
@@ -523,6 +524,8 @@
     "resources": "Risorse",
     "hiddenFromStudents": "Nascosto agli studenti",
     "notAvailable": "Non disponibile",
+    "moduleDisabled": "Questo tipo di attività è stato disattivato dall’amministratore. I partecipanti non vedono l’attività; i suoi dati sono conservati.",
+    "moduleDisabledBadge": "Disattivato",
     "restricted": "Disponibile se: {conditions}",
     "moveUp": "Sposta su",
     "moveDown": "Sposta giù",
@@ -1116,6 +1119,7 @@
   "adminLti": {
     "title": "Strumenti LTI 1.3",
     "description": "Servizi esterni che i docenti possono aggiungere ai corsi",
+    "turnedOff": "Il tipo di attività LTI è disattivato. Attivalo in <link>Amministrazione → Moduli</link> per registrare strumenti.",
     "platform": "Dati della piattaforma per la configurazione dello strumento",
     "issuer": "Issuer",
     "authUrl": "URL di autenticazione OIDC",
@@ -1486,5 +1490,18 @@
     "orphaned": "{n, plural, one {# utente ha} other {# utenti hanno}} scelto una lingua disattivata.",
     "detectBrowser": "Rileva la lingua degli ospiti",
     "detectBrowserHint": "Finché non scelgono una lingua, ospiti e utenti senza una lingua propria vedono il sito nella lingua del browser, se attivata."
+  },
+  "adminModules": {
+    "title": "Moduli di attività",
+    "description": "Scegli quali tipi di attività i docenti possono aggiungere e i partecipanti possono aprire.",
+    "types": "Tipi di attività",
+    "hint": "I tipi di contenuto (pagina, URL, etichetta, file) sono sempre attivi: le importazioni dei corsi si appoggiano a essi.",
+    "module": "Modulo",
+    "activities": "Attività",
+    "courses": "Corsi",
+    "enabled": "Attivo",
+    "required": "Sempre attivo",
+    "keepsData": "Disattivare un tipo non elimina nulla. Le sue attività restano nei corsi e nel registro valutatore: i partecipanti non le vedono più, i docenti le vedono in grigio e tutto torna quando il tipo viene riattivato.",
+    "trackedWarning": "Attività di tipi disattivati contano per il completamento del corso ({modules}). I partecipanti non potranno completarle finché i tipi non saranno riattivati o le attività non smetteranno di essere richieste."
   }
 }

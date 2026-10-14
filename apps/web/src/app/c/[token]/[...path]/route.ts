@@ -1,9 +1,12 @@
 import {
   buildModuleCtx,
   contentOrigin,
+  getAllSettings,
   getModule,
+  isModuleEnabled,
   Permissions,
   type RequestContext,
+  siteLocale,
   verifyContentToken,
 } from '@hubium/core';
 import { db } from '@/server/db';
@@ -32,13 +35,15 @@ async function handle(
     select: { moduleKey: true, deletedAt: true },
   });
   const m = activity && !activity.deletedAt ? getModule(activity.moduleKey) : undefined;
-  if (!m?.content) return new Response('Not found', { status: 404 });
+  const settings = await getAllSettings(db);
+  if (!m?.content || !isModuleEnabled(settings, m.key))
+    return new Response('Not found', { status: 404 });
   const ctx: RequestContext = {
     db,
     actor: { kind: 'system' },
     perm: new Permissions(db, { kind: 'system' }),
     now: new Date(),
-    locale: 'ru',
+    locale: siteLocale(settings),
     origin: 'WEB',
   };
   return m.content(

@@ -98,7 +98,8 @@ export function ActivityMenu({
   sections,
 }: {
   courseId: string;
-  activity: { id: string; name: string; visibility: string };
+  /** `disabled`: its type is turned off, so it can be moved and deleted but not edited. */
+  activity: { id: string; name: string; visibility: string; disabled?: boolean };
   sections: { id: string; title: string }[];
 }) {
   const t = useTranslations('course');
@@ -121,14 +122,16 @@ export function ActivityMenu({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem asChild>
-            <Link
-              href={`/course/${courseId}/a/${activity.id}/edit?returnTo=${encodeURIComponent(`/course/${courseId}?edit=1`)}`}
-            >
-              <Pencil />
-              {tc('edit')}
-            </Link>
-          </DropdownMenuItem>
+          {activity.disabled ? null : (
+            <DropdownMenuItem asChild>
+              <Link
+                href={`/course/${courseId}/a/${activity.id}/edit?returnTo=${encodeURIComponent(`/course/${courseId}?edit=1`)}`}
+              >
+                <Pencil />
+                {tc('edit')}
+              </Link>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             onSelect={() => run(() => activityCommandAction(courseId, activity.id, 'up'))}
           >
@@ -161,12 +164,14 @@ export function ActivityMenu({
               {t('show')}
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem
-            onSelect={() => run(() => activityCommandAction(courseId, activity.id, 'duplicate'))}
-          >
-            <Copy />
-            {t('duplicate')}
-          </DropdownMenuItem>
+          {activity.disabled ? null : (
+            <DropdownMenuItem
+              onSelect={() => run(() => activityCommandAction(courseId, activity.id, 'duplicate'))}
+            >
+              <Copy />
+              {t('duplicate')}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onSelect={() => setDelOpen(true)} className="text-destructive">
             <Trash2 />
             {t('delete')}

@@ -1,4 +1,4 @@
-import { getNotificationPreferences, pushConfig } from '@hubium/core';
+import { enabledModules, getNotificationPreferences, pushConfig } from '@hubium/core';
 import {
   Card,
   CardContent,
@@ -17,7 +17,6 @@ import {
 } from '@hubium/ui';
 import { getTranslations } from 'next-intl/server';
 import { ActionForm, SubmitButton } from '@/components/action-form';
-import { serverModules } from '@/modules/server';
 import { saveNotificationPrefsAction } from '@/server/actions/comms';
 import { db } from '@/server/db';
 import { titled } from '@/server/page-title';
@@ -38,7 +37,7 @@ export default async function NotificationSettingsPage() {
   const prefs = await getNotificationPreferences(
     db,
     user.id,
-    serverModules.map((m) => m.key),
+    (await enabledModules(db)).map((m) => m.key),
   );
   const label = (key: string) => (tAll.has(key) ? tAll(key) : key);
   const push = pushConfig();

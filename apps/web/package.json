@@ -29,6 +29,7 @@
     "@hubium/mod-scorm": "workspace:*",
     "@hubium/mod-video": "workspace:*",
     "@hubium/module-sdk": "workspace:*",
+    "@hubium/modules": "workspace:*",
     "@hubium/questions": "workspace:*",
     "@hubium/ui": "workspace:*",
     "better-auth": "1.7.7",
