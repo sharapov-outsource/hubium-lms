@@ -29,9 +29,13 @@ packageExtensions:
       typescript:
         optional: true
 
-# Transitive security fixes (mysql2 comes with better-auth's optional adapters; unused here)
+# Transitive security fixes: mysql2 comes with better-auth's optional adapters (unused here);
+# deepmerge-ts (stack exhaustion, GHSA-ggr8-5vv4-36mx) with Prisma's config loader;
+# @ai-sdk/provider-utils (GHSA-866g-f22w-33x8) with Scalar's API reference chat
 overrides:
   mysql2: ">=3.23.1"
+  "deepmerge-ts@<8": "8.0.2"
+  "@ai-sdk/provider-utils@<4.0.33": "4.0.58"
   # one OpenTelemetry API for Next.js, pg-boss and @hubium/telemetry: spans and the active
   # context are shared through it
   "@opentelemetry/api": "1.9.1"
@@ -112,3 +116,4 @@ minimumReleaseAgeExclude:
   - "@scalar/themes@0.19.1"
   - "@scalar/use-hooks@0.4.20"
   - "@scalar/workspace-store@0.68.3"
+  - "@ai-sdk/provider-utils@4.0.58"
