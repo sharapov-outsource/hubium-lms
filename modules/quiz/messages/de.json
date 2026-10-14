@@ -15,7 +15,7 @@
     },
     "shuffleQuestions": "Fragen mischen",
     "shuffleAnswers": "Antwortoptionen mischen",
-    "perPage": "Fragen pro Seite (0 = alle auf einer Seite)",
+    "perPage": "Neue Seite alle N Fragen (0 = alle auf einer Seite)",
     "gradeMax": "Maximale Bewertung",
     "gradePass": "Bestehensgrenze",
     "reviewAnswers": "Richtige Antworten anzeigen",
@@ -135,7 +135,9 @@
       "save": "Speichern",
       "saved": "Einstellungen gespeichert",
       "new": "Neue Überschreibung",
-      "empty": "Keine Überschreibungen für Nutzer/innen oder Gruppen"
+      "empty": "Keine Überschreibungen für Nutzer/innen oder Gruppen",
+      "noPassword": "Ohne Kennwort",
+      "ownPassword": "Eigenes Kennwort"
     },
     "regrade": {
       "title": "Neu bewerten",
@@ -147,6 +149,36 @@
       "wouldChange": "Versuche, die sich ändern würden: {n} von {total}",
       "changed": "Geänderte Versuche: {n} von {total}",
       "skipped": "Nicht neu bewertet (Fragetyp geändert): {names}"
+    },
+    "access": {
+      "title": "Zugang",
+      "password": "Test-Kennwort",
+      "passwordHint": "Wird vor jedem Versuch abgefragt (auch in der Vorschau). Leer: keines.",
+      "showPassword": "Kennwort anzeigen",
+      "hidePassword": "Kennwort verbergen",
+      "enterPassword": "Test-Kennwort",
+      "subnet": "Netzwerkadressen",
+      "subnetHint": "Versuche nur von diesen Adressen: z. B. 192.168.1.0/24, 10.1 oder 172.16.5.10-20. Leer: von überall.",
+      "delay1": "Wartezeit nach dem ersten Versuch, min",
+      "delay2": "Wartezeit nach weiteren Versuchen, min",
+      "navMethod": "Navigation",
+      "navMethodHint": "Sequenziell: Seiten der Reihe nach, ohne Rückkehr zu einer verlassenen Seite.",
+      "nav": {
+        "free": "Frei",
+        "sequential": "Sequenziell"
+      },
+      "networkBlocked": "Dieser Test kann nur von bestimmten Netzwerkadressen aus bearbeitet werden, und Ihre gehört nicht dazu.",
+      "waitUntil": "Der nächste Versuch kann am {date} beginnen.",
+      "sequentialNotice": "Die Seiten folgen der Reihe nach: Zu einer verlassenen Seite können Sie nicht zurück.",
+      "wrongPassword": "Das Test-Kennwort ist falsch"
+    },
+    "pages": {
+      "page": "Seite {n}",
+      "addBreak": "Neue Seite nach dieser Frage",
+      "removeBreak": "Mit der nächsten Seite zusammenfassen",
+      "perPage": "Fragen pro Seite",
+      "repaginate": "Neu aufteilen",
+      "repaginated": "Seiten neu aufgeteilt"
     }
   }
 }

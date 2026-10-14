@@ -2,8 +2,10 @@
 
 import { DateTimeInput, useFieldErrors } from '@hubium/module-sdk/form';
 import type { SettingsFieldsProps } from '@hubium/module-sdk/ui';
-import { Checkbox, Field, Input, Select } from '@hubium/ui';
+import { Button, Checkbox, Field, Input, Select } from '@hubium/ui';
+import { Eye, EyeOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useState } from 'react';
 import type { QuizSettingsT } from '../server.ts';
 
 function Bool({
@@ -51,9 +53,39 @@ function Num({
   );
 }
 
+/** The quiz password: hidden unless shown, and never filled in by the browser. */
+function PasswordField({ value }: { value: string }) {
+  const t = useTranslations('mod.quiz');
+  const [shown, setShown] = useState(false);
+  return (
+    <Field label={t('access.password')} htmlFor="qs-password" hint={t('access.passwordHint')}>
+      <div className="flex gap-2">
+        <Input
+          id="qs-password"
+          name="settings.password"
+          type={shown ? 'text' : 'password'}
+          autoComplete="new-password"
+          defaultValue={value}
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={shown ? t('access.hidePassword') : t('access.showPassword')}
+          aria-pressed={shown}
+          onClick={() => setShown((v) => !v)}
+        >
+          {shown ? <EyeOff /> : <Eye />}
+        </Button>
+      </div>
+    </Field>
+  );
+}
+
 export function QuizSettingsFields({ settings }: SettingsFieldsProps<QuizSettingsT>) {
   const t = useTranslations('mod.quiz');
   const closeError = useFieldErrors('settings.closeAt');
+  const subnetError = useFieldErrors('settings.subnet');
   return (
     <div className="grid gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -101,6 +133,37 @@ export function QuizSettingsFields({ settings }: SettingsFieldsProps<QuizSetting
         <Bool name="shuffleAnswers" label={t('shuffleAnswers')} checked={settings.shuffleAnswers} />
         <Bool name="reviewMarks" label={t('reviewMarks')} checked={settings.reviewMarks} />
       </div>
+      <Field label={t('access.navMethod')} htmlFor="qs-navMethod" hint={t('access.navMethodHint')}>
+        <Select id="qs-navMethod" name="settings.navMethod" defaultValue={settings.navMethod}>
+          {(['free', 'sequential'] as const).map((m) => (
+            <option key={m} value={m}>
+              {t(`access.nav.${m}`)}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <fieldset className="grid gap-4 rounded-lg border border-border p-4">
+        <legend className="px-1 text-sm font-medium">{t('access.title')}</legend>
+        <PasswordField value={settings.password} />
+        <Field
+          label={t('access.subnet')}
+          htmlFor="qs-subnet"
+          hint={t('access.subnetHint')}
+          error={subnetError}
+        >
+          <Input
+            id="qs-subnet"
+            name="settings.subnet"
+            defaultValue={settings.subnet}
+            placeholder="192.168.1.0/24, 10.1"
+            aria-invalid={!!subnetError}
+          />
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Num name="delay1Min" label={t('access.delay1')} value={settings.delay1Min} />
+          <Num name="delay2Min" label={t('access.delay2')} value={settings.delay2Min} />
+        </div>
+      </fieldset>
       <Field label={t('reviewAnswers')} htmlFor="qs-reviewAnswers">
         <Select
           id="qs-reviewAnswers"

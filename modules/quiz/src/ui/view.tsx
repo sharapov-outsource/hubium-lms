@@ -146,6 +146,8 @@ async function StudentView({ activity: a, ctx }: Props) {
       ) : null}
       {!o.canAttempt ? null : !slotCount ? (
         <Alert variant="warning">{t('empty')}</Alert>
+      ) : !o.networkAllowed ? (
+        <Alert variant="warning">{t('access.networkBlocked')}</Alert>
       ) : o.inProgressAttemptId ? (
         <Button asChild size="lg" className="w-fit">
           <Link href={`${base(a)}?attempt=${o.inProgressAttemptId}`}>{t('continue')}</Link>
@@ -154,8 +156,19 @@ async function StudentView({ activity: a, ctx }: Props) {
         <Alert variant="warning">{t(o.closedReason)}</Alert>
       ) : o.attemptsLeft === 0 ? (
         <Alert>{t('noAttemptsLeft')}</Alert>
+      ) : o.nextAttemptAt ? (
+        <Alert>
+          {t('access.waitUntil', {
+            date: format.dateTime(o.nextAttemptAt, { dateStyle: 'long', timeStyle: 'short' }),
+          })}
+        </Alert>
       ) : (
-        <AttemptActions activityId={a.id} baseUrl={base(a)} label={t('start')} />
+        <AttemptActions
+          activityId={a.id}
+          baseUrl={base(a)}
+          label={t('start')}
+          requiresPassword={o.requiresPassword}
+        />
       )}
     </div>
   );
@@ -178,9 +191,15 @@ async function AttemptPage({ activity: a, ctx, attemptId }: Props & { attemptId:
     );
   return (
     <AttemptPlayer
+      // page by page: each page is a fresh player with the questions the server sent
+      key={at.navMethod === 'sequential' ? at.currentPage : 'all'}
       activityId={a.id}
       attemptId={at.id}
       questions={at.questions}
+      navMethod={at.navMethod}
+      currentPage={at.currentPage}
+      pages={at.pages}
+      navigation={at.navigation}
       dueAt={at.dueAt?.toISOString() ?? null}
       serverNow={at.serverNow.getTime()}
       backUrl={base(a)}
@@ -391,6 +410,7 @@ async function OverridesTab({ activity: a, ctx }: Props) {
               <Th>{t('overrides.closeAt')}</Th>
               <Th>{t('overrides.timeLimit')}</Th>
               <Th>{t('overrides.attempts')}</Th>
+              <Th>{t('access.password')}</Th>
               <Th />
             </Tr>
           </THead>
@@ -404,6 +424,13 @@ async function OverridesTab({ activity: a, ctx }: Props) {
                   {o.timeLimitSec === null ? '—' : Math.round(o.timeLimitSec / 60)}
                 </Td>
                 <Td className="tabular-nums">{o.attempts ?? '—'}</Td>
+                <Td className="text-sm">
+                  {o.password === null
+                    ? '—'
+                    : o.password === ''
+                      ? t('overrides.noPassword')
+                      : t('overrides.ownPassword')}
+                </Td>
                 <Td className="text-right">
                   <DeleteOverrideButton activityId={a.id} id={o.id} />
                 </Td>
@@ -465,7 +492,13 @@ async function OverviewTab({ activity: a, ctx }: Props) {
         ))}
       </div>
       {slots ? (
-        <AttemptActions activityId={a.id} baseUrl={base(a)} label={t('preview')} preview />
+        <AttemptActions
+          activityId={a.id}
+          baseUrl={base(a)}
+          label={t('preview')}
+          preview
+          requiresPassword={!!a.settings.password}
+        />
       ) : (
         <EmptyState title={t('empty')} />
       )}
@@ -502,6 +535,7 @@ async function EditTab({ activity: a, ctx }: Props) {
         bankUrl={`/course/${a.courseId}/question-bank`}
         slots={slots.map((s) => ({
           slot: s.slot,
+          page: s.page,
           label:
             s.kind === 'RANDOM'
               ? t('randomFrom', { category: s.category?.name || '—' })

@@ -9,10 +9,12 @@ import {
   ModuleError,
 } from '@hubium/module-sdk';
 import { bool, isoDate, optionalNumber } from '@hubium/module-sdk/fields';
+import { invalidIpListEntries } from '@hubium/module-sdk/net';
 import {
   correctResponse,
   gradedTypes,
   gradeResponse,
+  isAnswered,
   PublicFields,
   presentQuestion,
   type QuestionData,
@@ -26,6 +28,13 @@ import {
   typeDef,
 } from '@hubium/questions';
 import { z } from 'zod';
+import {
+  type AccessRules,
+  checkStart,
+  effectivePasswords,
+  networkAllowed,
+  nextAttemptAt,
+} from './access.ts';
 import { type PublicQuestion, toPublicQuestion } from './public.ts';
 
 // mod-quiz: question slots (fixed or random from a category), timed attempts with
@@ -50,6 +59,34 @@ export const QuizSettings = z
     gradePass: optionalNumber(0, 10_000),
     reviewAnswers: z.enum(['immediately', 'afterClose', 'never']).default('immediately'),
     reviewMarks: bool(true),
+    /** Asked before an attempt starts (previews too); '' for none. */
+    password: z.string().max(255).default(''),
+    /** Network addresses attempts may be taken from (see ipInList); '' for anywhere. */
+    subnet: z
+      .string()
+      .trim()
+      .max(2000)
+      .default('')
+      .superRefine((s, c) => {
+        const bad = invalidIpListEntries(s);
+        if (bad.length)
+          c.addIssue({ code: 'custom', message: `Not an address: ${bad.join(', ')}` });
+      }),
+    /** Minutes to wait after the first attempt, and after each later one. */
+    delay1Min: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(366 * 24 * 60)
+      .default(0),
+    delay2Min: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(366 * 24 * 60)
+      .default(0),
+    /** sequential: pages in order, no going back. */
+    navMethod: z.enum(['free', 'sequential']).default('free'),
   })
   .refine((s) => !s.closeAt || !s.openAt || s.closeAt > s.openAt, {
     message: 'Close date must be after open date',
@@ -125,7 +162,77 @@ export async function effectiveQuiz(db: Db, a: ActivityRef<QuizSettingsT>, userI
     closeAt: own?.closeAt ?? g.closeAt ?? d(a.settings.closeAt),
     timeLimitSec: own?.timeLimitSec ?? g.timeLimitSec ?? a.settings.timeLimitMin * 60,
     attempts: own?.attempts ?? g.attempts ?? a.settings.attempts,
+    passwords: effectivePasswords(
+      a.settings.password,
+      own?.password,
+      groups.map((x) => x.password),
+    ),
   };
+}
+
+/** Password, network and waiting rules for one learner. */
+export function accessRules(
+  a: ActivityRef<QuizSettingsT>,
+  e: { passwords: string[] },
+): AccessRules {
+  return {
+    passwords: e.passwords,
+    subnet: a.settings.subnet,
+    delay1Sec: a.settings.delay1Min * 60,
+    delay2Sec: a.settings.delay2Min * 60,
+  };
+}
+
+/** Attempts may only be taken (and continued) from the quiz's network addresses. */
+function requireNetwork(ctx: ModuleCtx, a: ActivityRef<QuizSettingsT>) {
+  if (!networkAllowed(a.settings, ctx.ip))
+    throw new ModuleError(
+      'FORBIDDEN',
+      'This quiz can only be taken from certain network addresses',
+    );
+}
+
+// ── pages ───────────────────────────────────────────────────────────────────────
+
+/** Page numbers made consecutive from 1, keeping their order. */
+export function normalisePages(pages: number[]): number[] {
+  const map = new Map([...new Set(pages)].sort((x, y) => x - y).map((p, i) => [p, i + 1]));
+  return pages.map((p) => map.get(p)!);
+}
+
+/** The page of a slot added after `pages`: a new page every `perPage` questions. */
+export function pageForNewSlot(pages: number[], perPage: number): number {
+  const last = pages.at(-1);
+  if (last === undefined) return 1;
+  if (perPage <= 0) return last;
+  return pages.filter((p) => p === last).length >= perPage ? last + 1 : last;
+}
+
+/** Pages of the quiz's slots in slot order. */
+async function slotPages(db: Db, activityId: string): Promise<number[]> {
+  const rows = await db.quizSlot.findMany({
+    where: { activityId },
+    orderBy: { slot: 'asc' },
+    select: { page: true },
+  });
+  return rows.map((r) => r.page);
+}
+
+/** With sequential navigation answers are taken for the current page only. */
+function currentPageOnly(
+  a: ActivityRef<QuizSettingsT>,
+  at: { currentPage: number },
+): number | undefined {
+  return a.settings.navMethod === 'sequential' ? at.currentPage : undefined;
+}
+
+/** Lays the slots out anew, `perPage` to a page (0: all on one page). */
+async function repaginate(db: Db, activityId: string, perPage: number) {
+  const slots = await db.quizSlot.findMany({ where: { activityId }, orderBy: { slot: 'asc' } });
+  for (const [k, s] of slots.entries()) {
+    const page = perPage > 0 ? Math.floor(k / perPage) + 1 : 1;
+    if (s.page !== page) await db.quizSlot.update({ where: { id: s.id }, data: { page } });
+  }
 }
 
 export function quizIsOpen(e: { openAt: Date | null; closeAt: Date | null }, now: Date) {
@@ -214,7 +321,8 @@ export async function startAttempt(
       seed,
     },
   });
-  const perPage = a.settings.perPage || order.length;
+  // Shuffling moves questions between positions; each position keeps its slot's page.
+  const pageAt = normalisePages(slots.map((s) => s.page));
   for (const [i, s] of order.entries()) {
     let q = s.question;
     if (s.kind === 'RANDOM' && s.categoryId) {
@@ -236,7 +344,7 @@ export async function startAttempt(
       data: {
         attemptId: attempt.id,
         slot: i + 1,
-        page: Math.floor(i / perPage) + 1,
+        page: pageAt[i]!,
         questionId: q.id,
         quizSlotId: s.id,
         snapshot: snap as unknown as Prisma.InputJsonValue,
@@ -267,12 +375,16 @@ async function saveResponses(
   attemptId: string,
   answers: Record<string, unknown>,
   flags?: Record<string, boolean>,
+  /** Sequential navigation: answers are taken for this page only. */
+  onlyPage?: number,
 ) {
   const qas = await ctx.db.questionAttempt.findMany({ where: { attemptId } });
   for (const qa of qas) {
     const key = String(qa.slot);
     const data: Prisma.QuestionAttemptUpdateInput = {};
     if (key in answers) {
+      if (onlyPage !== undefined && qa.page !== onlyPage)
+        throw new ModuleError('CONFLICT', 'That question is on a page you have already left');
       const snap = qa.snapshot as unknown as QuestionSnapshot;
       const resp = cleanResponse(snap.type, answers[key]);
       if (resp) data.response = resp as Prisma.InputJsonValue;
@@ -518,8 +630,17 @@ export async function readQuizOverview(ctx: ModuleCtx, a: Quiz) {
     : null;
   const open = quizIsOpen(e, ctx.now);
   const canReview = reviewAllowed(a.settings, e.closeAt, ctx.now);
+  const rules = accessRules(a, e);
+  const next = nextAttemptAt(
+    rules,
+    attempts.filter((x) => x.state === 'FINISHED').map((x) => x.finishedAt),
+  );
   return {
     questions,
+    requiresPassword: rules.passwords.length > 0,
+    networkAllowed: networkAllowed(rules, ctx.ip),
+    /** The wait between attempts ends then (null: no wait now). */
+    nextAttemptAt: next && next > ctx.now ? next : null,
     timeLimitSec: e.timeLimitSec || null,
     /** null: unlimited */
     attemptsAllowed: e.attempts || null,
@@ -564,13 +685,35 @@ export async function readAttempt(ctx: ModuleCtx, a: Quiz, attemptId: string) {
   });
   if (!at || at.activityId !== a.id || ctx.actor.kind !== 'user' || at.userId !== ctx.actor.userId)
     return null;
+  const open = at.state === 'IN_PROGRESS';
+  const sequential = a.settings.navMethod === 'sequential';
+  const pages = [...new Set(at.questions.map((q) => q.page))].sort((x, y) => x - y);
   return {
     id: at.id,
     attemptNumber: at.attemptNumber,
     state: at.state,
     dueAt: at.dueAt,
     serverNow: new Date(),
-    questions: at.state === 'IN_PROGRESS' ? at.questions.map(toPublicQuestion) : [],
+    navMethod: a.settings.navMethod,
+    currentPage: at.currentPage,
+    pages: open ? pages : [],
+    /** Every question's place and state, for the navigation panel (no content). */
+    navigation: open
+      ? at.questions.map((q) => {
+          const type = (q.snapshot as unknown as QuestionSnapshot).type;
+          return {
+            slot: q.slot,
+            page: q.page,
+            graded: typeDef(type).grading !== 'none',
+            answered: isAnswered(type, q.response),
+            flagged: q.flagged,
+          };
+        })
+      : [],
+    // with sequential navigation only the current page: the others are not to be seen
+    questions: open
+      ? at.questions.filter((q) => !sequential || q.page === at.currentPage).map(toPublicQuestion)
+      : [],
   };
 }
 
@@ -702,6 +845,12 @@ export const quiz = defineModule<QuizSettingsT>({
       });
     },
   },
+  lifecycle: {
+    // a new "questions per page" lays the questions out again, as Moodle's "repaginate now"
+    async onUpdate(ctx, a, prev) {
+      if (a.settings.perPage !== prev.perPage) await repaginate(ctx.db, a.id, a.settings.perPage);
+    },
+  },
   backup: {
     async export(ctx, a) {
       const slots = await ctx.db.quizSlot.findMany({
@@ -807,6 +956,14 @@ export const quiz = defineModule<QuizSettingsT>({
       input: z.object({}),
       output: z.object({
         questions: z.number(),
+        requiresPassword: z.boolean().describe('start takes the quiz password'),
+        networkAllowed: z
+          .boolean()
+          .describe('false: the quiz only takes attempts from other network addresses'),
+        nextAttemptAt: z
+          .string()
+          .nullable()
+          .describe('the wait between attempts ends then; null: no wait now'),
         timeLimitSec: z.number().nullable(),
         attemptsAllowed: z.number().nullable().describe('null: unlimited'),
         attemptsLeft: z.number().nullable(),
@@ -845,7 +1002,25 @@ export const quiz = defineModule<QuizSettingsT>({
         state: z.literal('IN_PROGRESS'),
         dueAt: z.string().nullable().describe('the attempt closes itself at this time'),
         serverNow: z.string(),
-        questions: z.array(QuestionOut),
+        navMethod: z
+          .enum(['free', 'sequential'])
+          .describe('sequential: pages in order with the page action, no going back'),
+        currentPage: z.number(),
+        pages: z.array(z.number()),
+        navigation: z
+          .array(
+            z.object({
+              slot: z.number(),
+              page: z.number(),
+              graded: z.boolean(),
+              answered: z.boolean(),
+              flagged: z.boolean(),
+            }),
+          )
+          .describe('every question of the attempt, without its content'),
+        questions: z
+          .array(QuestionOut)
+          .describe('all questions, or only the current page with sequential navigation'),
       }),
       async handler(ctx, a, { attemptId }) {
         const r = await readAttempt(ctx, a as Quiz, attemptId);
@@ -911,16 +1086,21 @@ export const quiz = defineModule<QuizSettingsT>({
           orderBy: { slot: 'desc' },
         });
         let n = last?.slot ?? 0;
+        const pages = await slotPages(ctx.db, a.id);
+        const perPage = (a as ActivityRef<QuizSettingsT>).settings.perPage;
         const qs = await ctx.db.question.findMany({
           where: { id: { in: questionIds }, category: { contextId: a.courseId } },
         });
         for (const id of questionIds) {
           const q = qs.find((x) => x.id === id);
           if (!q) continue;
+          const page = pageForNewSlot(pages, perPage);
+          pages.push(page);
           await ctx.db.quizSlot.create({
             data: {
               activityId: a.id,
               slot: ++n,
+              page,
               kind: 'FIXED',
               questionId: q.id,
               maxMark: q.defaultMark,
@@ -950,11 +1130,16 @@ export const quiz = defineModule<QuizSettingsT>({
           orderBy: { slot: 'desc' },
         });
         let n = last?.slot ?? 0;
+        const pages = await slotPages(ctx.db, a.id);
+        const perPage = (a as ActivityRef<QuizSettingsT>).settings.perPage;
         for (let i = 0; i < input.count; i++) {
+          const page = pageForNewSlot(pages, perPage);
+          pages.push(page);
           await ctx.db.quizSlot.create({
             data: {
               activityId: a.id,
               slot: ++n,
+              page,
               kind: 'RANDOM',
               categoryId: cat.id,
               includeSubcats: input.includeSubcats,
@@ -965,11 +1150,11 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     editSlot: defineAction({
-      summary: 'Remove or move a slot, or change its mark',
+      summary: 'Remove or move a slot, change its mark, or add or remove the page break after it',
       capability: 'course:manageactivities',
       input: z.object({
         slot: z.number().int().min(1),
-        op: z.enum(['remove', 'up', 'down', 'mark']),
+        op: z.enum(['remove', 'up', 'down', 'mark', 'pageBreak']),
         maxMark: z.number().min(0).max(1000).optional(),
       }),
       async handler(ctx, a, input) {
@@ -988,7 +1173,21 @@ export const quiz = defineModule<QuizSettingsT>({
           });
           return { ok: true };
         }
+        // Pages only shape attempts started later, so they may change at any time.
+        if (input.op === 'pageBreak') {
+          const next = slots[i + 1];
+          if (!next) return { ok: true };
+          const shift = next.page === slots[i]!.page ? 1 : -1;
+          const pages = normalisePages(slots.map((s, k) => (k > i ? s.page + shift : s.page)));
+          for (const [k, s] of slots.entries())
+            if (s.page !== pages[k])
+              await ctx.db.quizSlot.update({ where: { id: s.id }, data: { page: pages[k]! } });
+          return { ok: true };
+        }
         if (hasAttempts) throw new Error('Cannot change questions after attempts exist');
+        // Questions move between positions; each position keeps its page.
+        const pageAt = slots.map((s) => s.page);
+        if (input.op === 'remove') pageAt.splice(i, 1);
         let order = [...slots];
         if (input.op === 'remove') order.splice(i, 1);
         if (input.op === 'up' && i > 0) [order[i - 1], order[i]] = [order[i]!, order[i - 1]!];
@@ -997,28 +1196,65 @@ export const quiz = defineModule<QuizSettingsT>({
         if (input.op === 'remove') await ctx.db.quizSlot.delete({ where: { id: slots[i]!.id } });
         order = order.filter((s) => input.op !== 'remove' || s.id !== slots[i]!.id);
         // Two passes to avoid unique (activityId, slot) collisions.
+        const pages = normalisePages(pageAt);
         for (const [k, s] of order.entries())
           await ctx.db.quizSlot.update({ where: { id: s.id }, data: { slot: 10_000 + k } });
         for (const [k, s] of order.entries())
-          await ctx.db.quizSlot.update({ where: { id: s.id }, data: { slot: k + 1 } });
+          await ctx.db.quizSlot.update({
+            where: { id: s.id },
+            data: { slot: k + 1, page: pages[k] ?? 1 },
+          });
+        return { ok: true };
+      },
+    }),
+    repaginate: defineAction({
+      summary: 'Lay the questions out anew, a given number to a page (0: all on one page)',
+      capability: 'course:manageactivities',
+      input: z.object({ perPage: z.number().int().min(0).max(100) }),
+      async handler(ctx, a, { perPage }) {
+        await repaginate(ctx.db, a.id, perPage);
         return { ok: true };
       },
     }),
     // ── attempts ──
     start: defineAction({
-      summary: 'Start an attempt or resume the open one; `preview` for teachers',
-      input: z.object({ preview: z.boolean().default(false) }),
-      async handler(ctx, a, { preview }) {
+      summary:
+        'Start an attempt or resume the open one; `preview` for teachers. `password` when the quiz has one',
+      input: z.object({
+        preview: z.boolean().default(false),
+        password: z.string().max(255).optional(),
+      }),
+      async handler(ctx, a, { preview, password }) {
         const userId = uid(ctx);
         const quizA = a as ActivityRef<QuizSettingsT>;
         if (preview) await ctx.perm.require('mod.quiz:preview', a.id);
         else await ctx.perm.require('mod.quiz:attempt', a.id);
+        requireNetwork(ctx, quizA);
         const open = await ctx.db.quizAttempt.findFirst({
           where: { activityId: a.id, userId, preview, state: 'IN_PROGRESS' },
         });
         if (open) return { attemptId: open.id };
+        const e = await effectiveQuiz(ctx.db, quizA, userId);
+        const finished = await ctx.db.quizAttempt.findMany({
+          where: { activityId: a.id, userId, preview: false, state: 'FINISHED' },
+          orderBy: { attemptNumber: 'asc' },
+          select: { finishedAt: true },
+        });
+        const refusal = checkStart(accessRules(quizA, e), {
+          ip: ctx.ip,
+          now: ctx.now,
+          finished: finished.map((x) => x.finishedAt),
+          password,
+          preview,
+        });
+        if (refusal?.reason === 'password')
+          throw new ModuleError('FORBIDDEN', 'The quiz password is wrong');
+        if (refusal?.reason === 'delay')
+          throw new ModuleError(
+            'CONFLICT',
+            `The next attempt can start at ${refusal.until.toISOString()}`,
+          );
         if (!preview) {
-          const e = await effectiveQuiz(ctx.db, quizA, userId);
           const w = quizIsOpen(e, ctx.now);
           if (!w.ok)
             throw new Error(
@@ -1042,15 +1278,53 @@ export const quiz = defineModule<QuizSettingsT>({
         flags: z.record(z.string(), z.boolean()).optional(),
       }),
       async handler(ctx, a, input) {
+        const quizA = a as ActivityRef<QuizSettingsT>;
         const at = await ownAttempt(ctx, a, input.attemptId);
         if (at.state !== 'IN_PROGRESS') throw new Error('This attempt is closed');
+        requireNetwork(ctx, quizA);
         if (at.dueAt && ctx.now.getTime() > at.dueAt.getTime() + GRACE_MS) {
           // Returned, not thrown: an error would roll the submission back with the transaction.
-          await finishAttempt(ctx, a as ActivityRef<QuizSettingsT>, at.id);
+          await finishAttempt(ctx, quizA, at.id);
           return { savedAt: null, closed: true };
         }
-        await saveResponses(ctx, at.id, input.answers, input.flags);
+        await saveResponses(ctx, at.id, input.answers, input.flags, currentPageOnly(quizA, at));
         return { savedAt: ctx.now.toISOString(), closed: false };
+      },
+    }),
+    page: defineAction({
+      summary:
+        'Save the answers of this page and go to another page of your attempt (with sequential navigation only to the next one)',
+      input: z.object({
+        attemptId: z.string().uuid(),
+        answers: z.record(z.string(), z.unknown()).default({}),
+        flags: z.record(z.string(), z.boolean()).optional(),
+        to: z.number().int().min(1),
+      }),
+      async handler(ctx, a, input) {
+        const quizA = a as ActivityRef<QuizSettingsT>;
+        const at = await ownAttempt(ctx, a, input.attemptId);
+        if (at.state !== 'IN_PROGRESS') throw new Error('This attempt is closed');
+        requireNetwork(ctx, quizA);
+        if (at.dueAt && ctx.now.getTime() > at.dueAt.getTime() + GRACE_MS) {
+          await finishAttempt(ctx, quizA, at.id);
+          return { currentPage: at.currentPage, closed: true };
+        }
+        const rows = await ctx.db.questionAttempt.findMany({
+          where: { attemptId: at.id },
+          select: { page: true },
+        });
+        const pages = [...new Set(rows.map((r) => r.page))].sort((x, y) => x - y);
+        if (!pages.includes(input.to)) throw new ModuleError('NOT_FOUND', 'No such page');
+        const next = pages.find((p) => p > at.currentPage);
+        if (
+          quizA.settings.navMethod === 'sequential' &&
+          input.to !== at.currentPage &&
+          input.to !== next
+        )
+          throw new ModuleError('CONFLICT', 'This quiz goes page by page: you cannot go back');
+        await saveResponses(ctx, at.id, input.answers, input.flags, currentPageOnly(quizA, at));
+        await ctx.db.quizAttempt.update({ where: { id: at.id }, data: { currentPage: input.to } });
+        return { currentPage: input.to, closed: false };
       },
     }),
     finish: defineAction({
@@ -1060,11 +1334,14 @@ export const quiz = defineModule<QuizSettingsT>({
         answers: z.record(z.string(), z.unknown()).default({}),
       }),
       async handler(ctx, a, input) {
+        const quizA = a as ActivityRef<QuizSettingsT>;
         const at = await ownAttempt(ctx, a, input.attemptId);
         if (at.state !== 'IN_PROGRESS') return { attemptId: at.id };
+        requireNetwork(ctx, quizA);
         const late = at.dueAt && ctx.now.getTime() > at.dueAt.getTime() + GRACE_MS;
-        if (!late) await saveResponses(ctx, at.id, input.answers);
-        await finishAttempt(ctx, a as ActivityRef<QuizSettingsT>, at.id);
+        if (!late)
+          await saveResponses(ctx, at.id, input.answers, undefined, currentPageOnly(quizA, at));
+        await finishAttempt(ctx, quizA, at.id);
         if (!at.preview) {
           const graders = await ctx.perm.usersWithCap('mod.quiz:grade', a.id);
           const needs = await ctx.db.quizAttempt.findUnique({
@@ -1085,7 +1362,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     setOverride: defineAction({
-      summary: 'Give one participant or a group their own dates, time limit or attempts',
+      summary: 'Give one participant or a group their own dates, time limit, attempts or password',
       capability: 'mod.quiz:manageoverrides',
       input: z
         .object({
@@ -1101,10 +1378,17 @@ export const quiz = defineModule<QuizSettingsT>({
             .nullable()
             .default(null),
           attempts: z.number().int().min(0).max(100).nullable().default(null),
+          /** Their own password; '' lifts the quiz's, null keeps it. */
+          password: z.string().max(255).nullable().default(null),
         })
         .refine((v) => !!v.userId !== !!v.groupId, 'Choose a participant or a group')
         .refine(
-          (v) => v.openAt || v.closeAt || v.timeLimitMin !== null || v.attempts !== null,
+          (v) =>
+            v.openAt ||
+            v.closeAt ||
+            v.timeLimitMin !== null ||
+            v.attempts !== null ||
+            v.password !== null,
           'Change at least one setting',
         )
         .refine(
@@ -1128,6 +1412,7 @@ export const quiz = defineModule<QuizSettingsT>({
           closeAt: input.closeAt ? new Date(input.closeAt) : null,
           timeLimitSec: input.timeLimitMin === null ? null : input.timeLimitMin * 60,
           attempts: input.attempts,
+          password: input.password,
         };
         const o = input.userId
           ? await ctx.db.quizOverride.upsert({

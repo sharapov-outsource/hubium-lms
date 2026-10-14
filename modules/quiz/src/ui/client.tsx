@@ -39,28 +39,81 @@ export function AttemptActions({
   baseUrl,
   label,
   preview,
+  requiresPassword,
 }: {
   activityId: string;
   baseUrl: string;
   label: string;
   preview?: boolean;
+  /** Ask for the quiz password before starting. */
+  requiresPassword?: boolean;
 }) {
+  const t = useTranslations('mod.quiz');
   const router = useRouter();
-  const { pending, run } = useRun(activityId);
+  const [pending, startTransition] = useTransition();
+  const [password, setPassword] = useState('');
+  const [wrong, setWrong] = useState(false);
+  const id = preview ? 'quiz-password-preview' : 'quiz-password';
+  const start = () =>
+    startTransition(async () => {
+      const r = await callModuleAction<{ attemptId: string }>(activityId, 'start', {
+        preview: !!preview,
+        ...(requiresPassword ? { password } : {}),
+      });
+      if (r.ok && r.data) return router.push(`${baseUrl}?attempt=${r.data.attemptId}`);
+      // a wrong password is said next to the field, in the user's language
+      if (requiresPassword && r.code === 'FORBIDDEN') return setWrong(true);
+      toast.error(r.message ?? 'Error');
+      router.refresh();
+    });
+  if (!requiresPassword)
+    return (
+      <Button
+        size="lg"
+        className="w-fit"
+        variant={preview ? 'secondary' : 'primary'}
+        disabled={pending}
+        onClick={start}
+      >
+        {label}
+      </Button>
+    );
   return (
-    <Button
-      size="lg"
-      className="w-fit"
-      variant={preview ? 'secondary' : 'primary'}
-      disabled={pending}
-      onClick={() =>
-        run<{ attemptId: string }>('start', { preview: !!preview }, (d) =>
-          router.push(`${baseUrl}?attempt=${d.attemptId}`),
-        )
-      }
+    <form
+      className="grid w-full max-w-sm gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        start();
+      }}
     >
-      {label}
-    </Button>
+      <Field
+        label={t('access.enterPassword')}
+        htmlFor={id}
+        error={wrong ? t('access.wrongPassword') : undefined}
+      >
+        <Input
+          id={id}
+          type="password"
+          autoComplete="off"
+          value={password}
+          aria-invalid={wrong}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setWrong(false);
+          }}
+          required
+        />
+      </Field>
+      <Button
+        type="submit"
+        size="lg"
+        className="w-fit"
+        variant={preview ? 'secondary' : 'primary'}
+        disabled={pending || !password}
+      >
+        {label}
+      </Button>
+    </form>
   );
 }
 
@@ -128,7 +181,7 @@ export function SlotEditor({
   activityId: string;
   locked: boolean;
   bankUrl: string;
-  slots: { slot: number; label: string; type: string; maxMark: number }[];
+  slots: { slot: number; page: number; label: string; type: string; maxMark: number }[];
   questions: { id: string; name: string; type: string; categoryId: string }[];
   categories: { id: string; name: string; count: number }[];
 }) {
@@ -138,6 +191,7 @@ export function SlotEditor({
   const [cat, setCat] = useState(categories[0]?.id ?? '');
   const [count, setCount] = useState('1');
   const [filter, setFilter] = useState('');
+  const [perPage, setPerPage] = useState('1');
   const shown = questions.filter((q) => q.name.toLowerCase().includes(filter.toLowerCase()));
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_22rem]">
@@ -151,62 +205,106 @@ export function SlotEditor({
           ) : null}
           <ol className="divide-y divide-border">
             {slots.map((s, i) => (
-              <li key={s.slot} className="flex flex-wrap items-center gap-2 py-2">
-                <span className="w-6 text-sm tabular-nums text-muted-foreground">{s.slot}</span>
-                <span className="min-w-0 flex-1">
-                  {s.label} <Badge>{s.type}</Badge>
-                </span>
-                <label
-                  className="flex items-center gap-1 text-xs text-muted-foreground"
-                  htmlFor={`mm-${s.slot}`}
-                >
-                  {t('mark')}
-                  <Input
-                    id={`mm-${s.slot}`}
-                    className="h-8 w-16"
-                    defaultValue={s.maxMark}
-                    inputMode="decimal"
-                    onBlur={(e) => {
-                      const v = Number(e.target.value.replace(',', '.'));
-                      if (!Number.isNaN(v) && v !== s.maxMark)
-                        run('editSlot', { slot: s.slot, op: 'mark', maxMark: v });
-                    }}
-                  />
-                </label>
-                {!locked ? (
-                  <span className="flex">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      aria-label={t('moveUp')}
-                      disabled={pending || i === 0}
-                      onClick={() => run('editSlot', { slot: s.slot, op: 'up' })}
-                    >
-                      <ArrowUp />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      aria-label={t('moveDown')}
-                      disabled={pending || i === slots.length - 1}
-                      onClick={() => run('editSlot', { slot: s.slot, op: 'down' })}
-                    >
-                      <ArrowDown />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      aria-label={t('remove')}
-                      disabled={pending}
-                      onClick={() => run('editSlot', { slot: s.slot, op: 'remove' })}
-                    >
-                      <Trash2 />
-                    </Button>
+              <li key={s.slot} className="grid gap-1 py-2">
+                {i === 0 || slots[i - 1]!.page !== s.page ? (
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('pages.page', { n: s.page })}
+                  </p>
+                ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="w-6 text-sm tabular-nums text-muted-foreground">{s.slot}</span>
+                  <span className="min-w-0 flex-1">
+                    {s.label} <Badge>{s.type}</Badge>
                   </span>
+                  <label
+                    className="flex items-center gap-1 text-xs text-muted-foreground"
+                    htmlFor={`mm-${s.slot}`}
+                  >
+                    {t('mark')}
+                    <Input
+                      id={`mm-${s.slot}`}
+                      className="h-8 w-16"
+                      defaultValue={s.maxMark}
+                      inputMode="decimal"
+                      onBlur={(e) => {
+                        const v = Number(e.target.value.replace(',', '.'));
+                        if (!Number.isNaN(v) && v !== s.maxMark)
+                          run('editSlot', { slot: s.slot, op: 'mark', maxMark: v });
+                      }}
+                    />
+                  </label>
+                  {!locked ? (
+                    <span className="flex">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label={t('moveUp')}
+                        disabled={pending || i === 0}
+                        onClick={() => run('editSlot', { slot: s.slot, op: 'up' })}
+                      >
+                        <ArrowUp />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label={t('moveDown')}
+                        disabled={pending || i === slots.length - 1}
+                        onClick={() => run('editSlot', { slot: s.slot, op: 'down' })}
+                      >
+                        <ArrowDown />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label={t('remove')}
+                        disabled={pending}
+                        onClick={() => run('editSlot', { slot: s.slot, op: 'remove' })}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </span>
+                  ) : null}
+                </div>
+                {i < slots.length - 1 ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-fit text-xs text-muted-foreground"
+                    disabled={pending}
+                    onClick={() => run('editSlot', { slot: s.slot, op: 'pageBreak' })}
+                  >
+                    {slots[i + 1]!.page === s.page ? t('pages.addBreak') : t('pages.removeBreak')}
+                  </Button>
                 ) : null}
               </li>
             ))}
           </ol>
+          {slots.length > 1 ? (
+            <form
+              className="mt-3 flex flex-wrap items-end gap-2 border-t border-border pt-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                run('repaginate', { perPage: Number(perPage) || 0 }, () =>
+                  toast.success(t('pages.repaginated')),
+                );
+              }}
+            >
+              <Field label={t('pages.perPage')} htmlFor="q-perpage">
+                <Input
+                  id="q-perpage"
+                  type="number"
+                  min={0}
+                  max={100}
+                  className="w-24"
+                  value={perPage}
+                  onChange={(e) => setPerPage(e.target.value)}
+                />
+              </Field>
+              <Button type="submit" variant="outline" disabled={pending}>
+                {t('pages.repaginate')}
+              </Button>
+            </form>
+          ) : null}
         </CardContent>
       </Card>
       {!locked ? (
@@ -327,6 +425,8 @@ export function OverrideForm({
   const [closeAt, setCloseAt] = useState('');
   const [time, setTime] = useState('');
   const [attempts, setAttempts] = useState('');
+  const [password, setPassword] = useState('');
+  const [noPassword, setNoPassword] = useState(false);
   const iso = (v: string) => (v ? new Date(v).toISOString() : null);
   const int = (v: string) => (v.trim() === '' ? null : Number(v));
   const save = () => {
@@ -339,6 +439,8 @@ export function OverrideForm({
         closeAt: iso(closeAt),
         timeLimitMin: int(time),
         attempts: int(attempts),
+        // '' lifts the quiz password, null keeps it
+        password: noPassword ? '' : password || null,
       },
       () => {
         toast.success(t('overrides.saved'));
@@ -386,6 +488,24 @@ export function OverrideForm({
             onChange={(e) => setAttempts(e.target.value)}
           />
         </Field>
+        <Field label={t('access.password')} htmlFor="ov-password">
+          <Input
+            id="ov-password"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            disabled={noPassword}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </Field>
+        <label htmlFor="ov-nopassword" className="flex items-center gap-2 self-end text-sm">
+          <Checkbox
+            id="ov-nopassword"
+            checked={noPassword}
+            onChange={(e) => setNoPassword(e.target.checked)}
+          />
+          {t('overrides.noPassword')}
+        </label>
       </div>
       <p className="text-xs text-muted-foreground">{t('overrides.hint')}</p>
       <Button className="w-fit" disabled={pending || !who} onClick={save}>

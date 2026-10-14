@@ -1,7 +1,7 @@
 'use client';
 
 import { callModuleAction } from '@hubium/module-sdk/form';
-import { isAnswered, typeDef } from '@hubium/questions';
+import { isAnswered } from '@hubium/questions';
 import { Alert, Button, Card, CardContent } from '@hubium/ui';
 import { cn } from '@hubium/ui/cn';
 import { toast } from '@hubium/ui/theme';
@@ -38,10 +38,22 @@ function formatLeft(ms: number) {
   return h ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
 }
 
+interface NavItem {
+  slot: number;
+  page: number;
+  graded: boolean;
+  answered: boolean;
+  flagged: boolean;
+}
+
 export function AttemptPlayer({
   activityId,
   attemptId,
   questions,
+  navMethod,
+  currentPage,
+  pages,
+  navigation,
   dueAt,
   serverNow,
   backUrl,
@@ -49,7 +61,13 @@ export function AttemptPlayer({
 }: {
   activityId: string;
   attemptId: string;
+  /** All questions, or only the current page with sequential navigation. */
   questions: PublicQuestion[];
+  navMethod: 'free' | 'sequential';
+  currentPage: number;
+  pages: number[];
+  /** Every question's place and saved state, for the navigation panel. */
+  navigation: NavItem[];
   dueAt: string | null;
   /** Server time at render: the countdown follows the server clock, not the device's. */
   serverNow: number;
@@ -58,11 +76,9 @@ export function AttemptPlayer({
 }) {
   const t = useTranslations('mod.quiz');
   const router = useRouter();
-  const pages = useMemo(
-    () => [...new Set(questions.map((q) => q.page))].sort((a, b) => a - b),
-    [questions],
-  );
-  const [page, setPage] = useState(pages[0] ?? 1);
+  const sequential = navMethod === 'sequential';
+  const [page, setPage] = useState(pages.includes(currentPage) ? currentPage : (pages[0] ?? 1));
+  const shown = useMemo(() => new Set(questions.map((q) => q.slot)), [questions]);
   const [answers, setAnswers] = useState<Answers>(() =>
     Object.fromEntries(questions.map((q) => [q.slot, q.response])),
   );
@@ -145,15 +161,38 @@ export function AttemptPlayer({
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
+  // Moving saves the page's answers; the server remembers the page for resuming and, with
+  // sequential navigation, refuses to go back.
   const go = async (p: number) => {
-    await save({ quiet: true });
-    setPage(p);
+    const { answers: current, dirty: keys, flags: currentFlags } = latest.current;
+    setSaving(true);
+    const r = await callModuleAction<{ closed: boolean }>(activityId, 'page', {
+      attemptId,
+      answers: Object.fromEntries([...keys].map((k) => [k, current[k]])),
+      flags: currentFlags,
+      to: p,
+    });
+    setSaving(false);
+    if (!r.ok || r.data?.closed) {
+      if (r.ok) toast.warning(t('timeUp'));
+      else toast.error(r.message ?? 'Error');
+      if (r.ok || /closed/i.test(r.message ?? '')) router.push(reviewUrl);
+      return;
+    }
+    setDirty(new Set());
     window.scrollTo({ top: 0 });
+    // the next page's questions come from the server
+    if (sequential) router.refresh();
+    else setPage(p);
   };
   const onPage = questions.filter((q) => q.page === page);
-  const unanswered = questions.filter(
-    (q) => typeDef(q.type).grading !== 'none' && !isAnswered(q.type, answers[q.slot]),
-  ).length;
+  const answeredNow = (n: NavItem) => {
+    const q = questions.find((x) => x.slot === n.slot);
+    return q && shown.has(n.slot) ? isAnswered(q.type, answers[q.slot]) : n.answered;
+  };
+  const unanswered = navigation.filter((n) => n.graded && !answeredNow(n)).length;
+  const nextPage = pages.find((p) => p > page);
+  const prevPage = [...pages].reverse().find((p) => p < page);
   const left = due ? due - now : null;
   // Screen readers hear the time only at thresholds, not every second.
   const stage =
@@ -201,18 +240,27 @@ export function AttemptPlayer({
             </CardContent>
           </Card>
         ))}
+        {sequential && nextPage !== undefined ? (
+          <p className="text-sm text-muted-foreground">{t('access.sequentialNotice')}</p>
+        ) : null}
         <div className="flex flex-wrap justify-between gap-2">
-          <Button
-            variant="secondary"
-            disabled={page === pages[0]}
-            onClick={() => go(pages[pages.indexOf(page) - 1]!)}
-          >
-            {t('prev')}
-          </Button>
-          {page === pages.at(-1) ? (
+          {sequential ? (
+            <span />
+          ) : (
+            <Button
+              variant="secondary"
+              disabled={prevPage === undefined || saving}
+              onClick={() => prevPage !== undefined && go(prevPage)}
+            >
+              {t('prev')}
+            </Button>
+          )}
+          {nextPage === undefined ? (
             <Button onClick={() => setConfirm(true)}>{t('finish')}</Button>
           ) : (
-            <Button onClick={() => go(pages[pages.indexOf(page) + 1]!)}>{t('next')}</Button>
+            <Button disabled={saving} onClick={() => go(nextPage)}>
+              {t('next')}
+            </Button>
           )}
         </div>
         {confirm ? (
@@ -250,25 +298,26 @@ export function AttemptPlayer({
           <CardContent className="grid gap-3 pt-4">
             <p className="text-sm font-medium">{t('navigation')}</p>
             <nav aria-label={t('navigation')} className="flex flex-wrap gap-1.5">
-              {questions.map((q) => (
+              {navigation.map((n) => (
                 <button
-                  key={q.slot}
+                  key={n.slot}
                   type="button"
+                  // sequential: only the questions of this page can be reached
+                  disabled={sequential && n.page !== page}
                   onClick={async () => {
-                    if (q.page !== page) await go(q.page);
-                    document.getElementById(`q-${q.slot}`)?.scrollIntoView({ behavior: 'smooth' });
+                    if (n.page !== page) await go(n.page);
+                    document.getElementById(`q-${n.slot}`)?.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  aria-label={t('question', { n: q.slot })}
+                  aria-label={t('question', { n: n.slot })}
+                  aria-current={n.page === page ? 'true' : undefined}
                   className={cn(
-                    'relative size-9 rounded-md border text-sm',
-                    isAnswered(q.type, answers[q.slot])
-                      ? 'border-accent bg-accent-soft text-accent'
-                      : 'border-border',
-                    q.page === page && 'ring-2 ring-ring/50',
+                    'relative size-9 rounded-md border text-sm disabled:opacity-50',
+                    answeredNow(n) ? 'border-accent bg-accent-soft text-accent' : 'border-border',
+                    n.page === page && 'ring-2 ring-ring/50',
                   )}
                 >
-                  {q.slot}
-                  {flags[q.slot] ? (
+                  {n.slot}
+                  {(shown.has(n.slot) ? flags[n.slot] : n.flagged) ? (
                     <span
                       className="absolute -right-1 -top-1 size-2.5 rounded-full bg-warning"
                       aria-hidden

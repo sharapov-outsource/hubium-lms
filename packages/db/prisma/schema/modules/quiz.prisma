@@ -44,6 +44,8 @@ model QuizAttempt {
   needsManualGrading Boolean          @default(false)
   preview            Boolean          @default(false)
   seed               Int
+  /// The page the learner is on; with sequential navigation they cannot go back.
+  currentPage        Int              @default(1)
 
   activity  Activity          @relation(fields: [activityId], references: [id], onDelete: Cascade)
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -90,6 +92,8 @@ model QuizOverride {
   closeAt      DateTime? @db.Timestamptz(3)
   timeLimitSec Int?
   attempts     Int?
+  /// Their own quiz password; '' lifts the password, null keeps the quiz's.
+  password     String?
 
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
   group    Group?   @relation(fields: [groupId], references: [id], onDelete: Cascade)

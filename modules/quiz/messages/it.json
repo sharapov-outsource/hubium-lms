@@ -15,7 +15,7 @@
     },
     "shuffleQuestions": "Ordine casuale delle domande",
     "shuffleAnswers": "Ordine casuale delle opzioni di risposta",
-    "perPage": "Domande per pagina (0 = tutte su una pagina)",
+    "perPage": "Nuova pagina ogni N domande (0 = tutte in una pagina)",
     "gradeMax": "Valutazione massima",
     "gradePass": "Sufficienza",
     "reviewAnswers": "Mostra le risposte corrette",
@@ -135,7 +135,9 @@
       "save": "Salva",
       "saved": "Impostazioni salvate",
       "new": "Nuova eccezione",
-      "empty": "Nessuna eccezione per utenti o gruppi"
+      "empty": "Nessuna eccezione per utenti o gruppi",
+      "noPassword": "Senza password",
+      "ownPassword": "Password propria"
     },
     "regrade": {
       "title": "Rivalutazione",
@@ -147,6 +149,36 @@
       "wouldChange": "Tentativi che cambierebbero: {n} di {total}",
       "changed": "Tentativi modificati: {n} di {total}",
       "skipped": "Non rivalutati (tipo di domanda cambiato): {names}"
+    },
+    "access": {
+      "title": "Accesso",
+      "password": "Password del quiz",
+      "passwordHint": "Richiesta prima di ogni tentativo (anche in anteprima). Vuoto: nessuna.",
+      "showPassword": "Mostra password",
+      "hidePassword": "Nascondi password",
+      "enterPassword": "Password del quiz",
+      "subnet": "Indirizzi di rete",
+      "subnetHint": "Tentativi solo da questi indirizzi: ad es. 192.168.1.0/24, 10.1 o 172.16.5.10-20. Vuoto: da ovunque.",
+      "delay1": "Attesa dopo il primo tentativo, min",
+      "delay2": "Attesa dopo i tentativi successivi, min",
+      "navMethod": "Navigazione",
+      "navMethodHint": "Sequenziale: pagine in ordine, senza tornare a una pagina già lasciata.",
+      "nav": {
+        "free": "Libera",
+        "sequential": "Sequenziale"
+      },
+      "networkBlocked": "Questo quiz si può svolgere solo da determinati indirizzi di rete, e il tuo non è tra questi.",
+      "waitUntil": "Il prossimo tentativo potrà iniziare il {date}.",
+      "sequentialNotice": "Le pagine sono in ordine: non puoi tornare a una pagina che hai lasciato.",
+      "wrongPassword": "La password del quiz è errata"
+    },
+    "pages": {
+      "page": "Pagina {n}",
+      "addBreak": "Nuova pagina dopo questa domanda",
+      "removeBreak": "Unisci alla pagina successiva",
+      "perPage": "Domande per pagina",
+      "repaginate": "Reimpagina",
+      "repaginated": "Pagine reimpaginate"
     }
   }
 }

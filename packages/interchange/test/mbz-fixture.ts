@@ -66,7 +66,7 @@ export async function mbzFixture(): Promise<Buffer> {
       12,
       'quiz',
       32,
-      `<name>Тест</name><intro>&lt;p&gt;Проверка&lt;/p&gt;</intro><timeopen>0</timeopen><timeclose>0</timeclose><timelimit>900</timelimit><attempts>2</attempts><grademethod>1</grademethod><grade>10.00000</grade>
+      `<name>Тест</name><intro>&lt;p&gt;Проверка&lt;/p&gt;</intro><timeopen>0</timeopen><timeclose>0</timeclose><timelimit>900</timelimit><attempts>2</attempts><grademethod>1</grademethod><grade>10.00000</grade><questionsperpage>2</questionsperpage><password>Секрет-1</password><subnet>192.168.1.0/24, office</subnet><delay1>600</delay1><delay2>3601</delay2><navmethod>seq</navmethod>
       <question_instances>
         <question_instance id="1"><slot>1</slot><page>1</page><maxmark>1.0000000</maxmark><question_reference id="1"><usingcontextid>32</usingcontextid><component>mod_quiz</component><questionarea>slot</questionarea><questionbankentryid>5</questionbankentryid><version>$@NULL@$</version></question_reference></question_instance>
         <question_instance id="2"><slot>2</slot><page>1</page><maxmark>2.0000000</maxmark><question_reference id="2"><questionbankentryid>6</questionbankentryid></question_reference></question_instance>

@@ -15,7 +15,7 @@
     },
     "shuffleQuestions": "Mélanger les questions",
     "shuffleAnswers": "Mélanger les options de réponse",
-    "perPage": "Questions par page (0 = toutes sur une page)",
+    "perPage": "Nouvelle page toutes les N questions (0 = toutes sur une page)",
     "gradeMax": "Note maximale",
     "gradePass": "Note pour passer",
     "reviewAnswers": "Afficher les bonnes réponses",
@@ -135,7 +135,9 @@
       "save": "Enregistrer",
       "saved": "Paramètres enregistrés",
       "new": "Nouvelle dérogation",
-      "empty": "Aucune dérogation pour un participant ou un groupe"
+      "empty": "Aucune dérogation pour un participant ou un groupe",
+      "noPassword": "Sans mot de passe",
+      "ownPassword": "Mot de passe propre"
     },
     "regrade": {
       "title": "Nouveau calcul des notes",
@@ -147,6 +149,36 @@
       "wouldChange": "Tentatives qui changeraient : {n} sur {total}",
       "changed": "Tentatives modifiées : {n} sur {total}",
       "skipped": "Non réévaluées (type de question modifié) : {names}"
+    },
+    "access": {
+      "title": "Accès",
+      "password": "Mot de passe du test",
+      "passwordHint": "Demandé avant chaque tentative (aperçus compris). Vide : aucun.",
+      "showPassword": "Afficher le mot de passe",
+      "hidePassword": "Masquer le mot de passe",
+      "enterPassword": "Mot de passe du test",
+      "subnet": "Adresses réseau",
+      "subnetHint": "Tentatives uniquement depuis ces adresses : par ex. 192.168.1.0/24, 10.1 ou 172.16.5.10-20. Vide : depuis n’importe où.",
+      "delay1": "Attente après la première tentative, min",
+      "delay2": "Attente après les tentatives suivantes, min",
+      "navMethod": "Navigation",
+      "navMethodHint": "Séquentielle : pages dans l’ordre, sans retour à une page quittée.",
+      "nav": {
+        "free": "Libre",
+        "sequential": "Séquentielle"
+      },
+      "networkBlocked": "Ce test ne peut être passé que depuis certaines adresses réseau, et la vôtre n’en fait pas partie.",
+      "waitUntil": "La prochaine tentative pourra commencer le {date}.",
+      "sequentialNotice": "Les pages se suivent : impossible de revenir à une page quittée.",
+      "wrongPassword": "Le mot de passe du test est incorrect"
+    },
+    "pages": {
+      "page": "Page {n}",
+      "addBreak": "Nouvelle page après cette question",
+      "removeBreak": "Fusionner avec la page suivante",
+      "perPage": "Questions par page",
+      "repaginate": "Repaginer",
+      "repaginated": "Pages réorganisées"
     }
   }
 }

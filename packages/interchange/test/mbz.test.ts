@@ -95,6 +95,16 @@ describe('.mbz import', () => {
       ],
     );
     expect(slots[1]!.question!.data).toMatchObject({ correct: true, feedbackTrue: 'Верно' });
+    // access rules and navigation come along; an address Hubium cannot read is reported
+    expect(quiz.settings).toMatchObject({
+      perPage: 2,
+      password: 'Секрет-1',
+      subnet: '192.168.1.0/24',
+      delay1Min: 10,
+      delay2Min: 61,
+      navMethod: 'sequential',
+    });
+    expect(report.warnings).toContainEqual(expect.stringContaining('office'));
     const cat = await t.db.questionCategory.findFirstOrThrow({
       where: { contextId: report.courseId },
     });

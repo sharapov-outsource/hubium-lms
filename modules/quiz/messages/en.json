@@ -15,7 +15,7 @@
     },
     "shuffleQuestions": "Shuffle questions",
     "shuffleAnswers": "Shuffle answer options",
-    "perPage": "Questions per page (0 = all on one page)",
+    "perPage": "New page every N questions (0 = all on one page)",
     "gradeMax": "Maximum grade",
     "gradePass": "Grade to pass",
     "reviewAnswers": "Show correct answers",
@@ -135,7 +135,9 @@
       "save": "Save",
       "saved": "Settings saved",
       "new": "New setting",
-      "empty": "No user or group settings"
+      "empty": "No user or group settings",
+      "noPassword": "No password",
+      "ownPassword": "Own password"
     },
     "regrade": {
       "title": "Regrade",
@@ -147,6 +149,36 @@
       "wouldChange": "Attempts that would change: {n} of {total}",
       "changed": "Attempts changed: {n} of {total}",
       "skipped": "Not regraded (question type changed): {names}"
+    },
+    "access": {
+      "title": "Access",
+      "password": "Quiz password",
+      "passwordHint": "Asked before each attempt starts (previews too). Leave empty for none.",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "enterPassword": "Quiz password",
+      "subnet": "Network addresses",
+      "subnetHint": "Attempts only from these addresses: e.g. 192.168.1.0/24, 10.1 or 172.16.5.10-20. Empty: from anywhere.",
+      "delay1": "Wait after the first attempt, min",
+      "delay2": "Wait after later attempts, min",
+      "navMethod": "Navigation",
+      "navMethodHint": "Sequential: pages in order, without going back to a page already left.",
+      "nav": {
+        "free": "Free",
+        "sequential": "Sequential"
+      },
+      "networkBlocked": "This quiz can only be taken from certain network addresses, and yours is not one of them.",
+      "waitUntil": "The next attempt can start on {date}.",
+      "sequentialNotice": "Pages go in order: you cannot return to a page once you leave it.",
+      "wrongPassword": "The quiz password is wrong"
+    },
+    "pages": {
+      "page": "Page {n}",
+      "addBreak": "New page after this question",
+      "removeBreak": "Join with the next page",
+      "perPage": "Questions per page",
+      "repaginate": "Lay out again",
+      "repaginated": "Pages laid out again"
     }
   }
 }

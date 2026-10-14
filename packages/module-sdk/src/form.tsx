@@ -158,6 +158,8 @@ export function DateTimeInput({
 export interface ModuleActionResult<T = unknown> {
   ok: boolean;
   data?: T;
+  /** On failure: VALIDATION, FORBIDDEN, NOT_FOUND, CONFLICT, … */
+  code?: string;
   message?: string;
   fieldErrors?: Record<string, string[]>;
 }

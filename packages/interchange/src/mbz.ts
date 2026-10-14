@@ -14,6 +14,7 @@ import { fileUrl, storeFile } from '@hubium/core/files/files';
 import type { Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { createTranslator } from '@hubium/i18n/packs';
+import { invalidIpListEntries } from '@hubium/module-sdk/net';
 import { type QuestionType, questionDataSchemas } from '@hubium/questions';
 import { XMLParser } from 'fast-xml-parser';
 import tar from 'tar-stream';
@@ -621,6 +622,14 @@ export async function importMbz(
               '3': 'FIRST',
               '4': 'LAST',
             };
+            // address entries Hubium cannot read are left out (and reported)
+            const badNets = invalidIpListEntries(txt(data.subnet));
+            if (badNets.length)
+              warnings.push(`"${name}": network addresses skipped: ${badNets.join(', ')}`);
+            const subnet = txt(data.subnet)
+              .split(/[\s,;]+/)
+              .filter((e) => e && !badNets.includes(e))
+              .join(', ');
             const { id } = await importActivity.run(ctx, {
               ...base,
               moduleKey: 'quiz',
@@ -631,6 +640,13 @@ export async function importMbz(
                 attempts: num(data.attempts),
                 gradeMethod: methods[txt(data.grademethod)] ?? 'HIGHEST',
                 gradeMax: grade > 0 ? grade : 10,
+                perPage: num(data.questionsperpage, 1),
+                shuffleAnswers: txt(data.shuffleanswers) !== '0',
+                password: txt(data.password),
+                subnet,
+                delay1Min: Math.ceil(num(data.delay1) / 60),
+                delay2Min: Math.ceil(num(data.delay2) / 60),
+                navMethod: txt(data.navmethod) === 'seq' ? 'sequential' : 'free',
               },
             });
             const instances = arr(
