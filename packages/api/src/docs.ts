@@ -15,16 +15,18 @@ function bundlePath(): string {
   try {
     const entry = createRequire(import.meta.url).resolve('@scalar/api-reference');
     const p = path.join(path.dirname(path.dirname(entry)), BUNDLE);
-    if (existsSync(p)) return p;
+    if (existsSync(/*turbopackIgnore: true*/ p)) return p;
   } catch {}
   // Next's standalone output keeps the traced file in pnpm's store layout.
   let dir = process.cwd();
   for (let i = 0; i < 6; i++) {
     const store = path.join(dir, 'node_modules', '.pnpm');
-    if (existsSync(store)) {
-      const hit = readdirSync(store).find((d) => d.startsWith('@scalar+api-reference@'));
+    if (existsSync(/*turbopackIgnore: true*/ store)) {
+      const hit = readdirSync(/*turbopackIgnore: true*/ store).find((d) =>
+        d.startsWith('@scalar+api-reference@'),
+      );
       const p = hit && path.join(store, hit, 'node_modules', '@scalar', 'api-reference', BUNDLE);
-      if (p && existsSync(p)) return p;
+      if (p && existsSync(/*turbopackIgnore: true*/ p)) return p;
     }
     dir = path.dirname(dir);
   }
