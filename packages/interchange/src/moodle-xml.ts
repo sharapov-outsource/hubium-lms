@@ -320,7 +320,8 @@ function exportQuestion(q: {
     ...(q.idNumber ? { idnumber: q.idNumber } : {}),
   };
   const pct = (f: number) => String(Math.round(f * 1e7) / 1e5);
-  switch (q.type) {
+  const type = q.type as QuestionType;
+  switch (type) {
     case 'MULTICHOICE': {
       const d = q.data as {
         single: boolean;
@@ -430,8 +431,11 @@ function exportQuestion(q: {
     }
     case 'DESCRIPTION':
       return { '@_type': 'description', ...head };
-    default:
-      return null;
+    default: {
+      // every question type needs a branch here: this stops the build otherwise
+      const missing: never = type;
+      return missing;
+    }
   }
 }
 

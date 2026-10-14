@@ -7,8 +7,50 @@ import {
   parseNumber,
   presentQuestion,
 } from './grade.ts';
+import { gradedTypes, questionTypeDefs } from './qtypes/index.ts';
 import { shuffle } from './random.ts';
-import { MultichoiceData, questionDataSchemas } from './types.ts';
+import { PublicFields } from './registry.ts';
+import {
+  MultichoiceData,
+  type QuestionData,
+  type QuestionSnapshot,
+  type QuestionType,
+  questionDataSchemas,
+  questionTypes,
+} from './types.ts';
+
+/** One question of every type, as an attempt stores it. */
+const fixtures: { [K in QuestionType]: QuestionSnapshot & { type: K } } = (() => {
+  const q = <K extends QuestionType>(type: K, data: unknown) => ({
+    id: `q-${type}`,
+    type,
+    name: type,
+    text: `<p>${type}</p>`,
+    generalFeedback: '',
+    defaultMark: 1,
+    data: questionDataSchemas[type].parse(data) as QuestionData,
+  });
+  return {
+    MULTICHOICE: q('MULTICHOICE', {
+      answers: [
+        { id: 'a', text: 'yes', fraction: 1, feedback: 'right' },
+        { id: 'b', text: 'no', fraction: 0, feedback: 'wrong' },
+      ],
+    }),
+    TRUEFALSE: q('TRUEFALSE', { correct: false, feedbackTrue: 'x', feedbackFalse: 'y' }),
+    SHORTANSWER: q('SHORTANSWER', { answers: [{ text: 'Paris', fraction: 1 }] }),
+    NUMERICAL: q('NUMERICAL', { answers: [{ value: 3.14, tolerance: 0.01, fraction: 1 }] }),
+    MATCH: q('MATCH', {
+      pairs: [
+        { id: 'p1', question: '2+2', answer: '4' },
+        { id: 'p2', question: '3+3', answer: '6' },
+      ],
+      distractors: ['5'],
+    }),
+    ESSAY: q('ESSAY', { minWords: 10, graderInfo: 'look for the thesis' }),
+    DESCRIPTION: q('DESCRIPTION', {}),
+  };
+})();
 
 const mcSingle = {
   type: 'MULTICHOICE' as const,
@@ -187,7 +229,7 @@ $CATEGORY: $course$/Литература
   it('round-trips through toGift', () => {
     const r = parseGift(src);
     for (const q of r.questions) {
-      const again = parseGift(toGift(q)).questions[0]!;
+      const again = parseGift(toGift(q)!).questions[0]!;
       expect(again.type).toBe(q.type);
       expect(again.data).toEqual(q.data);
     }
@@ -196,5 +238,25 @@ $CATEGORY: $course$/Литература
     for (const q of parseGift(src).questions) {
       expect(questionDataSchemas[q.type].safeParse(q.data).success).toBe(true);
     }
+  });
+});
+
+describe('question type registry', () => {
+  it('defines every type, and its public view gives nothing away', () => {
+    expect(Object.keys(questionTypeDefs).sort()).toEqual([...questionTypes].sort());
+    for (const type of questionTypes) {
+      const def = questionTypeDefs[type];
+      expect(def.type).toBe(type);
+      const sample = fixtures[type];
+      const view = def.publicView(presentQuestion(sample, 42, true) as never);
+      expect(PublicFields.safeParse(view).success, type).toBe(true);
+      const json = JSON.stringify(view);
+      for (const secret of ['fraction', 'feedback', 'correct', 'tolerance', 'graderInfo'])
+        expect(json, `${type} leaks ${secret}`).not.toContain(secret);
+      const right = correctResponse(sample);
+      if (def.grading === 'auto') expect(gradeResponse(sample, right).fraction, type).toBe(1);
+      else expect(right, type).toBeNull();
+    }
+    expect(gradedTypes).not.toContain('DESCRIPTION');
   });
 });

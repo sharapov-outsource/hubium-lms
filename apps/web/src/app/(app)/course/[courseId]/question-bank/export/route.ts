@@ -28,6 +28,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
       },
     });
   const qs = await listQuestions(ctx, courseId, { categoryId });
+  // types GIFT cannot express are left out (Moodle XML keeps them)
   const body = qs
     .map((q) =>
       toGift({
@@ -38,6 +39,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
         data: q.data as QuestionData,
       }),
     )
+    .filter((g): g is string => g !== null)
     .join('\n\n');
   return new Response(`${body}\n`, {
     headers: {

@@ -11,15 +11,19 @@ import {
 import { bool, isoDate, optionalNumber } from '@hubium/module-sdk/fields';
 import {
   correctResponse,
+  gradedTypes,
   gradeResponse,
+  PublicFields,
   presentQuestion,
   type QuestionData,
   type QuestionSnapshot,
   type QuestionType,
   questionTypes,
   ResponseSchemas,
+  answerText as responseText,
   shuffle,
   subSeed,
+  typeDef,
 } from '@hubium/questions';
 import { z } from 'zod';
 import { type PublicQuestion, toPublicQuestion } from './public.ts';
@@ -218,7 +222,7 @@ export async function startAttempt(
         where: {
           categoryId: { in: await categoryIds(ctx.db, s.categoryId, s.includeSubcats) },
           status: 'READY',
-          type: { not: 'DESCRIPTION' },
+          type: { in: gradedTypes },
           id: { notIn: [...used] },
         },
       });
@@ -236,7 +240,7 @@ export async function startAttempt(
         questionId: q.id,
         quizSlotId: s.id,
         snapshot: snap as unknown as Prisma.InputJsonValue,
-        maxMark: q.type === 'DESCRIPTION' ? 0 : s.maxMark,
+        maxMark: typeDef(q.type as QuestionType).grading === 'none' ? 0 : s.maxMark,
       },
     });
   }
@@ -252,8 +256,10 @@ async function ownAttempt(ctx: ModuleCtx, a: ActivityRef, attemptId: string) {
 function cleanResponse(type: QuestionType, raw: unknown) {
   const r = ResponseSchemas[type].safeParse(raw ?? {});
   if (!r.success) return null;
-  if (type === 'ESSAY') return { text: sanitizeRichText((r.data as { text: string }).text) };
-  return r.data;
+  const out = { ...r.data } as Record<string, unknown>;
+  for (const key of typeDef(type).richText ?? [])
+    if (typeof out[key] === 'string') out[key] = sanitizeRichText(out[key]);
+  return out;
 }
 
 async function saveResponses(
@@ -407,10 +413,14 @@ export async function regradeQuiz(
       const q = questions.find((x) => x.id === qa.questionId);
       const slot = slots.find((x) => x.id === qa.quizSlotId);
       const maxMark =
-        snap.type === 'DESCRIPTION' ? 0 : slot ? Number(slot.maxMark) : Number(qa.maxMark);
+        typeDef(snap.type).grading === 'none'
+          ? 0
+          : slot
+            ? Number(slot.maxMark)
+            : Number(qa.maxMark);
       maxAfter += maxMark;
       // a teacher's mark (essays, manual grading) is kept, scaled to a changed maximum
-      const manual = qa.gradedById !== null || snap.type === 'ESSAY';
+      const manual = qa.gradedById !== null || typeDef(snap.type).grading === 'manual';
       if (manual || !q || q.type !== snap.type) {
         if (q && q.type !== snap.type && !report.skipped.includes(q.name))
           report.skipped.push(q.name);
@@ -566,26 +576,7 @@ export async function readAttempt(ctx: ModuleCtx, a: Quiz, attemptId: string) {
 
 /** A response as text for review screens (choices by their text, matches as pairs). */
 export function answerText(snap: QuestionSnapshot, resp: unknown): string {
-  const r = (resp ?? {}) as Record<string, unknown>;
-  switch (snap.type) {
-    case 'MULTICHOICE': {
-      const d = snap.data as QuestionData<'MULTICHOICE'>;
-      const sel = (r.selected as string[]) ?? [];
-      return d.answers
-        .filter((x) => sel.includes(x.id))
-        .map((x) => x.text)
-        .join('; ');
-    }
-    case 'TRUEFALSE':
-      return r.value === undefined || r.value === null ? '' : String(r.value);
-    case 'MATCH': {
-      const d = snap.data as QuestionData<'MATCH'>;
-      const c = (r.choices as Record<string, string>) ?? {};
-      return d.pairs.map((p) => `${p.question} → ${c[p.id] ?? '—'}`).join('; ');
-    }
-    default:
-      return typeof r.text === 'string' ? r.text : '';
-  }
+  return responseText(snap, resp);
 }
 
 export type ReviewVerdict = 'correct' | 'partial' | 'incorrect' | 'needsGrading';
@@ -668,21 +659,17 @@ export async function readReview(ctx: ModuleCtx, a: Quiz, attemptId: string) {
   };
 }
 
-const QuestionOut = z.object({
-  slot: z.number(),
-  page: z.number(),
-  type: z.enum(questionTypes as [QuestionType, ...QuestionType[]]),
-  text: z.string().describe('sanitised HTML'),
-  maxMark: z.number(),
-  options: z.array(z.object({ id: z.string(), text: z.string() })).optional(),
-  multiple: z.boolean().optional(),
-  matchRows: z.array(z.object({ id: z.string(), text: z.string() })).optional(),
-  matchChoices: z.array(z.string()).optional(),
-  minWords: z.number().optional(),
-  maxWords: z.number().optional(),
-  response: z.unknown().describe('the saved answer, in the shape the save action takes'),
-  flagged: z.boolean(),
-});
+const QuestionOut = z
+  .object({
+    slot: z.number(),
+    page: z.number(),
+    type: z.enum(questionTypes as [QuestionType, ...QuestionType[]]),
+    text: z.string().describe('sanitised HTML'),
+    maxMark: z.number(),
+    response: z.unknown().describe('the saved answer, in the shape the save action takes'),
+    flagged: z.boolean(),
+  })
+  .extend(PublicFields.shape);
 
 export const quiz = defineModule<QuizSettingsT>({
   key: 'quiz',

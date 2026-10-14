@@ -1,4 +1,5 @@
 import type { ViewProps } from '@hubium/module-sdk/ui';
+import { typeDef } from '@hubium/questions';
 import {
   Alert,
   Badge,
@@ -258,10 +259,10 @@ async function ReviewPage({ activity: a, ctx, attemptId }: Props & { attemptId: 
             <CardContent className="grid gap-3">
               {/* biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised on save */}
               <div className="prose-content" dangerouslySetInnerHTML={{ __html: qa.text }} />
-              {qa.type !== 'DESCRIPTION' ? (
+              {typeDef(qa.type).grading !== 'none' ? (
                 <div className="rounded-md bg-muted p-3 text-sm">
                   <p className="text-xs text-muted-foreground">{t('yourAnswer')}</p>
-                  {qa.type === 'ESSAY' && answer ? (
+                  {typeDef(qa.type).richText && answer ? (
                     // biome-ignore lint/security/noDangerouslySetInnerHtml: essay HTML is sanitised on save
                     <div className="prose-content" dangerouslySetInnerHTML={{ __html: answer }} />
                   ) : (
@@ -293,7 +294,7 @@ async function ReviewPage({ activity: a, ctx, attemptId }: Props & { attemptId: 
                   <div className="prose-content" dangerouslySetInnerHTML={{ __html: qa.comment }} />
                 </div>
               ) : null}
-              {canGrade && qa.type === 'ESSAY' && at.state === 'FINISHED' ? (
+              {canGrade && typeDef(qa.type).grading === 'manual' && at.state === 'FINISHED' ? (
                 <GradeQuestionForm
                   activityId={a.id}
                   questionAttemptId={qa.id}

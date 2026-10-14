@@ -1,3 +1,4 @@
+import { typeDef } from './qtypes/index.ts';
 import type { QuestionData, QuestionType } from './types.ts';
 
 // GIFT format (Moodle) import/export for the common question types.
@@ -216,39 +217,11 @@ export function parseGift(source: string): GiftResult {
 
 const esc = (s: string) => s.replace(/([~=#{}:\\])/g, '\\$1').replace(/\n/g, '\\n');
 
-export function toGift(q: Omit<ParsedQuestion, 'category'>): string {
+/** The question in GIFT, or null when GIFT cannot express its type. */
+export function toGift(q: Omit<ParsedQuestion, 'category'>): string | null {
   const head = `::${esc(q.name)}:: ${esc(q.text)}`;
   const gf = q.generalFeedback ? ` ####${esc(q.generalFeedback)}` : '';
   const fb = (f: string) => (f ? ` #${esc(f)}` : '');
-  switch (q.type) {
-    case 'DESCRIPTION':
-      return head;
-    case 'ESSAY':
-      return `${head} {${gf}}`;
-    case 'TRUEFALSE': {
-      const d = q.data as QuestionData<'TRUEFALSE'>;
-      return `${head} {${d.correct ? 'TRUE' : 'FALSE'}${gf}}`;
-    }
-    case 'MULTICHOICE': {
-      const d = q.data as QuestionData<'MULTICHOICE'>;
-      const items = d.answers.map((a) =>
-        d.single
-          ? `${a.fraction >= 1 ? '=' : '~'}${esc(a.text)}${fb(a.feedback)}`
-          : `~%${Math.round(a.fraction * 100)}%${esc(a.text)}${fb(a.feedback)}`,
-      );
-      return `${head} {\n  ${items.join('\n  ')}${gf}\n}`;
-    }
-    case 'SHORTANSWER': {
-      const d = q.data as QuestionData<'SHORTANSWER'>;
-      return `${head} {${d.answers.map((a) => `=${a.fraction < 1 ? `%${Math.round(a.fraction * 100)}%` : ''}${esc(a.text)}${fb(a.feedback)}`).join(' ')}${gf}}`;
-    }
-    case 'NUMERICAL': {
-      const d = q.data as QuestionData<'NUMERICAL'>;
-      return `${head} {#${d.answers.map((a) => `=${a.fraction < 1 ? `%${Math.round(a.fraction * 100)}%` : ''}${a.value}:${a.tolerance}${fb(a.feedback)}`).join(' ')}${gf}}`;
-    }
-    case 'MATCH': {
-      const d = q.data as QuestionData<'MATCH'>;
-      return `${head} {\n  ${[...d.pairs.map((p) => `=${esc(p.question)} -> ${esc(p.answer)}`), ...d.distractors.map((x) => `= -> ${esc(x)}`)].join('\n  ')}${gf}\n}`;
-    }
-  }
+  const def = typeDef(q.type);
+  return def.gift ? def.gift(q.data as never, { head, gf, fb, esc }) : null;
 }
