@@ -83,7 +83,8 @@
       "noFile": "No file chosen",
       "noFiles": "No files chosen"
     },
-    "inLanguage": "{label} ({language})"
+    "inLanguage": "{label} ({language})",
+    "select": "Select"
   },
   "nav": {
     "main": "Main navigation",
@@ -322,7 +323,8 @@
       "locked": "Locked",
       "lockedUntil": "Sign-in is locked after failed attempts until {until}.",
       "unlock": "Unlock",
-      "unlocked": "Account unlocked"
+      "unlocked": "Account unlocked",
+      "anyStatus": "Any status"
     },
     "role": {
       "new": "New role",
@@ -473,7 +475,36 @@
     "languages": "Languages",
     "modules": "Modules",
     "security": "Security",
-    "sso": "Single sign-on"
+    "sso": "Single sign-on",
+    "bulk": {
+      "title": "Act on the selected",
+      "selectPage": "Select everyone on the page",
+      "selectAll": "Select everyone found ({count})",
+      "selectOne": "Select {name}",
+      "selected": "Selected: {count}",
+      "action": "Action",
+      "actions": {
+        "suspend": "Suspend",
+        "activate": "Activate",
+        "forcePasswordChange": "Require a password change",
+        "unlock": "Unlock sign-in",
+        "addToCohort": "Add to a cohort",
+        "enrol": "Enrol in a course",
+        "message": "Send a message",
+        "delete": "Delete"
+      },
+      "cohort": "Cohort",
+      "course": "Course",
+      "role": "Role",
+      "message": "Message",
+      "apply": "Apply",
+      "export": "Export",
+      "deleteTitle": "Delete users?",
+      "deleteConfirm": "{count} accounts will be deleted. Their personal data is erased and what they made stays without a name. This cannot be undone.",
+      "queued": "Running in the background for {count}; a notification follows when done",
+      "done": "Done: {count}",
+      "result": "Done for {done} of {total}"
+    }
   },
   "email": {
     "footer": "You received this email because you have an account on this site.",
@@ -1298,7 +1329,8 @@
       "announcement_site": "Site announcements",
       "message_new": "New direct messages",
       "calendar_reminder": "Calendar reminders",
-      "auth_newSignIn": "Sign-in from a new device"
+      "auth_newSignIn": "Sign-in from a new device",
+      "admin_bulkDone": "Bulk user actions"
     },
     "text": {
       "enrolled": "You were enrolled in “{course}”",
@@ -1349,6 +1381,10 @@
     "newSignIn": {
       "title": "Sign-in from a new device",
       "body": "Someone signed in to your account: {device}, IP {ip}. If it wasn't you, open this notice to end all sessions and change your password."
+    },
+    "bulkDone": {
+      "title": "Bulk action finished",
+      "body": "Done for {done} of {total}, failed: {failed}."
     }
   },
   "messages": {

@@ -171,3 +171,67 @@ test('mobile layout shows bottom navigation', async ({ page }) => {
   );
   expect(overflow).toBe(false);
 });
+
+test('bulk actions on selected users: suspend, enrol, export, delete', async ({ page }) => {
+  const ids = (
+    await sql<{ id: string }>(
+      `INSERT INTO "User" (id, email, name, "firstName", "lastName", "emailVerified", "updatedAt")
+       VALUES (gen_random_uuid(), 'bulk-a@example.org', 'Анна Массова', 'Анна', 'Массова', true, now()),
+              (gen_random_uuid(), 'bulk-b@example.org', 'Борис Массов', 'Борис', 'Массов', true, now())
+       RETURNING id`,
+    )
+  ).map((r) => r.id);
+  const [course] = await sql<{ id: string }>(
+    `SELECT id FROM "Course" WHERE "shortName" = 'DEMO-PY'`,
+  );
+  // how many of the two match a condition, polled: results land after the toast
+  const howMany = (from: string, where: string, params: unknown[] = []) =>
+    expect.poll(
+      async () =>
+        (
+          await sql<{ n: number }>(`SELECT count(*)::int AS n FROM ${from} WHERE ${where}`, [
+            ids,
+            ...params,
+          ])
+        )[0]!.n,
+    );
+  const apply = async () => {
+    await page.getByRole('button', { name: 'Выполнить' }).click();
+    // the selection clears when the action is done
+    await expect(page.getByRole('status').filter({ hasText: 'Выбрано' })).toHaveCount(0);
+  };
+  try {
+    await login(page, ADMIN.login, ADMIN.password);
+    await page.goto('/admin/users?q=bulk-');
+    await page.getByLabel('Выбрать всех на странице').check();
+    await expect(page.getByRole('status').filter({ hasText: 'Выбрано: 2' })).toBeVisible();
+    await expectAccessible(page);
+    await apply();
+    await howMany('"User"', `id = ANY($1) AND status = 'SUSPENDED'`).toBe(2);
+
+    await page.getByLabel('Выбрать: Анна Массова').check();
+    await page.getByLabel('Выбрать: Борис Массов').check();
+    await chooseOption(page.locator('#bulk-action'), 'enrol');
+    await chooseOption(page.locator('#bulk-course'), course!.id);
+    await chooseOption(page.locator('#bulk-role'), { label: 'Студент' });
+    await apply();
+    await howMany('"Enrolment"', `"userId" = ANY($1) AND "courseId" = $2`, [course!.id]).toBe(2);
+
+    // the export has the columns of the CSV upload
+    await page.getByLabel('Выбрать всех на странице').check();
+    const href = await page
+      .getByRole('region', { name: 'Действия с выбранными' })
+      .getByRole('link', { name: 'CSV' })
+      .getAttribute('href');
+    const csv = await (await page.request.get(href!)).text();
+    expect(csv).toContain('username,email,firstname,lastname');
+    expect(csv).toContain('bulk-a@example.org,Анна,Массова');
+
+    await chooseOption(page.locator('#bulk-action'), 'delete');
+    await page.getByRole('button', { name: 'Выполнить' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Удалить' }).click();
+    await howMany('"User"', `id = ANY($1) AND "deletedAt" IS NOT NULL`).toBe(2);
+  } finally {
+    await sql(`DELETE FROM "User" WHERE id = ANY($1)`, [ids]);
+  }
+});

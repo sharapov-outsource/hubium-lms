@@ -20,6 +20,7 @@ import {
   setSettings,
   setUserSuspended,
   siteLocale,
+  startBulkUserAction,
   unlockUser,
   updateRole,
   updateUser,
@@ -83,6 +84,18 @@ export async function setUserSuspendedAction(id: string, suspended: boolean) {
   return runAction(async () => {
     const r = await setUserSuspended.run(await getContext(), { id, suspended });
     revalidatePath(`/admin/users/${id}`);
+    revalidatePath('/admin/users');
+    return r;
+  });
+}
+
+/** Administration → Users: one action for the selected people (see core users/bulk.ts). */
+export async function bulkUsersAction(selection: unknown, action: unknown) {
+  return runAction(async () => {
+    const r = await startBulkUserAction.run(await getContext(), {
+      selection: selection as never,
+      action: action as never,
+    });
     revalidatePath('/admin/users');
     return r;
   });

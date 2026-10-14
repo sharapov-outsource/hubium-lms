@@ -82,7 +82,8 @@
       "noFile": "Aucun fichier choisi",
       "noFiles": "Aucun fichier choisi"
     },
-    "inLanguage": "{label} ({language})"
+    "inLanguage": "{label} ({language})",
+    "select": "Sélectionner"
   },
   "nav": {
     "main": "Navigation principale",
@@ -321,7 +322,8 @@
       "locked": "Verrouillé",
       "lockedUntil": "La connexion est verrouillée après des échecs jusqu'au {until}.",
       "unlock": "Déverrouiller",
-      "unlocked": "Compte déverrouillé"
+      "unlocked": "Compte déverrouillé",
+      "anyStatus": "Tous les états"
     },
     "role": {
       "new": "Nouveau rôle",
@@ -472,7 +474,36 @@
     "languages": "Langues",
     "modules": "Modules",
     "security": "Sécurité",
-    "sso": "Authentification unique"
+    "sso": "Authentification unique",
+    "bulk": {
+      "title": "Agir sur la sélection",
+      "selectPage": "Sélectionner toute la page",
+      "selectAll": "Sélectionner tous les résultats ({count})",
+      "selectOne": "Sélectionner {name}",
+      "selected": "Sélectionnés : {count}",
+      "action": "Action",
+      "actions": {
+        "suspend": "Suspendre",
+        "activate": "Réactiver",
+        "forcePasswordChange": "Exiger un changement de mot de passe",
+        "unlock": "Déverrouiller la connexion",
+        "addToCohort": "Ajouter à une cohorte",
+        "enrol": "Inscrire à un cours",
+        "message": "Envoyer un message",
+        "delete": "Supprimer"
+      },
+      "cohort": "Cohorte",
+      "course": "Cours",
+      "role": "Rôle",
+      "message": "Message",
+      "apply": "Appliquer",
+      "export": "Exporter",
+      "deleteTitle": "Supprimer les utilisateurs ?",
+      "deleteConfirm": "{count} comptes seront supprimés. Leurs données personnelles sont effacées et leurs contenus restent anonymes. C'est irréversible.",
+      "queued": "En cours en arrière-plan pour {count} ; une notification suivra",
+      "done": "Terminé : {count}",
+      "result": "Effectué pour {done} sur {total}"
+    }
   },
   "email": {
     "footer": "Vous recevez cet e-mail car vous avez un compte sur ce site.",
@@ -1297,7 +1328,8 @@
       "announcement_site": "Annonces du site",
       "message_new": "Nouveaux messages personnels",
       "calendar_reminder": "Rappels du calendrier",
-      "auth_newSignIn": "Connexion depuis un nouvel appareil"
+      "auth_newSignIn": "Connexion depuis un nouvel appareil",
+      "admin_bulkDone": "Actions groupées sur les utilisateurs"
     },
     "text": {
       "enrolled": "Vous avez été inscrit au cours « {course} »",
@@ -1348,6 +1380,10 @@
     "newSignIn": {
       "title": "Connexion depuis un nouvel appareil",
       "body": "Quelqu'un s'est connecté à votre compte : {device}, IP {ip}. Si ce n'était pas vous, ouvrez cet avis pour fermer toutes les sessions et changer votre mot de passe."
+    },
+    "bulkDone": {
+      "title": "Action groupée terminée",
+      "body": "Effectué pour {done} sur {total}, échecs : {failed}."
     }
   },
   "messages": {

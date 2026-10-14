@@ -125,6 +125,7 @@ test('sign-in and security administration fit 375 px', async ({ page }) => {
     '/admin/sso',
     '/admin/sso/new',
     '/admin/ldap',
+    '/admin/users',
   ])
     await expectNoSideScroll(page, path);
 });

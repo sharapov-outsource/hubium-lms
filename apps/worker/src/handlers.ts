@@ -1,4 +1,6 @@
 import {
+  BULK_USERS_JOB,
+  type BulkAction,
   COMPLETION_RECOMPUTE_JOB,
   deliverWebhook,
   expireEnrolments,
@@ -12,6 +14,7 @@ import {
   QUIZGEN_JOB,
   recomputeActivityForAll,
   recordHeartbeat,
+  runBulkUsersJob,
   runQuizGeneration,
   sendPushNotifications,
   syncLdapUsers,
@@ -177,6 +180,12 @@ export const coreHandlers: JobHandlerDef[] = [
     cron: '17 3 * * *',
     async handler(_data: never, { db }) {
       return { deleted: await garbageCollectBlobs(db), uploads: await cleanupUploads(db) };
+    },
+  },
+  {
+    name: BULK_USERS_JOB,
+    async handler(data: { actorId: string; ids: string[]; action: BulkAction }, { db }) {
+      return runBulkUsersJob(db, data);
     },
   },
   {

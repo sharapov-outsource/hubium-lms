@@ -82,7 +82,8 @@
       "noFile": "Nessun file selezionato",
       "noFiles": "Nessun file selezionato"
     },
-    "inLanguage": "{label} ({language})"
+    "inLanguage": "{label} ({language})",
+    "select": "Seleziona"
   },
   "nav": {
     "main": "Navigazione principale",
@@ -321,7 +322,8 @@
       "locked": "Bloccato",
       "lockedUntil": "L'accesso è bloccato dopo tentativi falliti fino al {until}.",
       "unlock": "Sblocca",
-      "unlocked": "Account sbloccato"
+      "unlocked": "Account sbloccato",
+      "anyStatus": "Qualsiasi stato"
     },
     "role": {
       "new": "Nuovo ruolo",
@@ -472,7 +474,36 @@
     "languages": "Lingue",
     "modules": "Moduli",
     "security": "Sicurezza",
-    "sso": "Single sign-on"
+    "sso": "Single sign-on",
+    "bulk": {
+      "title": "Azioni sui selezionati",
+      "selectPage": "Seleziona tutti nella pagina",
+      "selectAll": "Seleziona tutti i risultati ({count})",
+      "selectOne": "Seleziona {name}",
+      "selected": "Selezionati: {count}",
+      "action": "Azione",
+      "actions": {
+        "suspend": "Sospendi",
+        "activate": "Riattiva",
+        "forcePasswordChange": "Richiedi il cambio password",
+        "unlock": "Sblocca l'accesso",
+        "addToCohort": "Aggiungi a una coorte",
+        "enrol": "Iscrivi a un corso",
+        "message": "Invia un messaggio",
+        "delete": "Elimina"
+      },
+      "cohort": "Coorte",
+      "course": "Corso",
+      "role": "Ruolo",
+      "message": "Messaggio",
+      "apply": "Applica",
+      "export": "Esporta",
+      "deleteTitle": "Eliminare gli utenti?",
+      "deleteConfirm": "Verranno eliminati {count} account. I loro dati personali vengono cancellati e i loro contenuti restano senza nome. Non si può annullare.",
+      "queued": "In esecuzione in background per {count}; al termine arriverà una notifica",
+      "done": "Fatto: {count}",
+      "result": "Eseguito per {done} su {total}"
+    }
   },
   "email": {
     "footer": "Questa email è stata inviata perché l’indirizzo è associato a un account su questo sito.",
@@ -1297,7 +1328,8 @@
       "announcement_site": "Annunci del sito",
       "message_new": "Nuovi messaggi privati",
       "calendar_reminder": "Promemoria del calendario",
-      "auth_newSignIn": "Accesso da un nuovo dispositivo"
+      "auth_newSignIn": "Accesso da un nuovo dispositivo",
+      "admin_bulkDone": "Azioni di massa sugli utenti"
     },
     "text": {
       "enrolled": "Iscrizione al corso «{course}» effettuata",
@@ -1348,6 +1380,10 @@
     "newSignIn": {
       "title": "Accesso da un nuovo dispositivo",
       "body": "Qualcuno ha effettuato l'accesso al tuo account: {device}, IP {ip}. Se non eri tu, apri questo avviso per chiudere tutte le sessioni e cambiare la password."
+    },
+    "bulkDone": {
+      "title": "Azione di massa completata",
+      "body": "Eseguito per {done} su {total}, non riusciti: {failed}."
     }
   },
   "messages": {

@@ -82,7 +82,8 @@
       "noFile": "Keine Datei ausgewählt",
       "noFiles": "Keine Dateien ausgewählt"
     },
-    "inLanguage": "{label} ({language})"
+    "inLanguage": "{label} ({language})",
+    "select": "Auswählen"
   },
   "nav": {
     "main": "Hauptnavigation",
@@ -321,7 +322,8 @@
       "locked": "Gesperrt",
       "lockedUntil": "Die Anmeldung ist nach Fehlversuchen bis {until} gesperrt.",
       "unlock": "Entsperren",
-      "unlocked": "Konto entsperrt"
+      "unlocked": "Konto entsperrt",
+      "anyStatus": "Jeder Status"
     },
     "role": {
       "new": "Neue Rolle",
@@ -472,7 +474,36 @@
     "languages": "Sprachen",
     "modules": "Module",
     "security": "Sicherheit",
-    "sso": "Single Sign-on"
+    "sso": "Single Sign-on",
+    "bulk": {
+      "title": "Aktion für die Auswahl",
+      "selectPage": "Alle auf der Seite auswählen",
+      "selectAll": "Alle Treffer auswählen ({count})",
+      "selectOne": "{name} auswählen",
+      "selected": "Ausgewählt: {count}",
+      "action": "Aktion",
+      "actions": {
+        "suspend": "Sperren",
+        "activate": "Aktivieren",
+        "forcePasswordChange": "Passwortänderung verlangen",
+        "unlock": "Anmeldung entsperren",
+        "addToCohort": "Zu einer globalen Gruppe hinzufügen",
+        "enrol": "In einen Kurs einschreiben",
+        "message": "Nachricht senden",
+        "delete": "Löschen"
+      },
+      "cohort": "Globale Gruppe",
+      "course": "Kurs",
+      "role": "Rolle",
+      "message": "Nachricht",
+      "apply": "Ausführen",
+      "export": "Exportieren",
+      "deleteTitle": "Benutzer löschen?",
+      "deleteConfirm": "{count} Konten werden gelöscht. Ihre persönlichen Daten werden gelöscht, ihre Inhalte bleiben ohne Namen. Das lässt sich nicht rückgängig machen.",
+      "queued": "Läuft im Hintergrund für {count}; danach kommt eine Benachrichtigung",
+      "done": "Erledigt: {count}",
+      "result": "Erledigt für {done} von {total}"
+    }
   },
   "email": {
     "footer": "Sie erhalten diese E-Mail, weil Sie ein Konto auf dieser Website haben.",
@@ -1297,7 +1328,8 @@
       "announcement_site": "Website-Ankündigungen",
       "message_new": "Neue Direktnachrichten",
       "calendar_reminder": "Kalendererinnerungen",
-      "auth_newSignIn": "Anmeldung von einem neuen Gerät"
+      "auth_newSignIn": "Anmeldung von einem neuen Gerät",
+      "admin_bulkDone": "Massenaktionen für Benutzer"
     },
     "text": {
       "enrolled": "Sie wurden in „{course}“ eingeschrieben",
@@ -1348,6 +1380,10 @@
     "newSignIn": {
       "title": "Anmeldung von einem neuen Gerät",
       "body": "Jemand hat sich bei Ihrem Konto angemeldet: {device}, IP {ip}. Wenn Sie es nicht waren, öffnen Sie diese Mitteilung, um alle Sitzungen zu beenden und Ihr Passwort zu ändern."
+    },
+    "bulkDone": {
+      "title": "Massenaktion abgeschlossen",
+      "body": "Erledigt für {done} von {total}, fehlgeschlagen: {failed}."
     }
   },
   "messages": {
