@@ -182,7 +182,10 @@
       "doneReset": "All sessions have ended. We sent you an email with a link to change your password.",
       "doneSessions": "All sessions have ended. Ask an administrator to change your password.",
       "invalid": "The link is invalid, has expired or was already used."
-    }
+    },
+    "useRecoveryPhrase": "Use a recovery phrase",
+    "recoveryPhrase": "Recovery phrase",
+    "invalidRecoveryPhrase": "That phrase did not match"
   },
   "dashboard": {
     "title": "Welcome, {name}",
@@ -235,7 +238,20 @@
     "requiredPassword": "An administrator set a temporary password for you. Choose a new one to continue.",
     "required2fa": "Site administrators must turn on two-factor authentication to continue.",
     "timezoneDefault": "Site default",
-    "requiredPasswordExpired": "Your password has expired. Choose a new one to continue."
+    "requiredPasswordExpired": "Your password has expired. Choose a new one to continue.",
+    "twoFactorNewCodes": "New backup codes",
+    "recovery": {
+      "title": "Recovery phrases",
+      "hint": "If the phone with your authenticator is lost, sign in by typing one of these phrases instead of a code. Each phrase works once. Write them down and keep them away from the phone.",
+      "none": "No phrases yet.",
+      "name": "Name",
+      "nameHint": "Where the phrase is kept, for example \"home safe\"",
+      "phrase": "Phrase",
+      "phraseHint": "At least 4 words and 20 characters; case and spacing do not matter",
+      "phrase2": "Repeat the phrase",
+      "add": "Add phrase",
+      "added": "Phrase added"
+    }
   },
   "admin": {
     "title": "Administration",
@@ -483,6 +499,12 @@
       "heading": "Sign-in locked",
       "intro": "Hello {name}! After several failed sign-in attempts, your account is locked for {minutes} min. If it was you, unlock it with the button below. If not, change your password after unlocking.",
       "action": "Unlock"
+    },
+    "recoveryUsed": {
+      "subject": "A recovery phrase was used — {site}",
+      "heading": "Signed in with a recovery phrase",
+      "intro": "Hello {name}! Someone signed in to your account with a recovery phrase, and that phrase no longer works. If your phone is lost, set up two-factor authentication again. If it wasn't you, change your password now.",
+      "action": "Open security settings"
     }
   },
   "errors": {

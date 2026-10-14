@@ -181,7 +181,10 @@
       "doneReset": "Toutes les sessions sont fermées. Nous vous avons envoyé un e-mail avec un lien pour changer votre mot de passe.",
       "doneSessions": "Toutes les sessions sont fermées. Demandez à un administrateur de changer votre mot de passe.",
       "invalid": "Le lien est invalide, a expiré ou a déjà été utilisé."
-    }
+    },
+    "useRecoveryPhrase": "Utiliser une phrase de récupération",
+    "recoveryPhrase": "Phrase de récupération",
+    "invalidRecoveryPhrase": "Cette phrase ne correspond pas"
   },
   "dashboard": {
     "title": "Bienvenue, {name}",
@@ -234,7 +237,20 @@
     "requiredPassword": "Un administrateur vous a attribué un mot de passe temporaire. Choisissez-en un nouveau pour continuer.",
     "required2fa": "Les administrateurs du site doivent activer l’authentification à deux facteurs pour continuer.",
     "timezoneDefault": "Par défaut du site",
-    "requiredPasswordExpired": "Votre mot de passe a expiré. Choisissez-en un nouveau pour continuer."
+    "requiredPasswordExpired": "Votre mot de passe a expiré. Choisissez-en un nouveau pour continuer.",
+    "twoFactorNewCodes": "Nouveaux codes de secours",
+    "recovery": {
+      "title": "Phrases de récupération",
+      "hint": "Si le téléphone avec votre application est perdu, connectez-vous en saisissant l'une de ces phrases au lieu d'un code. Chaque phrase ne sert qu'une fois. Notez-les et gardez-les loin du téléphone.",
+      "none": "Aucune phrase pour l'instant.",
+      "name": "Nom",
+      "nameHint": "Où la phrase est conservée, par exemple « coffre à la maison »",
+      "phrase": "Phrase",
+      "phraseHint": "Au moins 4 mots et 20 caractères ; casse et espaces indifférents",
+      "phrase2": "Répétez la phrase",
+      "add": "Ajouter la phrase",
+      "added": "Phrase ajoutée"
+    }
   },
   "admin": {
     "title": "Administration",
@@ -482,6 +498,12 @@
       "heading": "Connexion verrouillée",
       "intro": "Bonjour {name} ! Après plusieurs échecs de connexion, votre compte est verrouillé pendant {minutes} min. Si c'était vous, déverrouillez-le avec le bouton ci-dessous. Sinon, changez votre mot de passe après le déverrouillage.",
       "action": "Déverrouiller"
+    },
+    "recoveryUsed": {
+      "subject": "Une phrase de récupération a été utilisée — {site}",
+      "heading": "Connexion avec une phrase de récupération",
+      "intro": "Bonjour {name} ! Quelqu'un s'est connecté à votre compte avec une phrase de récupération, qui ne fonctionne plus. Si votre téléphone est perdu, configurez à nouveau l'authentification à deux facteurs. Si ce n'était pas vous, changez votre mot de passe maintenant.",
+      "action": "Ouvrir les paramètres de sécurité"
     }
   },
   "errors": {

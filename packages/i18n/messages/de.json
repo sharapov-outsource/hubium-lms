@@ -181,7 +181,10 @@
       "doneReset": "Alle Sitzungen wurden beendet. Wir haben Ihnen eine E-Mail mit einem Link zum Ändern Ihres Passworts gesendet.",
       "doneSessions": "Alle Sitzungen wurden beendet. Bitten Sie einen Administrator, Ihr Passwort zu ändern.",
       "invalid": "Der Link ist ungültig, abgelaufen oder wurde bereits verwendet."
-    }
+    },
+    "useRecoveryPhrase": "Wiederherstellungssatz verwenden",
+    "recoveryPhrase": "Wiederherstellungssatz",
+    "invalidRecoveryPhrase": "Dieser Satz passt nicht"
   },
   "dashboard": {
     "title": "Willkommen, {name}",
@@ -234,7 +237,20 @@
     "requiredPassword": "Die Administration hat ein vorläufiges Passwort für Sie festgelegt. Wählen Sie ein neues, um fortzufahren.",
     "required2fa": "Administrator/innen der Website müssen die Zwei-Faktor-Authentifizierung aktivieren, um fortzufahren.",
     "timezoneDefault": "Standard der Website",
-    "requiredPasswordExpired": "Ihr Passwort ist abgelaufen. Wählen Sie ein neues, um fortzufahren."
+    "requiredPasswordExpired": "Ihr Passwort ist abgelaufen. Wählen Sie ein neues, um fortzufahren.",
+    "twoFactorNewCodes": "Neue Backup-Codes",
+    "recovery": {
+      "title": "Wiederherstellungssätze",
+      "hint": "Wenn das Telefon mit Ihrer Authenticator-App verloren geht, melden Sie sich mit einem dieser Sätze statt eines Codes an. Jeder Satz funktioniert einmal. Schreiben Sie sie auf und bewahren Sie sie getrennt vom Telefon auf.",
+      "none": "Noch keine Sätze.",
+      "name": "Name",
+      "nameHint": "Wo der Satz aufbewahrt wird, zum Beispiel „Tresor zu Hause“",
+      "phrase": "Satz",
+      "phraseHint": "Mindestens 4 Wörter und 20 Zeichen; Groß-/Kleinschreibung und Leerzeichen spielen keine Rolle",
+      "phrase2": "Satz wiederholen",
+      "add": "Satz hinzufügen",
+      "added": "Satz hinzugefügt"
+    }
   },
   "admin": {
     "title": "Website-Administration",
@@ -482,6 +498,12 @@
       "heading": "Anmeldung gesperrt",
       "intro": "Hallo {name}! Nach mehreren fehlgeschlagenen Anmeldeversuchen ist Ihr Konto für {minutes} Min. gesperrt. Wenn Sie es waren, entsperren Sie es mit der Schaltfläche unten. Wenn nicht, ändern Sie danach Ihr Passwort.",
       "action": "Entsperren"
+    },
+    "recoveryUsed": {
+      "subject": "Ein Wiederherstellungssatz wurde verwendet — {site}",
+      "heading": "Anmeldung mit einem Wiederherstellungssatz",
+      "intro": "Hallo {name}! Jemand hat sich mit einem Wiederherstellungssatz bei Ihrem Konto angemeldet; dieser Satz funktioniert nicht mehr. Wenn Ihr Telefon verloren ist, richten Sie die Zwei-Faktor-Authentifizierung neu ein. Wenn Sie es nicht waren, ändern Sie sofort Ihr Passwort.",
+      "action": "Sicherheitseinstellungen öffnen"
     }
   },
   "errors": {

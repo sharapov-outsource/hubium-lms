@@ -1,7 +1,9 @@
 'use server';
 
 import {
+  addRecoveryPassphrase,
   assertPasswordAllowed,
+  deleteRecoveryPassphrase,
   listProfileFields,
   profileValuesFromForm,
   ValidationError,
@@ -15,7 +17,7 @@ import { z } from 'zod';
 import { formToObject, runAction } from '../action';
 import { auth } from '../auth';
 import { db } from '../db';
-import { requireUser } from '../session';
+import { getContext, requireUser } from '../session';
 
 const ProfileInput = z.object({
   firstName: z.string().trim().min(1).max(100),
@@ -114,6 +116,29 @@ export async function revokeOtherSessionsAction() {
   return runAction(async () => {
     await requireUser();
     await auth.api.revokeOtherSessions({ headers: await headers() });
+    revalidatePath('/settings/security');
+    return null;
+  });
+}
+
+export async function addRecoveryPassphraseAction(fd: FormData) {
+  return runAction(async () => {
+    const v = formToObject(fd);
+    if (v.passphrase !== v.passphrase2)
+      throw new ValidationError({ passphrase2: ['Phrases do not match'] });
+    await addRecoveryPassphrase.run(await getContext(), {
+      name: v.name ?? '',
+      passphrase: v.passphrase ?? '',
+      password: v.password ?? '',
+    });
+    revalidatePath('/settings/security');
+    return null;
+  });
+}
+
+export async function deleteRecoveryPassphraseAction(id: string) {
+  return runAction(async () => {
+    await deleteRecoveryPassphrase.run(await getContext(), { id });
     revalidatePath('/settings/security');
     return null;
   });

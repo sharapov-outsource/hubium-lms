@@ -17,6 +17,8 @@ export function TwoFactorPanel({ enabled, issuer }: { enabled: boolean; issuer: 
   const router = useRouter();
   const [step, setStep] = useState<'idle' | 'password' | 'verify' | 'codes'>('idle');
   const [setup, setSetup] = useState<{ uri: string; codes: string[] } | null>(null);
+  // what the password confirms: turning 2FA on or off, or new backup codes
+  const [purpose, setPurpose] = useState<'toggle' | 'codes'>('toggle');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -25,6 +27,14 @@ export function TwoFactorPanel({ enabled, issuer }: { enabled: boolean; issuer: 
     setError(null);
     setPending(true);
     const password = String(new FormData(e.currentTarget).get('password') ?? '');
+    if (purpose === 'codes') {
+      const r = await authClient.twoFactor.generateBackupCodes({ password });
+      setPending(false);
+      if (r.error || !r.data) return setError(ta('invalidCredentials'));
+      setSetup({ uri: '', codes: r.data.backupCodes });
+      setStep('codes');
+      return;
+    }
     if (enabled) {
       const r = await authClient.twoFactor.disable({ password });
       setPending(false);
@@ -55,9 +65,28 @@ export function TwoFactorPanel({ enabled, issuer }: { enabled: boolean; issuer: 
 
   if (step === 'idle') {
     return (
-      <Button variant={enabled ? 'outline' : 'primary'} onClick={() => setStep('password')}>
-        {enabled ? t('twoFactorDisable') : t('twoFactorEnable')}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant={enabled ? 'outline' : 'primary'}
+          onClick={() => {
+            setPurpose('toggle');
+            setStep('password');
+          }}
+        >
+          {enabled ? t('twoFactorDisable') : t('twoFactorEnable')}
+        </Button>
+        {enabled ? (
+          <Button
+            variant="outline"
+            onClick={() => {
+              setPurpose('codes');
+              setStep('password');
+            }}
+          >
+            {t('twoFactorNewCodes')}
+          </Button>
+        ) : null}
+      </div>
     );
   }
   if (step === 'password') {

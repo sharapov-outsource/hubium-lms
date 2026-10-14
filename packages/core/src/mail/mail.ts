@@ -122,7 +122,7 @@ export function renderActionEmail(opts: {
   return { html, text };
 }
 
-export type AuthEmailKind = 'verify' | 'reset' | 'changeEmail' | 'locked';
+export type AuthEmailKind = 'verify' | 'reset' | 'changeEmail' | 'locked' | 'recoveryUsed';
 
 export async function sendAuthEmail(opts: {
   kind: AuthEmailKind;

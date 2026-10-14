@@ -17,6 +17,7 @@ import {
   passwordPolicy,
   recordPasswordChange,
 } from './password-policy.ts';
+import { dropRecoveryPassphrases, recoveryPassphrase } from './recovery.ts';
 
 // Better Auth instance. Authentication only — authorization is Hubium's own (can()).
 
@@ -243,9 +244,15 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
           throw new APIError('FORBIDDEN', { message: 'This sign-in method is disabled' });
       }),
       after: createAuthMiddleware(async (c) => {
+        const r = c.context.returned;
+        // recovery phrases belong to two-factor authentication
+        if (c.path === '/two-factor/disable' && !(r instanceof APIError)) {
+          const s = await getSessionFromCtx(c);
+          if (s) await dropRecoveryPassphrases(db, s.user.id);
+          return;
+        }
         // a wrong password counts towards the lockout (auth/lockout.ts)
         if (!PASSWORD_SIGN_IN_PATHS.has(c.path)) return;
-        const r = c.context.returned;
         if (!(r instanceof APIError) || r.statusCode !== 401) return;
         const user = await findSignInUser(db, (c.body ?? {}) as object);
         if (user)
@@ -340,6 +347,7 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
       twoFactor({ issuer: 'Hubium LMS' }),
       admin({ defaultRole: 'user', adminRoles: [] }),
       loginAs(db),
+      recoveryPassphrase(db, baseURL),
       ...(generic.length ? [genericOAuth({ config: generic })] : []),
       ...extraPlugins,
     ],

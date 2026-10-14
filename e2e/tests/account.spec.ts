@@ -242,3 +242,63 @@ test('a sign-in from a new device is notified, and "it wasn\'t me" ends all sess
   expect(Number(n)).toBe(0);
   await other.close();
 });
+
+test('recovery phrase instead of a code, and new backup codes', async ({ page }) => {
+  await login(page, 'teacher', DEMO_PASSWORD);
+  await page.goto('/settings/security');
+  await page.getByRole('button', { name: /Включить 2FA/ }).click();
+  await page.locator('#tf-password').fill(DEMO_PASSWORD);
+  await page.getByRole('button', { name: 'Подтвердить' }).click();
+  const secret = (await page.locator('code.select-all').innerText()).trim();
+  await page.locator('#tf-code').fill(totp(secret));
+  await page.getByRole('button', { name: 'Подтвердить' }).click();
+  await expect(page.getByTestId('backup-codes')).toBeVisible();
+  const first = await page.getByTestId('backup-codes').innerText();
+  await page.getByRole('button', { name: 'OK' }).click();
+
+  try {
+    // backup codes can be issued again
+    await page.getByRole('button', { name: 'Новые резервные коды' }).click();
+    await page.locator('#tf-password').fill(DEMO_PASSWORD);
+    await page.getByRole('button', { name: 'Подтвердить' }).click();
+    await expect(page.getByTestId('backup-codes')).not.toHaveText(first);
+    await page.getByRole('button', { name: 'OK' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Фразы восстановления' })).toBeVisible();
+    await expectAccessible(page);
+    await page.getByLabel('Название').fill('Сейф дома');
+    await page.getByLabel('Фраза', { exact: true }).fill('Зелёный чайник поёт по утрам');
+    await page.getByLabel('Повторите фразу').fill('Зелёный чайник поёт по утрам');
+    await page.getByLabel('Подтвердите паролем').fill(DEMO_PASSWORD);
+    await page.getByRole('button', { name: 'Добавить фразу' }).click();
+    await expect(page.getByText('Сейф дома')).toBeVisible();
+
+    const after = new Date(Date.now() - 1000);
+    await page.context().clearCookies();
+    await page.goto('/login');
+    await page.locator('#login').fill('teacher');
+    await page.locator('#password').fill(DEMO_PASSWORD);
+    await page.locator('form button[type=submit]').click();
+    await page.waitForURL(/\/two-factor/);
+    await page.getByRole('button', { name: 'Ввести фразу восстановления' }).click();
+    await page.getByLabel('Фраза восстановления').fill('не та фраза совсем никак');
+    await page.getByRole('button', { name: 'Подтвердить' }).click();
+    await expect(page.getByText('Фраза не подошла')).toBeVisible();
+    await page.getByLabel('Фраза восстановления').fill('зелёный  ЧАЙНИК поёт по утрам');
+    await page.getByRole('button', { name: 'Подтвердить' }).click();
+    await page.waitForURL(/\/dashboard/);
+    await waitForMail('teacher@hubium.local', { subject: /фраза восстановления/, after });
+
+    // used once: it is gone from the list
+    await page.goto('/settings/security');
+    await expect(page.getByText('Фраз пока нет.')).toBeVisible();
+  } finally {
+    await sql(`UPDATE "User" SET "twoFactorEnabled"=false WHERE username='teacher'`);
+    await sql(
+      `DELETE FROM "TwoFactor" WHERE "userId"=(SELECT id FROM "User" WHERE username='teacher')`,
+    );
+    await sql(
+      `DELETE FROM "RecoveryPassphrase" WHERE "userId"=(SELECT id FROM "User" WHERE username='teacher')`,
+    );
+  }
+});

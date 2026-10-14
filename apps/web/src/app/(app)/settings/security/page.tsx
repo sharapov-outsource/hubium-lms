@@ -1,4 +1,11 @@
-import { deviceLabel, getAllSettings, passwordExpired, passwordPolicy } from '@hubium/core';
+import {
+  deviceLabel,
+  getAllSettings,
+  listRecoveryPassphrases,
+  MAX_RECOVERY_PASSPHRASES,
+  passwordExpired,
+  passwordPolicy,
+} from '@hubium/core';
 import {
   Alert,
   Badge,
@@ -16,7 +23,8 @@ import { changePasswordAction } from '@/server/actions/account';
 import { auth } from '@/server/auth';
 import { db } from '@/server/db';
 import { titled } from '@/server/page-title';
-import { getSession, requireUser } from '@/server/session';
+import { getContext, getSession, requireUser } from '@/server/session';
+import { RecoveryPassphrases } from './recovery-passphrases';
 import { RevokeButtons } from './revoke-buttons';
 import { TwoFactorPanel } from './two-factor-panel';
 
@@ -38,6 +46,8 @@ export default async function SecuritySettings({
     getAllSettings(db),
   ]);
   const sessions = await auth.api.listSessions({ headers: await headers() });
+  const ctx = await getContext();
+  const impersonating = ctx.actor.kind === 'user' && !!ctx.actor.realUserId;
   const { passwordChangedAt } = await db.user.findUniqueOrThrow({
     where: { id: user.id },
     select: { passwordChangedAt: true },
@@ -103,6 +113,24 @@ export default async function SecuritySettings({
           <TwoFactorPanel enabled={user.twoFactorEnabled} issuer={settings['site.name']} />
         </CardContent>
       </Card>
+      {user.twoFactorEnabled && !impersonating ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('recovery.title')}</CardTitle>
+            <CardDescription>{t('recovery.hint')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RecoveryPassphrases
+              max={MAX_RECOVERY_PASSPHRASES}
+              items={(await listRecoveryPassphrases(ctx)).map((p) => ({
+                id: p.id,
+                name: p.name,
+                created: format.dateTime(p.createdAt, { dateStyle: 'medium' }),
+              }))}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle>{t('sessions')}</CardTitle>

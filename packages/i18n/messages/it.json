@@ -181,7 +181,10 @@
       "doneReset": "Tutte le sessioni sono state chiuse. Ti abbiamo inviato un'email con un link per cambiare la password.",
       "doneSessions": "Tutte le sessioni sono state chiuse. Chiedi a un amministratore di cambiare la tua password.",
       "invalid": "Il link non è valido, è scaduto o è già stato usato."
-    }
+    },
+    "useRecoveryPhrase": "Usa una frase di recupero",
+    "recoveryPhrase": "Frase di recupero",
+    "invalidRecoveryPhrase": "La frase non corrisponde"
   },
   "dashboard": {
     "title": "Le diamo il benvenuto, {name}",
@@ -234,7 +237,20 @@
     "requiredPassword": "Un amministratore ha impostato una password temporanea. Sceglierne una nuova per continuare.",
     "required2fa": "Gli amministratori del sito devono attivare l’autenticazione a due fattori per continuare.",
     "timezoneDefault": "Predefinito del sito",
-    "requiredPasswordExpired": "La tua password è scaduta. Scegline una nuova per continuare."
+    "requiredPasswordExpired": "La tua password è scaduta. Scegline una nuova per continuare.",
+    "twoFactorNewCodes": "Nuovi codici di backup",
+    "recovery": {
+      "title": "Frasi di recupero",
+      "hint": "Se perdi il telefono con l'app di autenticazione, accedi digitando una di queste frasi al posto del codice. Ogni frase funziona una sola volta. Scrivile e conservale lontano dal telefono.",
+      "none": "Nessuna frase per ora.",
+      "name": "Nome",
+      "nameHint": "Dove è conservata la frase, ad esempio \"cassaforte di casa\"",
+      "phrase": "Frase",
+      "phraseHint": "Almeno 4 parole e 20 caratteri; maiuscole e spazi non contano",
+      "phrase2": "Ripeti la frase",
+      "add": "Aggiungi frase",
+      "added": "Frase aggiunta"
+    }
   },
   "admin": {
     "title": "Amministrazione",
@@ -482,6 +498,12 @@
       "heading": "Accesso bloccato",
       "intro": "Ciao {name}! Dopo diversi tentativi di accesso falliti, il tuo account è bloccato per {minutes} min. Se eri tu, sbloccalo con il pulsante qui sotto. Altrimenti, dopo lo sblocco cambia la password.",
       "action": "Sblocca"
+    },
+    "recoveryUsed": {
+      "subject": "È stata usata una frase di recupero — {site}",
+      "heading": "Accesso con una frase di recupero",
+      "intro": "Ciao {name}! Qualcuno ha effettuato l'accesso al tuo account con una frase di recupero, che ora non funziona più. Se hai perso il telefono, configura di nuovo l'autenticazione a due fattori. Se non eri tu, cambia subito la password.",
+      "action": "Apri le impostazioni di sicurezza"
     }
   },
   "errors": {

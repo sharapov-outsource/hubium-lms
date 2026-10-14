@@ -65,6 +65,7 @@ model User {
   twoFactors          TwoFactor[]
   passwordHistory     PasswordHistory[]
   knownDevices        KnownDevice[]
+  recoveryPassphrases RecoveryPassphrase[]
   mentees             UserRelation[]           @relation("mentor")
   mentors             UserRelation[]           @relation("mentee")
   apiTokens           ApiToken[]
@@ -205,6 +206,20 @@ model KnownDevice {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, fingerprint])
+}
+
+/// Phrases a user with two-factor authentication keeps for a lost device. Each works once
+/// instead of a code (auth/recovery.ts).
+model RecoveryPassphrase {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @db.Uuid
+  name      String
+  hash      String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model RateLimit {
