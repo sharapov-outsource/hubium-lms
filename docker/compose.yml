@@ -55,6 +55,8 @@ x-app-env: &app-env
   METRICS_TOKEN: ${METRICS_TOKEN:-}
   API_RATE_LIMIT_PER_MIN: ${API_RATE_LIMIT_PER_MIN:-120}
   SSRF_ALLOW_HOSTS: ${SSRF_ALLOW_HOSTS:-}
+  # Proxies in front of web that append to X-Forwarded-For (Caddy: 1; a CDN in front: 2)
+  TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
   # Virus scanning of uploads with the clamav profile (or any clamd); see docs/operations.md
   CLAMAV_URL: ${CLAMAV_URL:-}
   CLAMAV_MAX_SCAN_MB: ${CLAMAV_MAX_SCAN_MB:-100}

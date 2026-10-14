@@ -699,7 +699,8 @@ In dev, `localhost:3000` versus `127.0.0.1:3000` gives two distinct origins for 
   - bulk download of submissions as zip, calendar events, `todo` "needs grading".
 - **Question bank (`packages/questions`):**
   - category tree per context, 6 types plus description, per-type zod data schemas, editor with preview, tags, move/copy;
-  - attempts freeze a **snapshot** of the question, so later edits never corrupt history.
+  - attempts freeze a **snapshot** of the question, so later edits never corrupt history;
+  - formulas of calculated questions and of gradebook calculations go through `@hubium/formula`: its own lexer, parser and evaluator (no `eval`), with Moodle's function sets and limits on length, size and nesting.
 - **mod-quiz:**
   - pages/slots, random-from-category slots, shuffle of questions and answers (deterministic seed);
   - time limit enforced server-side (`dueAt` plus a scheduled `quiz.attempt.close` job and a sweeper); autosave every 30 s and on page change;

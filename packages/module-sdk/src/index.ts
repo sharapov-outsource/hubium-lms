@@ -184,6 +184,8 @@ export interface ModuleCtx {
   now: Date;
   /** Language of the request: a code of an installed language pack. */
   locale: string;
+  /** The client's address (see TRUSTED_PROXY_HOPS), or null outside a request. */
+  ip: string | null;
   perm: ModulePermissions;
   files: ModuleFiles;
   grades: ModuleGrades;

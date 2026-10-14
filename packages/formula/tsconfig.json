@@ -1,0 +1,4 @@
+{
+  "extends": "@hubium/tooling/tsconfig/base.json",
+  "include": ["src"]
+}

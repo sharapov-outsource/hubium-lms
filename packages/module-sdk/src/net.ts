@@ -165,3 +165,83 @@ export async function safeFetch(
   }
   throw new UnsafeUrlError('Too many redirects');
 }
+
+// ── address lists ─────────────────────────────────────────────────────────────
+// "Require network address" (a quiz may be taken only from these addresses), written as
+// Moodle's subnet setting: comma- or space-separated entries, each a full address, a CIDR
+// block (192.168.0.0/16, 2001:db8::/32), a last-octet range (192.168.1.10-20) or a partial
+// address matched by whole parts (10.1, 2001:db8).
+
+type Matcher = (ip: string, family: 4 | 6) => boolean;
+
+/** The address without brackets or zone, and an IPv4-mapped IPv6 address as plain IPv4. */
+function plainIp(raw: string): { ip: string; family: 4 | 6 } | null {
+  const s = raw
+    .trim()
+    .replace(/^\[|\]$/g, '')
+    .split('%')[0]!;
+  const v = isIP(s);
+  if (v === 4) return { ip: s, family: 4 };
+  if (v !== 6) return null;
+  const g = ipv6Groups(s);
+  if (g.slice(0, 5).every((x) => x === 0) && g[5] === 0xffff)
+    return { ip: `${g[6]! >> 8}.${g[6]! & 255}.${g[7]! >> 8}.${g[7]! & 255}`, family: 4 };
+  return { ip: s.toLowerCase(), family: 6 };
+}
+
+function matcher(entry: string): Matcher | null {
+  const list = new BlockList();
+  try {
+    const cidr = entry.match(/^(.+)\/(\d{1,3})$/);
+    if (cidr) {
+      const net = plainIp(cidr[1]!);
+      const bits = Number(cidr[2]);
+      if (!net || bits > (net.family === 4 ? 32 : 128)) return null;
+      list.addSubnet(net.ip, bits, net.family === 4 ? 'ipv4' : 'ipv6');
+      return (ip, family) => list.check(ip, family === 4 ? 'ipv4' : 'ipv6');
+    }
+    const range = entry.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.)(\d{1,3})-(\d{1,3})$/);
+    if (range) {
+      const [from, to] = [Number(range[2]), Number(range[3])];
+      if (from > to || to > 255 || isIP(`${range[1]}${from}`) !== 4) return null;
+      list.addRange(`${range[1]}${from}`, `${range[1]}${to}`, 'ipv4');
+      return (ip, family) => family === 4 && list.check(ip, 'ipv4');
+    }
+    const full = plainIp(entry);
+    if (full) {
+      list.addAddress(full.ip, full.family === 4 ? 'ipv4' : 'ipv6');
+      return (ip, family) =>
+        family === full.family && list.check(ip, family === 4 ? 'ipv4' : 'ipv6');
+    }
+  } catch {
+    return null;
+  }
+  // partial addresses: whole octets or whole IPv6 groups
+  if (/^\d{1,3}(\.\d{1,3}){0,2}\.?$/.test(entry)) {
+    const parts = entry.replace(/\.$/, '').split('.').map(Number);
+    if (parts.every((p) => p <= 255))
+      return (ip, family) => family === 4 && parts.every((p, i) => Number(ip.split('.')[i]) === p);
+  }
+  if (/^[0-9a-f]{1,4}(:[0-9a-f]{1,4}){0,6}:?$/i.test(entry)) {
+    const parts = entry
+      .replace(/:$/, '')
+      .split(':')
+      .map((p) => Number.parseInt(p, 16));
+    return (ip, family) => family === 6 && parts.every((p, i) => ipv6Groups(ip)[i] === p);
+  }
+  return null;
+}
+
+const entries = (spec: string) => spec.split(/[\s,;]+/).filter(Boolean);
+
+/** Entries of an address list that cannot be read (empty when the list is valid). */
+export function invalidIpListEntries(spec: string): string[] {
+  return entries(spec).filter((e) => !matcher(e));
+}
+
+/** Is the address in the list? An unknown address (null) never is. */
+export function ipInList(ip: string | null, spec: string): boolean {
+  const addr = ip ? plainIp(ip) : null;
+  if (!addr) return false;
+  return entries(spec).some((e) => matcher(e)?.(addr.ip, addr.family) ?? false);
+}

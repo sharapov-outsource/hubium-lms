@@ -5,8 +5,8 @@ import {
   qandaLocked,
   subscribers,
   subscriptionState,
-  userGroupIds,
 } from '@hubium/mod-forum/server';
+import { userGroupIds } from '@hubium/module-sdk/groups';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';

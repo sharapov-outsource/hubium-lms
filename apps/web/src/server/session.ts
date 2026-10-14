@@ -3,6 +3,7 @@ import {
   type Actor,
   anonymousAccess,
   type Capability,
+  clientIp,
   isSwitchableRole,
   loadUserAccess,
   noteUserAccess,
@@ -48,7 +49,7 @@ export async function requireUser(): Promise<CurrentUser> {
 export const getContext = cache(async (): Promise<RequestContext> => {
   const user = await getCurrentUser();
   const h = await headers();
-  const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
+  const ip = clientIp(h.get('x-forwarded-for'));
   const locale = await getLocale();
   if (!user) {
     return {

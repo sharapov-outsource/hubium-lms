@@ -6,6 +6,7 @@ import {
   appendUploadChunk,
   authenticateApiToken,
   categoryFractions,
+  clientIp,
   createCourse,
   createUpload,
   createUser,
@@ -528,7 +529,7 @@ export function createApi(opts: ApiOptions) {
   const auth: MiddlewareHandler<Env> = async (c, next) => {
     const header = c.req.header('authorization') ?? '';
     const raw = header.match(/^Bearer\s+(\S+)$/i)?.[1];
-    const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
+    const ip = clientIp(c.req.header('x-forwarded-for'));
     const locale = fromAcceptLanguage(c.req.header('accept-language'));
     const r = raw ? await authenticateApiToken(opts.db, raw, { ip, locale }) : null;
     if (!r)

@@ -1,9 +1,12 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
+import { safeEqual } from './crypto.ts';
 import {
   assertPublicUrl,
   checkUrlShape,
+  invalidIpListEntries,
+  ipInList,
   isInternalAddress,
   safeFetch,
   UnsafeUrlError,
@@ -103,5 +106,43 @@ describe('SSRF guard', () => {
     } finally {
       server.close();
     }
+  });
+});
+
+describe('address lists', () => {
+  const list = '192.168.1.0/24, 10.1, 172.16.5.10-20 ; 203.0.113.9 2001:db8::/32 fe80';
+  it('matches CIDR blocks, partial addresses, ranges and single addresses', () => {
+    for (const ip of [
+      '192.168.1.200',
+      '10.1.0.1',
+      '10.1.255.3',
+      '172.16.5.15',
+      '203.0.113.9',
+      '::ffff:203.0.113.9',
+      '2001:db8:1::5',
+      'fe80::1',
+    ])
+      expect(ipInList(ip, list), ip).toBe(true);
+    for (const ip of ['192.168.2.1', '10.10.0.1', '172.16.5.21', '203.0.113.90', '2001:db9::1'])
+      expect(ipInList(ip, list), ip).toBe(false);
+    expect(ipInList(null, list)).toBe(false);
+  });
+
+  it('reports entries it cannot read', () => {
+    expect(invalidIpListEntries(list)).toEqual([]);
+    expect(invalidIpListEntries('10.0.0.0/33, 1.2.3.4-2, office, 300.1')).toEqual([
+      '10.0.0.0/33',
+      '1.2.3.4-2',
+      'office',
+      '300.1',
+    ]);
+  });
+});
+
+describe('secret comparison', () => {
+  it('compares in constant time and only equal strings match', () => {
+    expect(safeEqual('Qu1z!', 'Qu1z!')).toBe(true);
+    expect(safeEqual('qu1z!', 'Qu1z!')).toBe(false);
+    expect(safeEqual('', 'x')).toBe(false);
   });
 });

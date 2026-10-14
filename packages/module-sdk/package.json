@@ -10,7 +10,9 @@
     "./ui": "./src/ui.ts",
     "./form": "./src/form.tsx",
     "./fields": "./src/fields.ts",
-    "./net": "./src/net.ts"
+    "./net": "./src/net.ts",
+    "./crypto": "./src/crypto.ts",
+    "./groups": "./src/groups.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

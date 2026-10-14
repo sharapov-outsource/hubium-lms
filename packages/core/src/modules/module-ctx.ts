@@ -116,6 +116,7 @@ export function buildModuleCtx(
     actor: ctx.actor,
     now: ctx.now,
     locale: ctx.locale,
+    ip: ctx.ip ?? null,
     perm: {
       can: (cap, contextId) => ctx.perm.can(cap as Capability, contextId),
       require: (cap, contextId) => ctx.perm.require(cap as Capability, contextId),

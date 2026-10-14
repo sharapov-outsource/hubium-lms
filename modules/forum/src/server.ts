@@ -10,6 +10,7 @@ import {
   type ModuleFile,
 } from '@hubium/module-sdk';
 import { bool } from '@hubium/module-sdk/fields';
+import { groupsWhere, userGroupIds, visibleGroupFilter } from '@hubium/module-sdk/groups';
 import { z } from 'zod';
 
 // mod-forum: standard and Q&A forums with threaded posts, group modes, subscriptions,
@@ -50,38 +51,16 @@ export async function isModerator(ctx: ModuleCtx, a: { id: string }): Promise<bo
   return ctx.perm.can('mod.forum:moderate', a.id);
 }
 
-/** The forum's groups: those of its grouping when it has one, else all of the course. */
-export function forumGroupsWhere(a: { courseId: string; groupingId: string | null }) {
-  return {
-    courseId: a.courseId,
-    ...(a.groupingId ? { groupings: { some: { groupingId: a.groupingId } } } : {}),
-  };
-}
-
-/** Groups of the user among the forum's groups. */
-export async function userGroupIds(
-  db: Db,
-  a: { courseId: string; groupingId: string | null },
-  userId: string,
-): Promise<string[]> {
-  const rows = await db.groupMember.findMany({
-    where: { userId, group: forumGroupsWhere(a) },
-    select: { groupId: true },
-  });
-  return rows.map((r) => r.groupId);
-}
-
 /**
  * Discussions the user may see: separate groups limit non-moderators to their groups
  * (plus "all participants" discussions). `null` means no restriction.
  */
-export async function visibleGroupFilter(
+async function forumGroupFilter(
   ctx: ModuleCtx,
   a: Forum,
   userId: string,
 ): Promise<string[] | null> {
-  if (a.groupMode !== 'SEPARATE' || (await isModerator(ctx, a))) return null;
-  return userGroupIds(ctx.db, a, userId);
+  return visibleGroupFilter(ctx.db, a, userId, await isModerator(ctx, a));
 }
 
 export async function canSeeDiscussion(
@@ -90,7 +69,7 @@ export async function canSeeDiscussion(
   d: { groupId: string | null },
   userId: string,
 ): Promise<boolean> {
-  const groups = await visibleGroupFilter(ctx, a, userId);
+  const groups = await forumGroupFilter(ctx, a, userId);
   return groups === null || d.groupId === null || groups.includes(d.groupId);
 }
 
@@ -134,7 +113,7 @@ export async function readDiscussions(
   const canStart =
     (await ctx.perm.can('mod.forum:startdiscussion', a.id)) &&
     (a.settings.type === 'general' || moderator);
-  const groupFilter = await visibleGroupFilter(ctx, a, me);
+  const groupFilter = await forumGroupFilter(ctx, a, me);
   const where = {
     activityId: a.id,
     ...(groupFilter ? { OR: [{ groupId: null }, { groupId: { in: groupFilter } }] } : {}),
@@ -172,9 +151,7 @@ export async function readDiscussions(
     a.groupMode === 'NONE'
       ? []
       : await ctx.db.group.findMany({
-          where: moderator
-            ? forumGroupsWhere(a)
-            : { id: { in: await userGroupIds(ctx.db, a, me) } },
+          where: moderator ? groupsWhere(a) : { id: { in: await userGroupIds(ctx.db, a, me) } },
           select: { id: true, name: true },
           orderBy: { name: 'asc' },
         });
@@ -598,7 +575,7 @@ export const forum = defineModule<ForumSettingsT>({
         }
         if (groupId) {
           const g = await ctx.db.group.findFirst({
-            where: { id: groupId, ...forumGroupsWhere(a) },
+            where: { id: groupId, ...groupsWhere(a) },
           });
           if (!g) throw new Error('Unknown group');
         }

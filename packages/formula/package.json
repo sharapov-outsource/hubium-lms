@@ -1,0 +1,21 @@
+{
+  "name": "@hubium/formula",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "author": "Alexander S. <alexander@sharapov.biz>",
+  "description": "Safe arithmetic formulas: calculated questions and gradebook calculations, without eval.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@hubium/tooling": "workspace:*",
+    "typescript": "~7.0.2",
+    "vitest": "5.0.4"
+  }
+}
