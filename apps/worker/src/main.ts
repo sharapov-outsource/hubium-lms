@@ -4,6 +4,7 @@ import { ensureSystemContext, startCacheListener, syncCapabilities } from '@hubi
 import { getBoss, stopBoss } from '@hubium/core/jobs/jobs';
 import { getDb } from '@hubium/db';
 import { log } from '@hubium/log';
+import { shutdownTelemetry, startTelemetry } from '@hubium/telemetry';
 import type { JobHandlerDef } from './handlers.ts';
 import { allHandlers } from './registry.ts';
 
@@ -11,6 +12,8 @@ import { allHandlers } from './registry.ts';
 // WORKER_QUEUES (default | media) and exposes /healthz for compose.
 
 const roles = (process.env.WORKER_QUEUES ?? 'default').split(',').map((s) => s.trim());
+// before the first query; jobs run in pg-boss's "process" spans (see getBoss)
+startTelemetry({ service: process.env.HUBIUM_SERVICE ?? 'worker', fetch: true });
 const db = getDb();
 const logger = log('worker');
 const jobs = log('jobs');
@@ -85,6 +88,7 @@ async function shutdown(signal: string) {
   healthy = false;
   await stopBoss();
   await db.$disconnect();
+  await shutdownTelemetry();
   process.exit(0);
 }
 process.on('SIGTERM', () => void shutdown('SIGTERM'));

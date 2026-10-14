@@ -32,6 +32,9 @@ packageExtensions:
 # Transitive security fixes (mysql2 comes with better-auth's optional adapters; unused here)
 overrides:
   mysql2: ">=3.23.1"
+  # one OpenTelemetry API for Next.js, pg-boss and @hubium/telemetry: spans and the active
+  # context are shared through it
+  "@opentelemetry/api": "1.9.1"
 
 # pnpm skips releases younger than a day (minimumReleaseAge). These exact versions were
 # taken on purpose while still that fresh; entries can go once they are older than a day.

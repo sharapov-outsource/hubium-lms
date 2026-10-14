@@ -58,6 +58,11 @@ x-app-env: &app-env
   CLAMAV_TIMEOUT_MS: ${CLAMAV_TIMEOUT_MS:-20000}
   # JSON log lines on stdout (docker compose logs); see docs/operations.md
   LOG_LEVEL: ${LOG_LEVEL:-info}
+  # Traces over OTLP/HTTP to your collector (Jaeger, Tempo…); off while the endpoint is empty
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+  OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+  OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG:-}
+  OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES:-}
 x-after-migrate: &after-migrate
   migrate: { condition: service_completed_successfully }
   clamav: { condition: service_healthy, required: false }

@@ -53,8 +53,10 @@ import {
 import type { Db, Grade } from '@hubium/db';
 import { fromAcceptLanguage, isLocale } from '@hubium/i18n';
 import { log } from '@hubium/log';
+import { trace } from '@opentelemetry/api';
 import type { Context, MiddlewareHandler } from 'hono';
 import { HTTPException } from 'hono/http-exception';
+import { routePath } from 'hono/route';
 import { documentModuleActions, documentModuleQueries } from './actions-doc.ts';
 import { DOCS_CSP, docsPage, scalarBundle } from './docs.ts';
 import { rateLimit } from './rate-limit.ts';
@@ -496,10 +498,12 @@ export function createApi(opts: ApiOptions) {
     );
   });
 
-  // Access log: one record per request, with the token's user once authenticated.
+  // Access log: one record per request, with the token's user once authenticated. The
+  // request's span (Next.js only knows the catch-all route) gets the API route matched.
   app.use('*', async (c, next) => {
     const started = performance.now();
     await next();
+    trace.getActiveSpan()?.setAttribute('http.route', routePath(c, -1));
     const ctx = c.get('ctx') as RequestContext | undefined;
     logger.info(
       {

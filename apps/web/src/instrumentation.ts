@@ -5,6 +5,9 @@ import type { Instrumentation } from 'next';
 
 export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;
+  // Next.js traces requests, rendering and fetch itself once a provider is registered
+  const { startTelemetry } = await import('@hubium/telemetry');
+  startTelemetry({ service: process.env.HUBIUM_SERVICE ?? 'web' });
   const { log } = await import('@hubium/log');
   log('next').info(
     { version: process.env.HUBIUM_VERSION, commit: process.env.HUBIUM_COMMIT || undefined },

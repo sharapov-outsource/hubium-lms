@@ -18,6 +18,7 @@
     "@hubium/db": "workspace:*",
     "@hubium/i18n": "workspace:*",
     "@hubium/log": "workspace:*",
+    "@opentelemetry/api": "1.9.1",
     "@scalar/api-reference": "1.74.0",
     "hono": "4.13.13",
     "zod": "4.6.7"

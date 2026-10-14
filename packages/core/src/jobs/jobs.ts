@@ -46,6 +46,8 @@ export function getBoss(
       supervise: worker,
       schedule: worker,
       migrate: true,
+      // a job continues the trace that queued it (W3C trace context only; see @hubium/telemetry)
+      openTelemetry: { propagateContext: true },
     });
     boss.on('error', (e) => logger.error({ err: e }, 'pg-boss error'));
     await boss.start();

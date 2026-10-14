@@ -899,7 +899,7 @@ interface EmbeddingProvider { model: string; dims: number; embed(texts: string[]
 - **Performance and operations:**
   - k6 scenarios (1,000 concurrent quiz attempts; dashboard at 500 rps);
   - query review (`pg_stat_statements`);
-  - pino structured logs, optional OpenTelemetry, `/api/health` and `/metrics`;
+  - pino structured logs, optional OpenTelemetry tracing (`@hubium/telemetry`: OTLP/HTTP export when `OTEL_EXPORTER_OTLP_ENDPOINT` is set, Prisma and pg-boss spans, W3C trace context carried into jobs, `trace_id` in log records), `/api/health` and `/metrics`;
   - backup/restore runbook (`pg_dump` plus bucket sync), upgrade guide, admin environment checks (content origin configured, SMTP, cron heartbeat, storage).
 
 **Acceptance**

@@ -1,3 +1,4 @@
+import { isSpanContextValid, trace } from '@opentelemetry/api';
 import { type DestinationStream, type Logger, pino } from 'pino';
 
 // One logger for every process. Production writes one JSON object per line to stdout
@@ -8,6 +9,8 @@ import { type DestinationStream, type Logger, pino } from 'pino';
 //   HUBIUM_SERVICE  service name on every line: web (default), worker, worker-media, cli
 //
 // Records carry `component` and fields, never secrets: common secret fields are redacted.
+// Inside a traced request or job (see @hubium/telemetry) they also carry trace_id, span_id
+// and trace_flags, so a log line leads to its trace and back.
 
 export type { Logger };
 
@@ -29,7 +32,29 @@ const COLORS: Record<string, string> = {
 };
 
 /** Fields every record has; the rest are printed as key=value after the message. */
-const FRAME = new Set(['level', 'time', 'service', 'component', 'msg', 'pid', 'hostname']);
+const FRAME = new Set([
+  'level',
+  'time',
+  'service',
+  'component',
+  'msg',
+  'pid',
+  'hostname',
+  'trace_id',
+  'span_id',
+  'trace_flags',
+]);
+
+/** The active span's ids, as the OpenTelemetry log data model names them. */
+function traceFields(): Record<string, string> {
+  const s = trace.getActiveSpan()?.spanContext();
+  if (!s || !isSpanContextValid(s)) return {};
+  return {
+    trace_id: s.traceId,
+    span_id: s.spanId,
+    trace_flags: s.traceFlags.toString(16).padStart(2, '0'),
+  };
+}
 
 /** "12:04:05.123 INFO  worker [webhooks] delivery failed status=503 url=…" */
 export function formatPretty(line: string, color = false): string {
@@ -99,6 +124,7 @@ export function createLogger(destination?: DestinationStream): Logger {
       formatters: { level: (label) => ({ level: label }) },
       serializers: { err: pino.stdSerializers.err },
       redact: { paths: REDACTED_PATHS, censor: '[redacted]' },
+      mixin: traceFields,
     },
     destination ?? (format === 'pretty' ? prettyDestination() : undefined),
   );

@@ -18,7 +18,8 @@
     "@hubium/i18n": "workspace:*",
     "@hubium/interchange": "workspace:*",
     "@hubium/log": "workspace:*",
-    "@hubium/modules": "workspace:*"
+    "@hubium/modules": "workspace:*",
+    "@hubium/telemetry": "workspace:*"
   },
   "devDependencies": {
     "@hubium/tooling": "workspace:*",

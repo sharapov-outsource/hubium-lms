@@ -167,6 +167,7 @@ Caddy использует эти адреса как имена сайтов и
 | `SSRF_ALLOW_HOSTS` | внутренние хосты, к которым серверу разрешено обращаться (локальный Ollama, внутренний LTI-инструмент) |
 | `API_RATE_LIMIT_PER_MIN` | лимит REST API на токен в минуту (120) |
 | `METRICS_TOKEN` | включает `/api/metrics` для Prometheus |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`, `OTEL_TRACES_SAMPLER_ARG`, `OTEL_RESOURCE_ATTRIBUTES` | трассировка OpenTelemetry, см. «Трассировка» |
 | `CLAMAV_URL`, `CLAMAV_MAX_SCAN_MB`, `CLAMAV_TIMEOUT_MS` | проверка загрузок на вирусы: адрес clamd (`tcp://host:3310` или `unix:///путь/к/сокету`), предельный размер проверяемого файла (100 МБ) и время проверки (20 с) |
 | `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_PROFILE` | первый администратор и демо-данные |
 | `HUBIUM_VERSION`, `HUBIUM_IMAGE`, `COMPOSE_PROFILES`, `HUBIUM_WEB_BIND` | только Docker: релиз, образ, профили, адрес web-сервера без Caddy |
@@ -297,6 +298,34 @@ sudo -u hubium env OLD_APP_SECRET='<текущий>' APP_SECRET='<новый>' h
 - Caddy пишет журнал доступа в JSON. Токены в URL (ссылки на контент, отписка, календарь, `?token=` из писем) заменены на `[redacted]`, заголовок Referer не пишется, cookies и `Authorization` скрыты.
 - Пароли, секреты, токены и ключи API в записи не попадают: эти поля вырезаются.
 - `LOG_LEVEL` в `.env` или `/etc/hubium/hubium.env`: `debug`, `info` (по умолчанию), `warn`, `error`. При разработке (`NODE_ENV` не `production`) строки выводятся в читаемом виде; `LOG_FORMAT=json` или `pretty` выбирает формат явно.
+
+## Трассировка
+
+Hubium отправляет трассы OpenTelemetry по OTLP/HTTP (protobuf) в ваш коллектор: Jaeger, Grafana Tempo, OpenTelemetry Collector или облачный сервис с приёмом OTLP. Трассировка включается переменной `OTEL_EXPORTER_OTLP_ENDPOINT`, без неё ничего не запускается.
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318   # базовый адрес; трассы уходят на /v1/traces
+OTEL_EXPORTER_OTLP_HEADERS=authorization=Bearer%20…      # для сервиса с авторизацией
+OTEL_TRACES_SAMPLER_ARG=0.1                              # доля новых трасс, 0…1 (по умолчанию 1)
+OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=production
+```
+
+Что попадает в трассы:
+
+- `service.name` — `web`, `worker`, `worker-media`, `migrate` или `cli`, а также `service.namespace=hubium` и `service.version`. Переопределить имя можно через `OTEL_SERVICE_NAME`.
+- **Web.** Next.js сам строит спаны запросов, отрисовки и `fetch`. Для REST API в спане обработчика указан маршрут, например `http.route=/api/v1/courses/:id`.
+- **Запросы к базе.** Спаны Prisma: операция, компиляция и сам SQL-запрос (`db_query`).
+- **Фоновые задачи.** Задача продолжает трассу запроса, который её поставил: pg-boss хранит в задаче контекст W3C (`traceparent`). Воркер выполняет задачу в спане `process <очередь>`, исходящие HTTP-запросы (вебхуки, AI, LTI) — в спанах undici.
+- **Логи.** У строк журнала внутри трассы есть поля `trace_id`, `span_id` и `trace_flags`, так что из записи можно перейти к трассе и обратно. В читаемом формате для разработки эти поля не печатаются.
+- **Семплирование.** Решение вызывающей стороны соблюдается: если входящий запрос с `traceparent` записывается, его трасса продолжается. Новые трассы сохраняются с долей `OTEL_TRACES_SAMPLER_ARG`. Переменная `OTEL_TRACES_SAMPLER` задаёт другой семплер по спецификации.
+
+Свой Jaeger на той же машине (порт 4318 — приём OTLP, 16686 — интерфейс):
+
+```bash
+docker run -d --name jaeger -p 127.0.0.1:4318:4318 -p 127.0.0.1:16686:16686 jaegertracing/jaeger:2.22.0
+```
+
+В Docker укажите `OTEL_EXPORTER_OTLP_ENDPOINT=http://<адрес хоста>:4318` в `.env` и выполните `docker compose up -d`. В системной установке задайте `http://127.0.0.1:4318` в `/etc/hubium/hubium.env` и выполните `systemctl restart 'hubium-*'`.
 
 ## Масштабирование
 

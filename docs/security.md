@@ -19,6 +19,7 @@ This page lists the protections built into Hubium and what an operator should ch
 | AI | provider chosen by the administrator, per-feature switches and quotas, consent before first use, pseudonymised grading input, course text and submissions framed as data, suggestions never saved automatically |
 | Privacy | data export for every user, erasure of personal content on deletion, versioned policies with recorded acceptance; learners see on their privacy page who follows their learning |
 | Mentors and parents | off by default; linked only by administrators; see a learner's courses, progress, grades and deadlines exactly as the learner would, never their messages; cannot act for the learner; lose access when the learner is suspended or the feature is turned off |
+| Tracing | off unless an OTLP endpoint is set; only W3C trace context is accepted and propagated (no baggage, so nothing a client sends travels into jobs); spans carry routes, queue names and Prisma operations, not request bodies or query parameters |
 | Audit | event log of sign-ins, role changes, deletions, token creation, policy publishing, data exports and mentor links |
 
 ## Operator checklist

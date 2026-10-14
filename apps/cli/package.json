@@ -15,7 +15,8 @@
   "dependencies": {
     "@hubium/core": "workspace:*",
     "@hubium/db": "workspace:*",
-    "@hubium/modules": "workspace:*"
+    "@hubium/modules": "workspace:*",
+    "@hubium/telemetry": "workspace:*"
   },
   "devDependencies": {
     "@hubium/tooling": "workspace:*",
