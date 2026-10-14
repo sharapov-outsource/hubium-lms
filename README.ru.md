@@ -34,10 +34,10 @@ Hubium LMS умеет то, ради чего школы, вузы и компа
   - Перед проверкой обезличивает работы студентов.
 - **Стандарты и переезд:** SCORM 1.2/2004, LTI 1.3 Advantage, импорт `.mbz` из Moodle 4.1–5.x, вопросы в GIFT и Moodle XML.
 - **Готово к эксплуатации:**
-  - Docker-стек с HTTPS (Caddy) и S3-хранилищем;
+  - один скрипт ставит релиз в Docker или в систему с systemd, с HTTPS (Caddy);
   - отдельные воркеры для задач и для видео;
   - JSON-логи, проверки здоровья и метрики Prometheus;
-  - CI на каждом коммите проверяет продакшен-образы сквозными сценариями.
+  - CI на каждом коммите ставит оба вида релиза так же, как пользователи, и проверяет их сквозными сценариями.
 
 ## Возможности
 
@@ -127,6 +127,7 @@ Hubium LMS умеет то, ради чего школы, вузы и компа
 - Пользователи: создание и правка, свои поля профиля, блокировка, вход от имени пользователя (с возвратом), загрузка из CSV, выгрузка персональных данных, удаление с обезличиванием.
 - Редактор ролей с матрицей прав, переопределения прав в категории, курсе и элементе, проверка прав.
 - Категории и курсы с корзиной, глобальные группы, инструменты LTI, вебхуки, AI-провайдер, политики с обязательным принятием, объявления сайта.
+- Модули элементов курса включаются и выключаются для всего сайта; выключенный модуль сохраняет элементы и оценки до повторного включения.
 - Настройки:
   - общие;
   - оформление: фирменный цвет с автоматической поправкой контраста и логотип;
@@ -162,37 +163,121 @@ Hubium LMS умеет то, ради чего школы, вузы и компа
 
 ## Установка
 
+Каждый релиз публикуется в трёх видах:
+
+- Docker-образы `ghcr.io/sharapov-outsource/hubium-lms` и `hubium-lms-media` для amd64 и arm64;
+- архив `hubium-<версия>-linux-x64.tar.gz` или `-linux-arm64.tar.gz` — вся система вместе с Node.js;
+- скрипт `install-hubium.sh`, который ставит любой из них.
+
 ### Что нужно
 
-- Linux-сервер с Docker Engine и плагином Compose. Перекодирование видео идёт в отдельном контейнере с лимитом 2 ядра CPU и 2 ГБ памяти (`docker/compose.yml`).
-- Три доменных имени, указывающих на сервер:
-  - приложение, например `lms.example.org`;
-  - недоверенный контент, например `content.example.org`;
-  - скачивание файлов, например `files.example.org`.
+- **Сервер.** Linux на x86_64 или arm64: от 2 ядер, 4 ГБ памяти и 10 ГБ диска. Перекодирование видео на время работы берёт ещё до 2 ядер и 2 ГБ.
+- **Для установки в Docker** — любой дистрибутив с Docker Engine 24+ и Compose 2.20+. На Debian и Ubuntu установщик может поставить Docker сам.
+- **Для установки в систему** — Debian 12/13 или Ubuntu 22.04/24.04/26.04 с systemd. На других дистрибутивах — с `--skip-packages`, если сами поставите:
+  - PostgreSQL 16+ с pgvector;
+  - Caddy или другой обратный прокси;
+  - ffmpeg для видео.
+- **Доменные имена**, указывающие на сервер:
+  - сайт, например `lms.example.org`;
+  - недоверенный SCORM-контент, например `content.example.org`;
+  - скачивание файлов, например `files.example.org` — только если Docker поднимает своё S3-хранилище.
+- **Порты 80 и 443** свободны, если сертификаты получает Caddy.
 
-### Docker Compose
+### Быстрый старт
 
 ```bash
-git clone https://github.com/sharapov-outsource/hubium.git && cd hubium
-cp .env.production.example .env
-# заполните в .env: APP_URL, CONTENT_HOST, S3_PUBLIC_URL, APP_SECRET, S3_SECRET_KEY,
-# POSTGRES_PASSWORD, SMTP_URL, MAIL_FROM и SEED_ADMIN_*
-BUILD_COMMIT=$(git rev-parse HEAD) docker compose -f docker/compose.yml --env-file .env up -d --build
+curl -fsSLO https://github.com/sharapov-outsource/hubium/releases/latest/download/install-hubium.sh
+sudo bash install-hubium.sh
 ```
 
-Поднимаются:
+Скрипт проверяет сервер, затем задаёт вопросы:
 
-- PostgreSQL с pgvector;
-- RustFS (S3);
-- миграции;
-- `web`, `worker` и `worker-media`;
-- Caddy, который сам получает HTTPS-сертификаты для всех трёх доменов.
+1. Установка в Docker или в систему.
+2. Адрес сайта и хост для контента.
+3. HTTPS: Caddy с автоматическими сертификатами или свой прокси.
+4. Какие модули элементов курса ставить: задания, тесты, форумы, видео, вебинары, SCORM, LTI. Страницы, ссылки и файлы есть всегда.
+5. База данных: поставить PostgreSQL на сервер или подключить существующий.
+   - Существующий PostgreSQL скрипт сначала проверяет.
+   - Если не хватает прав или расширений, он печатает SQL для администратора БД.
+6. Где хранить файлы: на сервере или в S3.
+7. Почта (SMTP).
+8. Первый администратор и нужны ли демо-курсы.
 
-Без своих адресов стек работает на `https://lms.localhost`. Это удобно, чтобы попробовать систему на одной машине. С `SEED_PROFILE=demo` загрузятся учебные курсы и пользователи.
+После сводки и подтверждения скрипт:
+
+- генерирует секреты;
+- скачивает релиз и сверяет контрольную сумму;
+- при необходимости ставит PostgreSQL, Caddy и ffmpeg;
+- создаёт базу;
+- запускает сервисы и ждёт, пока они ответят.
+
+В конце печатает адрес и пароль администратора.
+
+Невыбранный модуль выключен, но не удалён. Его можно включить позже в **Администрирование → Модули** или командой `hubium modules enable <имя>`.
+
+### Установка без вопросов
+
+У каждого вопроса есть параметр (`bash install-hubium.sh --help`), а `--yes` берёт значения по умолчанию для остального:
+
+```bash
+sudo bash install-hubium.sh --yes --mode native --domain lms.example.org \
+  --modules assign,quiz,forum --smtp-url smtp://user:pass@smtp.example.org:587 \
+  --mail-from "LMS <no-reply@example.org>" --admin-email admin@example.org
+```
+
+`--dry-run` показывает шаги и ничего не меняет.
+
+### Что где лежит
+
+| | Docker | В системе |
+|---|---|---|
+| Программы | образы, `/opt/hubium/compose.yml` | `/opt/hubium/releases/<версия>`, `/opt/hubium/current`, `/usr/local/bin/hubium` |
+| Настройки | `/opt/hubium/.env` | `/etc/hubium/hubium.env` |
+| Данные | тома Docker `db`, `data` (и `s3`) | PostgreSQL, `/var/lib/hubium` |
+| Сервисы | `docker compose --project-directory /opt/hubium ps` | `systemctl status hubium-web hubium-worker` |
+| Логи | `docker compose --project-directory /opt/hubium logs -f` | `journalctl -u 'hubium-*' -f` |
+
+Команда `hubium` проверяет и обслуживает установку. В Docker её запускают через `docker compose --project-directory /opt/hubium exec web hubium …`.
+
+| Команда | Что делает |
+|---|---|
+| `hubium doctor` | проверяет настройки, базу, воркер, хранилище, почту и ffmpeg |
+| `hubium modules list\|enable\|disable` | показывает модули, включает и выключает их |
+| `hubium migrate --seed minimal` | применяет миграции; Docker делает это при каждом запуске |
+| `hubium secrets rotate` | перешифровывает сохранённые секреты после смены `APP_SECRET` |
+| `hubium version` | показывает версию и коммит |
+
+### Обновление
+
+```bash
+sudo bash install-hubium.sh upgrade                    # до релиза, с которым пришёл скрипт
+sudo bash install-hubium.sh upgrade --version 1.2.0
+```
+
+Обновление по шагам:
+
+1. Резервная копия базы в `/var/backups/hubium`.
+2. Загрузка нового релиза.
+3. Миграции.
+4. Перезапуск сервисов.
+
+При установке в систему предыдущие релизы остаются рядом.
+
+### Без скрипта
+
+- **Docker.** Возьмите из релиза `compose.yml`, `Caddyfile` и `env.production.example`. Последний сохраните как `.env` рядом с `compose.yml` и заполните.
+  - Необязательные сервисы — профили compose: `db`, `s3`, `caddy`, `media`, `mailpit`.
+  - Запуск: `docker compose pull && docker compose up -d --wait`.
+- **Архив.** Распакуйте и следуйте `README.txt` внутри:
+  1. Заполните `/etc/hubium/hubium.env` по `deploy/hubium.env.example`.
+  2. Выполните `hubium doctor db` и `hubium migrate --seed minimal`.
+  3. Установите юниты systemd из `deploy/systemd`.
+  4. Настройте обратный прокси.
+- **Из исходников.** В клоне репозитория: `docker compose -f docker/compose.yml --env-file .env up -d --build` — образы собираются, а не скачиваются.
 
 ### После установки
 
-1. Войдите администратором из `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` и смените пароль.
+1. Войдите администратором и смените пароль.
 2. Откройте **Администрирование → Окружение**: все проверки должны быть зелёными.
 3. Задайте название сайта, оформление, регистрацию и почту. Если нужен AI, подключите провайдера.
 
@@ -237,6 +322,7 @@ pnpm dev                                          # http://localhost:3000
 |---|---|
 | `apps/web` | Next.js 16: интерфейс, server actions, REST API, SSE, файловые роуты |
 | `apps/worker` | задачи pg-boss: почта, уведомления, перекодирование видео, импорт, индексация для AI, расписание |
+| `apps/cli` | команда `hubium`: миграции, проверки, модули, обслуживание |
 | `packages/core` | бизнес-логика, права и операции; без Next.js и React |
 | `packages/db` | схема Prisma, миграции и клиент |
 | `packages/module-sdk` | контракт, который реализуют модули элементов курса |
@@ -244,13 +330,15 @@ pnpm dev                                          # http://localhost:3000
 | `packages/ai`, `packages/questions`, `packages/interchange` | провайдеры LLM и извлечение текста; типы и форматы вопросов; резервные копии и импорт из Moodle |
 | `packages/api`, `packages/i18n`, `packages/log` | REST API, переводы, структурные логи |
 | `modules/*` | модули элементов курса: content, assign, quiz, forum, video, livesession, scorm, lti |
-| `docker/` | Dockerfile, Compose для продакшена и разработки, Caddyfile |
+| `docker/`, `deploy/` | Dockerfile, Compose-файлы и Caddyfile; лаунчер и юниты systemd архива |
+| `install-hubium.sh` | установщик, который публикуется с каждым релизом |
 
 Стек: Node.js 24, Next.js 16, React 19, PostgreSQL 18 с pgvector, Prisma 7, Better Auth, pg-boss (без Redis), Tailwind CSS 4 и Biome.
 
 ## Документация
 
 - [docs/operations.md](docs/operations.md) — установка, настройка, резервное копирование, обновление, мониторинг.
+- [docs/releasing.md](docs/releasing.md) — как собираются и публикуются релизы (на английском).
 - [docs/api.md](docs/api.md) — REST API, токены и вебхуки (на английском).
 - [docs/i18n.md](docs/i18n.md) — языки, языковые пакеты, fallback и как добавить язык (на английском).
 - [docs/modules.md](docs/modules.md) — как написать свой модуль (на английском).

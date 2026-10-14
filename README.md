@@ -21,7 +21,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
   - Off until an administrator picks a provider.
   - Asks people for consent, enforces quotas, and pseudonymises student work before grading.
 - **Standards and migration.** SCORM 1.2/2004, LTI 1.3 Advantage, `.mbz` import from Moodle 4.1–5.x, and GIFT and Moodle XML questions.
-- **Ready to run.** A Docker stack with HTTPS (Caddy), S3 storage, separate workers for jobs and video, JSON logs, health checks and Prometheus metrics. CI tests the production images end to end on every commit.
+- **Ready to run.** One script installs a release in Docker or natively with systemd, with HTTPS (Caddy), separate workers for jobs and video, JSON logs, health checks and Prometheus metrics. CI installs both kinds of release the way users do and tests them end to end on every commit.
 
 ## Features
 
@@ -100,6 +100,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 - Users: create and edit, custom profile fields, suspend, log in as another user (and return), upload from CSV, export personal data, delete with anonymisation.
 - Roles editor with a capability matrix, permission overrides per category, course and activity, and a permission checker.
 - Categories and courses (with a recycle bin), cohorts, LTI tools, webhooks, the AI provider, site policies that people must accept, and site announcements.
+- Activity modules turned on or off for the whole site; a module that is off keeps its activities and grades until it is turned on again.
 - Settings: general, branding (accent colour with automatic contrast correction, plus a logo), registration, sign-in methods, and email with a test send.
 - An environment page that checks the database, worker, job queue, storage, SMTP, content origin, Web Push, AI and ffmpeg.
 
@@ -123,29 +124,122 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 
 ## Installation
 
+Every release is published three ways:
+
+- Docker images `ghcr.io/sharapov-outsource/hubium-lms` and `hubium-lms-media` for amd64 and arm64;
+- an archive, `hubium-<version>-linux-x64.tar.gz` or `-linux-arm64.tar.gz`, holding the whole system with Node.js inside;
+- `install-hubium.sh`, which installs either of them.
+
 ### Requirements
 
-- A Linux server with Docker Engine and the Compose plugin. Video transcoding runs in its own container, limited to 2 CPU cores and 2 GB of memory (`docker/compose.yml`).
-- Three domain names pointing at the server:
-  - the application, for example `lms.example.org`;
-  - untrusted content, for example `content.example.org`;
-  - file downloads, for example `files.example.org`.
+- A Linux server, x86_64 or arm64, with 2 CPU cores, 4 GB of memory and 10 GB of disk or more. Video transcoding takes up to 2 more cores and 2 GB while it runs.
+- **Docker installation:** any distribution with Docker Engine 24+ and Compose 2.20+. The installer can install Docker on Debian and Ubuntu.
+- **Native installation:** Debian 12/13 or Ubuntu 22.04/24.04/26.04 with systemd. Other distributions work with `--skip-packages` if you install the dependencies yourself:
+  - PostgreSQL 16+ with pgvector;
+  - Caddy or another reverse proxy;
+  - ffmpeg for video.
+- **Domain names** pointing at the server:
+  - the site, for example `lms.example.org`;
+  - untrusted SCORM content, for example `content.example.org`;
+  - file downloads, for example `files.example.org`. Needed only when Docker runs its own S3 storage.
+- Ports 80 and 443 free, when Caddy should get HTTPS certificates.
 
-### Docker Compose
+### Quick start
 
 ```bash
-git clone https://github.com/sharapov-outsource/hubium.git && cd hubium
-cp .env.production.example .env
-# set APP_URL, CONTENT_HOST, S3_PUBLIC_URL, APP_SECRET, S3_SECRET_KEY,
-# POSTGRES_PASSWORD, SMTP_URL, MAIL_FROM and SEED_ADMIN_* in .env
-BUILD_COMMIT=$(git rev-parse HEAD) docker compose -f docker/compose.yml --env-file .env up -d --build
+curl -fsSLO https://github.com/sharapov-outsource/hubium/releases/latest/download/install-hubium.sh
+sudo bash install-hubium.sh
 ```
 
-This starts PostgreSQL with pgvector, RustFS (S3), migrations, `web`, `worker`, `worker-media` and Caddy, which gets HTTPS certificates for all three domains. Without your own addresses the stack runs on `https://lms.localhost`, which is handy for a trial on one machine. Add `SEED_PROFILE=demo` to load sample courses and users.
+The script checks the server and then asks:
+
+1. Docker or native installation.
+2. The site address and the content host.
+3. HTTPS: Caddy with automatic certificates, or your own proxy.
+4. Which activity modules to install. Assignments, quizzes, forums, video, live sessions, SCORM and LTI can each be left out; content pages, links and files are always there.
+5. The database: installed on the server, or an existing PostgreSQL. An existing one is checked first, and the script prints the SQL a DBA needs to run if rights or extensions are missing.
+6. Where files are kept: on the server, or in S3.
+7. Mail (SMTP).
+8. The first administrator, and whether to add demo courses.
+
+After a summary and a confirmation, it does the rest:
+
+- generates the secrets;
+- downloads the release and verifies its checksum;
+- installs PostgreSQL, Caddy and ffmpeg where needed;
+- creates the database;
+- starts the services and waits until they answer.
+
+At the end it prints the address and the administrator's password.
+
+A module left out is turned off, not missing. It can be turned on later in **Administration → Modules** or with `hubium modules enable <name>`.
+
+### Unattended installation
+
+Every question has an option (`bash install-hubium.sh --help`), and `--yes` takes defaults for the rest:
+
+```bash
+sudo bash install-hubium.sh --yes --mode native --domain lms.example.org \
+  --modules assign,quiz,forum --smtp-url smtp://user:pass@smtp.example.org:587 \
+  --mail-from "LMS <no-reply@example.org>" --admin-email admin@example.org
+```
+
+`--dry-run` shows the steps without changing anything.
+
+### What gets installed
+
+| | Docker | Native |
+|---|---|---|
+| Programs | images, `/opt/hubium/compose.yml` | `/opt/hubium/releases/<version>`, `/opt/hubium/current`, `/usr/local/bin/hubium` |
+| Settings | `/opt/hubium/.env` | `/etc/hubium/hubium.env` |
+| Data | Docker volumes `db`, `data` (and `s3`) | PostgreSQL, `/var/lib/hubium` |
+| Services | `docker compose --project-directory /opt/hubium ps` | `systemctl status hubium-web hubium-worker` |
+| Logs | `docker compose --project-directory /opt/hubium logs -f` | `journalctl -u 'hubium-*' -f` |
+
+The `hubium` command checks and maintains an installation. In Docker, run it as `docker compose --project-directory /opt/hubium exec web hubium …`.
+
+| Command | What it does |
+|---|---|
+| `hubium doctor` | checks the configuration, the database, the worker, storage, mail and ffmpeg |
+| `hubium modules list\|enable\|disable` | shows activity modules, or turns them on or off |
+| `hubium migrate --seed minimal` | applies migrations; Docker runs it on every start |
+| `hubium secrets rotate` | re-encrypts stored secrets after `APP_SECRET` changes |
+| `hubium version` | prints the version and the commit |
+
+### Upgrading
+
+```bash
+sudo bash install-hubium.sh upgrade                    # to the script's release
+sudo bash install-hubium.sh upgrade --version 1.2.0
+```
+
+The upgrade does the following:
+
+1. Backs up the database to `/var/backups/hubium`.
+2. Fetches the new release.
+3. Applies its migrations.
+4. Restarts the services.
+
+A native installation keeps the previous releases next to the new one.
+
+### Without the script
+
+- **Docker:** take `compose.yml`, `Caddyfile` and `env.production.example` from a release. Save the last one as `.env` next to `compose.yml` and fill it in. Optional services are compose profiles: `db`, `s3`, `caddy`, `media` and `mailpit`. Then run:
+
+  ```bash
+  docker compose pull && docker compose up -d --wait
+  ```
+
+- **Archive:** unpack it and follow its `README.txt`. In short:
+  1. Fill in `/etc/hubium/hubium.env` from `deploy/hubium.env.example`.
+  2. Run `hubium doctor db`, then `hubium migrate --seed minimal`.
+  3. Install the systemd units from `deploy/systemd`.
+  4. Put a reverse proxy in front.
+- **From source:** run `docker compose -f docker/compose.yml --env-file .env up -d --build` in a checkout. It builds the images instead of pulling them.
 
 ### After installation
 
-1. Sign in as the administrator from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` and change the password.
+1. Sign in as the administrator and change the password.
 2. Open **Administration → Environment**: every check should be green.
 3. Set the site name, branding, registration and mail settings, and connect an AI provider if you want one.
 
@@ -185,6 +279,7 @@ pnpm dev                                          # http://localhost:3000
 |---|---|
 | `apps/web` | Next.js 16: interface, server actions, REST API, SSE, file routes |
 | `apps/worker` | pg-boss jobs: email, notifications, video transcoding, imports, AI indexing, schedules |
+| `apps/cli` | the `hubium` command: migrations, checks, modules, maintenance |
 | `packages/core` | business logic, permissions and operations; no Next.js or React |
 | `packages/db` | Prisma schema, migrations and client |
 | `packages/module-sdk` | the contract activity modules implement |
@@ -192,13 +287,15 @@ pnpm dev                                          # http://localhost:3000
 | `packages/ai`, `packages/questions`, `packages/interchange` | LLM providers and text extraction, question types and formats, backup and Moodle import |
 | `packages/api`, `packages/i18n`, `packages/log` | REST API, translations, structured logs |
 | `modules/*` | activity modules: content, assign, quiz, forum, video, livesession, scorm, lti |
-| `docker/` | Dockerfile, production and development Compose files, Caddyfile |
+| `docker/`, `deploy/` | Dockerfile, Compose files and Caddyfile; the launcher and systemd units of the archive |
+| `install-hubium.sh` | the installer published with every release |
 
 The stack is Node.js 24, Next.js 16, React 19, PostgreSQL 18 with pgvector, Prisma 7, Better Auth, pg-boss (no Redis), Tailwind CSS 4 and Biome.
 
 ## Documentation
 
 - [docs/operations.md](docs/operations.md): installation, configuration, backups, updates, monitoring (in Russian).
+- [docs/releasing.md](docs/releasing.md): how releases are built and published.
 - [docs/i18n.md](docs/i18n.md): languages, language packs, fallback and how to add a language.
 - [docs/api.md](docs/api.md): REST API, tokens and webhooks.
 - [docs/modules.md](docs/modules.md): writing an activity module.

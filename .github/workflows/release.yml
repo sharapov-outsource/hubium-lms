@@ -1,0 +1,275 @@
+name: Release
+
+# A tag vX.Y.Z (or vX.Y.Z-rc.N) whose version equals package.json's builds and publishes:
+# - images ghcr.io/sharapov-outsource/hubium-lms and hubium-lms-media for amd64 and arm64;
+# - the archives hubium-X.Y.Z-linux-{x64,arm64}.tar.gz with Node.js inside;
+# - a GitHub release with install-hubium.sh, compose.yml, Caddyfile and SHA256SUMS.
+# Nothing is published until the checks and installations of these very builds pass.
+# How to cut a release: docs/releasing.md.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/sharapov-outsource/hubium-lms
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "${GITHUB_REF_NAME#v}" != "$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the version in package.json ($version)"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          case $version in
+            *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+  # Lint, unit tests, e2e, and installations from source in Docker and natively.
+  ci:
+    needs: verify
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: verify
+    strategy:
+      matrix:
+        include:
+          - { arch: amd64, archive: x64, runner: ubuntu-24.04 }
+          - { arch: arm64, archive: arm64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Images are pushed by digest only; publish tags them once everything passed.
+      - name: hubium-lms
+        id: main
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: hubium
+          platforms: linux/${{ matrix.arch }}
+          build-args: BUILD_COMMIT=${{ github.sha }}
+          labels: org.opencontainers.image.version=${{ needs.verify.outputs.version }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=release-${{ matrix.arch }}
+          cache-to: type=gha,scope=release-${{ matrix.arch }},mode=max
+      - name: hubium-lms-media
+        id: media
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: hubium-media
+          platforms: linux/${{ matrix.arch }}
+          build-args: BUILD_COMMIT=${{ github.sha }}
+          labels: org.opencontainers.image.version=${{ needs.verify.outputs.version }}
+          outputs: type=image,name=${{ env.IMAGE }}-media,push-by-digest=true,name-canonical=true,push=true
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=release-${{ matrix.arch }}
+      - name: Release archive
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: bundle
+          platforms: linux/${{ matrix.arch }}
+          build-args: BUILD_COMMIT=${{ github.sha }}
+          outputs: type=local,dest=release
+          cache-from: type=gha,scope=release-${{ matrix.arch }}
+      - name: Digests
+        run: |
+          mkdir -p digests
+          echo "${{ steps.main.outputs.digest }}" > "digests/main-${{ matrix.arch }}"
+          echo "${{ steps.media.outputs.digest }}" > "digests/media-${{ matrix.arch }}"
+          ls -la release digests
+      - uses: actions/upload-artifact@v7
+        with:
+          name: build-${{ matrix.arch }}
+          path: |
+            release/hubium-*.tar.gz
+            digests/
+          if-no-files-found: error
+
+  # Installs exactly these images and archives on fresh runners, as a user would.
+  test-install:
+    needs: [verify, build]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-24.04, mode: docker }
+          - { arch: amd64, runner: ubuntu-24.04, mode: native }
+          - { arch: arm64, runner: ubuntu-24.04-arm, mode: docker }
+          - { arch: arm64, runner: ubuntu-24.04-arm, mode: native }
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: read
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: build-${{ matrix.arch }}
+          path: build
+      - uses: docker/login-action@v4
+        if: matrix.mode == 'docker'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Images under their release tags
+        if: matrix.mode == 'docker'
+        run: |
+          for image in main media; do
+            name=$IMAGE; [ "$image" = media ] && name=$IMAGE-media
+            digest=$(cat "build/digests/$image-${{ matrix.arch }}")
+            docker pull "$name@$digest"
+            docker tag "$name@$digest" "$name:$VERSION"
+          done
+      - name: Install
+        run: |
+          mkdir -p release
+          cp build/release/*.tar.gz docker/compose.yml docker/Caddyfile release/
+          (cd release && sha256sum -- * > SHA256SUMS)
+          sudo bash install-hubium.sh --yes --mode ${{ matrix.mode }} --from-dir release \
+            --version "$VERSION" --no-pull --domain lms.localhost --content-domain content.localhost \
+            --https caddy --db bundled --storage fs --modules all --demo yes \
+            --admin-email admin@hubium.local --admin-password 'Admin12345!'
+      - name: Smoke test
+        run: |
+          site() { curl -fsSk --resolve lms.localhost:443:127.0.0.1 "https://lms.localhost$1"; }
+          site /api/health | jq -e '.status == "ok"'
+          site /login | grep -q 'Hubium'
+          curl -fsSk --resolve lms.localhost:443:127.0.0.1 -H 'Content-Type: application/json' \
+            -H 'Origin: https://lms.localhost' \
+            -d '{"email":"admin@hubium.local","password":"Admin12345!"}' \
+            https://lms.localhost/api/auth/sign-in/email | jq -e '.user.email == "admin@hubium.local"'
+          if [ "${{ matrix.mode }}" = docker ]; then
+            sudo docker compose --project-directory /opt/hubium exec -T web hubium version
+            (sudo docker compose --project-directory /opt/hubium exec -T web hubium doctor --json || true) | jq -e '.state == "hubium"'
+          else
+            hubium version
+            (cd / && sudo -u hubium hubium doctor --json || true) | jq -e '.state == "hubium"'
+          fi
+      - name: Upgrade in place
+        run: sudo bash install-hubium.sh upgrade --yes --from-dir release --version "$VERSION" --no-pull --backup yes
+      - name: Logs
+        if: failure()
+        run: |
+          sudo cp /var/log/hubium-install.log . && sudo chmod a+r hubium-install.log || true
+          { sudo docker compose --project-directory /opt/hubium logs --no-color 2>&1 ||
+            sudo journalctl -u 'hubium-*' -u caddy --no-pager; } | tee services.log > /dev/null || true
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: install-${{ matrix.arch }}-${{ matrix.mode }}
+          path: |
+            hubium-install.log
+            services.log
+
+  publish:
+    needs: [verify, ci, build, test-install]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: build-*
+          path: build
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # 1.2.3, 1.2, 1 and latest; a pre-release gets its exact version only
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+      - name: Multi-architecture images
+        run: |
+          tags=$(jq -r '.tags[] | sub("^.*:"; "")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          for image in main media; do
+            name=$IMAGE; [ "$image" = media ] && name=$IMAGE-media
+            args=()
+            for tag in $tags; do args+=(-t "$name:$tag"); done
+            sources=()
+            for digest in build/digests/"$image"-*; do sources+=("$name@$(cat "$digest")"); done
+            docker buildx imagetools create "${args[@]}" "${sources[@]}"
+            docker buildx imagetools inspect "$name:$VERSION"
+          done
+      - name: Release files
+        run: |
+          mkdir -p assets
+          cp build/release/hubium-*.tar.gz assets/
+          sed "s/__HUBIUM_VERSION__/$VERSION/" install-hubium.sh > assets/install-hubium.sh
+          cp docker/compose.yml docker/Caddyfile assets/
+          cp .env.production.example assets/env.production.example
+          (cd assets && sha256sum -- * > SHA256SUMS && cat SHA256SUMS)
+      # artifact attestations need a public repository (or GitHub Enterprise Cloud)
+      - uses: actions/attest-build-provenance@v4
+        if: ${{ !github.event.repository.private }}
+        with:
+          subject-path: assets/hubium-*.tar.gz
+      - uses: softprops/action-gh-release@v3
+        with:
+          name: Hubium LMS ${{ env.VERSION }}
+          prerelease: ${{ needs.verify.outputs.prerelease == 'true' }}
+          generate_release_notes: true
+          body: |
+            Install on a Linux server (Docker, or natively on Debian/Ubuntu):
+
+            ```bash
+            curl -fsSLO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/install-hubium.sh
+            sudo bash install-hubium.sh
+            ```
+
+            Images: `${{ env.IMAGE }}:${{ env.VERSION }}` and `${{ env.IMAGE }}-media:${{ env.VERSION }}` (amd64, arm64).
+            Verify downloads with `sha256sum -c SHA256SUMS`, the archives also with `gh attestation verify <file> --repo ${{ github.repository }}`.
+          files: assets/*
+          fail_on_unmatched_files: true

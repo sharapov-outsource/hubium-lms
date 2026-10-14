@@ -24,7 +24,9 @@ This page lists the protections built into Hubium and what an operator should ch
 
 - [ ] `APP_SECRET` is random (`openssl rand -base64 32`) and not shared with other systems.
 - [ ] `CONTENT_HOST` is a different domain from `APP_URL` (Admin → Environment shows an error otherwise).
-- [ ] The site is served over HTTPS only (Caddy in `docker/compose.yml` does this).
+- [ ] The site is served over HTTPS only (the Caddy that `install-hubium.sh` sets up does this).
+- [ ] Releases are verified before installing (`install-hubium.sh` checks `SHA256SUMS`; see [releasing.md](releasing.md)), and `hubium doctor` reports no errors.
+- [ ] Activity modules nobody uses are turned off (Admin → Modules); turning LTI off also removes LTI tool origins from the CSP.
 - [ ] Two-factor authentication is required for administrators (Admin → Settings).
 - [ ] Backups of the database and file storage run daily and a restore was tested.
 - [ ] Only the hosts that really are internal services are listed in `SSRF_ALLOW_HOSTS`.
