@@ -289,7 +289,7 @@ Better Auth is the right choice. Auth.js has effectively folded into it, and Luc
 | ai:quizgen / ai:gradingassist | A | | A | A (gradingassist) | | | | |
 | message:send, calendar:manageown, ai:tutor | | | | | | | | A |
 
-- **observer** is a course-level read-only "inspector" role (methodist, HR). **Parents** use `UserRelation(mentor→mentee)` instead. `canViewUserData(actor, target, aspect)` allows: self, a capability in the course, or being the target's mentor (when the site enables it).
+- **observer** is a course-level read-only "inspector" role (methodist, HR). **Parents** use `UserRelation(mentor→mentee)` instead. `canViewUserData(actor, target, aspect, courseId?)` allows: self, a site administrator, `grade:viewall` in the course (grades), `user:update` (the overview, not grades), or being the target's mentor while `mentors.enabled` is on and the target is active. A mentor sees what the learner would see: module hooks run with a read-only context carrying the learner's permissions, so hidden grade items stay hidden.
 - **guest** is implicit for anonymous visitors and for logged-in non-enrolled users on courses with guest access enabled.
 - **coursecreator**: the course's creator automatically gets `editingteacher` in the new course (a site setting).
 

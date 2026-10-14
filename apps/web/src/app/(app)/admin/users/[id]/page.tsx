@@ -1,4 +1,4 @@
-import { enabledLanguages, roleName } from '@hubium/core';
+import { enabledLanguages, getAllSettings, roleName, userRelations } from '@hubium/core';
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import {
   Alert,
@@ -10,6 +10,7 @@ import {
   CardTitle,
   PageHeader,
 } from '@hubium/ui';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { updateUserAction } from '@/server/actions/admin';
@@ -18,6 +19,7 @@ import { viewerCan } from '@/server/page-title';
 import { profileFieldViews } from '@/server/profile-fields';
 import { requireCapability } from '@/server/session';
 import { UserForm } from '../user-form';
+import { UserRelations } from './relations';
 import { DangerZone, SiteRoleToggles } from './user-actions';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -48,6 +50,7 @@ export default async function EditUserPage({
     where: { userId: id, contextId: SYSTEM_CONTEXT_ID },
   });
   const canAssign = await ctx.perm.can('role:assign');
+  const [relations, settings] = await Promise.all([userRelations(ctx, id), getAllSettings(db)]);
   return (
     <>
       <PageHeader
@@ -111,6 +114,32 @@ export default async function EditUserPage({
               </CardContent>
             </Card>
           ) : null}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('user.relations.title')}</CardTitle>
+              <CardDescription>
+                {settings['mentors.enabled'] ? (
+                  t('user.relations.hint')
+                ) : (
+                  <>
+                    {t('user.relations.off')}{' '}
+                    <Link href="/admin/settings/general" className="text-accent hover:underline">
+                      {t('siteSettings')}
+                    </Link>
+                  </>
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              <UserRelations userId={user.id} {...relations} />
+              <Link
+                href="/admin/users/upload-relations"
+                className="text-sm text-accent hover:underline"
+              >
+                {t('user.relations.upload')}
+              </Link>
+            </CardContent>
+          </Card>
           {user.id !== ctx.perm.userId ? (
             <DangerZone
               userId={user.id}

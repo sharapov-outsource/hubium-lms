@@ -25,6 +25,7 @@ import {
   listConversations,
   listGroupings,
   listGroups,
+  listMentees,
   listMessages,
   listMyCourses,
   listNotifications,
@@ -34,6 +35,7 @@ import {
   listWebhookDeliveries,
   listWebhooks,
   markNotificationsRead,
+  menteeOverview,
   pingWebhook,
   type RequestContext,
   redeliverWebhook,
@@ -141,6 +143,42 @@ const User = z
     customFields: CustomFields,
   })
   .openapi('User');
+
+const Mentee = z
+  .object({
+    id: Id,
+    name: z.string(),
+    kind: z.enum(['PARENT', 'MENTOR']),
+    lastAccessAt: z.string().nullable().openapi({ description: 'Last visit to the site' }),
+  })
+  .openapi('Mentee');
+
+const UserOverview = z
+  .object({
+    user: z.object({ id: Id, name: z.string(), lastAccessAt: z.string().nullable() }),
+    courses: z.array(
+      z.object({
+        id: Id,
+        fullName: z.string(),
+        progress: z.number().nullable().openapi({ description: 'Completion, %' }),
+        lastAccessAt: z.string().nullable(),
+        grade: z
+          .object({ value: z.number(), max: z.number() })
+          .nullable()
+          .openapi({ description: 'Course total, when the learner may see it' }),
+      }),
+    ),
+    todo: z.array(
+      z.object({
+        activityId: Id,
+        courseId: Id,
+        title: z.string(),
+        kind: z.enum(['submit', 'attempt']),
+        dueAt: z.string().nullable(),
+      }),
+    ),
+  })
+  .openapi('UserOverview');
 
 const Category = z
   .object({
@@ -542,6 +580,27 @@ export function createApi(opts: ApiOptions) {
     },
   );
 
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/me/mentees',
+      tags: ['Users'],
+      summary: 'Learners the user follows as a parent or mentor',
+      description:
+        'Empty while mentors are turned off (Administration → Settings → General). Use ' +
+        '`/users/{id}/overview` and `/courses/{id}/grades?userId=` for what each one studies.',
+      security,
+      responses: { 200: ok(z.object({ items: z.array(Mentee) })), 401: errors[401] },
+    }),
+    async (c) => {
+      const items = await listMentees(ctxOf(c));
+      return c.json(
+        { items: items.map((m) => ({ ...m, lastAccessAt: iso(m.lastAccessAt) })) },
+        200,
+      );
+    },
+  );
+
   // ── /users ──
   app.openapi(
     createRoute({
@@ -612,6 +671,37 @@ export function createApi(opts: ApiOptions) {
       responses: { 201: ok(z.object({ id: Id }), 'Created'), ...writeErrors },
     }),
     async (c) => c.json(await createUser.run(ctxOf(c), c.req.valid('json')), 201),
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/users/{id}/overview',
+      tags: ['Users'],
+      summary: "A learner's courses, progress, course totals and deadlines",
+      description:
+        'For the user themselves, their mentors and parents, user managers and administrators.',
+      security,
+      request: { params: IdParam },
+      responses: { 200: ok(UserOverview), ...errors },
+    }),
+    async (c) => {
+      const o = await menteeOverview(ctxOf(c), c.req.valid('param').id);
+      return c.json(
+        {
+          user: { ...o.user, lastAccessAt: iso(o.user.lastAccessAt) },
+          courses: o.courses.map((x) => ({ ...x, lastAccessAt: iso(x.lastAccessAt) })),
+          todo: o.todo.map((t) => ({
+            activityId: t.activityId,
+            courseId: t.courseId,
+            title: t.title,
+            kind: t.kind as 'submit' | 'attempt',
+            dueAt: iso(t.dueAt),
+          })),
+        },
+        200,
+      );
+    },
   );
 
   // ── /categories ──

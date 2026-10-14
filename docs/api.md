@@ -54,7 +54,9 @@ Lists that can grow take `page` (from 1) and `pageSize` and answer `{ "items": [
 | Method | Path | Description |
 |---|---|---|
 | GET | `/me` | the token owner |
+| GET | `/me/mentees` | learners you follow as a parent or mentor |
 | GET, POST | `/users` | search and create users (administrators) |
+| GET | `/users/{id}/overview` | a learner's courses, progress, course totals and deadlines |
 | GET | `/categories` | course categories |
 | GET | `/catalog?q&categoryId` | search the course catalog (word forms, prefixes, typos), best match first |
 | GET, POST | `/courses` | your courses; create a course |
@@ -88,6 +90,10 @@ Webhook endpoints are for administrators (`site:config`) and need a token with t
 Users carry their custom profile fields (**Administration → Profile fields**) as `customFields`, an object keyed by each field's short name: text, a `YYYY-MM-DD` date, a menu option or `true`/`false`. `GET /me` and `GET /users` return them, and `POST /users` accepts them; values are validated by field type.
 
 `POST /users` needs a username, an email or both: pupils without an email sign in with their username, and the API shows their `email` as `null`. It also takes `locale`, `timezone` and `mustChangePassword`.
+
+### Mentors and parents
+
+When **Administration → Settings → General → Mentors and parents** is on, `GET /me/mentees` lists the learners linked to the token owner (`kind` is `PARENT` or `MENTOR`, `lastAccessAt` the learner's last visit). For each of them `GET /users/{id}/overview` returns the courses they study with progress and the course total (when the learner may see it), and their upcoming submissions and quizzes; `GET /courses/{id}/grades?userId=` returns their grades as the learner sees them. With the setting off, the list is empty and the other two answer 403.
 
 ### Courses
 

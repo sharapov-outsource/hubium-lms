@@ -88,6 +88,8 @@
     "main": "Navigation principale",
     "dashboard": "Accueil",
     "myCourses": "Mes cours",
+    "mentees": "Mes suivis",
+    "menteesShort": "Suivis",
     "catalog": "Catalogue",
     "calendar": "Calendrier",
     "messages": "Messages",
@@ -247,7 +249,25 @@
       "uploadHint": "CSV en UTF-8, séparé par « , » ou « ; ». Colonnes obligatoires : firstname, lastname, password et email ou username. Facultatives : lang, mustchangepassword.",
       "uploadFile": "Fichier CSV",
       "uploadResult": "Créés : {created}. Erreurs : {errors}.",
-      "uploadLine": "Ligne {line} : {message}"
+      "uploadLine": "Ligne {line} : {message}",
+      "relations": {
+        "title": "Mentors et parents",
+        "hint": "Ils suivent les cours, la progression, les notes et les échéances de cet utilisateur, sans pouvoir agir à sa place.",
+        "off": "Désactivé dans les paramètres du site : les mentors ne voient rien pour l’instant :",
+        "mentors": "Suivi par",
+        "mentees": "Suit",
+        "none": "Aucun mentor ni parent.",
+        "add": "Ajouter un mentor ou un parent",
+        "searchPlaceholder": "Nom, e-mail ou identifiant",
+        "kind": "Type",
+        "parent": "Parent",
+        "mentor": "Mentor",
+        "remove": "Retirer {name}",
+        "upload": "Associer depuis un fichier CSV",
+        "uploadTitle": "Associer mentors et parents",
+        "uploadHint": "Colonnes : mentor et mentee (e-mail ou identifiant), kind (parent ou mentor) et action (add ou remove).",
+        "uploadResult": "Associés : {added}, dissociés : {removed}, erreurs : {errors}"
+      }
     },
     "role": {
       "new": "Nouveau rôle",
@@ -327,7 +347,9 @@
       "fromName": "Nom de l’expéditeur",
       "testEmail": "Envoyer un e-mail de test",
       "testEmailSent": "E-mail de test mis en file d’attente",
-      "creatorRole": "Rôle attribué à l’auteur d’un nouveau cours"
+      "creatorRole": "Rôle attribué à l’auteur d’un nouveau cours",
+      "mentorsEnabled": "Mentors et parents",
+      "mentorsHint": "Les administrateurs associent mentors et parents aux apprenants depuis la fiche utilisateur ou par import CSV ; ils suivent ensuite les cours, la progression, les notes et les échéances des apprenants."
     },
     "env": {
       "title": "Environnement",
@@ -1402,7 +1424,11 @@
     "export": "Télécharger mes données",
     "accepted": "Documents acceptés",
     "noneAccepted": "Vous n’avez encore accepté aucun document.",
-    "deletion": "Pour supprimer votre compte, contactez l’administrateur : vos données personnelles et vos contenus seront anonymisés ou supprimés."
+    "deletion": "Pour supprimer votre compte, contactez l’administrateur : vos données personnelles et vos contenus seront anonymisés ou supprimés.",
+    "mentorsTitle": "Qui suit votre apprentissage",
+    "mentorsHint": "Ces personnes voient vos cours, votre progression, vos notes et vos échéances. Elles ne voient pas vos messages et ne peuvent pas agir à votre place.",
+    "mentorParent": "parent",
+    "mentorMentor": "mentor"
   },
   "adminPolicies": {
     "title": "Politiques",
@@ -1503,5 +1529,24 @@
     "required": "Toujours activé",
     "keepsData": "Désactiver un type ne supprime rien. Ses activités restent dans les cours et le carnet de notes : les participants ne les voient plus, les enseignants les voient grisées, et tout revient lorsque le type est réactivé.",
     "trackedWarning": "Des activités de types désactivés comptent pour l’achèvement du cours ({modules}). Les participants ne pourront pas les achever tant que ces types ne seront pas réactivés ou que ces activités resteront requises."
+  },
+  "mentees": {
+    "title": "Mes suivis",
+    "description": "Les apprenants que vous suivez en tant que parent ou mentor.",
+    "empty": "Personne à suivre pour l’instant.",
+    "parent": "Parent",
+    "mentor": "Mentor",
+    "lastVisit": "Dernière visite {time}",
+    "neverVisited": "Ne s’est pas encore connecté",
+    "courses": "Cours",
+    "course": "Cours",
+    "progress": "Progression",
+    "total": "Total du cours",
+    "lastCourseVisit": "Dernière visite",
+    "noCourses": "Inscrit à aucun cours.",
+    "deadlines": "À venir",
+    "toSubmit": "À remettre",
+    "toAttempt": "À passer",
+    "noDeadlines": "Rien à rendre."
   }
 }

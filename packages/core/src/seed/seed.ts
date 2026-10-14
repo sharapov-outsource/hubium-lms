@@ -59,6 +59,13 @@ export const demoUsers = [
     lastName: 'Менеджерова',
     role: 'manager',
   },
+  {
+    username: 'parent',
+    email: 'parent@hubium.local',
+    firstName: 'Ольга',
+    lastName: 'Петрова',
+    role: 'parent',
+  },
 ] as const;
 
 /** Idempotent: safe to run on every deploy. */
@@ -103,6 +110,12 @@ export async function seed(db: Db, opts: SeedOptions) {
     const assignment = { userId: users.manager!, roleId: manager.id, contextId: SYSTEM_CONTEXT_ID };
     if (!(await db.roleAssignment.findFirst({ where: assignment })))
       await db.roleAssignment.create({ data: assignment });
+    // student1's mother; she sees his progress once mentors are turned on in the settings
+    await db.userRelation.upsert({
+      where: { mentorId_menteeId: { mentorId: users.parent!, menteeId: users.student1! } },
+      create: { mentorId: users.parent!, menteeId: users.student1!, kind: 'PARENT' },
+      update: {},
+    });
   }
   let demoCourses = false;
   if (opts.profile === 'demo' && opts.courses !== false) {

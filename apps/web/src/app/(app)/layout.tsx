@@ -1,4 +1,4 @@
-import { getSetting, pendingPolicies } from '@hubium/core';
+import { getSetting, hasMentees, pendingPolicies } from '@hubium/core';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
@@ -40,6 +40,15 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       liveBadge: 'messages',
     },
   ];
+  // parents and mentors follow their mentees' learning (when the site has it turned on)
+  if (await hasMentees(db, user.id))
+    items.splice(2, 0, {
+      href: '/mentees',
+      label: 'nav.mentees',
+      mobileLabel: 'nav.menteesShort',
+      icon: 'mentees',
+      mobile: true,
+    });
   if (
     user.isSiteAdmin ||
     (await ctx.perm.canAny([

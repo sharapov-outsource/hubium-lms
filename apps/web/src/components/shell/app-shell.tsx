@@ -117,7 +117,7 @@ export async function AppShell({
                   key={it.href}
                   href={it.href}
                   icon={navIcon(it.icon)}
-                  label={t(it.label)}
+                  label={t(it.mobileLabel ?? it.label)}
                   exact={it.exact}
                   variant="bottom"
                   badge={it.badge}

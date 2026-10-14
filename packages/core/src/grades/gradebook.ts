@@ -10,6 +10,7 @@ import { optionalText } from '../lib/zod.ts';
 import { provideModuleServices, toActivityRef } from '../modules/module-ctx.ts';
 import { getModule } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
+import { isMentorOf, learnerPermissions } from '../users/mentors.ts';
 import { parseCsv } from '../users/users.ts';
 import { emitWebhook } from '../webhooks/events.ts';
 import { type Aggregation, aggregate } from './aggregate.ts';
@@ -732,27 +733,31 @@ export async function graderReport(
   return { categories, items, users, cell };
 }
 
-/** A learner's own grades; hidden items are left out for learners. */
+/**
+ * A learner's grades: for the learner, for those with `grade:viewall` in the course, and for
+ * the learner's mentors (see users/mentors.ts) when the learner may see their grades. The
+ * learner and mentors don't get hidden items.
+ */
 export async function userReport(ctx: RequestContext, courseId: string, userId: string) {
   const self = ctx.perm.userId === userId;
-  if (!self) await ctx.perm.require('grade:viewall', courseId);
-  else if (
-    !(await ctx.perm.can('grade:view', courseId)) &&
-    !(await ctx.perm.can('grade:viewall', courseId))
-  ) {
+  const viewAll = await ctx.perm.can('grade:viewall', courseId);
+  if (!self && !viewAll) {
+    const mentor = !!ctx.perm.userId && (await isMentorOf(ctx.db, ctx.perm.userId, userId));
+    if (!mentor || !(await (await learnerPermissions(ctx.db, userId)).can('grade:view', courseId)))
+      throw new ForbiddenError();
+  } else if (self && !viewAll && !(await ctx.perm.can('grade:view', courseId))) {
     throw new ForbiddenError();
   }
   const { categories, items } = await gradebookStructure(ctx.db, courseId);
   const now = new Date();
-  const visible =
-    self && !(await ctx.perm.can('grade:viewall', courseId))
-      ? items.filter(
-          (i) =>
-            !i.hidden &&
-            (!i.hiddenUntil || i.hiddenUntil <= now) &&
-            i.activity?.visibility !== 'HIDDEN',
-        )
-      : items;
+  const visible = !viewAll
+    ? items.filter(
+        (i) =>
+          !i.hidden &&
+          (!i.hiddenUntil || i.hiddenUntil <= now) &&
+          i.activity?.visibility !== 'HIDDEN',
+      )
+    : items;
   const grades = await ctx.db.grade.findMany({
     where: { userId, gradeItemId: { in: visible.map((i) => i.id) } },
   });

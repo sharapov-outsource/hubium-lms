@@ -1,4 +1,4 @@
-import { pickLocalized } from '@hubium/core';
+import { listMentorsOf, pickLocalized } from '@hubium/core';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@hubium/ui';
 import { Download } from 'lucide-react';
 import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
@@ -15,11 +15,14 @@ export default async function PrivacySettingsPage() {
     getFormatter(),
     getLocale(),
   ]);
-  const accepted = await db.policyAcceptance.findMany({
-    where: { userId: user.id },
-    orderBy: { acceptedAt: 'desc' },
-    include: { version: { include: { policy: true } } },
-  });
+  const [accepted, mentors] = await Promise.all([
+    db.policyAcceptance.findMany({
+      where: { userId: user.id },
+      orderBy: { acceptedAt: 'desc' },
+      include: { version: { include: { policy: true } } },
+    }),
+    listMentorsOf(db, user.id),
+  ]);
   return (
     <div className="grid gap-6">
       <Card>
@@ -36,6 +39,23 @@ export default async function PrivacySettingsPage() {
           </Button>
         </CardContent>
       </Card>
+      {mentors.length ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('mentorsTitle')}</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            <p className="text-sm text-muted-foreground">{t('mentorsHint')}</p>
+            <ul className="grid gap-1 text-sm">
+              {mentors.map((m) => (
+                <li key={m.id}>
+                  {m.name} ({t(m.kind === 'PARENT' ? 'mentorParent' : 'mentorMentor')})
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle>{t('accepted')}</CardTitle>

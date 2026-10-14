@@ -192,6 +192,7 @@ export async function saveSettingsAction(fd: FormData) {
           'site.name': v.siteName,
           'site.defaultTimezone': v.defaultTimezone,
           'course.creatorRole': v.creatorRole,
+          'mentors.enabled': bool(fd.get('mentorsEnabled')),
         });
         break;
       case 'registration':

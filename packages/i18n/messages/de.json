@@ -88,6 +88,8 @@
     "main": "Hauptnavigation",
     "dashboard": "Startseite",
     "myCourses": "Meine Kurse",
+    "mentees": "Meine Betreuten",
+    "menteesShort": "Betreute",
     "catalog": "Katalog",
     "calendar": "Kalender",
     "messages": "Nachrichten",
@@ -247,7 +249,25 @@
       "uploadHint": "CSV in UTF-8, getrennt durch „,“ oder „;“. Pflichtspalten: firstname, lastname, password sowie email oder username. Optional: lang, mustchangepassword.",
       "uploadFile": "CSV-Datei",
       "uploadResult": "Angelegt: {created}. Fehler: {errors}.",
-      "uploadLine": "Zeile {line}: {message}"
+      "uploadLine": "Zeile {line}: {message}",
+      "relations": {
+        "title": "Mentor/innen und Eltern",
+        "hint": "Sie verfolgen Kurse, Fortschritt, Bewertungen und Fristen dieser Person, können aber nicht für sie handeln.",
+        "off": "In den Website-Einstellungen deaktiviert, daher sehen Mentor/innen vorerst nichts:",
+        "mentors": "Betreut von",
+        "mentees": "Betreut",
+        "none": "Keine Mentor/innen oder Eltern.",
+        "add": "Mentor/in oder Elternteil hinzufügen",
+        "searchPlaceholder": "Name, E-Mail oder Anmeldename",
+        "kind": "Art",
+        "parent": "Elternteil",
+        "mentor": "Mentor/in",
+        "remove": "{name} entfernen",
+        "upload": "Aus einer CSV-Datei verknüpfen",
+        "uploadTitle": "Mentor/innen und Eltern verknüpfen",
+        "uploadHint": "Spalten: mentor und mentee (E-Mail oder Anmeldename), kind (parent oder mentor) und action (add oder remove).",
+        "uploadResult": "Verknüpft: {added}, entfernt: {removed}, Fehler: {errors}"
+      }
     },
     "role": {
       "new": "Neue Rolle",
@@ -327,7 +347,9 @@
       "fromName": "Absendername",
       "testEmail": "Test-E-Mail senden",
       "testEmailSent": "Test-E-Mail in die Warteschlange gestellt",
-      "creatorRole": "Rolle für Ersteller/innen neuer Kurse"
+      "creatorRole": "Rolle für Ersteller/innen neuer Kurse",
+      "mentorsEnabled": "Mentor/innen und Eltern",
+      "mentorsHint": "Administrator/innen verknüpfen Mentor/innen und Eltern mit Lernenden auf der Nutzerkarte oder per CSV-Upload; diese verfolgen dann Kurse, Fortschritt, Bewertungen und Fristen der Lernenden."
     },
     "env": {
       "title": "Umgebung",
@@ -1402,7 +1424,11 @@
     "export": "Meine Daten herunterladen",
     "accepted": "Akzeptierte Dokumente",
     "noneAccepted": "Sie haben noch keine Dokumente akzeptiert.",
-    "deletion": "Um Ihr Konto zu löschen, wenden Sie sich an die Administration: Ihre personenbezogenen Daten und Inhalte werden anonymisiert oder entfernt."
+    "deletion": "Um Ihr Konto zu löschen, wenden Sie sich an die Administration: Ihre personenbezogenen Daten und Inhalte werden anonymisiert oder entfernt.",
+    "mentorsTitle": "Wer Ihr Lernen begleitet",
+    "mentorsHint": "Diese Personen sehen Ihre Kurse, Ihren Fortschritt, Ihre Bewertungen und Fristen. Ihre Mitteilungen sehen sie nicht, und sie können nicht für Sie handeln.",
+    "mentorParent": "Elternteil",
+    "mentorMentor": "Mentor/in"
   },
   "adminPolicies": {
     "title": "Richtlinien",
@@ -1503,5 +1529,24 @@
     "required": "Immer aktiv",
     "keepsData": "Das Deaktivieren löscht nichts. Die Aktivitäten bleiben in den Kursen und in der Bewertungsübersicht: Teilnehmer/innen sehen sie nicht mehr, Trainer/innen sehen sie ausgegraut, und alles ist wieder da, sobald der Typ aktiviert wird.",
     "trackedWarning": "Aktivitäten deaktivierter Typen zählen zum Kursabschluss ({modules}). Teilnehmer/innen können sie erst abschließen, wenn die Typen wieder aktiviert werden oder die Aktivitäten nicht mehr erforderlich sind."
+  },
+  "mentees": {
+    "title": "Meine Betreuten",
+    "description": "Die Lernenden, die Sie als Elternteil oder Mentor/in begleiten.",
+    "empty": "Noch niemand zu begleiten.",
+    "parent": "Elternteil",
+    "mentor": "Mentor/in",
+    "lastVisit": "Zuletzt da {time}",
+    "neverVisited": "Noch nicht angemeldet",
+    "courses": "Kurse",
+    "course": "Kurs",
+    "progress": "Fortschritt",
+    "total": "Kursgesamtwert",
+    "lastCourseVisit": "Letzter Besuch",
+    "noCourses": "In keinem Kurs eingeschrieben.",
+    "deadlines": "Demnächst",
+    "toSubmit": "Abzugeben",
+    "toAttempt": "Zu absolvieren",
+    "noDeadlines": "Nichts fällig."
   }
 }

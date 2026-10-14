@@ -89,6 +89,8 @@
     "main": "Main navigation",
     "dashboard": "Home",
     "myCourses": "My courses",
+    "mentees": "My mentees",
+    "menteesShort": "Mentees",
     "catalog": "Catalog",
     "calendar": "Calendar",
     "messages": "Messages",
@@ -248,7 +250,25 @@
       "uploadHint": "UTF-8 CSV, separated by “,” or “;”. Required columns: firstname, lastname, password and email or username. Optional: lang, mustchangepassword.",
       "uploadFile": "CSV file",
       "uploadResult": "Created: {created}. Errors: {errors}.",
-      "uploadLine": "Line {line}: {message}"
+      "uploadLine": "Line {line}: {message}",
+      "relations": {
+        "title": "Mentors and parents",
+        "hint": "They follow this user’s courses, progress, grades and deadlines; they cannot act for the user.",
+        "off": "Turned off in the site settings, so mentors see nothing for now:",
+        "mentors": "Followed by",
+        "mentees": "Follows",
+        "none": "No mentors or parents.",
+        "add": "Add a mentor or parent",
+        "searchPlaceholder": "Name, email or username",
+        "kind": "Kind",
+        "parent": "Parent",
+        "mentor": "Mentor",
+        "remove": "Remove {name}",
+        "upload": "Link mentors from a CSV file",
+        "uploadTitle": "Link mentors and parents",
+        "uploadHint": "Columns: mentor and mentee (email or username), kind (parent or mentor) and action (add or remove).",
+        "uploadResult": "Linked: {added}, unlinked: {removed}, errors: {errors}"
+      }
     },
     "role": {
       "new": "New role",
@@ -328,7 +348,9 @@
       "fromName": "Sender name",
       "testEmail": "Send a test email",
       "testEmailSent": "Test email queued",
-      "creatorRole": "Role given to a new course's author"
+      "creatorRole": "Role given to a new course's author",
+      "mentorsEnabled": "Mentors and parents",
+      "mentorsHint": "Administrators link mentors and parents to learners on the user card or by CSV upload; they then follow the learners’ courses, progress, grades and deadlines."
     },
     "env": {
       "title": "Environment",
@@ -1403,7 +1425,11 @@
     "export": "Download my data",
     "accepted": "Accepted documents",
     "noneAccepted": "You have not accepted any documents yet.",
-    "deletion": "To delete your account, contact the administrator: your personal data and content will be anonymised or removed."
+    "deletion": "To delete your account, contact the administrator: your personal data and content will be anonymised or removed.",
+    "mentorsTitle": "Who follows your learning",
+    "mentorsHint": "These people see your courses, progress, grades and deadlines. They cannot see your messages or act for you.",
+    "mentorParent": "parent",
+    "mentorMentor": "mentor"
   },
   "adminPolicies": {
     "title": "Policies",
@@ -1504,5 +1530,24 @@
     "required": "Always on",
     "keepsData": "Turning a type off deletes nothing. Its activities stay in courses and the gradebook: learners stop seeing them, teachers see them greyed out, and everything returns when the type is turned on again.",
     "trackedWarning": "Activities of turned-off types count towards course completion ({modules}). Learners cannot complete them until the types are turned on again or the activities stop being required."
+  },
+  "mentees": {
+    "title": "My mentees",
+    "description": "The learners you follow as a parent or mentor.",
+    "empty": "Nobody to follow yet.",
+    "parent": "Parent",
+    "mentor": "Mentor",
+    "lastVisit": "Last visit {time}",
+    "neverVisited": "Has not signed in yet",
+    "courses": "Courses",
+    "course": "Course",
+    "progress": "Progress",
+    "total": "Course total",
+    "lastCourseVisit": "Last visit",
+    "noCourses": "Not enrolled in any course.",
+    "deadlines": "Coming up",
+    "toSubmit": "To hand in",
+    "toAttempt": "To take",
+    "noDeadlines": "Nothing due."
   }
 }

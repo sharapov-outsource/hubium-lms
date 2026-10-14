@@ -56,6 +56,7 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
     log,
     suggestions,
     devices,
+    relations,
   ] = await Promise.all([
     db.enrolment.findMany({
       where: { userId },
@@ -140,6 +141,17 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
       where: { userId },
       select: { userAgent: true, createdAt: true, lastUsedAt: true },
     }),
+    // mentors and parents who follow the user, and the users they follow
+    db.userRelation.findMany({
+      where: { OR: [{ mentorId: userId }, { menteeId: userId }] },
+      select: {
+        kind: true,
+        createdAt: true,
+        mentorId: true,
+        mentor: { select: { name: true } },
+        mentee: { select: { name: true } },
+      },
+    }),
   ]);
   const modules: Record<string, unknown> = {};
   const mctx = buildModuleCtx(ctx);
@@ -176,6 +188,12 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
       pushDevices: devices,
       policies,
       apiTokens: tokens,
+      mentors: relations
+        .filter((r) => r.mentorId !== userId)
+        .map((r) => ({ name: r.mentor.name, kind: r.kind, since: r.createdAt })),
+      mentees: relations
+        .filter((r) => r.mentorId === userId)
+        .map((r) => ({ name: r.mentee.name, kind: r.kind, since: r.createdAt })),
       activityLog: log,
       modules,
     }),
@@ -206,6 +224,8 @@ export async function erasePersonalData(
     data: { body: '', deletedAt: ctx.now },
   });
   await tx.userBlock.deleteMany({ where: { OR: [{ userId }, { blockedUserId: userId }] } });
+  // the account row stays (anonymised), so its relations do not go with it by cascade
+  await tx.userRelation.deleteMany({ where: { OR: [{ mentorId: userId }, { menteeId: userId }] } });
   const mctx = buildModuleCtx(ctx, tx);
   for (const m of listModules()) if (m.privacy?.erase) await m.privacy.erase(mctx, userId);
 }

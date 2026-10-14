@@ -7,6 +7,7 @@ import {
   type LucideIcon,
   MessageSquare,
   Shield,
+  Users,
 } from 'lucide-react';
 
 const icons = {
@@ -17,6 +18,7 @@ const icons = {
   messages: MessageSquare,
   notifications: Bell,
   admin: Shield,
+  mentees: Users,
 } satisfies Record<string, LucideIcon>;
 
 export type NavIconName = keyof typeof icons;
@@ -28,6 +30,8 @@ export interface NavItem {
   exact?: boolean;
   /** Also shown in the mobile bottom bar. */
   mobile?: boolean;
+  /** A shorter label for the bottom bar. */
+  mobileLabel?: string;
   badge?: number;
   /** Live unread counter shown as the badge. */
   liveBadge?: 'messages' | 'notifications';

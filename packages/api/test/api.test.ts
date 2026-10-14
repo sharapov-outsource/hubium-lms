@@ -1,4 +1,5 @@
 import {
+  addUserRelation,
   createApiToken,
   createGroup,
   createGrouping,
@@ -10,6 +11,7 @@ import {
   saveScale,
   setActivityVisibility,
   setGroupingGroups,
+  setSettings,
 } from '@hubium/core';
 import { ctxFor, useTestDb } from '@hubium/core/testing';
 import { courseFixture } from '@hubium/core/testing/course-fixture';
@@ -520,6 +522,53 @@ describe('REST API v1', () => {
     expect(own.grades).toContainEqual(expect.objectContaining({ itemId: pass.id, finalGrade: 2 }));
   });
 
+  it('lets parents follow their children while mentors are on', async () => {
+    type Overview = {
+      user: { id: string };
+      courses: { id: string; progress: number | null }[];
+      todo: { activityId: string; kind: string }[];
+    };
+    const parent = await mint(f.users.student3!, ['read']);
+    const dueAt = new Date(Date.now() + 2 * 86_400_000).toISOString();
+    const report = (await f.addActivity('assign', 'Доклад', { dueAt, onlineText: true })).id;
+    await addUserRelation.run(await ctxFor(t.db, 'admin@test.local'), {
+      mentorId: f.users.student3!,
+      menteeId: f.users.student1!,
+      kind: 'PARENT',
+    });
+    const overview = `/users/${f.users.student1}/overview`;
+    expect(await (await call(parent, '/me/mentees')).json()).toEqual({ items: [] });
+    expect((await call(parent, overview)).status).toBe(403);
+    await setSettings(t.db, { 'mentors.enabled': true });
+    try {
+      const list = (await (await call(parent, '/me/mentees')).json()) as {
+        items: { id: string; kind: string }[];
+      };
+      expect(list.items).toEqual([
+        expect.objectContaining({ id: f.users.student1, kind: 'PARENT' }),
+      ]);
+      const r = await call(parent, overview);
+      expect(r.status).toBe(200);
+      const o = (await r.json()) as Overview & { user: { lastAccessAt: string | null } };
+      expect(o.user.id).toBe(f.users.student1);
+      // student1 has used the API, which counts as a visit
+      expect(o.user.lastAccessAt).not.toBeNull();
+      expect(o.courses.map((x) => x.id)).toContain(f.courseId);
+      // the mentee's deadlines, not the parent's (student1 has already handed in the essay)
+      expect(o.todo).toEqual([
+        { activityId: report, courseId: f.courseId, title: 'Доклад', kind: 'submit', dueAt },
+      ]);
+      const grades = await call(parent, `/courses/${f.courseId}/grades?userId=${f.users.student1}`);
+      expect(grades.status).toBe(200);
+      // nobody else's: not a classmate's, and a teacher sees grades, not the overview
+      expect((await call(parent, `/users/${f.users.student2}/overview`)).status).toBe(403);
+      expect((await call(tokens.teacher!, overview)).status).toBe(403);
+      expect((await call(tokens.student!, overview)).status).toBe(200);
+    } finally {
+      await setSettings(t.db, { 'mentors.enabled': false });
+    }
+  });
+
   it('stops honouring tokens once API access is prohibited', async () => {
     const token = await mint(f.users.student2!, ['read']);
     expect((await call(token, '/me')).status).toBe(200);
@@ -625,6 +674,8 @@ describe('REST API v1', () => {
     expect(Object.keys((spec as { paths: object }).paths)).toEqual(
       expect.arrayContaining([
         '/api/v1/me',
+        '/api/v1/me/mentees',
+        '/api/v1/users/{id}/overview',
         '/api/v1/courses/{id}/contents',
         '/api/v1/activities/{id}/actions/{name}',
       ]),

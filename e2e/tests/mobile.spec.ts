@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { sql } from './db';
+import { setSetting, sql } from './db';
 import { ADMIN, DEMO_PASSWORD, login } from './helpers';
 
 // Runs in the "mobile" project (a phone viewport): pages must not scroll sideways. Tab bars
@@ -72,6 +72,7 @@ test('main pages fit a phone screen', async ({ page }) => {
     '/admin/modules',
     '/admin/settings/general',
     '/admin/environment',
+    '/admin/users/upload-relations',
   ])
     await expectNoSideScroll(page, path);
 
@@ -79,4 +80,17 @@ test('main pages fit a phone screen', async ({ page }) => {
   await login(page, 'student1', DEMO_PASSWORD);
   for (const path of ['/dashboard', course, `${course}/grades`, `/profile/${c!.student}`])
     await expectNoSideScroll(page, path);
+
+  // a parent following student1
+  await setSetting('mentors.enabled', true);
+  try {
+    await page.context().clearCookies();
+    await login(page, 'parent', DEMO_PASSWORD);
+    const mentee = `/mentees/${c!.student}`;
+    for (const path of ['/mentees', mentee, `${mentee}/courses/${c!.id}`])
+      await expectNoSideScroll(page, path);
+  } finally {
+    await sql(`DELETE FROM "SiteSetting" WHERE key = 'mentors.enabled'`);
+    await sql(`SELECT pg_notify('hubium_cache', 'settings')`);
+  }
 });

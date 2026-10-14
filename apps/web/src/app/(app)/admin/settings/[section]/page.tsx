@@ -75,6 +75,12 @@ export default async function SettingsSectionPage({
               ))}
             </Select>
           </FormField>
+          <Toggle
+            name="mentorsEnabled"
+            label={t('settings.mentorsEnabled')}
+            checked={s['mentors.enabled']}
+          />
+          <p className="-mt-2 text-xs text-muted-foreground">{t('settings.mentorsHint')}</p>
         </Form>
       );
       break;

@@ -38,6 +38,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 - Groups and groupings (an activity can be limited to one), site-wide cohorts, and a participants page with filters and bulk actions.
 - A dashboard with "continue", a to-do list and upcoming deadlines, plus a course stream like Google Classroom.
 - Course reports: participation and an event log.
+- Mentors and parents (optional): an administrator links them to learners, and they follow the learners' courses, progress, grades and deadlines without acting for them.
 
 ### Activities
 
@@ -259,7 +260,7 @@ pnpm dev                                          # http://localhost:3000
 ```
 
 - Administrator: `admin@hubium.local` / `Admin12345!`.
-- Demo users `teacher`, `assistant`, `student1`…`student3` and `manager`, password `Demo12345!`.
+- Demo users `teacher`, `assistant`, `student1`…`student3`, `manager` and `parent` (student1's parent), password `Demo12345!`.
 - Outgoing mail: http://localhost:8025 (Mailpit).
 
 | Command | What it does |

@@ -88,6 +88,8 @@
     "main": "Navigazione principale",
     "dashboard": "Home",
     "myCourses": "I miei corsi",
+    "mentees": "I miei seguiti",
+    "menteesShort": "Seguiti",
     "catalog": "Catalogo",
     "calendar": "Calendario",
     "messages": "Messaggi",
@@ -247,7 +249,25 @@
       "uploadHint": "CSV in UTF-8, separato da «,» o «;». Colonne obbligatorie: firstname, lastname, password e email o username. Facoltative: lang, mustchangepassword.",
       "uploadFile": "File CSV",
       "uploadResult": "Creati: {created}. Errori: {errors}.",
-      "uploadLine": "Riga {line}: {message}"
+      "uploadLine": "Riga {line}: {message}",
+      "relations": {
+        "title": "Mentori e genitori",
+        "hint": "Seguono corsi, avanzamento, valutazioni e scadenze di questo utente, senza poter agire al suo posto.",
+        "off": "Disattivato nelle impostazioni del sito, quindi per ora i mentori non vedono nulla:",
+        "mentors": "Seguito da",
+        "mentees": "Segue",
+        "none": "Nessun mentore o genitore.",
+        "add": "Aggiungi un mentore o un genitore",
+        "searchPlaceholder": "Nome, email o username",
+        "kind": "Tipo",
+        "parent": "Genitore",
+        "mentor": "Mentore",
+        "remove": "Rimuovi {name}",
+        "upload": "Collega da un file CSV",
+        "uploadTitle": "Collega mentori e genitori",
+        "uploadHint": "Colonne: mentor e mentee (email o username), kind (parent o mentor) e action (add o remove).",
+        "uploadResult": "Collegati: {added}, scollegati: {removed}, errori: {errors}"
+      }
     },
     "role": {
       "new": "Nuovo ruolo",
@@ -327,7 +347,9 @@
       "fromName": "Nome del mittente",
       "testEmail": "Invia un’email di prova",
       "testEmailSent": "Email di prova messa in coda",
-      "creatorRole": "Ruolo assegnato all’autore di un nuovo corso"
+      "creatorRole": "Ruolo assegnato all’autore di un nuovo corso",
+      "mentorsEnabled": "Mentori e genitori",
+      "mentorsHint": "Gli amministratori collegano mentori e genitori ai partecipanti dalla scheda utente o con un file CSV; questi seguono poi corsi, avanzamento, valutazioni e scadenze dei partecipanti."
     },
     "env": {
       "title": "Ambiente",
@@ -1402,7 +1424,11 @@
     "export": "Scarica i miei dati",
     "accepted": "Documenti accettati",
     "noneAccepted": "Nessun documento accettato finora.",
-    "deletion": "Per eliminare l’account, contattare l’amministratore: i dati personali e i contenuti verranno resi anonimi o rimossi."
+    "deletion": "Per eliminare l’account, contattare l’amministratore: i dati personali e i contenuti verranno resi anonimi o rimossi.",
+    "mentorsTitle": "Chi segue il tuo apprendimento",
+    "mentorsHint": "Queste persone vedono i tuoi corsi, l’avanzamento, le valutazioni e le scadenze. Non vedono i tuoi messaggi e non possono agire al tuo posto.",
+    "mentorParent": "genitore",
+    "mentorMentor": "mentore"
   },
   "adminPolicies": {
     "title": "Policy",
@@ -1503,5 +1529,24 @@
     "required": "Sempre attivo",
     "keepsData": "Disattivare un tipo non elimina nulla. Le sue attività restano nei corsi e nel registro valutatore: i partecipanti non le vedono più, i docenti le vedono in grigio e tutto torna quando il tipo viene riattivato.",
     "trackedWarning": "Attività di tipi disattivati contano per il completamento del corso ({modules}). I partecipanti non potranno completarle finché i tipi non saranno riattivati o le attività non smetteranno di essere richieste."
+  },
+  "mentees": {
+    "title": "I miei seguiti",
+    "description": "I partecipanti che segui come genitore o mentore.",
+    "empty": "Ancora nessuno da seguire.",
+    "parent": "Genitore",
+    "mentor": "Mentore",
+    "lastVisit": "Ultimo accesso {time}",
+    "neverVisited": "Non ha ancora effettuato l’accesso",
+    "courses": "Corsi",
+    "course": "Corso",
+    "progress": "Avanzamento",
+    "total": "Totale del corso",
+    "lastCourseVisit": "Ultimo accesso",
+    "noCourses": "Non iscritto ad alcun corso.",
+    "deadlines": "In scadenza",
+    "toSubmit": "Da consegnare",
+    "toAttempt": "Da svolgere",
+    "noDeadlines": "Nessuna scadenza."
   }
 }

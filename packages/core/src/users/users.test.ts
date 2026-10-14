@@ -95,7 +95,10 @@ describe('users service', () => {
   it('manager role (system assignment) can list users and search', async () => {
     const ctx = await ctxFor(t.db, 'manager@hubium.local');
     const res = await listUsers(ctx, { q: 'петров' });
-    expect(res.items.map((u) => u.email)).toEqual(['student1@hubium.local']);
+    expect(res.items.map((u) => u.email).sort()).toEqual([
+      'parent@hubium.local',
+      'student1@hubium.local',
+    ]);
   });
 
   it('manager cannot grant site admin', async () => {
