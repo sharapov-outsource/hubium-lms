@@ -204,6 +204,13 @@ function requireNetwork(ctx: ModuleCtx, a: ActivityRef<QuizSettingsT>) {
     );
 }
 
+/**
+ * Feedback on answers as HTML for the browser. It comes as plain text from the question
+ * editor and GIFT and as HTML from Moodle, and is shown as HTML: always sanitised here.
+ */
+const feedbackHtml = (texts: string[]) =>
+  texts.map((x) => sanitizeRichText(x)).filter((x) => x.trim());
+
 /** What a question shows during an attempt in the immediate and interactive behaviours. */
 export function liveState(
   s: QuizSettingsT,
@@ -226,8 +233,8 @@ export function liveState(
       ? {
           verdict: raw >= 0.9999 ? 'correct' : raw > 0 ? 'partial' : 'incorrect',
           mark: s.reviewMarks && o.fraction !== null ? o.fraction * Number(qa.maxMark) : null,
-          texts: s.duringFeedback ? o.feedback : [],
-          hint: s.duringFeedback ? (o.hint?.text ?? null) : null,
+          texts: s.duringFeedback ? feedbackHtml(o.feedback) : [],
+          hint: s.duringFeedback && o.hint ? sanitizeRichText(o.hint.text) : null,
           numCorrect: s.duringFeedback ? o.numCorrect : null,
           rightAnswer: s.duringRightAnswer && right ? answerText(snap, right) || null : null,
         }
@@ -992,7 +999,7 @@ export async function readReview(ctx: ModuleCtx, a: Quiz, attemptId: string) {
       correctResponse: correct,
       correctAnswerText: correct ? answerText(snap, correct) : null,
       generalFeedback: showAnswers ? (snap.generalFeedback ?? null) : null,
-      answerFeedback: showAnswers ? replay(snap, steps, behaviour).feedback : [],
+      answerFeedback: showAnswers ? feedbackHtml(replay(snap, steps, behaviour).feedback) : [],
       comment: qa.comment || null,
       history: teacher
         ? qa.steps.map((st, k) => {

@@ -228,4 +228,22 @@ describe('quiz question behaviours', () => {
       rightAnswer: null,
     });
   });
+
+  it('sends feedback to the browser sanitised, whatever was stored', async () => {
+    const { student, quizId, attemptId } = await setup('QBH4', { behaviour: 'immediate' });
+    const qa = await t.db.questionAttempt.findFirstOrThrow({ where: { attemptId, slot: 1 } });
+    const snap = qa.snapshot as { data: { answers: { feedback: string }[] } };
+    snap.data.answers[1]!.feedback =
+      'a < b <img src=x onerror="alert(1)"><script>alert(2)</script>';
+    await t.db.questionAttempt.update({ where: { id: qa.id }, data: { snapshot: snap as never } });
+    const q = await act(student, quizId, 'check', { attemptId, slot: 1, response: { text: '5' } });
+    const live = q.feedback!.texts.join('');
+    expect(live).toContain('a &lt; b');
+    expect(live).not.toMatch(/onerror|<script/);
+    await runModuleAction(student, quizId, 'finish', { attemptId });
+    const review = (await runModuleQuery(student, quizId, 'review', { attemptId })) as {
+      questions: { answerFeedback: string[] }[];
+    };
+    expect(review.questions[0]!.answerFeedback.join('')).not.toMatch(/onerror|<script/);
+  });
 });
