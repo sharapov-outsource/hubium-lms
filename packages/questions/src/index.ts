@@ -3,6 +3,23 @@ export * from './draft.ts';
 export * from './gift.ts';
 export * from './grade.ts';
 export {
+  answerFormulas,
+  calculate,
+  calculatedVariables,
+  checkCalculated,
+  checkVariants,
+  datasetFromRow,
+  datasetsFor,
+  fillVars,
+  formatAnswer,
+  formulaError,
+  generateItems,
+  variablesOf,
+  variantCount,
+  variantVars,
+  withinTolerance,
+} from './qtypes/calculated.ts';
+export {
   type ClozeBlock,
   type ClozeError,
   scanCloze,

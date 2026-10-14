@@ -15,8 +15,13 @@ import {
   behaviours,
   clearWrongParts,
   correctResponse,
+  type Dataset,
+  datasetFromRow,
+  datasetsFor,
+  fillText,
   gradedTypes,
   type Hint,
+  hashString,
   isAnswered,
   type Outcome,
   PublicFields,
@@ -235,7 +240,7 @@ export function liveState(
           verdict: raw >= 0.9999 ? 'correct' : raw > 0 ? 'partial' : 'incorrect',
           mark: s.reviewMarks && o.fraction !== null ? o.fraction * Number(qa.maxMark) : null,
           texts: s.duringFeedback ? feedbackHtml(o.feedback) : [],
-          hint: s.duringFeedback && o.hint ? sanitizeRichText(o.hint.text) : null,
+          hint: s.duringFeedback && o.hint ? sanitizeRichText(fillText(snap, o.hint.text)) : null,
           numCorrect: s.duringFeedback ? o.numCorrect : null,
           rightAnswer: s.duringRightAnswer && right ? answerText(snap, right) || null : null,
         }
@@ -436,6 +441,16 @@ export async function startAttempt(
   });
   const seed = Math.floor(Math.random() * 2 ** 31);
   const order = a.settings.shuffleQuestions ? shuffle(slots, seed) : slots;
+  // calculated questions draw from their own datasets and the ones their category shares
+  const shared = new Map<string, Dataset[]>();
+  const sharedIn = async (categoryId: string) => {
+    if (!shared.has(categoryId))
+      shared.set(
+        categoryId,
+        (await ctx.db.questionDataset.findMany({ where: { categoryId } })).map(datasetFromRow),
+      );
+    return shared.get(categoryId)!;
+  };
   const used = new Set(slots.filter((s) => s.questionId).map((s) => s.questionId!));
   const timeDue = e.timeLimitSec ? new Date(ctx.now.getTime() + e.timeLimitSec * 1000) : null;
   const dueAt =
@@ -471,7 +486,18 @@ export async function startAttempt(
       used.add(q.id);
     }
     if (!q) throw new Error('Question missing');
-    const snap = presentQuestion(snapshotOf(q), subSeed(seed, i), a.settings.shuffleAnswers);
+    let base = snapshotOf(q);
+    if (base.data && 'datasets' in base.data) {
+      const d = base.data as Parameters<typeof datasetsFor>[0];
+      base = {
+        ...base,
+        data: { ...d, datasets: datasetsFor(d, await sharedIn(q.categoryId)) } as QuestionData,
+      };
+    }
+    // synchronised questions of a category draw the same item in an attempt
+    const snap = presentQuestion(base, subSeed(seed, i), a.settings.shuffleAnswers, {
+      syncSeed: subSeed(seed, hashString(q.categoryId)),
+    });
     await ctx.db.questionAttempt.create({
       data: {
         attemptId: attempt.id,
@@ -1002,7 +1028,7 @@ export async function readReview(ctx: ModuleCtx, a: Quiz, attemptId: string) {
       correctResponse: correct,
       correctAnswerText: correct ? answerText(snap, correct) : null,
       partScores: showAnswers && showMarks ? reviewParts(snap, qa.response) : null,
-      generalFeedback: showAnswers ? (snap.generalFeedback ?? null) : null,
+      generalFeedback: showAnswers ? fillText(snap, snap.generalFeedback ?? '') || null : null,
       answerFeedback: showAnswers ? feedbackHtml(replay(snap, steps, behaviour).feedback) : [],
       comment: qa.comment || null,
       history: teacher

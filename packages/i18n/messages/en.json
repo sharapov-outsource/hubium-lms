@@ -948,7 +948,10 @@
       "ORDERING": "Ordering",
       "GAPSELECT": "Select missing words",
       "DDWTOS": "Drag and drop into text",
-      "MULTIANSWER": "Embedded answers (Cloze)"
+      "MULTIANSWER": "Embedded answers (Cloze)",
+      "CALCULATED": "Calculated",
+      "CALCULATEDSIMPLE": "Calculated simple",
+      "CALCULATEDMULTI": "Calculated multichoice"
     },
     "name": "Name",
     "text": "Question text",
@@ -1094,6 +1097,46 @@
         "noRight": "no right answer",
         "noNumber": "no right number"
       }
+    },
+    "calc": {
+      "help": "Answers are formulas of variables written in braces, as in Moodle (examples below). Each variable takes its values from a dataset: every attempt draws one variant. Write variables in the question text too; a formula after = in braces shows a worked-out value.",
+      "multiHelp": "Each choice is a text in which a formula after = in braces shows a worked-out value (examples below); variables take their values from datasets, one variant per attempt.",
+      "answerText": "Choice {n}",
+      "formula": "Answer formula {n}",
+      "tolerance": "Tolerance of answer {n}",
+      "toleranceType": "Tolerance type of answer {n}",
+      "toleranceTypes": {
+        "relative": "Relative",
+        "nominal": "Nominal",
+        "geometric": "Geometric"
+      },
+      "format": "Format of answer {n}",
+      "formats": {
+        "decimals": "Decimal places",
+        "significant": "Significant figures"
+      },
+      "length": "Digits of answer {n}",
+      "variables": "Variables and datasets",
+      "count": "Items",
+      "generate": "Generate {n} items",
+      "synchronize": "Draw the same item for the questions of an attempt that share datasets",
+      "variable": "Variable",
+      "shared": "Shared in the category",
+      "min": "Minimum",
+      "max": "Maximum",
+      "decimals": "Decimals",
+      "distribution": "Distribution",
+      "distributions": {
+        "uniform": "Uniform",
+        "loguniform": "Log-uniform"
+      },
+      "items": "Items",
+      "noVariables": "The formulas and the text use no variables yet.",
+      "preview": "{n, plural, =0 {No variants yet} one {# variant} other {# variants}}",
+      "variant": "Variant",
+      "answerN": "Answer {n}",
+      "notANumber": "not a number",
+      "noVariants": "Generate the items of every variable to see the answers."
     }
   },
   "notifications": {

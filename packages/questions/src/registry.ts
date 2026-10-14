@@ -23,6 +23,9 @@ export interface QuestionView<T extends QuestionType = QuestionType> {
   text?: string;
   order?: string[];
   choices?: string[];
+  /** Calculated questions: the variables' values of the attempt's variant. */
+  vars?: Record<string, string>;
+  variant?: number;
 }
 
 /**
@@ -86,7 +89,13 @@ export interface QuestionTypeDef<T extends QuestionType> {
   /** Response fields holding rich text: sanitised before they are stored. */
   richText?: readonly string[];
   /** Per-attempt presentation fixed by a seed (answer order, choices). */
-  present?(q: QuestionView<T>, seed: number, shuffleAnswers: boolean): Partial<QuestionSnapshot>;
+  present?(
+    q: QuestionView<T>,
+    seed: number,
+    shuffleAnswers: boolean,
+    /** syncSeed: the seed questions synchronised in an attempt share (calculated). */
+    opts?: { syncSeed?: number },
+  ): Partial<QuestionSnapshot>;
   grade(q: QuestionView<T>, r: ResponseOf<T>): GradeResult;
   /** A response earning full marks, or null when there is none (essay, description). */
   correctResponse(q: QuestionView<T>): ResponseOf<T> | null;
@@ -100,6 +109,8 @@ export interface QuestionTypeDef<T extends QuestionType> {
    * so they do not tell the right choice).
    */
   publicText?(q: QuestionView<T>, text: string): string;
+  /** Texts around the question (general feedback, hints) with the attempt's values in. */
+  fillText?(q: QuestionView<T>, html: string): string;
   /** What is wrong with the question text for this type's data, or null. */
   checkText?(text: string, data: QuestionData<T>): string | null;
   /** Per-part scores shown in review (an ordering's items), when the question shows them. */

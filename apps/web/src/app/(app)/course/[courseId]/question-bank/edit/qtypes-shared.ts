@@ -1,3 +1,5 @@
+import type { Dataset } from '@hubium/questions';
+
 // Shared by the answer editors of the question types.
 
 export type Data = Record<string, unknown>;
@@ -7,6 +9,9 @@ export interface FieldsProps {
   setData: (d: Data) => void;
   /** The question text as it is being written (Cloze answers live there). */
   text?: string;
+  /** Calculated questions: the datasets the category shares, as they are being edited. */
+  sharedDatasets?: Dataset[];
+  setSharedDatasets?: (d: Dataset[]) => void;
 }
 
 let seq = 0;

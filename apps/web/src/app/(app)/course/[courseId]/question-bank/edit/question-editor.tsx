@@ -1,7 +1,7 @@
 'use client';
 
 import { EditorField } from '@hubium/editor/field';
-import { type Hint, type QuestionType, typeDef } from '@hubium/questions';
+import { type Dataset, type Hint, type QuestionType, typeDef } from '@hubium/questions';
 import { Card, CardContent, CardHeader, CardTitle, Select } from '@hubium/ui';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -48,6 +48,8 @@ export function QuestionEditor({
     data: Data | null;
     penalty: number;
     hints: Hint[];
+    /** The datasets the question's category shares (calculated questions). */
+    sharedDatasets: Dataset[];
   };
 }) {
   const t = useTranslations('qbank');
@@ -56,12 +58,17 @@ export function QuestionEditor({
   const [data, setData] = useState<Data>(initial.data ?? part.defaults());
   // a Cloze question's answers are written in its text
   const [text, setText] = useState(initial.text);
+  // calculated questions may change the datasets their category shares
+  const [shared, setShared] = useState<Dataset[]>(initial.sharedDatasets);
   return (
     <ActionForm action={saveQuestionAction} success={t('saved')} className="grid max-w-3xl gap-5">
       <input type="hidden" name="courseId" value={courseId} />
       <input type="hidden" name="type" value={type} />
       {initial.id ? <input type="hidden" name="id" value={initial.id} /> : null}
       <input type="hidden" name="data" value={JSON.stringify(data)} />
+      {initial.sharedDatasets.length || shared.length ? (
+        <input type="hidden" name="sharedDatasets" value={JSON.stringify(shared)} />
+      ) : null}
       <Card>
         <CardContent className="grid gap-4 pt-5">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -111,7 +118,13 @@ export function QuestionEditor({
             <CardTitle>{t('answers')}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3">
-            <part.Fields data={data} setData={setData} text={text} />
+            <part.Fields
+              data={data}
+              setData={setData}
+              text={text}
+              sharedDatasets={shared}
+              setSharedDatasets={setShared}
+            />
             <DataErrors />
           </CardContent>
         </Card>

@@ -4,6 +4,9 @@ import { sanitizeRichText } from '@hubium/editor/server';
 import { createTranslator } from '@hubium/i18n/packs';
 import {
   checkQuestionText,
+  checkVariants,
+  type Dataset,
+  datasetFromRow,
   type Hint,
   Hints,
   type QuestionType,
@@ -12,12 +15,17 @@ import {
 } from '@hubium/questions';
 import { XMLBuilder, XMLParser } from 'fast-xml-parser';
 import {
+  answerFormat,
+  datasetFromOptions,
   orderingGrading,
   orderingGradingName,
   orderingLayout,
   orderingNumbering,
   orderingSelect,
   orderingShowGrading,
+  toleranceType,
+  toleranceTypeNumber,
+  UNITS_LEFT_OUT,
 } from './moodle-qtypes.ts';
 
 // Moodle XML question format: import (11 question types, category paths, base64 images,
@@ -35,6 +43,8 @@ export interface ParsedQuestion {
   penalty: number;
   /** For the interactive behaviour: shown between tries. */
   hints: Hint[];
+  /** Calculated questions: datasets their category shares (made unless already there). */
+  sharedDatasets?: Dataset[];
   data: unknown;
   idNumber: string | null;
   tags: string[];
@@ -42,7 +52,10 @@ export interface ParsedQuestion {
 
 export interface ParseResult {
   questions: ParsedQuestion[];
+  /** Questions left out, and why. */
   errors: { name: string; message: string }[];
+  /** Questions imported with something left out. */
+  warnings: { name: string; message: string }[];
 }
 
 const arr = <T>(v: T | T[] | undefined): T[] =>
@@ -279,6 +292,68 @@ function mapQuestion(q: Node, path: string[], untitled: string): ParsedQuestion 
           ...combinedFeedback(q),
         },
       };
+    case 'calculated':
+    case 'calculatedsimple':
+    case 'calculatedmulti': {
+      const defs = arr(
+        (q.dataset_definitions as Node | undefined)?.dataset_definition as Node | Node[],
+      ).map((d) => ({
+        shared: txt(d.status).trim() === 'shared',
+        set: datasetFromOptions(
+          plain(txt(d.name)),
+          `${txt(d.distribution) || 'uniform'}:${txt(d.minimum)}:${txt(d.maximum)}:${txt(d.decimals)}`,
+          arr((d.dataset_items as Node | undefined)?.dataset_item as Node | Node[])
+            .sort((a, b) => num(a.number) - num(b.number))
+            .map((i) => num(i.value)),
+        ),
+      }));
+      const shared = qtype === 'calculatedsimple' ? [] : defs.filter((d) => d.shared);
+      const format = (a: Node) => ({
+        format: answerFormat(txt(a.correctanswerformat)),
+        length: Math.min(9, num(a.correctanswerlength, 2)),
+      });
+      const datasets = {
+        datasets: defs.filter((d) => !shared.includes(d)).map((d) => d.set),
+        ...(qtype === 'calculatedsimple'
+          ? {}
+          : { shared: shared.map((d) => d.set.name), synchronize: txt(q.synchronize) === '1' }),
+      };
+      return {
+        ...base,
+        type:
+          qtype === 'calculatedmulti'
+            ? 'CALCULATEDMULTI'
+            : qtype === 'calculatedsimple'
+              ? 'CALCULATEDSIMPLE'
+              : 'CALCULATED',
+        sharedDatasets: shared.map((d) => d.set),
+        data:
+          qtype === 'calculatedmulti'
+            ? {
+                single: txt(q.single) !== '0' && txt(q.single) !== 'false',
+                shuffleAnswers: txt(q.shuffleanswers) !== '0' && txt(q.shuffleanswers) !== 'false',
+                answers: answers.map((a, i) => ({
+                  id: `a${i + 1}`,
+                  text: plain(html(a)),
+                  fraction: fraction(a),
+                  feedback: sanitizeRichText(html(a.feedback)),
+                  ...format(a),
+                })),
+                ...datasets,
+              }
+            : {
+                answers: answers.map((a) => ({
+                  formula: plain(txt(a)),
+                  fraction: Math.max(0, fraction(a)),
+                  tolerance: Math.abs(num(a.tolerance, 0.01)),
+                  toleranceType: toleranceType(txt(a.tolerancetype)),
+                  feedback: sanitizeRichText(html(a.feedback)),
+                  ...format(a),
+                })),
+                ...datasets,
+              },
+      };
+    }
     case 'cloze':
       // the gaps are written in the text, as in Hubium
       return {
@@ -316,7 +391,7 @@ export function parseMoodleXml(xml: string, untitled = 'Question'): ParseResult 
   const doc = parser.parse(xml) as Node;
   const quiz = doc.quiz as Node | undefined;
   if (!quiz) throw new ValidationError({ file: ['Not a Moodle XML file: <quiz> is missing'] });
-  const out: ParseResult = { questions: [], errors: [] };
+  const out: ParseResult = { questions: [], errors: [], warnings: [] };
   let path: string[] = [];
   for (const q of arr(quiz.question as Node | Node[])) {
     if (q['@_type'] === 'category') {
@@ -347,11 +422,22 @@ export function parseMoodleXml(xml: string, untitled = 'Question'): ParseResult 
         continue;
       }
       // gaps in the text must match the choices (a Cloze text, its answers)
-      const textError = checkQuestionText(mapped.type, mapped.text, parsed.data);
+      const textError =
+        checkQuestionText(mapped.type, mapped.text, parsed.data) ??
+        (mapped.type.startsWith('CALCULATED')
+          ? checkVariants(
+              mapped.type as 'CALCULATED',
+              mapped.text,
+              parsed.data as never,
+              mapped.sharedDatasets ?? [],
+            )
+          : null);
       if (textError) {
         out.errors.push({ name, message: textError });
         continue;
       }
+      if (q.units && String(q['@_type']).startsWith('calculated'))
+        out.warnings.push({ name, message: UNITS_LEFT_OUT });
       out.questions.push({ ...mapped, data: parsed.data });
     } catch (e) {
       out.errors.push({ name, message: e instanceof Error ? e.message : String(e) });
@@ -389,6 +475,21 @@ export async function importMoodleXml(ctx: RequestContext, courseId: string, xml
   await ctx.db.$transaction(async (tx) => {
     for (const q of parsed.questions) {
       const categoryId = await ensurePath(tx, q.categoryPath);
+      // a dataset the category already shares under that name is kept as it is
+      for (const d of q.sharedDatasets ?? [])
+        await tx.questionDataset.upsert({
+          where: { categoryId_name: { categoryId, name: d.name } },
+          create: {
+            categoryId,
+            name: d.name,
+            min: d.min,
+            max: d.max,
+            decimals: d.decimals,
+            distribution: d.distribution === 'loguniform' ? 'LOGUNIFORM' : 'UNIFORM',
+            items: d.items,
+          },
+          update: {},
+        });
       await tx.question.create({
         data: {
           categoryId,
@@ -408,7 +509,7 @@ export async function importMoodleXml(ctx: RequestContext, courseId: string, xml
       });
     }
   });
-  return { created: parsed.questions.length, errors: parsed.errors };
+  return { created: parsed.questions.length, errors: parsed.errors, warnings: parsed.warnings };
 }
 
 // ── export ───────────────────────────────────────────────────────────────────
@@ -424,16 +525,19 @@ const combinedNodes = (d: Combined): Node => ({
   incorrectfeedback: { '@_format': 'html', ...cdata(d.feedbackIncorrect) },
 });
 
-function exportQuestion(q: {
-  type: string;
-  name: string;
-  text: string;
-  generalFeedback: string;
-  defaultMark: unknown;
-  penalty: unknown;
-  data: unknown;
-  idNumber: string | null;
-}): Node | null {
+function exportQuestion(
+  q: {
+    type: string;
+    name: string;
+    text: string;
+    generalFeedback: string;
+    defaultMark: unknown;
+    penalty: unknown;
+    data: unknown;
+    idNumber: string | null;
+  },
+  shared: Dataset[] = [],
+): Node | null {
   const head: Node = {
     name: { text: q.name },
     questiontext: { '@_format': 'html', ...cdata(q.text) },
@@ -585,6 +689,69 @@ function exportQuestion(q: {
     case 'MULTIANSWER':
       // the text holds the gaps
       return { '@_type': 'cloze', ...head };
+    case 'CALCULATED':
+    case 'CALCULATEDSIMPLE':
+    case 'CALCULATEDMULTI': {
+      const d = q.data as {
+        single?: boolean;
+        shuffleAnswers?: boolean;
+        answers: {
+          formula?: string;
+          text?: string;
+          fraction: number;
+          tolerance?: number;
+          toleranceType?: 'relative' | 'nominal' | 'geometric';
+          format: 'decimals' | 'significant';
+          length: number;
+          feedback: string;
+        }[];
+        datasets: Dataset[];
+        shared?: string[];
+        synchronize?: boolean;
+      };
+      const definition = (set: Dataset, status: 'private' | 'shared') => ({
+        status: { text: status },
+        name: { text: set.name },
+        type: 'calculated',
+        distribution: { text: set.distribution },
+        minimum: { text: String(set.min) },
+        maximum: { text: String(set.max) },
+        decimals: { text: String(set.decimals) },
+        itemcount: String(set.items.length),
+        dataset_items: {
+          dataset_item: set.items.map((v, i) => ({ number: String(i + 1), value: String(v) })),
+        },
+        number_of_items: String(set.items.length),
+      });
+      const sharedSets = shared.filter((s) => d.shared?.includes(s.name));
+      return {
+        '@_type': type.toLowerCase(),
+        ...head,
+        synchronize: d.synchronize ? '1' : '0',
+        single: d.single === false ? '0' : '1',
+        answernumbering: 'abc',
+        shuffleanswers: d.shuffleAnswers === false ? '0' : '1',
+        answer: d.answers.map((a) => ({
+          '@_fraction': pct(a.fraction),
+          ...(type === 'CALCULATEDMULTI'
+            ? { '@_format': 'html', ...cdata(a.text ?? '') }
+            : {
+                text: a.formula ?? '',
+                tolerance: String(a.tolerance ?? 0.01),
+                tolerancetype: toleranceTypeNumber(a.toleranceType ?? 'relative'),
+              }),
+          correctanswerformat: a.format === 'significant' ? '2' : '1',
+          correctanswerlength: String(a.length),
+          feedback: { '@_format': 'html', ...cdata(a.feedback) },
+        })),
+        dataset_definitions: {
+          dataset_definition: [
+            ...d.datasets.map((s) => definition(s, 'private')),
+            ...sharedSets.map((s) => definition(s, 'shared')),
+          ],
+        },
+      };
+    }
     case 'GAPSELECT':
     case 'DDWTOS': {
       const d = q.data as {
@@ -653,6 +820,12 @@ export async function exportMoodleXml(
     },
     orderBy: [{ categoryId: 'asc' }, { createdAt: 'asc' }],
   });
+  // datasets the categories share, for calculated questions
+  const shared = new Map<string, Dataset[]>();
+  for (const r of await ctx.db.questionDataset.findMany({
+    where: { categoryId: { in: [...new Set(qs.map((q) => q.categoryId))] } },
+  }))
+    shared.set(r.categoryId, [...(shared.get(r.categoryId) ?? []), datasetFromRow(r)]);
   const items: Node[] = [];
   let lastCat = '';
   for (const q of qs) {
@@ -663,7 +836,7 @@ export async function exportMoodleXml(
         category: { text: `$course$/top/${pathOf(q.categoryId).join('/')}` },
       });
     }
-    const x = exportQuestion(q);
+    const x = exportQuestion(q, shared.get(q.categoryId) ?? []);
     if (x) items.push({ ...x, ...hintNodes(q.hints) });
   }
   const builder = new XMLBuilder({

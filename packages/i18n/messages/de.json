@@ -947,7 +947,10 @@
       "ORDERING": "Anordnung",
       "GAPSELECT": "Lückentextauswahl",
       "DDWTOS": "Drag-and-Drop auf Text",
-      "MULTIANSWER": "Lückentext (Cloze)"
+      "MULTIANSWER": "Lückentext (Cloze)",
+      "CALCULATED": "Berechnet",
+      "CALCULATEDSIMPLE": "Einfach berechnet",
+      "CALCULATEDMULTI": "Berechnete Multiple-Choice"
     },
     "name": "Fragetitel",
     "text": "Fragetext",
@@ -1093,6 +1096,46 @@
         "noRight": "keine richtige Antwort",
         "noNumber": "keine richtige Zahl"
       }
+    },
+    "calc": {
+      "help": "Antworten sind Formeln aus Variablen in geschweiften Klammern, wie in Moodle (Beispiele unten). Jede Variable nimmt ihre Werte aus einem Datensatz: jeder Versuch zieht eine Variante. Variablen dürfen auch im Fragetext stehen; eine Formel nach = in geschweiften Klammern zeigt einen berechneten Wert.",
+      "multiHelp": "Jede Auswahl ist ein Text, in dem eine Formel nach = in geschweiften Klammern einen berechneten Wert zeigt (Beispiele unten); Variablen nehmen Werte aus Datensätzen, eine Variante je Versuch.",
+      "answerText": "Auswahl {n}",
+      "formula": "Formel der Antwort {n}",
+      "tolerance": "Toleranz der Antwort {n}",
+      "toleranceType": "Toleranzart der Antwort {n}",
+      "toleranceTypes": {
+        "relative": "Relativ",
+        "nominal": "Nominal",
+        "geometric": "Geometrisch"
+      },
+      "format": "Format der Antwort {n}",
+      "formats": {
+        "decimals": "Nachkommastellen",
+        "significant": "Signifikante Stellen"
+      },
+      "length": "Stellen der Antwort {n}",
+      "variables": "Variablen und Datensätze",
+      "count": "Werte",
+      "generate": "{n} Werte erzeugen",
+      "synchronize": "Gleicher Wert für Fragen eines Versuchs mit gemeinsamen Datensätzen",
+      "variable": "Variable",
+      "shared": "In der Kategorie geteilt",
+      "min": "Minimum",
+      "max": "Maximum",
+      "decimals": "Stellen",
+      "distribution": "Verteilung",
+      "distributions": {
+        "uniform": "Gleichverteilt",
+        "loguniform": "Log-gleichverteilt"
+      },
+      "items": "Werte",
+      "noVariables": "Formeln und Text verwenden noch keine Variablen.",
+      "preview": "{n, plural, =0 {Noch keine Varianten} one {# Variante} other {# Varianten}}",
+      "variant": "Variante",
+      "answerN": "Antwort {n}",
+      "notANumber": "keine Zahl",
+      "noVariants": "Erzeugen Sie die Werte aller Variablen, um die Antworten zu sehen."
     }
   },
   "notifications": {

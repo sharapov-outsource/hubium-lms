@@ -190,6 +190,82 @@ export const MultianswerData = z.object({
     .refine((ps) => ps.some((p) => p.weight > 0), 'At least one gap must carry marks'),
 });
 
+/** Values a variable of a calculated question takes, one per variant (Moodle's dataset). */
+export const Dataset = z
+  .object({
+    name: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'Letters, digits and _ only'),
+    min: z.number(),
+    max: z.number(),
+    decimals: z.number().int().min(0).max(10).default(1),
+    distribution: z.enum(['uniform', 'loguniform']).default('uniform'),
+    items: z.array(z.number()).max(100).default([]),
+  })
+  .refine((d) => d.max >= d.min, { message: 'The maximum is below the minimum', path: ['max'] })
+  .refine((d) => d.distribution !== 'loguniform' || d.min > 0, {
+    message: 'A log-uniform range must be above 0',
+    path: ['min'],
+  });
+export type Dataset = z.output<typeof Dataset>;
+
+/** How an answer is shown: rounded to decimals or to significant figures (Moodle's format). */
+const AnswerFormat = {
+  format: z.enum(['decimals', 'significant']).default('decimals'),
+  length: z.number().int().min(0).max(9).default(2),
+};
+export const toleranceTypes = ['relative', 'nominal', 'geometric'] as const;
+
+const CalculatedAnswer = z.object({
+  /** e.g. {a} + {b}*2 (see @hubium/formula) */
+  formula: z.string().trim().min(1).max(2000),
+  fraction: z.number().min(0).max(1),
+  tolerance: z.number().min(0).default(0.01),
+  toleranceType: z.enum(toleranceTypes).default('relative'),
+  feedback: z.string().max(5000).default(''),
+  ...AnswerFormat,
+});
+
+const DatasetFields = {
+  /** The question's own datasets. */
+  datasets: z.array(Dataset).max(30).default([]),
+  /** Variables taking a dataset shared in the question's category instead. */
+  shared: z.array(z.string()).max(30).default([]),
+  /** With shared datasets: every such question of an attempt draws the same item. */
+  synchronize: z.boolean().default(false),
+};
+
+/** Calculated: the answer is a formula of variables drawn from datasets, as Moodle's. */
+export const CalculatedData = z.object({
+  answers: z.array(CalculatedAnswer).min(1).max(20),
+  ...DatasetFields,
+});
+
+/** Calculated simple: as calculated, with the question's own datasets only. */
+export const CalculatedSimpleData = z.object({
+  answers: z.array(CalculatedAnswer).min(1).max(20),
+  datasets: DatasetFields.datasets,
+});
+
+/** Calculated multichoice: choices whose text holds {x} and {=formula}. */
+export const CalculatedMultiData = z
+  .object({
+    single: z.boolean().default(true),
+    shuffleAnswers: z.boolean().default(true),
+    answers: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          text: z.string().min(1).max(5000),
+          fraction: z.number().min(-1).max(1),
+          feedback: z.string().max(5000).default(''),
+          ...AnswerFormat,
+        }),
+      )
+      .min(2)
+      .max(20),
+    ...DatasetFields,
+  })
+  .refine((d) => d.answers.some((a) => a.fraction > 0), 'At least one answer must be correct');
+
 /** As GapSelectData, answered by dragging; an unlimited choice can fill several gaps. */
 export const DdwtosData = z.object({
   shuffle: z.boolean().default(true),
@@ -212,6 +288,9 @@ export const questionDataSchemas = {
   GAPSELECT: GapSelectData,
   DDWTOS: DdwtosData,
   MULTIANSWER: MultianswerData,
+  CALCULATED: CalculatedData,
+  CALCULATEDSIMPLE: CalculatedSimpleData,
+  CALCULATEDMULTI: CalculatedMultiData,
 } as const;
 
 export type QuestionType = keyof typeof questionDataSchemas;
@@ -250,6 +329,9 @@ export interface QuestionSnapshot {
    */
   order?: string[];
   choices?: string[];
+  /** Calculated questions: the variant drawn and its variables' values, as shown. */
+  variant?: number;
+  vars?: Record<string, string>;
 }
 
 // An empty object is a valid (blank) response of every type.
@@ -266,6 +348,9 @@ export const ResponseSchemas = {
   /** Gap number (1, 2, … in the order of the text) → choice id. */
   GAPSELECT: z.object({ gaps: z.record(z.string(), z.string().max(100)).default({}) }),
   DDWTOS: z.object({ gaps: z.record(z.string(), z.string().max(100)).default({}) }),
+  CALCULATED: z.object({ text: z.string().max(100).default('') }),
+  CALCULATEDSIMPLE: z.object({ text: z.string().max(100).default('') }),
+  CALCULATEDMULTI: z.object({ selected: z.array(z.string()).max(20).default([]) }),
   /** Gap number → the text typed, the option chosen, or the options chosen. */
   MULTIANSWER: z.object({
     parts: z

@@ -155,6 +155,22 @@ export async function mbzFixture(): Promise<Buffer> {
           </answers><multichoice id="2"><layout>1</layout><single>1</single><shuffleanswers>0</shuffleanswers></multichoice></plugin_qtype_multichoice_question>
         </question>
       </questions></question_versions></question_version></question_bank_entry>
+      <question_bank_entry id="11"><questioncategoryid>2</questioncategoryid><question_version><question_versions id="12"><version>1</version><questions>
+        <question id="110"><parent>0</parent><name>Скорость</name><questiontext>&lt;p&gt;{s} км за {t} ч: скорость?&lt;/p&gt;</questiontext><defaultmark>1</defaultmark><penalty>0.3333333</penalty><qtype>calculated</qtype>
+          <plugin_qtype_calculated_question>
+            <answers><answer id="1101"><answertext>{s} / {t}</answertext><answerformat>0</answerformat><fraction>1.0000000</fraction><feedback>Верно</feedback></answer></answers>
+            <numerical_units><numerical_unit id="1"><multiplier>1</multiplier><unit>км/ч</unit></numerical_unit></numerical_units>
+            <dataset_definitions>
+              <dataset_definition id="21"><category>0</category><name>s</name><type>1</type><options>uniform:100:500:0</options><itemcount>2</itemcount>
+                <dataset_items><dataset_item id="1"><number>1</number><value>120</value></dataset_item><dataset_item id="2"><number>2</number><value>300</value></dataset_item></dataset_items></dataset_definition>
+              <dataset_definition id="22"><category>2</category><name>t</name><type>1</type><options>uniform:1:5:0</options><itemcount>2</itemcount>
+                <dataset_items><dataset_item id="3"><number>1</number><value>2</value></dataset_item><dataset_item id="4"><number>2</number><value>3</value></dataset_item></dataset_items></dataset_definition>
+            </dataset_definitions>
+            <calculated_records><calculated_record id="1"><answer>1101</answer><tolerance>0.1</tolerance><tolerancetype>1</tolerancetype><correctanswerlength>1</correctanswerlength><correctanswerformat>1</correctanswerformat></calculated_record></calculated_records>
+            <calculated_options><calculated_option id="1"><synchronize>0</synchronize><single>0</single><shuffleanswers>0</shuffleanswers></calculated_option></calculated_options>
+          </plugin_qtype_calculated_question>
+        </question>
+      </questions></question_versions></question_version></question_bank_entry>
       <question_bank_entry id="9"><questioncategoryid>2</questioncategoryid><question_version><question_versions id="10"><version>1</version><questions>
         <question id="90"><name>Перетаскивание</name><questiontext>&lt;p&gt;[[1]] — список, [[2]] — кортеж&lt;/p&gt;</questiontext><defaultmark>1</defaultmark><qtype>ddwtos</qtype>
           <plugin_qtype_ddwtos_question><answers>

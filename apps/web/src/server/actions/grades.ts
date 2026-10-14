@@ -209,9 +209,11 @@ export async function saveQuestionAction(fd: FormData) {
   const res = await runAction(async () => {
     let data: unknown;
     let hints: unknown;
+    let sharedDatasets: unknown;
     try {
       data = JSON.parse(v.data || '{}');
       hints = v.hints ? JSON.parse(v.hints) : undefined;
+      sharedDatasets = v.sharedDatasets ? JSON.parse(v.sharedDatasets) : undefined;
     } catch {
       throw new ValidationError({ data: ['Invalid data'] });
     }
@@ -227,6 +229,7 @@ export async function saveQuestionAction(fd: FormData) {
       data,
       penalty: v.penalty === undefined || v.penalty === '' ? undefined : Number(v.penalty),
       hints: hints as never,
+      sharedDatasets: sharedDatasets as never,
     });
   });
   if (res.ok) redirect(`/course/${v.courseId}/question-bank?category=${v.categoryId}`);
@@ -255,7 +258,10 @@ export async function importGiftAction(fd: FormData) {
       revalidatePath(`/course/${v.courseId}/question-bank`);
       return {
         created: r.created,
-        errors: r.errors.map((e, i) => ({ block: i + 1, message: `${e.name}: ${e.message}` })),
+        errors: [...r.errors, ...r.warnings].map((e, i) => ({
+          block: i + 1,
+          message: `${e.name}: ${e.message}`,
+        })),
       };
     }
     const r = await importGift.run(await getContext(), {

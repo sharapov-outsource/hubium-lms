@@ -12,6 +12,9 @@ enum QuestionType {
   GAPSELECT
   DDWTOS
   MULTIANSWER
+  CALCULATED
+  CALCULATEDSIMPLE
+  CALCULATEDMULTI
 }
 
 enum QuestionStatus {
@@ -39,8 +42,33 @@ model QuestionCategory {
   children  QuestionCategory[] @relation("QuestionCategoryTree")
   questions Question[]
   slots     QuizSlot[]
+  datasets  QuestionDataset[]
 
   @@index([contextId])
+}
+
+enum DatasetDistribution {
+  UNIFORM
+  LOGUNIFORM
+}
+
+/// A dataset shared by the calculated questions of a category (a question's own datasets
+/// live in its data): the values a variable takes, one per variant.
+model QuestionDataset {
+  id           String              @id @default(uuid(7)) @db.Uuid
+  categoryId   String              @db.Uuid
+  name         String
+  min          Float
+  max          Float
+  decimals     Int                 @default(1)
+  distribution DatasetDistribution @default(UNIFORM)
+  items        Float[]
+  createdAt    DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime            @updatedAt @db.Timestamptz(3)
+
+  category QuestionCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, name])
 }
 
 model Question {

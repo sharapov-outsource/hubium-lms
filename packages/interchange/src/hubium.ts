@@ -19,7 +19,14 @@ import { type Prisma, uuidv7 } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { isLocale } from '@hubium/i18n';
 import { parseSettings } from '@hubium/module-sdk';
-import { Hints, type QuestionType, questionDataSchemas, questionTypes } from '@hubium/questions';
+import {
+  Dataset,
+  datasetFromRow,
+  Hints,
+  type QuestionType,
+  questionDataSchemas,
+  questionTypes,
+} from '@hubium/questions';
 import { strFromU8, strToU8, zipSync } from 'fflate';
 import { z } from 'zod';
 import { type ArchiveLimits, unzipLimited } from './archive.ts';
@@ -159,6 +166,8 @@ const CourseJson = z.object({
       sortOrder: z.number(),
     }),
   ),
+  /** Datasets the categories share (calculated questions); absent in older archives. */
+  questionDatasets: z.array(z.object({ categoryId: z.string() }).and(Dataset)).default([]),
   questions: z.array(
     z.object({
       id: z.string(),
@@ -230,6 +239,9 @@ export async function exportCourse(ctx: RequestContext, courseId: string): Promi
   const exported = new Set(activities.map((a) => a.id));
   const n = (d: Prisma.Decimal | null) => (d === null ? null : d.toNumber());
   const questions = await db.question.findMany({
+    where: { categoryId: { in: categories.map((c) => c.id) } },
+  });
+  const datasets = await db.questionDataset.findMany({
     where: { categoryId: { in: categories.map((c) => c.id) } },
   });
 
@@ -370,6 +382,7 @@ export async function exportCourse(ctx: RequestContext, courseId: string): Promi
       info: c.info,
       sortOrder: c.sortOrder,
     })),
+    questionDatasets: datasets.map((d) => ({ categoryId: d.categoryId, ...datasetFromRow(d) })),
     questions: questions.map((q) => ({
       id: q.id,
       categoryId: q.categoryId,
@@ -594,6 +607,21 @@ export async function restoreCourse(
           name: c.name,
           info: c.info,
           sortOrder: c.sortOrder,
+        },
+      });
+    }
+    for (const d of b.course.questionDatasets) {
+      const categoryId = map.get(d.categoryId);
+      if (!categoryId) continue;
+      await db.questionDataset.create({
+        data: {
+          categoryId,
+          name: d.name,
+          min: d.min,
+          max: d.max,
+          decimals: d.decimals,
+          distribution: d.distribution === 'loguniform' ? 'LOGUNIFORM' : 'UNIFORM',
+          items: d.items,
         },
       });
     }

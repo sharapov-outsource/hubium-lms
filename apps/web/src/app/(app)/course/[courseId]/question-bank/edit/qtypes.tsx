@@ -1,11 +1,13 @@
 'use client';
 
 import type { QuestionType } from '@hubium/questions';
-import { Button, Checkbox, Field, Input, Select } from '@hubium/ui';
+import { Button, Checkbox, Field, Input } from '@hubium/ui';
 import { Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { ComponentType } from 'react';
+import { CalculatedFields, calculatedDefaults } from './calculated-fields';
 import { ClozeFields } from './cloze-fields';
+import { FractionSelect } from './fraction-select';
 import { GapFields, gapDefaults, OrderingFields, orderingDefaults } from './qtypes-order-gaps';
 import { type Data, type FieldsProps, listHelpers, nid } from './qtypes-shared';
 
@@ -13,45 +15,8 @@ import { type Data, type FieldsProps, listHelpers, nid } from './qtypes-shared';
 // question and its form. The table is complete by type, so a new question type does not
 // build until it has an editor here.
 
+export { FractionSelect } from './fraction-select';
 export type { Data, FieldsProps } from './qtypes-shared';
-
-const FRACTIONS: [string, string][] = [
-  ['1', 'p100'],
-  ['0.5', 'p50'],
-  ['0.3333333', 'p33'],
-  ['0.25', 'p25'],
-  ['0.2', 'p20'],
-  ['0', 'p0'],
-  ['-0.5', 'm50'],
-  ['-1', 'm100'],
-];
-export function FractionSelect({
-  value,
-  onChange,
-  label,
-  allowNegative,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-  label: string;
-  allowNegative?: boolean;
-}) {
-  const t = useTranslations('qbank');
-  return (
-    <Select
-      aria-label={label}
-      className="w-24"
-      value={FRACTIONS.find(([f]) => Math.abs(Number(f) - value) < 1e-6)?.[0] ?? String(value)}
-      onChange={(e) => onChange(Number(e.target.value))}
-    >
-      {FRACTIONS.filter(([f]) => allowNegative || Number(f) >= 0).map(([f, key]) => (
-        <option key={f} value={f}>
-          {t(`fractions.${key}` as 'fractions.p100')}
-        </option>
-      ))}
-    </Select>
-  );
-}
 
 function MultichoiceFields(props: FieldsProps) {
   const { data, setData } = props;
@@ -428,4 +393,16 @@ export const editorParts = {
   DDWTOS: { defaults: gapDefaults(true), Fields: (p) => <GapFields {...p} drag /> },
   // the answers are read from the text when the question is saved
   MULTIANSWER: { defaults: () => ({ parts: [] }), Fields: ClozeFields },
+  CALCULATED: {
+    defaults: calculatedDefaults('CALCULATED'),
+    Fields: (p) => <CalculatedFields {...p} kind="CALCULATED" />,
+  },
+  CALCULATEDSIMPLE: {
+    defaults: calculatedDefaults('CALCULATEDSIMPLE'),
+    Fields: (p) => <CalculatedFields {...p} kind="CALCULATEDSIMPLE" />,
+  },
+  CALCULATEDMULTI: {
+    defaults: calculatedDefaults('CALCULATEDMULTI'),
+    Fields: (p) => <CalculatedFields {...p} kind="CALCULATEDMULTI" />,
+  },
 } satisfies Record<QuestionType, EditorPart>;

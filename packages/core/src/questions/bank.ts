@@ -2,6 +2,8 @@ import type { Db, Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import {
   checkQuestionText,
+  checkVariants,
+  Dataset,
   Hint,
   parseGift,
   type QuestionType,
@@ -14,6 +16,7 @@ import type { RequestContext } from '../context.ts';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
 import { optionalText } from '../lib/zod.ts';
 import { defineOperation } from '../operation.ts';
+import { isCalculated, saveSharedDatasets, sharedDatasets } from './datasets.ts';
 
 type Tx = Prisma.TransactionClient | Db;
 
@@ -118,6 +121,8 @@ export const QuestionInput = z.object({
   /** Shown after wrong tries in interactive quizzes, one per try. */
   // not Hints: its default would replace the hints of an edit that leaves them out
   hints: z.array(Hint).max(10).optional(),
+  /** Calculated questions: datasets their category shares, created or changed with it. */
+  sharedDatasets: z.array(Dataset).max(30).optional(),
 });
 
 const blankHtml = (html: string) =>
@@ -164,6 +169,23 @@ export const saveQuestion = defineOperation({
     const data = validateData(input.type, derived) as Prisma.InputJsonValue;
     const textError = fromText ? null : checkQuestionText(input.type, text, data);
     if (textError) throw new ValidationError({ text: [textError] });
+    if (isCalculated(input.type)) {
+      // the shared datasets it names change with it; every variant must give numbers
+      const names = new Set((data as { shared?: string[] }).shared ?? []);
+      if (input.sharedDatasets?.length)
+        await saveSharedDatasets(
+          ctx.tx,
+          input.categoryId,
+          input.sharedDatasets.filter((d) => names.has(d.name)),
+        );
+      const problem = checkVariants(
+        input.type as 'CALCULATED',
+        text,
+        data as never,
+        await sharedDatasets(ctx.tx, input.categoryId),
+      );
+      if (problem) throw new ValidationError({ data: [problem] });
+    }
     const values = {
       categoryId: input.categoryId,
       type: input.type,

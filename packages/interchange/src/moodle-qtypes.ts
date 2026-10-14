@@ -1,4 +1,4 @@
-import { type OrderingGrading, orderingNumberings } from '@hubium/questions';
+import { type Dataset, type OrderingGrading, orderingNumberings } from '@hubium/questions';
 
 // Settings of Moodle's ordering and gap questions as Hubium stores them. Moodle XML writes
 // them as words (ABSOLUTE_POSITION), backups as numbers (0); both are read here.
@@ -61,3 +61,37 @@ export function ddwtosOptions(serialised: string): { group: number; infinite: bo
   const inf = /"infinite";(?:b|i):(\d)/.exec(serialised);
   return { group: Number(g?.[1] ?? g?.[2] ?? 1) || 1, infinite: inf?.[1] === '1' };
 }
+
+// ── calculated questions ─────────────────────────────────────────────────────────
+
+/** Moodle's tolerance types: 1 relative, 2 nominal, 3 geometric. */
+export const toleranceType = (v: string) =>
+  v.trim() === '2' || v.trim().toLowerCase() === 'nominal'
+    ? ('nominal' as const)
+    : v.trim() === '3' || v.trim().toLowerCase() === 'geometric'
+      ? ('geometric' as const)
+      : ('relative' as const);
+export const toleranceTypeNumber = (t: 'relative' | 'nominal' | 'geometric') =>
+  t === 'nominal' ? '2' : t === 'geometric' ? '3' : '1';
+
+/** Moodle's answer formats: 1 decimals, 2 significant figures. */
+export const answerFormat = (v: string) =>
+  v.trim() === '2' ? ('significant' as const) : ('decimals' as const);
+
+/** A dataset from Moodle's options "uniform:1.0:10.0:1" and its items. */
+export function datasetFromOptions(name: string, options: string, items: number[]): Dataset {
+  const m = /^(uniform|loguniform):([^:]*):([^:]*):(\d*)$/.exec(options.trim());
+  const min = Number(m?.[2] ?? 1);
+  const max = Number(m?.[3] ?? 10);
+  return {
+    name,
+    min: Number.isFinite(min) ? min : 1,
+    max: Number.isFinite(max) && max >= min ? max : Math.max(min, 10),
+    decimals: Math.min(10, Number(m?.[4] || 1)),
+    distribution: m?.[1] === 'loguniform' && min > 0 ? 'loguniform' : 'uniform',
+    items: items.slice(0, 100),
+  };
+}
+
+/** A note for questions whose units Hubium does not keep. */
+export const UNITS_LEFT_OUT = 'units are not supported: the question was imported without them';

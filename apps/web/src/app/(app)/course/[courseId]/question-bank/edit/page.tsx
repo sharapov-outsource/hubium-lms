@@ -1,4 +1,4 @@
-import { listQuestionCategories } from '@hubium/core';
+import { listQuestionCategories, sharedDatasets } from '@hubium/core';
 import { Hints, type QuestionType, questionTypes } from '@hubium/questions';
 import { Button, PageHeader } from '@hubium/ui';
 import Link from 'next/link';
@@ -35,6 +35,9 @@ export default async function EditQuestionPage({
   if (sp.id && !q) notFound();
   const type = (q?.type ?? sp.type) as QuestionType;
   if (!questionTypes.includes(type)) notFound();
+  const categoryId = q?.categoryId ?? sp.category ?? categories[0]!.id;
+  // datasets the category shares, for calculated questions
+  const shared = type.startsWith('CALCULATED') ? await sharedDatasets(db, categoryId) : [];
   return (
     <>
       <PageHeader
@@ -52,7 +55,7 @@ export default async function EditQuestionPage({
         categories={categories.map((c) => ({ id: c.id, name: c.name || t('defaultCategory') }))}
         initial={{
           id: q?.id,
-          categoryId: q?.categoryId ?? sp.category ?? categories[0]!.id,
+          categoryId,
           name: q?.name ?? '',
           text: q?.text ?? '',
           generalFeedback: q?.generalFeedback ?? '',
@@ -61,6 +64,7 @@ export default async function EditQuestionPage({
           data: (q?.data as Record<string, unknown>) ?? null,
           penalty: q ? Number(q.penalty) : 0.33333,
           hints: Hints.catch([]).parse(q?.hints ?? []),
+          sharedDatasets: shared,
         }}
       />
     </>

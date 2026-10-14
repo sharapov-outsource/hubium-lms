@@ -65,6 +65,16 @@ describe('.hubium backup and restore', () => {
     });
     quizId = (await f.addActivity('quiz', 'Тест', { gradeMax: 10 })).id;
     const qs = await t.db.question.findMany({ where: { category: { contextId: f.courseId } } });
+    await t.db.questionDataset.create({
+      data: {
+        categoryId: qs[0]!.categoryId,
+        name: 'k',
+        min: 1,
+        max: 9,
+        decimals: 0,
+        items: [3, 5],
+      },
+    });
     await t.db.question.update({
       where: { id: qs[0]!.id },
       data: {
@@ -155,6 +165,13 @@ describe('.hubium backup and restore', () => {
     expect(slots.every((s) => s.question?.categoryId && s.questionId)).toBe(true);
     const cats = await t.db.questionCategory.findMany({ where: { contextId: r.courseId } });
     expect(slots.every((s) => cats.some((c) => c.id === s.question!.categoryId))).toBe(true);
+    // the datasets the categories share come along
+    expect(
+      await t.db.questionDataset.findMany({
+        where: { categoryId: { in: cats.map((c) => c.id) } },
+        select: { name: true, items: true },
+      }),
+    ).toEqual([{ name: 'k', items: [3, 5] }]);
     // the penalty and hints of the interactive behaviour come along
     expect(slots.map((s) => [Number(s.question!.penalty), s.question!.hints])).toContainEqual([
       0.5,

@@ -947,7 +947,10 @@
       "ORDERING": "Mise en ordre",
       "GAPSELECT": "Sélectionner les mots manquants",
       "DDWTOS": "Glisser-déposer dans le texte",
-      "MULTIANSWER": "Réponses intégrées (Cloze)"
+      "MULTIANSWER": "Réponses intégrées (Cloze)",
+      "CALCULATED": "Calculée",
+      "CALCULATEDSIMPLE": "Calculée simple",
+      "CALCULATEDMULTI": "Calculée à choix multiple"
     },
     "name": "Nom",
     "text": "Texte de la question",
@@ -1093,6 +1096,46 @@
         "noRight": "aucune bonne réponse",
         "noNumber": "aucun bon nombre"
       }
+    },
+    "calc": {
+      "help": "Les réponses sont des formules de variables entre accolades, comme dans Moodle (exemples ci-dessous). Chaque variable prend ses valeurs dans un jeu de données : chaque tentative tire une variante. Les variables peuvent aussi figurer dans le texte ; une formule après = entre accolades affiche une valeur calculée.",
+      "multiHelp": "Chaque choix est un texte où une formule après = entre accolades affiche une valeur calculée (exemples ci-dessous) ; les variables prennent leurs valeurs dans des jeux de données, une variante par tentative.",
+      "answerText": "Choix {n}",
+      "formula": "Formule de la réponse {n}",
+      "tolerance": "Tolérance de la réponse {n}",
+      "toleranceType": "Type de tolérance de la réponse {n}",
+      "toleranceTypes": {
+        "relative": "Relative",
+        "nominal": "Nominale",
+        "geometric": "Géométrique"
+      },
+      "format": "Format de la réponse {n}",
+      "formats": {
+        "decimals": "Décimales",
+        "significant": "Chiffres significatifs"
+      },
+      "length": "Chiffres de la réponse {n}",
+      "variables": "Variables et jeux de données",
+      "count": "Valeurs",
+      "generate": "Générer {n} valeurs",
+      "synchronize": "Même valeur pour les questions d’une tentative qui partagent des jeux",
+      "variable": "Variable",
+      "shared": "Partagé dans la catégorie",
+      "min": "Minimum",
+      "max": "Maximum",
+      "decimals": "Décimales",
+      "distribution": "Distribution",
+      "distributions": {
+        "uniform": "Uniforme",
+        "loguniform": "Log-uniforme"
+      },
+      "items": "Valeurs",
+      "noVariables": "Les formules et le texte n’utilisent pas encore de variables.",
+      "preview": "{n, plural, =0 {Pas encore de variantes} one {# variante} other {# variantes}}",
+      "variant": "Variante",
+      "answerN": "Réponse {n}",
+      "notANumber": "pas un nombre",
+      "noVariants": "Générez les valeurs de chaque variable pour voir les réponses."
     }
   },
   "notifications": {

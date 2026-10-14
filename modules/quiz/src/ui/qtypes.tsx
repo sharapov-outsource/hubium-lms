@@ -95,7 +95,7 @@ function TextAnswer({ q, value, onChange, readOnly }: BodyProps) {
       <Label htmlFor={name}>{t('yourAnswer')}</Label>
       <Input
         id={name}
-        inputMode={q.type === 'NUMERICAL' ? 'decimal' : 'text'}
+        inputMode={q.type === 'SHORTANSWER' ? 'text' : 'decimal'}
         value={(value.text as string) ?? ''}
         readOnly={readOnly}
         autoComplete="off"
@@ -167,6 +167,9 @@ export const questionBodies = {
   GAPSELECT: GapSelect,
   DDWTOS: DragText,
   MULTIANSWER: Cloze,
+  CALCULATED: TextAnswer,
+  CALCULATEDSIMPLE: TextAnswer,
+  CALCULATEDMULTI: Multichoice,
 } satisfies Record<QuestionType, ComponentType<BodyProps>>;
 
 /** Types whose body shows the question text itself (with its gaps). */

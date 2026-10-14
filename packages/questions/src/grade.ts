@@ -13,7 +13,7 @@ import {
 export { parseNumber } from './qtypes/text.ts';
 export type { GradeResult } from './registry.ts';
 
-type Gradable = Pick<QuestionSnapshot, 'type' | 'data' | 'order' | 'choices'> & {
+type Gradable = Pick<QuestionSnapshot, 'type' | 'data' | 'order' | 'choices' | 'vars'> & {
   /** Types with gaps in the text need it. */
   text?: string;
 };
@@ -31,9 +31,18 @@ export function presentQuestion(
   q: Omit<QuestionSnapshot, 'order' | 'choices'>,
   seed: number,
   shuffleAnswers: boolean,
+  opts?: { syncSeed?: number },
 ): QuestionSnapshot {
   const s = subSeed(seed, q.id.length + q.id.charCodeAt(0));
-  return { ...q, ...(typeDef(q.type).present?.(q as QuestionView, s, shuffleAnswers) ?? {}) };
+  return {
+    ...q,
+    ...(typeDef(q.type).present?.(q as QuestionView, s, shuffleAnswers, opts) ?? {}),
+  };
+}
+
+/** A text around the question (general feedback, a hint) with the attempt's values in. */
+export function fillText(q: Gradable, html: string): string {
+  return typeDef(q.type).fillText?.(q as QuestionView, html) ?? html;
 }
 
 /** A response that would earn full marks (used in review and previews). */

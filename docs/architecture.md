@@ -794,7 +794,7 @@ In dev, `localhost:3000` versus `127.0.0.1:3000` gives two distinct origins for 
   - tar.gz (newer) or zip (older) via `tar-stream`;
   - reads `moodle_backup.xml`, course, sections, `activities/*/{module.xml,<mod>.xml,grades.xml,inforef.xml}`, `files.xml`, `questions.xml`, `gradebook.xml`, `groups.xml`;
   - rewrites `@@PLUGINFILE@@` and converts HTML to Tiptap JSON (`htmlBlock` fallback);
-  - each module's `importers.moodle` maps its own modnames (page, label, url, resource, folder, assign, quiz + 11 question types, forum structure, scorm, lti → needs admin tool mapping, bigbluebuttonbn → livesession);
+  - each module's `importers.moodle` maps its own modnames (page, label, url, resource, folder, assign, quiz + 14 question types, forum structure, scorm, lti → needs admin tool mapping, bigbluebuttonbn → livesession);
   - anything unsupported becomes a placeholder label, plus an import report.
 - **Questions:** GIFT import via `gift-pegjs` mapped to our types; Moodle XML import and export (category paths, base64 images, feedback, fractions).
 

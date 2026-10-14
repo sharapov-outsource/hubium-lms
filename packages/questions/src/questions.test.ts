@@ -76,6 +76,24 @@ const fixtures: { [K in QuestionType]: QuestionSnapshot & { type: K } } = (() =>
       }),
       text: '<p>The [[2]] barks</p>',
     },
+    CALCULATED: q('CALCULATED', {
+      answers: [{ formula: '{a} + {b}', fraction: 1, feedback: 'right' }],
+      datasets: [
+        { name: 'a', min: 1, max: 9, decimals: 1, items: [1.5, 2.5] },
+        { name: 'b', min: 1, max: 9, decimals: 0, items: [3, 4] },
+      ],
+    }),
+    CALCULATEDSIMPLE: q('CALCULATEDSIMPLE', {
+      answers: [{ formula: '{a} * 2', fraction: 1 }],
+      datasets: [{ name: 'a', min: 1, max: 9, items: [1.5, 2.5] }],
+    }),
+    CALCULATEDMULTI: q('CALCULATEDMULTI', {
+      answers: [
+        { id: 'a', text: '{={a}+1}', fraction: 1, feedback: 'right' },
+        { id: 'b', text: '{={a}+2}', fraction: 0 },
+      ],
+      datasets: [{ name: 'a', min: 1, max: 9, items: [1, 2] }],
+    }),
     MULTIANSWER: {
       ...q('MULTIANSWER', {
         parts: [
@@ -289,8 +307,9 @@ describe('question type registry', () => {
     for (const type of questionTypes) {
       const def = questionTypeDefs[type];
       expect(def.type).toBe(type);
-      const sample = fixtures[type];
-      const view = def.publicView(presentQuestion(sample, 42, true) as never);
+      // as an attempt has it: presented (a calculated question draws its values then)
+      const sample = presentQuestion(fixtures[type], 42, true);
+      const view = def.publicView(sample as never);
       expect(PublicFields.safeParse(view).success, type).toBe(true);
       const json = JSON.stringify(view);
       for (const secret of ['fraction', 'feedback', 'correct', 'tolerance', 'graderInfo'])

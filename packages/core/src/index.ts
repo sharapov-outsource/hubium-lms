@@ -38,6 +38,7 @@ export * from './notifications/push.ts';
 export * from './operation.ts';
 export * from './privacy/privacy.ts';
 export * from './questions/bank.ts';
+export * from './questions/datasets.ts';
 export * from './realtime.ts';
 export * from './settings/languages.ts';
 export * from './settings/modules.ts';

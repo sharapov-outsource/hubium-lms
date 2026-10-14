@@ -80,7 +80,26 @@ const SAMPLE = `<?xml version="1.0" encoding="UTF-8"?>
     <name><text>Вложенные</text></name>
     <questiontext format="html"><text><![CDATA[<p>Столица Франции — {1:SA:=Париж#Верно~%50%Paris}, а 2 + 2 = {2:NM:=4:0}; список это {1:MC:=list~tuple}.</p>]]></text></questiontext>
   </question>
-  <question type="calculated"><name><text>Формула</text></name><questiontext><text>x</text></questiontext></question>
+  <question type="calculated">
+    <name><text>Площадь</text></name>
+    <questiontext format="html"><text>Прямоугольник {w} на {h}: площадь?</text></questiontext>
+    <synchronize>1</synchronize>
+    <answer fraction="100"><text>{w} * {h}</text><tolerance>0.05</tolerance><tolerancetype>2</tolerancetype>
+      <correctanswerformat>2</correctanswerformat><correctanswerlength>3</correctanswerlength>
+      <feedback format="html"><text>Верно</text></feedback></answer>
+    <units><unit><multiplier>1</multiplier><unit_name>см²</unit_name></unit></units>
+    <dataset_definitions>
+      <dataset_definition><status><text>private</text></status><name><text>w</text></name><type>calculated</type>
+        <distribution><text>uniform</text></distribution><minimum><text>1</text></minimum><maximum><text>9</text></maximum><decimals><text>1</text></decimals>
+        <itemcount>2</itemcount><dataset_items><dataset_item><number>2</number><value>3.5</value></dataset_item><dataset_item><number>1</number><value>2.5</value></dataset_item></dataset_items><number_of_items>2</number_of_items></dataset_definition>
+      <dataset_definition><status><text>shared</text></status><name><text>h</text></name><type>calculated</type>
+        <distribution><text>loguniform</text></distribution><minimum><text>1</text></minimum><maximum><text>100</text></maximum><decimals><text>0</text></decimals>
+        <itemcount>2</itemcount><dataset_items><dataset_item><number>1</number><value>4</value></dataset_item><dataset_item><number>2</number><value>40</value></dataset_item></dataset_items><number_of_items>2</number_of_items></dataset_definition>
+    </dataset_definitions>
+  </question>
+  <question type="calculated"><name><text>Формула</text></name><questiontext><text>{x}</text></questiontext>
+    <answer fraction="100"><text>{x} * 2</text></answer>
+  </question>
 </quiz>`;
 
 const TYPES = [
@@ -95,6 +114,7 @@ const TYPES = [
   'GAPSELECT',
   'DDWTOS',
   'MULTIANSWER',
+  'CALCULATED',
 ];
 
 const HINTS = [
@@ -108,8 +128,28 @@ describe('Moodle XML', () => {
     expect(r.questions.map((q) => q.type)).toEqual(TYPES);
     expect(r.errors).toEqual([
       { name: 'Битый', message: 'No choice for [[3]]' },
-      { name: 'Формула', message: 'Unsupported question type: calculated' },
+      { name: 'Формула', message: 'No dataset for {x}' },
     ]);
+    // units are left out, and said so
+    expect(r.warnings).toEqual([{ name: 'Площадь', message: expect.stringContaining('units') }]);
+    expect(r.questions[11]!).toMatchObject({
+      sharedDatasets: [{ name: 'h', distribution: 'loguniform', items: [4, 40] }],
+      data: {
+        answers: [
+          {
+            formula: '{w} * {h}',
+            tolerance: 0.05,
+            toleranceType: 'nominal',
+            format: 'significant',
+            length: 3,
+            feedback: 'Верно',
+          },
+        ],
+        datasets: [{ name: 'w', min: 1, max: 9, decimals: 1, items: [2.5, 3.5] }],
+        shared: ['h'],
+        synchronize: true,
+      },
+    });
     const [, , , , , , , ord, gap, drag] = r.questions;
     expect(ord!.data).toMatchObject({
       items: [{ text: 'Написать' }, { text: 'Выполнить' }, { text: 'Проверить' }],
@@ -187,7 +227,11 @@ describe('Moodle XML', () => {
       const f = await courseFixture(t.db, 'MXML1');
       const teacher = await ctxFor(t.db, f.users.teacher!);
       const r = await importMoodleXml(teacher, f.courseId, SAMPLE);
-      expect(r.created).toBe(11);
+      expect(r.created).toBe(12);
+      // the shared dataset now belongs to the category of the question
+      expect(await t.db.questionDataset.findMany({ select: { name: true, items: true } })).toEqual([
+        { name: 'h', items: [4, 40] },
+      ]);
       const cats = await t.db.questionCategory.findMany({ where: { contextId: f.courseId } });
       expect(cats.map((c) => c.name).sort()).toEqual(['Python', 'Основы']);
       const xml = await exportMoodleXml(teacher, f.courseId);
@@ -198,7 +242,8 @@ describe('Moodle XML', () => {
       expect(again.questions.map((q) => q.type)).toEqual(TYPES);
       // the new types come back as they went out
       const first = parseMoodleXml(SAMPLE).questions;
-      for (const k of [7, 8, 9, 10]) expect(again.questions[k]!.data).toEqual(first[k]!.data);
+      for (const k of [7, 8, 9, 10, 11]) expect(again.questions[k]!.data).toEqual(first[k]!.data);
+      expect(again.questions[11]!.sharedDatasets).toEqual(first[11]!.sharedDatasets);
       expect(again.questions[3]!.data).toMatchObject({ answers: [{ value: 3, fraction: 1 }] });
       expect(again.questions[0]!.hints).toEqual(HINTS);
       expect(again.questions[1]!.hints).toEqual([]);

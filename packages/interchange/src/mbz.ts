@@ -18,6 +18,8 @@ import { invalidIpListEntries } from '@hubium/module-sdk/net';
 import {
   type ClozePart,
   checkQuestionText,
+  checkVariants,
+  type Dataset,
   type Hint,
   Hints,
   type QuestionType,
@@ -36,12 +38,16 @@ import {
 } from './archive.ts';
 import { addMissingSections, discardCourse } from './hubium.ts';
 import {
+  answerFormat,
+  datasetFromOptions,
   ddwtosOptions,
   orderingGrading,
   orderingLayout,
   orderingNumbering,
   orderingSelect,
   orderingShowGrading,
+  toleranceType,
+  UNITS_LEFT_OUT,
 } from './moodle-qtypes.ts';
 
 // Moodle course backup (.mbz) import for Moodle 4.1–5.x: course, sections, the common
@@ -60,9 +66,11 @@ const txt = (v: unknown): string => {
   if (typeof v === 'object' && '#text' in (v as Node)) return txt((v as Node)['#text']);
   return '';
 };
+// an empty value is a missing one: it takes the default, not 0
 const num = (v: unknown, d = 0) => {
-  const n = Number(txt(v));
-  return Number.isFinite(n) ? n : d;
+  const s = txt(v).trim();
+  const n = Number(s);
+  return s !== '' && Number.isFinite(n) ? n : d;
 };
 const date = (v: unknown) => {
   const n = num(v);
@@ -220,7 +228,88 @@ export function quizBehaviour(data: Node, warn: (why: string) => void) {
   };
 }
 
-function mapMoodleQuestion(q: Node): { type: QuestionType; data: unknown } | null {
+type Mapped = {
+  type: QuestionType;
+  data: unknown;
+  /** Calculated: datasets shared in a Moodle category (its id), and units left out. */
+  shared?: { category: string; set: Dataset }[];
+  unitsLeftOut?: boolean;
+};
+
+/** A calculated question of any kind, with its datasets. */
+function mapCalculated(qtype: string, plugin: Node, answers: Node[]): Mapped {
+  const records = arr(
+    (plugin.calculated_records as Node | undefined)?.calculated_record as Node | Node[],
+  );
+  const options =
+    arr((plugin.calculated_options as Node | undefined)?.calculated_option as Node | Node[])[0] ??
+    {};
+  const defs = arr(
+    (plugin.dataset_definitions as Node | undefined)?.dataset_definition as Node | Node[],
+  ).map((d) => ({
+    category: txt(d.category),
+    set: datasetFromOptions(
+      txt(d.name),
+      txt(d.options),
+      arr((d.dataset_items as Node | undefined)?.dataset_item as Node | Node[])
+        .sort((a, b) => num(a.number ?? a.itemnumber) - num(b.number ?? b.itemnumber))
+        .map((i) => num(i.value)),
+    ),
+  }));
+  const shared =
+    qtype === 'calculatedsimple' ? [] : defs.filter((d) => d.category && d.category !== '0');
+  // "answer" is read as a list everywhere in a backup, so here too
+  const recordOf = (a: Node) =>
+    records.find((r) => txt(arr(r.answer as Node | Node[])[0]) === String(a['@_id'])) ?? {};
+  const format = (r: Node) => ({
+    format: answerFormat(txt(r.correctanswerformat)),
+    length: Math.min(9, num(r.correctanswerlength, 2)),
+  });
+  const datasets = {
+    datasets: defs.filter((d) => !shared.includes(d)).map((d) => d.set),
+    ...(qtype === 'calculatedsimple'
+      ? {}
+      : { shared: shared.map((d) => d.set.name), synchronize: txt(options.synchronize) === '1' }),
+  };
+  const fb = (a: Node) => sanitizeRichText(txt(a.feedback));
+  return {
+    type:
+      qtype === 'calculatedmulti'
+        ? 'CALCULATEDMULTI'
+        : qtype === 'calculatedsimple'
+          ? 'CALCULATEDSIMPLE'
+          : 'CALCULATED',
+    shared,
+    unitsLeftOut: !!(plugin.numerical_units as Node | undefined)?.numerical_unit,
+    data:
+      qtype === 'calculatedmulti'
+        ? {
+            single: txt(options.single) !== '0',
+            shuffleAnswers: txt(options.shuffleanswers) !== '0',
+            answers: answers.map((a, i) => ({
+              id: `a${i + 1}`,
+              text: plainText(txt(a.answertext)),
+              fraction: num(a.fraction),
+              feedback: fb(a),
+              ...format(recordOf(a)),
+            })),
+            ...datasets,
+          }
+        : {
+            answers: answers.map((a) => ({
+              formula: plainText(txt(a.answertext)),
+              fraction: Math.max(0, num(a.fraction)),
+              tolerance: Math.abs(num(recordOf(a).tolerance, 0.01)),
+              toleranceType: toleranceType(txt(recordOf(a).tolerancetype)),
+              feedback: fb(a),
+              ...format(recordOf(a)),
+            })),
+            ...datasets,
+          },
+  };
+}
+
+function mapMoodleQuestion(q: Node): Mapped | null {
   const qtype = txt(q.qtype);
   const plugin = (q[`plugin_qtype_${qtype}_question`] ?? {}) as Node;
   const answers = arr((plugin.answers as Node | undefined)?.answer as Node | Node[]);
@@ -324,6 +413,10 @@ function mapMoodleQuestion(q: Node): { type: QuestionType; data: unknown } | nul
     }
     case 'description':
       return { type: 'DESCRIPTION', data: {} };
+    case 'calculated':
+    case 'calculatedsimple':
+    case 'calculatedmulti':
+      return mapCalculated(qtype, plugin, answers);
     case 'ordering': {
       const o = (plugin.ordering ?? {}) as Node;
       return {
@@ -688,11 +781,35 @@ export async function importMbz(
               continue;
             }
             const text = sanitizeRichText(cloze ?? txt(q.questiontext));
-            const textError = checkQuestionText(mapped.type, text, parsed.data);
+            const sharedHere = (mapped.shared ?? []).map((s) => s.set);
+            const textError =
+              checkQuestionText(mapped.type, text, parsed.data) ??
+              (mapped.type.startsWith('CALCULATED')
+                ? checkVariants(mapped.type as 'CALCULATED', text, parsed.data as never, sharedHere)
+                : null);
             if (textError) {
               warnings.push(`Question "${name}": ${textError}`);
               continue;
             }
+            // datasets shared in Moodle categories go to the matching categories here,
+            // unless one of that name is there already
+            for (const s of mapped.shared ?? []) {
+              const categoryId = categoryMap.get(s.category) || fallbackCategory;
+              await db.questionDataset.upsert({
+                where: { categoryId_name: { categoryId, name: s.set.name } },
+                create: {
+                  categoryId,
+                  name: s.set.name,
+                  min: s.set.min,
+                  max: s.set.max,
+                  decimals: s.set.decimals,
+                  distribution: s.set.distribution === 'loguniform' ? 'LOGUNIFORM' : 'UNIFORM',
+                  items: s.set.items,
+                },
+                update: {},
+              });
+            }
+            if (mapped.unitsLeftOut) warnings.push(`Question "${name}": ${UNITS_LEFT_OUT}`);
             const created2 = await db.question.create({
               data: {
                 categoryId: fallbackCategory,

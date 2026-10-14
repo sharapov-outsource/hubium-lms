@@ -22,7 +22,7 @@ describe('.mbz import', () => {
       moodleRelease: '4.5 (Build: 20241007)',
       sections: 2,
       activities: 7,
-      questions: 5,
+      questions: 6,
     });
     expect(report.warnings.join('\n')).toContain('Формула');
     expect(report.warnings.join('\n')).toContain('Новости');
@@ -129,6 +129,16 @@ describe('.mbz import', () => {
       showGrading: false,
       feedbackCorrect: 'Верно',
     });
+    // a calculated question: its own dataset in its data, the shared one in the category
+    expect((await byName('Скорость')).data).toMatchObject({
+      answers: [{ formula: '{s} / {t}', tolerance: 0.1, toleranceType: 'relative', length: 1 }],
+      datasets: [{ name: 's', min: 100, max: 500, decimals: 0, items: [120, 300] }],
+      shared: ['t'],
+    });
+    expect(
+      await t.db.questionDataset.findFirst({ where: { categoryId: cat.id, name: 't' } }),
+    ).toMatchObject({ items: [2, 3] });
+    expect(report.warnings).toContainEqual(expect.stringContaining('"Скорость": units'));
     // a Cloze question rebuilt from its gaps; the gaps are not questions of their own
     const cloze = await byName('Вложенные');
     expect(cloze.text).toBe('<p>Столица — {1:SA:=Париж#Верно}, тип — {2:MCV:=list~tuple}</p>');

@@ -53,7 +53,7 @@ export interface Outcome {
 
 type Replayable = Pick<
   QuestionSnapshot,
-  'type' | 'data' | 'order' | 'choices' | 'penalty' | 'hints'
+  'type' | 'data' | 'order' | 'choices' | 'penalty' | 'hints' | 'vars'
 > & { text?: string };
 
 /** The behaviour a question really has: graded-by-hand and ungraded ones defer. */
