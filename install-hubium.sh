@@ -832,9 +832,21 @@ install_postgres() {
     add_pgdg
     apt_install postgresql-18 postgresql-18-pgvector
     ver=18
-    PGPORT=$(pg_lsclusters -h 2>/dev/null | awk '$1 == 18 { print $3; exit }' || true)
+    # the package creates the main cluster unless createcluster.conf says otherwise
+    if [[ $DRY_RUN == no ]] && ! pg_lsclusters -h 2>/dev/null | awk '$1 == 18 && $2 == "main"' | grep -q .; then
+      run pg_createcluster 18 main
+    fi
+    PGPORT=$(pg_lsclusters -h 2>/dev/null | awk '$1 == 18 && $2 == "main" { print $3; exit }' || true)
     PGPORT=${PGPORT:-5432}
     run systemctl enable --now postgresql@18-main
+  fi
+  if [[ $DRY_RUN == no ]]; then
+    local i
+    for ((i = 0; i < 30; i++)); do
+      runuser -u postgres -- pg_isready -q -p "$PGPORT" 2>/dev/null && break
+      sleep 1
+    done
+    ((i < 30)) || die "PostgreSQL $ver does not answer on port $PGPORT (journalctl -u postgresql@$ver-main)."
   fi
   ok "PostgreSQL $ver with pgvector"
 }

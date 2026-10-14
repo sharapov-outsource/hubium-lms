@@ -166,7 +166,8 @@ jobs:
           outputs: type=local,dest=release
           cache-from: type=gha,scope=bundle-amd64
           cache-to: type=gha,scope=bundle-amd64,mode=max
-      - run: ls -la release
+      - name: Checksums, as a release has them
+        run: (cd release && sha256sum -- *.tar.gz > SHA256SUMS && ls -la)
       - name: Install with install-hubium.sh
         run: |
           sudo bash install-hubium.sh --yes --mode native --from-dir release \
