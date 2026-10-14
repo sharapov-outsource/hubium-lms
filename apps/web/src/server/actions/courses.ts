@@ -28,6 +28,7 @@ import {
   moveCategoryOrder,
   moveSection,
   overrideCompletion,
+  profileValuesFromForm,
   purgeActivity,
   removeEnrolmentMethod,
   resetCourse,
@@ -61,6 +62,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { safePath } from '@/lib/safe-path';
 import { formToObject, runAction } from '../action';
+import { courseFieldViews } from '../course-fields';
 import { db } from '../db';
 import { getContext, VIEW_AS_COOKIE } from '../session';
 
@@ -106,9 +108,21 @@ async function saveCourseImage(courseId: string, fd: FormData) {
   await setCourseImage(ctx, courseId, f.id);
 }
 
+/** Values of the custom course fields the person may change in the form. */
+async function customFieldValues(fd: FormData, contextId: string) {
+  const editable = (await courseFieldViews(await getContext(), 'en', contextId)).filter(
+    (f) => !f.readOnly,
+  );
+  return editable.length ? profileValuesFromForm(editable, formToObject(fd)) : undefined;
+}
+
 export async function createCourseAction(fd: FormData) {
   const res = await runAction(async () => {
-    const r = await createCourse.run(await getContext(), courseFormValues(fd));
+    const values = courseFormValues(fd);
+    const r = await createCourse.run(await getContext(), {
+      ...values,
+      customFields: await customFieldValues(fd, values.categoryId ?? ''),
+    });
     await saveCourseImage(r.id, fd);
     return r;
   });
@@ -119,7 +133,11 @@ export async function createCourseAction(fd: FormData) {
 export async function updateCourseAction(fd: FormData) {
   return runAction(async () => {
     const id = String(fd.get('id'));
-    const r = await updateCourse.run(await getContext(), { id, ...courseFormValues(fd) });
+    const r = await updateCourse.run(await getContext(), {
+      id,
+      ...courseFormValues(fd),
+      customFields: await customFieldValues(fd, id),
+    });
     await saveCourseImage(id, fd);
     if (bool(fd.get('removeImage'))) await setCourseImage(await getContext(), id, null);
     revalidatePath(`/course/${id}`, 'layout');

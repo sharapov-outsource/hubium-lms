@@ -8,9 +8,10 @@ import {
 import { Button, Card, CardContent } from '@hubium/ui';
 import Link from 'next/link';
 import { forbidden } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { CommandButton } from '@/components/confirm-button';
 import { deleteCourseAction, updateCourseAction } from '@/server/actions/courses';
+import { courseFieldViews } from '@/server/course-fields';
 import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
 import { CourseForm } from '../../course-form';
@@ -54,6 +55,10 @@ export default async function CourseSettingsPage({
     <div className="grid gap-6">
       <CourseForm
         action={updateCourseAction}
+        customFields={{
+          fields: await courseFieldViews(ctx, await getLocale(), courseId),
+          values: (c.customFields ?? {}) as Record<string, string | boolean>,
+        }}
         categories={cats.map((x) => ({ id: x.id, name: x.name, depth: x.depth }))}
         languages={await enabledLanguages(ctx.db)}
         values={{

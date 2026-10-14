@@ -294,3 +294,46 @@ test('activities are imported from another course', async ({ page }) => {
     if (courseId) await deleteCourse(courseId);
   }
 });
+
+test('custom course fields are filled in and filter the catalog', async ({ page }) => {
+  const short = `lvl_${stamp}`;
+  let courseId = '';
+  try {
+    await login(page, ADMIN.login, ADMIN.password);
+    await page.goto('/admin/course-fields');
+    await expectAccessible(page);
+    await page.locator('#cf-shortName-new').fill(short);
+    await page.locator('#f-name-ru-new').fill(`Уровень ${stamp}`);
+    await chooseOption(page.locator('#cf-type-new'), 'menu');
+    await page.locator('#cf-choices-new').fill('Начальный\nПродвинутый');
+    await page.getByRole('button', { name: 'Создать', exact: true }).click();
+    await expect(page.getByText('Поле сохранено').first()).toBeVisible();
+
+    await page.goto('/course/new');
+    await page.locator('#f-fullName').fill(`Поля ${stamp}`);
+    await page.locator('#f-shortName').fill(`FIELDS-${stamp}`);
+    await chooseOption(page.locator(`#f-cf_${short}`), 'Продвинутый');
+    await page.getByRole('button', { name: 'Создать', exact: true }).click();
+    await page.waitForURL(/\/course\/[0-9a-f-]{36}/);
+    courseId = new URL(page.url()).pathname.split('/')[2]!;
+    const [c] = await sql<{ customFields: Record<string, string> }>(
+      `SELECT "customFields" FROM "Course" WHERE id = $1`,
+      [courseId],
+    );
+    expect(c!.customFields[short]).toBe('Продвинутый');
+
+    // the catalog filters by it and shows it on the card
+    await page.goto('/catalog');
+    await chooseOption(page.getByLabel(`Уровень ${stamp}`), 'Начальный');
+    await page.getByRole('button', { name: 'Применить' }).click();
+    await expect(page.getByText('Курсы не найдены')).toBeVisible();
+    await chooseOption(page.getByLabel(`Уровень ${stamp}`), 'Продвинутый');
+    await page.getByRole('button', { name: 'Применить' }).click();
+    const card = page.getByRole('link', { name: new RegExp(`Поля ${stamp}`) });
+    await expect(card).toContainText(`Уровень ${stamp}:Продвинутый`);
+    await expectAccessible(page);
+  } finally {
+    if (courseId) await deleteCourse(courseId);
+    await sql(`DELETE FROM "CourseField" WHERE "shortName" = $1`, [short]);
+  }
+});

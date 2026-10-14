@@ -49,6 +49,7 @@ export const coreCapabilities = {
   'course:viewparticipants': { level: 'COURSE', archetypes: [M, ET, T, S, O] },
   'course:switchrole': { level: 'COURSE', archetypes: [M, ET] },
   'course:reset': { level: 'COURSE', archetypes: [M], risk: ['dataloss'] },
+  'course:changelockedfields': { level: 'COURSE', archetypes: [M] },
   'enrol:manage': { level: 'COURSE', archetypes: [M, ET] },
   'enrol:self': { level: 'COURSE', archetypes: [U] },
   'group:manage': { level: 'COURSE', archetypes: [M, ET] },

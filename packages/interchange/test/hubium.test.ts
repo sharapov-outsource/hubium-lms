@@ -3,6 +3,7 @@ import {
   displayCalculations,
   importGift,
   runModuleAction,
+  saveCourseField,
   saveGradeCategory,
   saveLetters,
   saveScale,
@@ -157,6 +158,18 @@ describe('.hubium backup and restore', () => {
         { lowerBound: 0, letter: 'F' },
       ],
     });
+    // a custom field value, and one of a field that will be gone by the restore
+    const { id: goneId } = await saveCourseField.run(sys, {
+      shortName: 'gone',
+      name: { ru: 'Удалённое' },
+      type: 'text',
+    });
+    await saveCourseField.run(sys, { shortName: 'hours', name: { ru: 'Часы' }, type: 'text' });
+    await t.db.course.update({
+      where: { id: f.courseId },
+      data: { customFields: { hours: '72', gone: 'x' } },
+    });
+    await t.db.courseField.delete({ where: { id: goneId } });
   });
 
   it('exports a self-describing archive without learners’ data', async () => {
@@ -181,6 +194,7 @@ describe('.hubium backup and restore', () => {
     expect(r).toMatchObject({ activities: 3, questions: 2, files: 1, warnings: [] });
     const copy = await t.db.course.findUniqueOrThrow({ where: { id: r.courseId } });
     expect(copy.shortName).toBe('BACKUP1-1');
+    expect(copy.customFields).toEqual({ hours: '72' });
     const acts = await t.db.activity.findMany({
       where: { courseId: r.courseId },
       orderBy: { rank: 'asc' },

@@ -29,6 +29,9 @@ export interface ProfileField {
 
 export type ProfileValues = Record<string, string | boolean>;
 
+/** What validating a value needs; course fields share the same types and rules. */
+export type FieldSpec = Pick<ProfileField, 'shortName' | 'type' | 'choices' | 'required'>;
+
 /** Prefix of profile field inputs in forms and of CSV upload columns. */
 export const FORM_PREFIX = 'cf_';
 export const CSV_PREFIX = 'profile_field_';
@@ -67,7 +70,10 @@ const yesNoWords = () =>
   });
 
 /** One raw value (form, CSV, API) to its stored form, or an error message. */
-function coerce(f: ProfileField, raw: unknown): { value?: string | boolean; error?: string } {
+export function coerceFieldValue(
+  f: FieldSpec,
+  raw: unknown,
+): { value?: string | boolean; error?: string } {
   if (f.type === 'checkbox') {
     if (typeof raw === 'boolean') return { value: raw };
     const s = String(raw ?? '')
@@ -95,7 +101,7 @@ function coerce(f: ProfileField, raw: unknown): { value?: string | boolean; erro
  * `cf_<shortName>`, like the form inputs. With `requireAll`, required fields must be filled.
  */
 export function validateProfileValues(
-  fields: ProfileField[],
+  fields: FieldSpec[],
   raw: Record<string, unknown>,
   opts: { requireAll?: boolean } = {},
 ): ProfileValues {
@@ -107,7 +113,7 @@ export function validateProfileValues(
         errors[FORM_PREFIX + f.shortName] = ['Required'];
       continue;
     }
-    const r = coerce(f, raw[f.shortName]);
+    const r = coerceFieldValue(f, raw[f.shortName]);
     if (r.error) errors[FORM_PREFIX + f.shortName] = [r.error];
     else if (opts.requireAll && f.required && r.value === '')
       errors[FORM_PREFIX + f.shortName] = ['Required'];
@@ -119,7 +125,7 @@ export function validateProfileValues(
 
 /** Values of `cf_*` inputs in a submitted form, for `fields` (unchecked boxes are false). */
 export function profileValuesFromForm(
-  fields: ProfileField[],
+  fields: FieldSpec[],
   form: Record<string, string>,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};

@@ -6,6 +6,7 @@ import { DateInput } from '@hubium/module-sdk/form';
 import { Card, CardContent, CardHeader, CardTitle, Checkbox, Select } from '@hubium/ui';
 import { useTranslations } from 'next-intl';
 import { ActionForm, FormField, SubmitButton, useFieldError } from '@/components/action-form';
+import { ProfileFieldInputs, type ProfileFieldView } from '@/components/profile-field-inputs';
 
 export interface CourseFormValues {
   id?: string;
@@ -55,12 +56,15 @@ export function CourseForm({
   values = {},
   categories,
   languages,
+  customFields,
 }: {
   action: (fd: FormData) => Promise<ActionResult<unknown>>;
   values?: CourseFormValues;
   categories: { id: string; name: string; depth: number }[];
   /** Enabled languages, by their own names. */
   languages: { code: string; name: string }[];
+  /** Custom course fields and the course's values. */
+  customFields?: { fields: ProfileFieldView[]; values: Record<string, string | boolean> };
 }) {
   const t = useTranslations('course');
   const tc = useTranslations('common');
@@ -177,6 +181,16 @@ export function CourseForm({
           </div>
         </CardContent>
       </Card>
+      {customFields?.fields.length ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('customFields')}</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <ProfileFieldInputs fields={customFields.fields} values={customFields.values} />
+          </CardContent>
+        </Card>
+      ) : null}
       <div>
         <SubmitButton>{edit ? tc('save') : tc('create')}</SubmitButton>
       </div>

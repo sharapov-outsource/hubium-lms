@@ -1,14 +1,17 @@
 import { Readable } from 'node:stream';
 import {
   buildModuleCtx,
+  type CourseField,
   calculationOrder,
   calculationRefs,
   createCourse,
   disabledTypesIn,
   disabledTypesWarning,
   ensureCourseGradebook,
+  foreignCourseValues,
   getModule,
   importActivity,
+  listCourseFields,
   type RequestContext,
   toActivityRef,
   ValidationError,
@@ -59,6 +62,35 @@ import {
 // listed in the report.
 
 type Node = Record<string, unknown>;
+
+/**
+ * Moodle course custom fields, for the fields this site has under the same short names:
+ * a menu value is the option's number, a date a timestamp, a text area HTML.
+ */
+function mbzCourseFields(courseXml: Node, fields: CourseField[]) {
+  const raw: Record<string, unknown> = {};
+  for (const c of arr(((courseXml.customfields ?? {}) as Node).customfield as Node | Node[])) {
+    const f = fields.find((x) => x.shortName === txt(c.shortname).toLowerCase());
+    if (!f) continue;
+    const value = txt(c.value);
+    const type = txt(c.type);
+    raw[f.shortName] =
+      type === 'select'
+        ? (f.choices[Number(value) - 1] ?? value)
+        : type === 'date'
+          ? Number(value) > 0
+            ? // midnight where it was set, whatever the time zone
+              new Date((Number(value) + 43_200) * 1000).toISOString().slice(0, 10)
+            : ''
+          : type === 'textarea'
+            ? value
+                .replace(/<[^>]*>/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+            : value;
+  }
+  return foreignCourseValues(fields, raw);
+}
 const arr = <T>(v: T | T[] | undefined): T[] =>
   v === undefined || v === null || v === '' ? [] : Array.isArray(v) ? v : [v];
 const txt = (v: unknown): string => {
@@ -870,7 +902,10 @@ export async function importMbz(
     const summaryFiles = await storeArea(courseCtx, 'course', 'summary');
     await db.course.update({
       where: { id: courseId },
-      data: { summary: rewrite(txt(courseXml.summary), summaryFiles) },
+      data: {
+        summary: rewrite(txt(courseXml.summary), summaryFiles),
+        customFields: mbzCourseFields(courseXml, await listCourseFields(db)),
+      },
     });
 
     const newSections = await db.courseSection.findMany({

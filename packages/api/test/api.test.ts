@@ -6,6 +6,7 @@ import {
   createManualItem,
   overrideGrade,
   revokeApiToken,
+  saveCourseField,
   saveGradeCategory,
   saveProfileField,
   saveScale,
@@ -433,6 +434,18 @@ describe('REST API v1', () => {
 
   it('returns course keys and dates, the catalog, groupings and the gradebook tree', async () => {
     const admin = tokens.admin!;
+    const sys = await ctxFor(t.db, 'system');
+    await saveCourseField.run(sys, {
+      shortName: 'hours',
+      name: { ru: 'Часы' },
+      type: 'text',
+    });
+    await saveCourseField.run(sys, {
+      shortName: 'budget',
+      name: { ru: 'Бюджет' },
+      type: 'text',
+      visible: false,
+    });
     const made = await call(admin, '/courses', {
       method: 'POST',
       body: JSON.stringify({
@@ -441,6 +454,7 @@ describe('REST API v1', () => {
         shortName: 'THERMO-API',
         idNumber: 'HR-4711',
         startDate: '2026-09-01T00:00:00+03:00',
+        customFields: { hours: '72', budget: '1000' },
       }),
     });
     expect(made.status).toBe(201);
@@ -449,6 +463,7 @@ describe('REST API v1', () => {
       idNumber: 'HR-4711',
       startDate: '2026-08-31T21:00:00.000Z',
       endDate: null,
+      customFields: { hours: '72', budget: '1000' },
     });
     const mine = (await (await call(tokens.student!, '/courses')).json()) as {
       items: Record<string, unknown>[];
@@ -462,6 +477,9 @@ describe('REST API v1', () => {
     };
     expect(found.items.map((x) => x.id)).toEqual([courseId]);
     expect(JSON.stringify(found)).not.toContain('"key"');
+    // a field not marked visible stays with the course's editors
+    expect(found.items[0]).toMatchObject({ customFields: { hours: '72' } });
+    expect(JSON.stringify(found)).not.toContain('budget');
 
     // groupings with their groups
     const teacher = await ctxFor(t.db, f.users.teacher!);

@@ -1,4 +1,4 @@
-import { displayCalculations } from '@hubium/core';
+import { displayCalculations, saveCourseField } from '@hubium/core';
 import { ctxFor, useTestDb } from '@hubium/core/testing';
 import { courseFixture } from '@hubium/core/testing/course-fixture';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -13,6 +13,12 @@ describe('.mbz import', () => {
     const f = await courseFixture(t.db, 'MBZHOST');
     const course = await t.db.course.findUniqueOrThrow({ where: { id: f.courseId } });
     const admin = await ctxFor(t.db, 'admin@test.local');
+    for (const [shortName, type, choices] of [
+      ['level', 'menu', ['Начальный', 'Средний']],
+      ['starts', 'date', []],
+      ['about', 'textarea', []],
+    ] as const)
+      await saveCourseField.run(admin, { shortName, name: { ru: shortName }, type, choices });
     report = await importMbz(admin, await readMbz(await mbzFixture()), {
       categoryId: course.categoryId,
     });
@@ -33,6 +39,12 @@ describe('.mbz import', () => {
   it('recreates the course, sections and activities in order', async () => {
     const course = await t.db.course.findUniqueOrThrow({ where: { id: report.courseId } });
     expect(course).toMatchObject({ fullName: 'Python из Moodle', shortName: 'MOODLE-PY' });
+    // custom fields this site has: the menu option by number, the day, the text of the HTML
+    expect(course.customFields).toEqual({
+      level: 'Средний',
+      starts: '2026-01-01',
+      about: 'Для всех',
+    });
     expect(course.summary).toMatch(/\/files\/[0-9a-f-]{36}\/logo\.png/);
     const sections = await t.db.courseSection.findMany({
       where: { courseId: course.id },

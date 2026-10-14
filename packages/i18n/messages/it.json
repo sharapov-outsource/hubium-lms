@@ -503,7 +503,8 @@
       "queued": "In esecuzione in background per {count}; al termine arriverà una notifica",
       "done": "Fatto: {count}",
       "result": "Eseguito per {done} su {total}"
-    }
+    },
+    "courseFields": "Campi del corso"
   },
   "email": {
     "footer": "Questa email è stata inviata perché l’indirizzo è associato a un account su questo sito.",
@@ -598,7 +599,9 @@
     "starts": "Inizio",
     "ends": "Fine",
     "leave": "Abbandona il corso",
-    "leaveConfirm": "Abbandonare questo corso? I progressi vengono conservati, ma il corso scompare dall’elenco."
+    "leaveConfirm": "Abbandonare questo corso? I progressi vengono conservati, ma il corso scompare dall’elenco.",
+    "anyValue": "Qualsiasi",
+    "applyFilters": "Applica"
   },
   "course": {
     "new": "Nuovo corso",
@@ -699,7 +702,8 @@
     "reset": "Reimposta il corso",
     "resetHint": "Preparare il corso per un nuovo gruppo: eliminare lavori e voti, disiscrivere gli studenti, spostare le date.",
     "import": "Importa",
-    "importHint": "Copia attività da un altro corso."
+    "importHint": "Copia attività da un altro corso.",
+    "customFields": "Campi aggiuntivi"
   },
   "activity": {
     "new": "Nuova attività: {module}",
@@ -2036,5 +2040,15 @@
     "empty": "Questo corso non ha attività.",
     "done": "Attività importate: {activities}, nuove sezioni: {sections}, domande: {questions}.",
     "toCourse": "Vai al corso"
+  },
+  "courseFields": {
+    "title": "Campi del corso",
+    "description": "Più informazioni sui corsi: livello, durata, modalità. I campi visibili compaiono nel catalogo e nella descrizione del corso; menu e caselle diventano filtri del catalogo.",
+    "empty": "Nessun campo per ora.",
+    "shortNameHint": "Lettere latine, cifre e _; l’API e i ripristini dei corsi riconoscono il campo da questo nome",
+    "locked": "Lo modificano solo i manager",
+    "visible": "Mostra nel catalogo e nella descrizione del corso",
+    "hidden": "Nascosto",
+    "deleteConfirm": "Eliminare il campo «{name}» insieme ai suoi valori in tutti i corsi?"
   }
 }

@@ -103,7 +103,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 
 - Users: create and edit, custom profile fields, suspend, log in as another user (and return), upload from CSV (users, course groups and cohorts, with a preview), bulk actions on the selected (suspend, delete, require a password change, add to a cohort, enrol, message, export to CSV, XLSX and ODS), export personal data, delete with anonymisation.
 - Roles editor with a capability matrix, permission overrides per category, course and activity, and a permission checker.
-- Categories and courses (with a recycle bin), cohorts, LTI tools, webhooks, the AI provider, site policies that people must accept, and site announcements.
+- Categories and courses (with a recycle bin and custom course fields that show in the catalog and filter it), cohorts, LTI tools, webhooks, the AI provider, site policies that people must accept, and site announcements.
 - Activity modules turned on or off for the whole site; a module that is off keeps its activities and grades until it is turned on again.
 - Settings: general, branding (accent colour with automatic contrast correction, plus a logo), registration, sign-in methods, and email with a test send.
 - An environment page that checks the database, worker, job queue, storage, SMTP, content origin, Web Push, AI and ffmpeg.

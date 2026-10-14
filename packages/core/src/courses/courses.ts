@@ -9,6 +9,7 @@ import { rankBetween } from '../lib/rank.ts';
 import { localeCode, optionalText } from '../lib/zod.ts';
 import { defineOperation } from '../operation.ts';
 import { getAllSettings } from '../settings/settings.ts';
+import { checkCourseValues, courseFieldFilters } from './course-fields.ts';
 
 type Tx = Prisma.TransactionClient | Db;
 
@@ -45,6 +46,8 @@ export const CourseInput = z.object({
   groupMode: z.enum(['NONE', 'SEPARATE', 'VISIBLE']).default('NONE'),
   groupModeForced: z.boolean().default(false),
   guestAccess: z.boolean().default(false),
+  /** Values of custom course fields by short name; fields left out keep their values. */
+  customFields: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const createCourse = defineOperation({
@@ -64,6 +67,9 @@ export const createCourse = defineOperation({
     if (input.startDate && input.endDate && input.endDate <= input.startDate) {
       throw new ValidationError({ endDate: ['End date must be after the start date'] });
     }
+    const customFields = input.customFields
+      ? await checkCourseValues(ctx, ctx.tx, input.customFields, {}, input.categoryId)
+      : {};
     const id = uuidv7();
     await createContext(ctx.tx, id, 'COURSE', input.categoryId);
     const userId = ctx.perm.userId;
@@ -84,6 +90,7 @@ export const createCourse = defineOperation({
         groupMode: input.groupMode,
         groupModeForced: input.groupModeForced,
         guestAccess: input.guestAccess,
+        customFields,
         createdById: userId,
       },
     });
@@ -153,6 +160,9 @@ export const updateCourse = defineOperation({
     if (input.startDate && input.endDate && input.endDate <= input.startDate) {
       throw new ValidationError({ endDate: ['End date must be after the start date'] });
     }
+    const customFields = input.customFields
+      ? await checkCourseValues(ctx, ctx.tx, input.customFields, course.customFields, course.id)
+      : undefined;
     if (input.categoryId !== course.categoryId) {
       await ctx.perm.require('course:create', input.categoryId);
       const { moveContext } = await import('../access/contexts.ts');
@@ -175,6 +185,7 @@ export const updateCourse = defineOperation({
         groupMode: input.groupMode,
         groupModeForced: input.groupModeForced,
         guestAccess: input.guestAccess,
+        customFields,
       },
     });
     // A forced group mode applies to every activity of the course.
@@ -474,6 +485,8 @@ export interface MyCourse {
   role: string | null;
   startDate: Date | null;
   endDate: Date | null;
+  /** Stored custom field values (all of them: callers pick what to show). */
+  customFields: unknown;
 }
 
 /** Courses the user is actively enrolled in, most recently accessed first. */
@@ -528,6 +541,7 @@ export async function listMyCourses(db: Tx, userId: string, now = new Date()): P
       role: roleRows[0]?.role.shortName ?? null,
       startDate: c.startDate,
       endDate: c.endDate,
+      customFields: c.customFields,
     });
   }
   return out.sort(
@@ -555,6 +569,8 @@ export const CatalogQuery = z.object({
   categoryId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(60).default(12),
+  /** Visible menu and checkbox course fields: a choice, or yes / no. */
+  fields: z.record(z.string(), z.string().max(100)).optional(),
 });
 
 /** Words of a search query for to_tsquery: letters and digits only, ё → е. */
@@ -596,7 +612,7 @@ async function matchCourses(db: Db, q: string): Promise<string[]> {
 
 /** Visible courses for the catalog: full-text search, or newest first without a query. */
 export async function searchCatalog(ctx: RequestContext, raw: z.input<typeof CatalogQuery>) {
-  const { q, categoryId, page, pageSize } = CatalogQuery.parse(raw);
+  const { q, categoryId, page, pageSize, fields } = CatalogQuery.parse(raw);
   let categoryIds: string[] | undefined;
   if (categoryId) {
     const descendants = await ctx.db.context.findMany({
@@ -612,6 +628,7 @@ export async function searchCatalog(ctx: RequestContext, raw: z.input<typeof Cat
     category: { visible: true },
     ...(categoryIds ? { categoryId: { in: categoryIds } } : {}),
     ...(matched ? { id: { in: matched } } : {}),
+    AND: fields ? await courseFieldFilters(ctx.db, fields) : [],
   };
   const include = {
     category: { select: { id: true, name: true } },

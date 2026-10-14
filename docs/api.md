@@ -99,6 +99,8 @@ When **Administration → Settings → General → Mentors and parents** is on, 
 
 Courses carry `idNumber`, the key of the course in your other systems (unique; set it with `POST /courses`), plus `categoryId`, `startDate` and `endDate`. `/catalog` returns only visible courses, with the category name and the enabled ways to join (`self`, `guest`, …).
 
+Courses also carry their custom fields (**Administration → Course fields**) as `customFields`, keyed by each field's short name, with the value types of profile fields. `POST /courses` accepts them, checked by field type; a locked field needs `course:changelockedfields`. Lists (`/courses`, `/catalog`) show the fields marked visible; `GET /courses/{id}` shows every field to the course's editors.
+
 ### Grades
 
 `GET /courses/{id}/grades` describes the gradebook along with the grades:

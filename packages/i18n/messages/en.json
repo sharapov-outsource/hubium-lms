@@ -504,7 +504,8 @@
       "queued": "Running in the background for {count}; a notification follows when done",
       "done": "Done: {count}",
       "result": "Done for {done} of {total}"
-    }
+    },
+    "courseFields": "Course fields"
   },
   "email": {
     "footer": "You received this email because you have an account on this site.",
@@ -599,7 +600,9 @@
     "starts": "Starts",
     "ends": "Ends",
     "leave": "Leave course",
-    "leaveConfirm": "Leave this course? Your progress is kept but the course disappears from your list."
+    "leaveConfirm": "Leave this course? Your progress is kept but the course disappears from your list.",
+    "anyValue": "Any",
+    "applyFilters": "Apply"
   },
   "course": {
     "new": "New course",
@@ -700,7 +703,8 @@
     "reset": "Reset the course",
     "resetHint": "Get the course ready for a new intake: remove work and grades, unenrol students, move the dates.",
     "import": "Import",
-    "importHint": "Copy activities from another course."
+    "importHint": "Copy activities from another course.",
+    "customFields": "More fields"
   },
   "activity": {
     "new": "New {module}",
@@ -2037,5 +2041,15 @@
     "empty": "This course has no activities.",
     "done": "Activities imported: {activities}, new sections: {sections}, questions: {questions}.",
     "toCourse": "Go to the course"
+  },
+  "courseFields": {
+    "title": "Course fields",
+    "description": "More about courses: level, duration, mode of study. Visible fields show in the catalog and on the course description; menus and checkboxes become catalog filters.",
+    "empty": "No fields yet.",
+    "shortNameHint": "Latin letters, digits and _; the API and course restores know the field by it",
+    "locked": "Only managers change it",
+    "visible": "Show in the catalog and on the course description",
+    "hidden": "Hidden",
+    "deleteConfirm": "Delete the field “{name}” together with its values in every course?"
   }
 }

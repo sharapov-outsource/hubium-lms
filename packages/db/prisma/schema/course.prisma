@@ -66,6 +66,8 @@ model Course {
   groupModeForced    Boolean                  @default(false)
   guestAccess        Boolean                  @default(false)
   settings           Json                     @default("{}")
+  /// Values of the custom course fields, { [shortName]: string | boolean }.
+  customFields       Json                     @default("{}")
   createdById        String?                  @db.Uuid
   deletedAt          DateTime?                @db.Timestamptz(3)
   createdAt          DateTime                 @default(now()) @db.Timestamptz(3)
@@ -186,4 +188,21 @@ model CourseAccess {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, courseId])
+}
+
+/// A custom course field defined by administrators (values live in Course.customFields).
+model CourseField {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  shortName String   @unique
+  name      Json
+  type      String
+  options   Json     @default("{}")
+  required  Boolean  @default(false)
+  /// Only people who may change locked fields (course:changelockedfields) set it.
+  locked    Boolean  @default(false)
+  /// Shown in the catalog and on the course description; otherwise only to editors.
+  visible   Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 }

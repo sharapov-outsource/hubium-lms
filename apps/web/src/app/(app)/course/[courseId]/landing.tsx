@@ -1,10 +1,11 @@
 import { getCourseAccess } from '@hubium/core';
 import { RichText } from '@hubium/editor/client';
 import { Alert, Card, CardContent } from '@hubium/ui';
-import { getFormatter, getTranslations } from 'next-intl/server';
+import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { courseGradient, courseImageUrl } from '@/components/course-card';
 import { selfEnrolAction } from '@/server/actions/courses';
+import { courseFieldDisplay } from '@/server/course-fields';
 import { db } from '@/server/db';
 import { getContext } from '@/server/session';
 
@@ -12,7 +13,12 @@ export async function CourseLanding({ courseId }: { courseId: string }) {
   const ctx = await getContext();
   const access = await getCourseAccess(ctx, courseId);
   const course = access.course;
-  const [t, format] = await Promise.all([getTranslations('catalog'), getFormatter()]);
+  const [t, format, locale] = await Promise.all([
+    getTranslations('catalog'),
+    getFormatter(),
+    getLocale(),
+  ]);
+  const fields = await courseFieldDisplay(course.customFields, locale);
   const [self, teachers] = await Promise.all([
     db.enrolmentMethod.findFirst({ where: { courseId, type: 'SELF', enabled: true } }),
     db.user.findMany({
@@ -65,6 +71,12 @@ export async function CourseLanding({ courseId }: { courseId: string }) {
                 <dd>{format.dateTime(course.endDate, { dateStyle: 'long' })}</dd>
               </div>
             ) : null}
+            {fields.map((f) => (
+              <div key={f.key} className="flex gap-2">
+                <dt className="text-muted-foreground">{f.label}:</dt>
+                <dd className="whitespace-pre-line">{f.text}</dd>
+              </div>
+            ))}
           </dl>
         </CardContent>
       </Card>

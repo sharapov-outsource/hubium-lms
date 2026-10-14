@@ -503,7 +503,8 @@
       "queued": "En cours en arrière-plan pour {count} ; une notification suivra",
       "done": "Terminé : {count}",
       "result": "Effectué pour {done} sur {total}"
-    }
+    },
+    "courseFields": "Champs de cours"
   },
   "email": {
     "footer": "Vous recevez cet e-mail car vous avez un compte sur ce site.",
@@ -598,7 +599,9 @@
     "starts": "Début",
     "ends": "Fin",
     "leave": "Quitter le cours",
-    "leaveConfirm": "Quitter ce cours ? Votre progression est conservée, mais le cours disparaît de votre liste."
+    "leaveConfirm": "Quitter ce cours ? Votre progression est conservée, mais le cours disparaît de votre liste.",
+    "anyValue": "Tous",
+    "applyFilters": "Appliquer"
   },
   "course": {
     "new": "Nouveau cours",
@@ -699,7 +702,8 @@
     "reset": "Réinitialiser le cours",
     "resetHint": "Préparer le cours pour une nouvelle promotion : supprimer travaux et notes, désinscrire les étudiants, décaler les dates.",
     "import": "Importer",
-    "importHint": "Copier des activités depuis un autre cours."
+    "importHint": "Copier des activités depuis un autre cours.",
+    "customFields": "Champs supplémentaires"
   },
   "activity": {
     "new": "Nouvel élément : {module}",
@@ -2036,5 +2040,15 @@
     "empty": "Ce cours n’a aucune activité.",
     "done": "Activités importées : {activities}, nouvelles sections : {sections}, questions : {questions}.",
     "toCourse": "Aller au cours"
+  },
+  "courseFields": {
+    "title": "Champs de cours",
+    "description": "Plus d’informations sur les cours : niveau, durée, modalité. Les champs visibles apparaissent dans le catalogue et la description du cours ; les listes et cases à cocher servent de filtres du catalogue.",
+    "empty": "Aucun champ pour l’instant.",
+    "shortNameHint": "Lettres latines, chiffres et _ ; l’API et les restaurations de cours reconnaissent le champ par ce nom",
+    "locked": "Seuls les gestionnaires le modifient",
+    "visible": "Afficher dans le catalogue et la description du cours",
+    "hidden": "Masqué",
+    "deleteConfirm": "Supprimer le champ « {name} » avec ses valeurs dans tous les cours ?"
   }
 }

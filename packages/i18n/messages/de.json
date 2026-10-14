@@ -503,7 +503,8 @@
       "queued": "Läuft im Hintergrund für {count}; danach kommt eine Benachrichtigung",
       "done": "Erledigt: {count}",
       "result": "Erledigt für {done} von {total}"
-    }
+    },
+    "courseFields": "Kursfelder"
   },
   "email": {
     "footer": "Sie erhalten diese E-Mail, weil Sie ein Konto auf dieser Website haben.",
@@ -598,7 +599,9 @@
     "starts": "Beginn",
     "ends": "Ende",
     "leave": "Kurs verlassen",
-    "leaveConfirm": "Diesen Kurs verlassen? Ihr Fortschritt bleibt erhalten, aber der Kurs verschwindet aus Ihrer Liste."
+    "leaveConfirm": "Diesen Kurs verlassen? Ihr Fortschritt bleibt erhalten, aber der Kurs verschwindet aus Ihrer Liste.",
+    "anyValue": "Beliebig",
+    "applyFilters": "Anwenden"
   },
   "course": {
     "new": "Neuer Kurs",
@@ -699,7 +702,8 @@
     "reset": "Kurs zurücksetzen",
     "resetHint": "Den Kurs für einen neuen Durchgang vorbereiten: Arbeiten und Bewertungen löschen, Studierende austragen, Termine verschieben.",
     "import": "Importieren",
-    "importHint": "Aktivitäten aus einem anderen Kurs kopieren."
+    "importHint": "Aktivitäten aus einem anderen Kurs kopieren.",
+    "customFields": "Weitere Felder"
   },
   "activity": {
     "new": "{module} hinzufügen",
@@ -2036,5 +2040,15 @@
     "empty": "Dieser Kurs hat keine Aktivitäten.",
     "done": "Importierte Aktivitäten: {activities}, neue Abschnitte: {sections}, Fragen: {questions}.",
     "toCourse": "Zum Kurs"
+  },
+  "courseFields": {
+    "title": "Kursfelder",
+    "description": "Mehr über Kurse: Niveau, Dauer, Lernform. Sichtbare Felder erscheinen im Katalog und in der Kursbeschreibung; Auswahllisten und Kontrollkästchen werden zu Katalogfiltern.",
+    "empty": "Noch keine Felder.",
+    "shortNameHint": "Lateinische Buchstaben, Ziffern und _; daran erkennen die API und Kurswiederherstellungen das Feld",
+    "locked": "Nur Manager ändern es",
+    "visible": "Im Katalog und in der Kursbeschreibung zeigen",
+    "hidden": "Verborgen",
+    "deleteConfirm": "Feld „{name}“ samt seinen Werten in allen Kursen löschen?"
   }
 }

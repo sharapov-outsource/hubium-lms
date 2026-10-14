@@ -6,8 +6,10 @@ import {
   disabledTypesWarning,
   ensureCourseGradebook,
   ForbiddenError,
+  foreignCourseValues,
   getModule,
   importActivity,
+  listCourseFields,
   NotFoundError,
   parseInput,
   type RequestContext,
@@ -141,6 +143,8 @@ const CourseJson = z.object({
     groupMode: z.enum(['NONE', 'SEPARATE', 'VISIBLE']),
     groupModeForced: z.boolean(),
     settings: z.unknown(),
+    /** Custom course fields by short name; absent in older archives. */
+    customFields: z.record(z.string(), z.unknown()).default({}),
   }),
   sections: z.array(Section),
   activities: z.array(ActivityRow),
@@ -342,6 +346,7 @@ export async function exportCourse(
       groupMode: course.groupMode,
       groupModeForced: course.groupModeForced,
       settings: course.settings,
+      customFields: (course.customFields ?? {}) as Record<string, unknown>,
     },
     sections: sections.map((s) => ({
       id: s.id,
@@ -864,6 +869,8 @@ async function restoreInto(
           formatOptions: rewriteJson(src.formatOptions, map) as Prisma.InputJsonValue,
           completionSettings: rewriteJson(src.completionSettings, map) as Prisma.InputJsonValue,
           settings: rewriteJson(src.settings, map) as Prisma.InputJsonValue,
+          // values for the fields this site has
+          customFields: foreignCourseValues(await listCourseFields(db), src.customFields),
         },
       });
     const availability = (tree: unknown) => {

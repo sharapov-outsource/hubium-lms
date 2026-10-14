@@ -17,6 +17,7 @@ export * from './context.ts';
 export * from './courses/activities.ts';
 export * from './courses/availability.ts';
 export * from './courses/categories.ts';
+export * from './courses/course-fields.ts';
 export * from './courses/courses.ts';
 export * from './courses/reset.ts';
 export * from './crypto.ts';

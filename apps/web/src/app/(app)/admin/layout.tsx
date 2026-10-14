@@ -36,6 +36,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       label: t('profileFields'),
       show: config,
     },
+    {
+      key: 'courseFields',
+      href: '/admin/course-fields',
+      label: t('courseFields'),
+      show: config,
+    },
     { key: 'sso', href: '/admin/sso', label: t('sso'), show: config },
     { key: 'ldap', href: '/admin/ldap', label: 'LDAP', show: config },
     { key: 'roles', href: '/admin/roles', label: t('roles'), show: roles },

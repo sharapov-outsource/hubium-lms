@@ -5,8 +5,10 @@ import {
   actionInputFromForm,
   appendUploadChunk,
   authenticateApiToken,
+  type CourseField,
   categoryFractions,
   clientIp,
+  courseValuesFor,
   createCourse,
   createUpload,
   createUser,
@@ -25,6 +27,7 @@ import {
   graderReport,
   listApiTokens,
   listConversations,
+  listCourseFields,
   listGroupings,
   listGroups,
   listMentees,
@@ -47,6 +50,7 @@ import {
   runModuleQuery,
   searchCatalog,
   sendMessage,
+  shownCourseValues,
   toActionError,
   updateWebhook,
   userReport,
@@ -213,22 +217,31 @@ const Course = z
     visible: z.boolean(),
     startDate: z.string().nullable(),
     endDate: z.string().nullable(),
+    customFields: z.record(z.string(), z.union([z.string(), z.boolean()])).openapi({
+      description:
+        'Custom course fields by short name (filled ones). Lists show the fields marked visible; a single course shows all of them to its editors.',
+    }),
     progress: z.number().nullable().optional().openapi({ description: 'Your completion, %' }),
     role: z.string().nullable().optional().openapi({ description: 'Your role in the course' }),
   })
   .openapi('Course');
 
-const courseJson = (x: {
-  id: string;
-  fullName: string;
-  shortName: string;
-  idNumber: string | null;
-  summary: string;
-  categoryId: string;
-  visible: boolean;
-  startDate: Date | null;
-  endDate: Date | null;
-}) => ({
+const courseJson = (
+  x: {
+    id: string;
+    fullName: string;
+    shortName: string;
+    idNumber: string | null;
+    summary: string;
+    categoryId: string;
+    visible: boolean;
+    startDate: Date | null;
+    endDate: Date | null;
+    customFields: unknown;
+  },
+  /** Custom fields to show: the visible ones unless values are given. */
+  fields: { list: CourseField[]; values?: Record<string, string | boolean> },
+) => ({
   id: x.id,
   fullName: x.fullName,
   shortName: x.shortName,
@@ -238,6 +251,11 @@ const courseJson = (x: {
   visible: x.visible,
   startDate: iso(x.startDate),
   endDate: iso(x.endDate),
+  customFields:
+    fields.values ??
+    Object.fromEntries(
+      shownCourseValues(fields.list, x.customFields).map((v) => [v.field.shortName, v.value]),
+    ),
 });
 
 const CatalogCourse = Course.omit({ progress: true, role: true })
@@ -763,10 +781,17 @@ export function createApi(opts: ApiOptions) {
       responses: { 200: ok(z.object({ items: z.array(Course) })), 401: errors[401] },
     }),
     async (c) => {
-      const items = await listMyCourses(opts.db, uid(c));
+      const [items, list] = await Promise.all([
+        listMyCourses(opts.db, uid(c)),
+        listCourseFields(opts.db),
+      ]);
       return c.json(
         {
-          items: items.map((x) => ({ ...courseJson(x), progress: x.progress, role: x.role })),
+          items: items.map((x) => ({
+            ...courseJson(x, { list }),
+            progress: x.progress,
+            role: x.role,
+          })),
         },
         200,
       );
@@ -793,6 +818,13 @@ export function createApi(opts: ApiOptions) {
                 startDate: z.string().datetime({ offset: true }).optional(),
                 endDate: z.string().datetime({ offset: true }).optional(),
                 visible: z.boolean().optional(),
+                customFields: z
+                  .record(z.string(), z.union([z.string(), z.boolean()]))
+                  .optional()
+                  .openapi({
+                    description:
+                      'Custom course fields by short name: text, a date as YYYY-MM-DD, a menu option, true or false',
+                  }),
               }),
             },
           },
@@ -824,11 +856,14 @@ export function createApi(opts: ApiOptions) {
       responses: { 200: ok(Page(CatalogCourse)), ...errors },
     }),
     async (c) => {
-      const r = await searchCatalog(ctxOf(c), c.req.valid('query'));
+      const [r, list] = await Promise.all([
+        searchCatalog(ctxOf(c), c.req.valid('query')),
+        listCourseFields(opts.db),
+      ]);
       return c.json(
         {
           items: r.items.map((x) => ({
-            ...courseJson(x),
+            ...courseJson(x, { list }),
             categoryName: x.category.name,
             // the methods' keys (enrolment passwords) stay out
             enrolmentMethods: [...new Set(x.enrolmentMethods.map((m) => m.type.toLowerCase()))],
@@ -857,7 +892,14 @@ export function createApi(opts: ApiOptions) {
       // a course in the recycle bin is gone for everyone but site administrators
       if (!access.canView || (access.course.deletedAt && !ctx.perm.isSiteAdmin))
         throw new AppError('NOT_FOUND', 'Course not found');
-      return c.json(courseJson(access.course), 200);
+      const list = await listCourseFields(opts.db);
+      return c.json(
+        courseJson(access.course, {
+          list,
+          values: await courseValuesFor(ctx, access.course, list),
+        }),
+        200,
+      );
     },
   );
 
