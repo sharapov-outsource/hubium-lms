@@ -45,6 +45,11 @@ model User {
   lastLoginAt        DateTime?      @db.Timestamptz(3)
   /// When the local password was last set; null without one. Drives password expiry.
   passwordChangedAt  DateTime?      @db.Timestamptz(3)
+  /// Failed sign-ins since failedLoginAt (the first one in the lockout window).
+  failedLoginCount   Int            @default(0)
+  failedLoginAt      DateTime?      @db.Timestamptz(3)
+  /// Sign-in with a password is refused until then (Administration → Settings → Security).
+  lockedUntil        DateTime?      @db.Timestamptz(3)
   lastAccessAt       DateTime?      @db.Timestamptz(3)
   deletedAt          DateTime?      @db.Timestamptz(3)
   // Better Auth `admin` plugin primitives (ban/impersonation only; authorization is ours).

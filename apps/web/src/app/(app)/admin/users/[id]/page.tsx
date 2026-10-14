@@ -1,6 +1,7 @@
 import {
   enabledLanguages,
   getAllSettings,
+  isLocked,
   passwordPolicy,
   roleName,
   userRelations,
@@ -18,7 +19,7 @@ import {
 } from '@hubium/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getLocale, getTranslations } from 'next-intl/server';
+import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
 import { updateUserAction } from '@/server/actions/admin';
 import { db } from '@/server/db';
 import { viewerCan } from '@/server/page-title';
@@ -26,7 +27,7 @@ import { profileFieldViews } from '@/server/profile-fields';
 import { requireCapability } from '@/server/session';
 import { UserForm } from '../user-form';
 import { UserRelations } from './relations';
-import { DangerZone, SiteRoleToggles } from './user-actions';
+import { DangerZone, LockedNotice, SiteRoleToggles } from './user-actions';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -47,7 +48,11 @@ export default async function EditUserPage({
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const user = await db.user.findUnique({ where: { id } });
   if (!user || user.deletedAt) notFound();
-  const [t, locale] = await Promise.all([getTranslations('admin'), getLocale()]);
+  const [t, locale, format] = await Promise.all([
+    getTranslations('admin'),
+    getLocale(),
+    getFormatter(),
+  ]);
   const roles = await db.role.findMany({
     where: { assignableLevels: { has: 'SYSTEM' } },
     orderBy: { sortOrder: 'asc' },
@@ -68,6 +73,7 @@ export default async function EditUserPage({
             <Badge variant={user.status === 'ACTIVE' ? 'success' : 'warning'}>
               {user.status === 'ACTIVE' ? t('user.active') : t('user.suspended')}
             </Badge>
+            {isLocked(user) ? <Badge variant="warning">{t('user.locked')}</Badge> : null}
           </span>
         }
       />
@@ -147,6 +153,15 @@ export default async function EditUserPage({
               </Link>
             </CardContent>
           </Card>
+          {isLocked(user) ? (
+            <LockedNotice
+              userId={user.id}
+              until={format.dateTime(user.lockedUntil!, {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+              })}
+            />
+          ) : null}
           {user.id !== ctx.perm.userId ? (
             <DangerZone
               userId={user.id}

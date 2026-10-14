@@ -161,6 +161,14 @@
       "upper": "una lettera maiuscola",
       "symbol": "un simbolo come ! o %",
       "history": "diversa dalle ultime {n} password"
+    },
+    "accountLocked": "L'accesso è temporaneamente bloccato dopo diversi tentativi falliti. Riprova più tardi o apri il link nell'email inviata.",
+    "unlock": {
+      "title": "Sblocca il tuo account",
+      "intro": "Premi il pulsante per consentire di nuovo l'accesso. Se i tentativi non erano tuoi, cambia poi la password.",
+      "action": "Sblocca",
+      "done": "Il tuo account è sbloccato; puoi accedere.",
+      "invalid": "Il link non è valido o è scaduto. Il blocco termina da solo allo scadere del tempo."
     }
   },
   "dashboard": {
@@ -276,7 +284,11 @@
         "uploadTitle": "Collega mentori e genitori",
         "uploadHint": "Colonne: mentor e mentee (email o username), kind (parent o mentor) e action (add o remove).",
         "uploadResult": "Collegati: {added}, scollegati: {removed}, errori: {errors}"
-      }
+      },
+      "locked": "Bloccato",
+      "lockedUntil": "L'accesso è bloccato dopo tentativi falliti fino al {until}.",
+      "unlock": "Sblocca",
+      "unlocked": "Account sbloccato"
     },
     "role": {
       "new": "Nuovo ruolo",
@@ -368,7 +380,12 @@
       "passwordHistory": "Non riutilizzare le ultime password",
       "passwordHistoryHint": "Quante password recenti non possono essere riusate; 0 per nessun limite",
       "passwordMaxAge": "Validità della password, giorni",
-      "passwordMaxAgeHint": "Dopo questo periodo la password va cambiata all'accesso; 0 per mai"
+      "passwordMaxAgeHint": "Dopo questo periodo la password va cambiata all'accesso; 0 per mai",
+      "lockout": "Blocco dopo accessi non riusciti",
+      "lockoutThreshold": "Accessi non riusciti prima del blocco",
+      "lockoutThresholdHint": "0 per non bloccare mai. Il titolare riceve un'email con un link per sbloccare.",
+      "lockoutWindow": "Conta i tentativi entro, minuti",
+      "lockoutDuration": "Durata del blocco, minuti"
     },
     "env": {
       "title": "Ambiente",
@@ -444,6 +461,12 @@
       "subject": "Email di prova — {site}",
       "heading": "L’email funziona",
       "intro": "Questa è un’email di prova. Se è possibile leggerla, l’invio delle email è configurato correttamente."
+    },
+    "locked": {
+      "subject": "Accesso bloccato — {site}",
+      "heading": "Accesso bloccato",
+      "intro": "Ciao {name}! Dopo diversi tentativi di accesso falliti, il tuo account è bloccato per {minutes} min. Se eri tu, sbloccalo con il pulsante qui sotto. Altrimenti, dopo lo sblocco cambia la password.",
+      "action": "Sblocca"
     }
   },
   "errors": {

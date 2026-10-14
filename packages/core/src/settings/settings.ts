@@ -40,6 +40,11 @@ export const settingDefs = {
   'password.history': z.coerce.number().int().min(0).max(20).default(0),
   /** Days until a password must be changed (0 = never). */
   'password.maxAgeDays': z.coerce.number().int().min(0).max(3650).default(0),
+  // Account lockout (auth/lockout.ts): failed sign-ins within the window lock the account.
+  /** Failed sign-ins that lock an account (0 = never lock). */
+  'lockout.threshold': z.coerce.number().int().min(0).max(1000).default(0),
+  'lockout.windowMinutes': z.coerce.number().int().min(1).max(10_080).default(30),
+  'lockout.durationMinutes': z.coerce.number().int().min(1).max(10_080).default(30),
   'email.fromName': z.string().default('Hubium LMS'),
   'course.creatorRole': z.string().default('editingteacher'),
   'mentors.enabled': z.boolean().default(false),

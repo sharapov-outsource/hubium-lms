@@ -4,9 +4,11 @@ import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { admin, twoFactor, username } from 'better-auth/plugins';
 import { genericOAuth, yandex } from 'better-auth/plugins/generic-oauth';
+import { clientIp } from '../client-ip.ts';
 import { ValidationError } from '../errors.ts';
 import { sendAuthEmail } from '../mail/mail.ts';
 import { getAllSettings, userLocale } from '../settings/settings.ts';
+import { clearFailedSignIns, findSignInUser, isLocked, recordFailedSignIn } from './lockout.ts';
 import { impersonatedBy, loginAs } from './login-as.ts';
 import {
   assertPasswordAllowed,
@@ -51,6 +53,7 @@ export function configuredOAuthProviders(): ('google' | 'yandex' | 'vk')[] {
 }
 
 const EMAIL_SIGN_IN_PATHS = new Set(['/sign-up/email', '/sign-in/email', '/sign-in/username']);
+const PASSWORD_SIGN_IN_PATHS = new Set(['/sign-in/email', '/sign-in/username']);
 
 /** Credentials stay with their owner: not changeable from a "log in as" session. */
 const CREDENTIAL_PATHS = new Set([
@@ -189,6 +192,14 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
         // "Require email verification" is a site setting: Better Auth reads the option on
         // each call, so this request's copy of the context gets the current value.
         if (EMAIL_SIGN_IN_PATHS.has(c.path)) {
+          if (PASSWORD_SIGN_IN_PATHS.has(c.path)) {
+            const user = await findSignInUser(db, (c.body ?? {}) as object);
+            if (user && isLocked(user))
+              throw new APIError('FORBIDDEN', {
+                code: 'ACCOUNT_LOCKED',
+                message: 'This account is locked after failed sign-ins',
+              });
+          }
           const settings = await getAllSettings(db);
           c.context.options = {
             ...c.context.options,
@@ -229,6 +240,18 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
         const settings = await getAllSettings(db);
         if (!settings[`auth.oauth.${provider}`])
           throw new APIError('FORBIDDEN', { message: 'This sign-in method is disabled' });
+      }),
+      after: createAuthMiddleware(async (c) => {
+        // a wrong password counts towards the lockout (auth/lockout.ts)
+        if (!PASSWORD_SIGN_IN_PATHS.has(c.path)) return;
+        const r = c.context.returned;
+        if (!(r instanceof APIError) || r.statusCode !== 401) return;
+        const user = await findSignInUser(db, (c.body ?? {}) as object);
+        if (user)
+          await recordFailedSignIn(db, user.id, {
+            appUrl: baseURL,
+            ip: clientIp(c.headers?.get('x-forwarded-for') ?? null),
+          });
       }),
     },
     databaseHooks: {
@@ -292,6 +315,7 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
           async after(session) {
             // logging in as someone is not that person's login
             if (impersonatedBy(session)) return;
+            await clearFailedSignIns(db, session.userId);
             const user = await db.user.update({
               where: { id: session.userId },
               data: { lastLoginAt: new Date() },

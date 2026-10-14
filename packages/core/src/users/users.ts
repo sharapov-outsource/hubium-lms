@@ -1,6 +1,7 @@
 import { type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { hashPassword } from 'better-auth/crypto';
 import { z } from 'zod';
+import { unlockAccount } from '../auth/lockout.ts';
 import { assertPasswordAllowed, recordPasswordChange } from '../auth/password-policy.ts';
 import type { RequestContext } from '../context.ts';
 import { assertCanAssignRole } from '../enrol/enrol.ts';
@@ -302,6 +303,27 @@ export const setUserSuspended = defineOperation({
       name: suspended ? 'user.suspended' : 'user.unsuspended',
       actorId: ctx.perm.userId,
       relatedUserId: id,
+      origin: ctx.origin,
+    });
+    return { id };
+  },
+});
+
+/** Lifts a lock after failed sign-ins (auth/lockout.ts). */
+export const unlockUser = defineOperation({
+  name: 'user.unlock',
+  input: z.object({ id: z.string().uuid() }),
+  authorize: (ctx) => ctx.perm.require('user:update'),
+  async handler(ctx, { id }) {
+    const user = await ctx.tx.user.findUnique({ where: { id } });
+    if (!user || user.deletedAt) throw new NotFoundError('User');
+    await unlockAccount(ctx.tx, id);
+    await logEvent(ctx.tx, {
+      name: 'user.unlocked',
+      actorId: ctx.perm.userId,
+      relatedUserId: id,
+      objectType: 'user',
+      objectId: id,
       origin: ctx.origin,
     });
     return { id };

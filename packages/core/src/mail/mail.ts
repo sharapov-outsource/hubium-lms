@@ -122,7 +122,7 @@ export function renderActionEmail(opts: {
   return { html, text };
 }
 
-export type AuthEmailKind = 'verify' | 'reset' | 'changeEmail';
+export type AuthEmailKind = 'verify' | 'reset' | 'changeEmail' | 'locked';
 
 export async function sendAuthEmail(opts: {
   kind: AuthEmailKind;
@@ -131,13 +131,15 @@ export async function sendAuthEmail(opts: {
   locale: Locale;
   siteName: string;
   name: string;
+  /** Extra values for the intro text. */
+  values?: Record<string, string | number>;
 }): Promise<void> {
   const t = createTranslator(opts.locale);
   const { html, text } = renderActionEmail({
     locale: opts.locale,
     siteName: opts.siteName,
     heading: t(`email.${opts.kind}.heading`),
-    intro: t(`email.${opts.kind}.intro`, { name: opts.name }),
+    intro: t(`email.${opts.kind}.intro`, { ...opts.values, name: opts.name }),
     action: { label: t(`email.${opts.kind}.action`), url: opts.url },
     footer: t('email.footer'),
   });

@@ -20,6 +20,7 @@ import {
   setSettings,
   setUserSuspended,
   siteLocale,
+  unlockUser,
   updateRole,
   updateUser,
   userLocale,
@@ -83,6 +84,14 @@ export async function setUserSuspendedAction(id: string, suspended: boolean) {
     const r = await setUserSuspended.run(await getContext(), { id, suspended });
     revalidatePath(`/admin/users/${id}`);
     revalidatePath('/admin/users');
+    return r;
+  });
+}
+
+export async function unlockUserAction(id: string) {
+  return runAction(async () => {
+    const r = await unlockUser.run(await getContext(), { id });
+    revalidatePath(`/admin/users/${id}`);
     return r;
   });
 }
@@ -219,6 +228,9 @@ export async function saveSettingsAction(fd: FormData) {
           'password.requireSymbol': bool(fd.get('requireSymbol')),
           'password.history': v.history,
           'password.maxAgeDays': v.maxAgeDays,
+          'lockout.threshold': v.lockoutThreshold,
+          'lockout.windowMinutes': v.lockoutWindow,
+          'lockout.durationMinutes': v.lockoutDuration,
         });
         break;
       case 'email':

@@ -161,6 +161,14 @@
       "upper": "une majuscule",
       "symbol": "un caractère spécial comme ! ou %",
       "history": "différent de vos {n} derniers mots de passe"
+    },
+    "accountLocked": "La connexion est temporairement verrouillée après plusieurs échecs. Réessayez plus tard ou ouvrez le lien de l'e-mail envoyé.",
+    "unlock": {
+      "title": "Déverrouiller votre compte",
+      "intro": "Appuyez sur le bouton pour autoriser à nouveau la connexion. Si les tentatives ne venaient pas de vous, changez ensuite votre mot de passe.",
+      "action": "Déverrouiller",
+      "done": "Votre compte est déverrouillé ; vous pouvez vous connecter.",
+      "invalid": "Le lien est invalide ou a expiré. Le verrouillage prend fin de lui-même à son terme."
     }
   },
   "dashboard": {
@@ -276,7 +284,11 @@
         "uploadTitle": "Associer mentors et parents",
         "uploadHint": "Colonnes : mentor et mentee (e-mail ou identifiant), kind (parent ou mentor) et action (add ou remove).",
         "uploadResult": "Associés : {added}, dissociés : {removed}, erreurs : {errors}"
-      }
+      },
+      "locked": "Verrouillé",
+      "lockedUntil": "La connexion est verrouillée après des échecs jusqu'au {until}.",
+      "unlock": "Déverrouiller",
+      "unlocked": "Compte déverrouillé"
     },
     "role": {
       "new": "Nouveau rôle",
@@ -368,7 +380,12 @@
       "passwordHistory": "Ne pas réutiliser les derniers mots de passe",
       "passwordHistoryHint": "Nombre de mots de passe récents interdits ; 0 pour aucune limite",
       "passwordMaxAge": "Durée de validité du mot de passe, en jours",
-      "passwordMaxAgeHint": "Ensuite, le mot de passe doit être changé à la connexion ; 0 pour jamais"
+      "passwordMaxAgeHint": "Ensuite, le mot de passe doit être changé à la connexion ; 0 pour jamais",
+      "lockout": "Verrouillage après des échecs de connexion",
+      "lockoutThreshold": "Échecs de connexion avant verrouillage",
+      "lockoutThresholdHint": "0 pour ne jamais verrouiller. Le titulaire reçoit un e-mail avec un lien de déverrouillage.",
+      "lockoutWindow": "Compter les tentatives sur, en minutes",
+      "lockoutDuration": "Durée du verrouillage, en minutes"
     },
     "env": {
       "title": "Environnement",
@@ -444,6 +461,12 @@
       "subject": "E-mail de test — {site}",
       "heading": "La messagerie fonctionne",
       "intro": "Ceci est un e-mail de test. Si vous pouvez le lire, l’envoi des e-mails est correctement configuré."
+    },
+    "locked": {
+      "subject": "Connexion verrouillée — {site}",
+      "heading": "Connexion verrouillée",
+      "intro": "Bonjour {name} ! Après plusieurs échecs de connexion, votre compte est verrouillé pendant {minutes} min. Si c'était vous, déverrouillez-le avec le bouton ci-dessous. Sinon, changez votre mot de passe après le déverrouillage.",
+      "action": "Déverrouiller"
     }
   },
   "errors": {

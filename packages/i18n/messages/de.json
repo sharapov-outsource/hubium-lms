@@ -161,6 +161,14 @@
       "upper": "einen Großbuchstaben",
       "symbol": "ein Sonderzeichen wie ! oder %",
       "history": "keines Ihrer letzten {n} Passwörter"
+    },
+    "accountLocked": "Die Anmeldung ist nach mehreren Fehlversuchen vorübergehend gesperrt. Versuchen Sie es später oder öffnen Sie den Link aus der E-Mail.",
+    "unlock": {
+      "title": "Konto entsperren",
+      "intro": "Klicken Sie auf die Schaltfläche, um die Anmeldung wieder zu erlauben. Wenn die Versuche nicht von Ihnen kamen, ändern Sie danach Ihr Passwort.",
+      "action": "Entsperren",
+      "done": "Ihr Konto ist entsperrt; Sie können sich anmelden.",
+      "invalid": "Der Link ist ungültig oder abgelaufen. Die Sperre endet von selbst, wenn ihre Zeit abgelaufen ist."
     }
   },
   "dashboard": {
@@ -276,7 +284,11 @@
         "uploadTitle": "Mentor/innen und Eltern verknüpfen",
         "uploadHint": "Spalten: mentor und mentee (E-Mail oder Anmeldename), kind (parent oder mentor) und action (add oder remove).",
         "uploadResult": "Verknüpft: {added}, entfernt: {removed}, Fehler: {errors}"
-      }
+      },
+      "locked": "Gesperrt",
+      "lockedUntil": "Die Anmeldung ist nach Fehlversuchen bis {until} gesperrt.",
+      "unlock": "Entsperren",
+      "unlocked": "Konto entsperrt"
     },
     "role": {
       "new": "Neue Rolle",
@@ -368,7 +380,12 @@
       "passwordHistory": "Letzte Passwörter nicht wiederverwenden",
       "passwordHistoryHint": "Wie viele letzte Passwörter gesperrt sind; 0 für keine Einschränkung",
       "passwordMaxAge": "Gültigkeit des Passworts in Tagen",
-      "passwordMaxAgeHint": "Danach muss das Passwort bei der Anmeldung geändert werden; 0 für nie"
+      "passwordMaxAgeHint": "Danach muss das Passwort bei der Anmeldung geändert werden; 0 für nie",
+      "lockout": "Sperre nach fehlgeschlagenen Anmeldungen",
+      "lockoutThreshold": "Fehlversuche bis zur Sperre",
+      "lockoutThresholdHint": "0 für keine Sperre. Der Inhaber erhält eine E-Mail mit einem Link zum Entsperren.",
+      "lockoutWindow": "Versuche zählen innerhalb von Minuten",
+      "lockoutDuration": "Dauer der Sperre in Minuten"
     },
     "env": {
       "title": "Umgebung",
@@ -444,6 +461,12 @@
       "subject": "Test-E-Mail – {site}",
       "heading": "E-Mail funktioniert",
       "intro": "Dies ist eine Test-E-Mail. Wenn Sie sie lesen können, ist der E-Mail-Versand korrekt eingerichtet."
+    },
+    "locked": {
+      "subject": "Anmeldung gesperrt — {site}",
+      "heading": "Anmeldung gesperrt",
+      "intro": "Hallo {name}! Nach mehreren fehlgeschlagenen Anmeldeversuchen ist Ihr Konto für {minutes} Min. gesperrt. Wenn Sie es waren, entsperren Sie es mit der Schaltfläche unten. Wenn nicht, ändern Sie danach Ihr Passwort.",
+      "action": "Entsperren"
     }
   },
   "errors": {

@@ -16,6 +16,7 @@ const PUBLIC = [
   '/two-factor',
   '/verify-email',
   '/unsubscribe',
+  '/unlock-account',
   '/offline',
   '/c/',
   '/api',

@@ -11,6 +11,7 @@ import {
   deleteUserAction,
   loginAsAction,
   setUserSuspendedAction,
+  unlockUserAction,
 } from '@/server/actions/admin';
 
 export function SiteRoleToggles({
@@ -45,6 +46,34 @@ export function SiteRoleToggles({
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Shown while the account is locked after failed sign-ins. */
+export function LockedNotice({ userId, until }: { userId: string; until: string }) {
+  const t = useTranslations('admin.user');
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  return (
+    <Card>
+      <CardContent className="grid gap-3 pt-5">
+        <p className="text-sm">{t('lockedUntil', { until })}</p>
+        <Button
+          variant="outline"
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              const r = await unlockUserAction(userId);
+              if (r.ok) toast.success(t('unlocked'));
+              else toast.error(r.message);
+              router.refresh();
+            })
+          }
+        >
+          {t('unlock')}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

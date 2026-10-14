@@ -162,6 +162,14 @@
       "upper": "an uppercase letter",
       "symbol": "a symbol such as ! or %",
       "history": "not one of your last {n} passwords"
+    },
+    "accountLocked": "Sign-in is temporarily locked after several failed attempts. Try again later or open the link in the email we sent.",
+    "unlock": {
+      "title": "Unlock your account",
+      "intro": "Press the button to allow sign-in again. If the attempts were not yours, change your password afterwards.",
+      "action": "Unlock",
+      "done": "Your account is unlocked; you can sign in.",
+      "invalid": "The link is invalid or has expired. The lock ends by itself when its time is up."
     }
   },
   "dashboard": {
@@ -277,7 +285,11 @@
         "uploadTitle": "Link mentors and parents",
         "uploadHint": "Columns: mentor and mentee (email or username), kind (parent or mentor) and action (add or remove).",
         "uploadResult": "Linked: {added}, unlinked: {removed}, errors: {errors}"
-      }
+      },
+      "locked": "Locked",
+      "lockedUntil": "Sign-in is locked after failed attempts until {until}.",
+      "unlock": "Unlock",
+      "unlocked": "Account unlocked"
     },
     "role": {
       "new": "New role",
@@ -369,7 +381,12 @@
       "passwordHistory": "Do not reuse recent passwords",
       "passwordHistoryHint": "How many recent passwords cannot be used again; 0 for no limit",
       "passwordMaxAge": "Password lifetime, days",
-      "passwordMaxAgeHint": "After this, the password must be changed at sign-in; 0 for never"
+      "passwordMaxAgeHint": "After this, the password must be changed at sign-in; 0 for never",
+      "lockout": "Lockout after failed sign-ins",
+      "lockoutThreshold": "Failed sign-ins before lockout",
+      "lockoutThresholdHint": "0 to never lock. The owner gets an email with a link to unlock.",
+      "lockoutWindow": "Count attempts within, minutes",
+      "lockoutDuration": "Lockout duration, minutes"
     },
     "env": {
       "title": "Environment",
@@ -445,6 +462,12 @@
       "subject": "Test email — {site}",
       "heading": "Email works",
       "intro": "This is a test email. If you can read it, email delivery is configured correctly."
+    },
+    "locked": {
+      "subject": "Sign-in locked — {site}",
+      "heading": "Sign-in locked",
+      "intro": "Hello {name}! After several failed sign-in attempts, your account is locked for {minutes} min. If it was you, unlock it with the button below. If not, change your password after unlocking.",
+      "action": "Unlock"
     }
   },
   "errors": {

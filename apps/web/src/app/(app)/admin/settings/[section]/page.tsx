@@ -199,6 +199,34 @@ export default async function SettingsSectionPage({
             hint={t('settings.passwordMaxAgeHint')}
             defaultValue={s['password.maxAgeDays']}
           />
+          <h2 className="mt-2 font-semibold">{t('settings.lockout')}</h2>
+          <FormField
+            name="lockoutThreshold"
+            type="number"
+            min={0}
+            max={1000}
+            label={t('settings.lockoutThreshold')}
+            hint={t('settings.lockoutThresholdHint')}
+            defaultValue={s['lockout.threshold']}
+          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              name="lockoutWindow"
+              type="number"
+              min={1}
+              max={10080}
+              label={t('settings.lockoutWindow')}
+              defaultValue={s['lockout.windowMinutes']}
+            />
+            <FormField
+              name="lockoutDuration"
+              type="number"
+              min={1}
+              max={10080}
+              label={t('settings.lockoutDuration')}
+              defaultValue={s['lockout.durationMinutes']}
+            />
+          </div>
         </Form>
       );
       break;

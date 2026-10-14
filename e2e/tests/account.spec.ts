@@ -147,3 +147,53 @@ test('password policy: rules in the forms, refusals and expiry', async ({ page }
     }
   }
 });
+
+test('lockout after failed sign-ins: email link and administrator unlock', async ({ page }) => {
+  const tryLogin = async (password: string) => {
+    await page.goto('/login');
+    await page.locator('#login').fill('student3');
+    await page.locator('#password').fill(password);
+    await page.locator('form button[type=submit]').click();
+  };
+  await login(page, ADMIN.login, ADMIN.password);
+  await page.goto('/admin/settings/security');
+  await page.getByLabel('Неудачных попыток до блокировки').fill('2');
+  await page.getByRole('button', { name: 'Сохранить' }).click();
+  await expect(page.getByText('Сохранено').first()).toBeVisible();
+  await page.context().clearCookies();
+
+  try {
+    const after = new Date(Date.now() - 1000);
+    for (let i = 0; i < 2; i++) {
+      await tryLogin('wrong-password');
+      await expect(page.getByRole('alert').first()).toContainText('Неверный');
+    }
+    await tryLogin(DEMO_PASSWORD);
+    await expect(page.getByRole('alert').first()).toContainText('временно заблокирован');
+
+    // the owner unlocks from the email
+    const mail = await waitForMail('student3@hubium.local', { subject: /заблокирован/, after });
+    await page.goto(firstLink(mail.Text));
+    await expectAccessible(page);
+    await page.getByRole('button', { name: 'Разблокировать' }).click();
+    await expect(page.getByText('Учётная запись разблокирована, можно войти.')).toBeVisible();
+    await login(page, 'student3', DEMO_PASSWORD);
+    await page.context().clearCookies();
+
+    // locked again, an administrator unlocks from the user's page
+    for (let i = 0; i < 2; i++) await tryLogin('wrong-password');
+    await login(page, ADMIN.login, ADMIN.password);
+    const [u] = await sql<{ id: string }>(`SELECT id FROM "User" WHERE username = 'student3'`);
+    await page.goto(`/admin/users/${u!.id}`);
+    await expect(page.getByText(/Вход заблокирован после неудачных попыток до/)).toBeVisible();
+    await page.getByRole('button', { name: 'Разблокировать' }).click();
+    await expect(page.getByText('Учётная запись разблокирована').first()).toBeVisible();
+    await page.context().clearCookies();
+    await login(page, 'student3', DEMO_PASSWORD);
+  } finally {
+    await setSetting('lockout.threshold', 0);
+    await sql(
+      `UPDATE "User" SET "lockedUntil" = NULL, "failedLoginCount" = 0 WHERE username = 'student3'`,
+    );
+  }
+});
