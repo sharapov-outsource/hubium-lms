@@ -1,6 +1,7 @@
 import { getAllSettings, roleName, siteLocale } from '@hubium/core';
 import { BUILT_IN_OAUTH, configuredOAuthProviders } from '@hubium/core/auth/auth';
 import { languageInfo } from '@hubium/i18n/packs';
+import { DateTimeInput } from '@hubium/module-sdk/form';
 import { Badge, Card, CardContent, Checkbox, Select, Textarea } from '@hubium/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -27,6 +28,7 @@ const SECTIONS = [
   'authentication',
   'security',
   'email',
+  'maintenance',
 ] as const;
 type Section = (typeof SECTIONS)[number];
 
@@ -252,6 +254,41 @@ export default async function SettingsSectionPage({
           </Form>
           <TestEmailButton label={t('settings.testEmail')} done={t('settings.testEmailSent')} />
         </div>
+      );
+      break;
+    case 'maintenance':
+      body = (
+        <Form section="maintenance" save={tc('save')} saved={tc('saved')}>
+          <p className="text-sm text-muted-foreground">{t('settings.maintenanceHint')}</p>
+          <Toggle
+            name="maintenanceEnabled"
+            label={t('settings.maintenanceEnabled')}
+            checked={s['maintenance.enabled']}
+          />
+          <FormField name="maintenanceMessage" label={t('settings.maintenanceMessage')}>
+            <Textarea
+              id="f-maintenanceMessage"
+              name="maintenanceMessage"
+              maxLength={2000}
+              defaultValue={s['maintenance.message']}
+              placeholder={t('settings.maintenanceMessagePlaceholder')}
+            />
+          </FormField>
+          <FormField
+            name="maintenanceUntil"
+            label={t('settings.maintenanceUntil')}
+            hint={t('settings.maintenanceUntilHint')}
+          >
+            <DateTimeInput
+              id="f-maintenanceUntil"
+              name="maintenanceUntil"
+              defaultValue={s['maintenance.until']}
+            />
+          </FormField>
+          <p className="text-xs text-muted-foreground">
+            {t('settings.maintenanceCli')} <code>hubium maintenance on|off</code>
+          </p>
+        </Form>
       );
       break;
   }

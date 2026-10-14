@@ -1,6 +1,9 @@
 import { getSetting, hasMentees, pendingPolicies } from '@hubium/core';
+import { Alert } from '@hubium/ui';
 import { headers } from 'next/headers';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
 import { LoginAsBanner } from '@/components/shell/login-as-banner';
@@ -61,9 +64,18 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   ) {
     items.push({ href: '/admin', label: 'nav.admin', icon: 'admin', mobile: true });
   }
+  const t = await getTranslations('admin');
   return (
     <AppShell user={user} items={items}>
       {loggedInAs ? <LoginAsBanner name={user.name} /> : null}
+      {user.isSiteAdmin && (await getSetting(db, 'maintenance.enabled')) ? (
+        <Alert variant="warning" className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <span>{t('maintenanceOn')}</span>
+          <Link href="/admin/settings/maintenance" className="text-sm font-medium underline">
+            {t('maintenanceSettings')}
+          </Link>
+        </Alert>
+      ) : null}
       {children}
     </AppShell>
   );

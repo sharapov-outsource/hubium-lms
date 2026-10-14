@@ -55,6 +55,7 @@ export * from './settings/languages.ts';
 export * from './settings/modules.ts';
 export * from './settings/settings.ts';
 export * from './system/health.ts';
+export * from './system/maintenance.ts';
 export * from './users/bulk.ts';
 export * from './users/last-access.ts';
 export * from './users/profile-fields.ts';

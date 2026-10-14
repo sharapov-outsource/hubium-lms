@@ -27,6 +27,9 @@ Commands:
   modules disable <key...>  turn activity types off (their data is kept)
   secrets rotate            re-encrypt stored secrets after APP_SECRET changed
                             (OLD_APP_SECRET: the previous value)
+  maintenance on|off|status [--message <text>] [--until <date-time>] [--json]
+                            only site administrators use the site while it is on;
+                            --until is the expected end (Retry-After follows it)
   ai reindex [--course <id>] [--sync]
                             rebuild what the AI tutor searches (after changing the
                             embedding model): queued for the worker, or here with --sync
@@ -43,6 +46,7 @@ const commands: Record<string, () => Promise<Command>> = {
   modules: async () => (await import('./modules.ts')).modulesCommand,
   secrets: async () => (await import('./secrets.ts')).secretsCommand,
   ai: async () => (await import('./ai.ts')).aiCommand,
+  maintenance: async () => (await import('./maintenance.ts')).maintenanceCommand,
   version: async () => versionCommand,
 };
 

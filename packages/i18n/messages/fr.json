@@ -423,7 +423,14 @@
       "lockoutDuration": "Durée du verrouillage, en minutes",
       "signInNotices": "Avis de connexion",
       "newSignInNotice": "Signaler les connexions depuis un nouvel appareil",
-      "newSignInNoticeHint": "Un nouvel appareil est un autre navigateur, système ou réseau. Chacun peut désactiver ces e-mails dans ses préférences de notification."
+      "newSignInNoticeHint": "Un nouvel appareil est un autre navigateur, système ou réseau. Chacun peut désactiver ces e-mails dans ses préférences de notification.",
+      "maintenanceHint": "Tant qu’il est actif, seuls les administrateurs du site l’utilisent. Les autres voient le message ci-dessous (code 503) et l’API REST répond 503. La connexion reste ouverte.",
+      "maintenanceEnabled": "Activer le mode maintenance",
+      "maintenanceMessage": "Message pour les utilisateurs",
+      "maintenanceMessagePlaceholder": "Une maintenance est en cours. Merci de revenir plus tard.",
+      "maintenanceUntil": "Fin prévue",
+      "maintenanceUntilHint": "Affichée aux utilisateurs ; les clients de l’API y apprennent quand réessayer (Retry-After).",
+      "maintenanceCli": "La même chose depuis la ligne de commande du serveur :"
     },
     "env": {
       "title": "Environnement",
@@ -504,7 +511,10 @@
       "done": "Terminé : {count}",
       "result": "Effectué pour {done} sur {total}"
     },
-    "courseFields": "Champs de cours"
+    "courseFields": "Champs de cours",
+    "maintenance": "Maintenance",
+    "maintenanceOn": "Le mode maintenance est actif : seuls les administrateurs peuvent utiliser le site.",
+    "maintenanceSettings": "Réglages de la maintenance"
   },
   "email": {
     "footer": "Vous recevez cet e-mail car vous avez un compte sur ce site.",
@@ -2050,5 +2060,11 @@
     "visible": "Afficher dans le catalogue et la description du cours",
     "hidden": "Masqué",
     "deleteConfirm": "Supprimer le champ « {name} » avec ses valeurs dans tous les cours ?"
+  },
+  "maintenance": {
+    "title": "Site en maintenance",
+    "defaultMessage": "Une maintenance est en cours. Merci de revenir plus tard.",
+    "until": "Fin prévue : {time}",
+    "adminSignIn": "Connexion des administrateurs"
   }
 }

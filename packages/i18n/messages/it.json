@@ -423,7 +423,14 @@
       "lockoutDuration": "Durata del blocco, minuti",
       "signInNotices": "Avvisi di accesso",
       "newSignInNotice": "Segnala gli accessi da un nuovo dispositivo",
-      "newSignInNoticeHint": "Un nuovo dispositivo è un altro browser, sistema o rete. Gli utenti possono disattivare queste email nelle impostazioni delle notifiche."
+      "newSignInNoticeHint": "Un nuovo dispositivo è un altro browser, sistema o rete. Gli utenti possono disattivare queste email nelle impostazioni delle notifiche.",
+      "maintenanceHint": "Finché è attiva, solo gli amministratori del sito lo usano. Gli altri vedono il messaggio qui sotto (codice 503) e l’API REST risponde 503. L’accesso resta aperto.",
+      "maintenanceEnabled": "Attiva la modalità manutenzione",
+      "maintenanceMessage": "Messaggio per gli utenti",
+      "maintenanceMessagePlaceholder": "Stiamo effettuando una manutenzione. Torna più tardi.",
+      "maintenanceUntil": "Fine prevista",
+      "maintenanceUntilHint": "Mostrata agli utenti; i client dell’API vi leggono quando riprovare (Retry-After).",
+      "maintenanceCli": "Lo stesso dalla riga di comando del server:"
     },
     "env": {
       "title": "Ambiente",
@@ -504,7 +511,10 @@
       "done": "Fatto: {count}",
       "result": "Eseguito per {done} su {total}"
     },
-    "courseFields": "Campi del corso"
+    "courseFields": "Campi del corso",
+    "maintenance": "Manutenzione",
+    "maintenanceOn": "La modalità manutenzione è attiva: solo gli amministratori possono usare il sito.",
+    "maintenanceSettings": "Impostazioni della manutenzione"
   },
   "email": {
     "footer": "Questa email è stata inviata perché l’indirizzo è associato a un account su questo sito.",
@@ -2050,5 +2060,11 @@
     "visible": "Mostra nel catalogo e nella descrizione del corso",
     "hidden": "Nascosto",
     "deleteConfirm": "Eliminare il campo «{name}» insieme ai suoi valori in tutti i corsi?"
+  },
+  "maintenance": {
+    "title": "Sito in manutenzione",
+    "defaultMessage": "Stiamo effettuando una manutenzione. Torna più tardi.",
+    "until": "Fine prevista: {time}",
+    "adminSignIn": "Accesso per gli amministratori"
   }
 }

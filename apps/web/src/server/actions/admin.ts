@@ -15,6 +15,7 @@ import {
   profileValuesFromForm,
   saveLanguageSettings,
   saveModuleSettings,
+  setMaintenance,
   setRoleCapability,
   setRoleOverride,
   setSettings,
@@ -250,6 +251,18 @@ export async function saveSettingsAction(fd: FormData) {
         break;
       case 'email':
         Object.assign(values, { 'email.fromName': v.fromName });
+        break;
+      case 'maintenance':
+        // logged, and the same as `hubium maintenance on|off`
+        await setMaintenance(
+          db,
+          {
+            enabled: bool(fd.get('maintenanceEnabled')),
+            message: v.maintenanceMessage ?? '',
+            until: v.maintenanceUntil || null,
+          },
+          ctx.perm.userId,
+        );
         break;
       default:
         throw new ValidationError({ _section: ['Unknown section'] });

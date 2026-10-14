@@ -48,6 +48,12 @@ export const settingDefs = {
   'lockout.threshold': z.coerce.number().int().min(0).max(1000).default(0),
   'lockout.windowMinutes': z.coerce.number().int().min(1).max(10_080).default(30),
   'lockout.durationMinutes': z.coerce.number().int().min(1).max(10_080).default(30),
+  // Maintenance mode (system/maintenance.ts): only site administrators use the site.
+  'maintenance.enabled': z.boolean().default(false),
+  /** Shown to everyone else (plain text). */
+  'maintenance.message': z.string().max(2000).default(''),
+  /** When the work is expected to end; Retry-After follows it. */
+  'maintenance.until': z.string().datetime({ offset: true }).nullable().default(null),
   'email.fromName': z.string().default('Hubium LMS'),
   'course.creatorRole': z.string().default('editingteacher'),
   'mentors.enabled': z.boolean().default(false),

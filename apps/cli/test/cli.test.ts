@@ -65,6 +65,31 @@ describe('hubium', () => {
     });
   });
 
+  it('turns maintenance mode on and off', async () => {
+    expect((await run('maintenance')).out).toBe('Maintenance mode is off.');
+    const on = await run(
+      'maintenance',
+      'on',
+      '--message',
+      'Обновление до 18:00',
+      '--until',
+      '2030-01-01T18:00:00+03:00',
+    );
+    expect(on.code).toBe(0);
+    expect(on.out).toContain('Maintenance mode is on');
+    expect(JSON.parse((await run('maintenance', 'status', '--json')).out)).toEqual({
+      enabled: true,
+      message: 'Обновление до 18:00',
+      until: '2030-01-01T15:00:00.000Z',
+    });
+    expect((await run('maintenance', 'on', '--until', 'soon')).err).toContain('--until takes');
+    expect((await run('maintenance', 'off')).out).toBe('Maintenance mode is off.');
+    expect(JSON.parse((await run('maintenance', 'status', '--json')).out)).toMatchObject({
+      enabled: false,
+      until: null,
+    });
+  });
+
   it('seeds the first administrator only with a password in production', async () => {
     const env = { ...process.env };
     process.env.NODE_ENV = 'production';

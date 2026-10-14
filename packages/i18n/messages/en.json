@@ -424,7 +424,14 @@
       "lockoutDuration": "Lockout duration, minutes",
       "signInNotices": "Sign-in notices",
       "newSignInNotice": "Notify of sign-ins from a new device",
-      "newSignInNoticeHint": "A new device is another browser, system or network. Users can turn these emails off in their notification settings."
+      "newSignInNoticeHint": "A new device is another browser, system or network. Users can turn these emails off in their notification settings.",
+      "maintenanceHint": "While it is on, only site administrators use the site. Everyone else sees the message below (status 503), and the REST API answers 503. Signing in stays open.",
+      "maintenanceEnabled": "Turn maintenance mode on",
+      "maintenanceMessage": "Message for users",
+      "maintenanceMessagePlaceholder": "We are doing some maintenance. Please come back later.",
+      "maintenanceUntil": "Expected end",
+      "maintenanceUntilHint": "Shown to users; API clients learn from it when to retry (Retry-After).",
+      "maintenanceCli": "The same from the server command line:"
     },
     "env": {
       "title": "Environment",
@@ -505,7 +512,10 @@
       "done": "Done: {count}",
       "result": "Done for {done} of {total}"
     },
-    "courseFields": "Course fields"
+    "courseFields": "Course fields",
+    "maintenance": "Maintenance",
+    "maintenanceOn": "Maintenance mode is on: only administrators can use the site.",
+    "maintenanceSettings": "Maintenance settings"
   },
   "email": {
     "footer": "You received this email because you have an account on this site.",
@@ -2051,5 +2061,11 @@
     "visible": "Show in the catalog and on the course description",
     "hidden": "Hidden",
     "deleteConfirm": "Delete the field “{name}” together with its values in every course?"
+  },
+  "maintenance": {
+    "title": "Down for maintenance",
+    "defaultMessage": "We are doing some maintenance. Please come back later.",
+    "until": "Expected to end: {time}",
+    "adminSignIn": "Sign in for administrators"
   }
 }

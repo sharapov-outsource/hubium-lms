@@ -44,6 +44,7 @@ Each token may make `API_RATE_LIMIT_PER_MIN` requests per minute (120 by default
 | 415 | `UNSUPPORTED_MEDIA_TYPE` (a body that is neither JSON nor a form where one is expected) |
 | 429 | `RATE_LIMITED` |
 | 500 | `INTERNAL` (details stay in the server log) |
+| 503 | `MAINTENANCE` (the site is in maintenance mode; `Retry-After` says when to try again, `until` is the expected end or `null`) |
 
 ## Lists
 

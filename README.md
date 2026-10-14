@@ -105,7 +105,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 - Roles editor with a capability matrix, permission overrides per category, course and activity, and a permission checker.
 - Categories and courses (with a recycle bin and custom course fields that show in the catalog and filter it), cohorts, LTI tools, webhooks, the AI provider, site policies that people must accept, and site announcements.
 - Activity modules turned on or off for the whole site; a module that is off keeps its activities and grades until it is turned on again.
-- Settings: general, branding (accent colour with automatic contrast correction, plus a logo), registration, sign-in methods, and email with a test send.
+- Settings: general, branding (accent colour with automatic contrast correction, plus a logo), registration, sign-in methods, email with a test send, and maintenance mode, in which only administrators use the site and everyone else gets a message (also `hubium maintenance on|off`).
 - An environment page that checks the database, worker, job queue, storage, SMTP, content origin, Web Push, AI and ffmpeg.
 
 ### Integrations

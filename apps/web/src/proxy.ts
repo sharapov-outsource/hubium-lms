@@ -1,5 +1,7 @@
+import { openDuringMaintenance } from '@hubium/core/system/maintenance';
 import { type NextRequest, NextResponse } from 'next/server';
 import { ltiOrigins } from './server/lti-origins';
+import { currentMaintenance, isSiteAdminRequest, maintenanceResponse } from './server/maintenance';
 import {
   buildCsp,
   isContentHostMisuse,
@@ -35,6 +37,16 @@ export async function proxy(req: NextRequest) {
     return new NextResponse('Not found', { status: 404 });
   // Untrusted content origin: its route sets its own sandboxing headers.
   if (pathname.startsWith('/c/')) return NextResponse.next();
+
+  // Maintenance mode: only site administrators get past this (signing in stays open).
+  if (!openDuringMaintenance(pathname)) {
+    const m = await currentMaintenance();
+    if (m.enabled && !(await isSiteAdminRequest(req))) {
+      const res = await maintenanceResponse(req, m);
+      for (const [k, v] of Object.entries(securityHeaders())) res.headers.set(k, v);
+      return res;
+    }
+  }
   const hasSession = req.cookies.getAll().some((c) => c.name.includes('hubium.session_token'));
 
   if (isCrossSiteWrite({ method: req.method, pathname, headers: req.headers, hasSession }))

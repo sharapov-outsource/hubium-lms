@@ -423,7 +423,14 @@
       "lockoutDuration": "Dauer der Sperre in Minuten",
       "signInNotices": "Anmeldehinweise",
       "newSignInNotice": "Über Anmeldungen von neuen Geräten informieren",
-      "newSignInNoticeHint": "Ein neues Gerät ist ein anderer Browser, ein anderes System oder Netz. Nutzer können diese E-Mails in ihren Benachrichtigungseinstellungen abschalten."
+      "newSignInNoticeHint": "Ein neues Gerät ist ein anderer Browser, ein anderes System oder Netz. Nutzer können diese E-Mails in ihren Benachrichtigungseinstellungen abschalten.",
+      "maintenanceHint": "Solange er an ist, nutzen nur Website-Administratoren die Website. Alle anderen sehen die Nachricht unten (Status 503), und die REST-API antwortet mit 503. Die Anmeldung bleibt offen.",
+      "maintenanceEnabled": "Wartungsmodus einschalten",
+      "maintenanceMessage": "Nachricht für Nutzer",
+      "maintenanceMessagePlaceholder": "Die Website wird gerade gewartet. Bitte kommen Sie später wieder.",
+      "maintenanceUntil": "Voraussichtliches Ende",
+      "maintenanceUntilHint": "Wird Nutzern gezeigt; API-Clients erfahren daraus, wann sie es erneut versuchen sollen (Retry-After).",
+      "maintenanceCli": "Dasselbe über die Kommandozeile des Servers:"
     },
     "env": {
       "title": "Umgebung",
@@ -504,7 +511,10 @@
       "done": "Erledigt: {count}",
       "result": "Erledigt für {done} von {total}"
     },
-    "courseFields": "Kursfelder"
+    "courseFields": "Kursfelder",
+    "maintenance": "Wartung",
+    "maintenanceOn": "Der Wartungsmodus ist an: Nur Administratoren können die Website nutzen.",
+    "maintenanceSettings": "Wartungseinstellungen"
   },
   "email": {
     "footer": "Sie erhalten diese E-Mail, weil Sie ein Konto auf dieser Website haben.",
@@ -2050,5 +2060,11 @@
     "visible": "Im Katalog und in der Kursbeschreibung zeigen",
     "hidden": "Verborgen",
     "deleteConfirm": "Feld „{name}“ samt seinen Werten in allen Kursen löschen?"
+  },
+  "maintenance": {
+    "title": "Wartungsarbeiten",
+    "defaultMessage": "Die Website wird gerade gewartet. Bitte kommen Sie später wieder.",
+    "until": "Voraussichtliches Ende: {time}",
+    "adminSignIn": "Anmeldung für Administratoren"
   }
 }
