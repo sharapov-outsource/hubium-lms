@@ -3,6 +3,7 @@ import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { ensureSystemContext } from '../access/contexts.ts';
 import { invalidatePermissionCaches } from '../access/permissions.ts';
 import { syncCapabilities } from '../access/roles.ts';
+import { seedEmbeddingsFromEnv } from '../ai/config.ts';
 import { syncSearchLanguages } from '../settings/languages.ts';
 import { createUserRecord } from '../users/users.ts';
 
@@ -68,6 +69,18 @@ export const demoUsers = [
   },
 ] as const;
 
+/**
+ * Does the site have its administrator? The first one is created only while there is none,
+ * so an administrator who changes their email (or the SEED_ADMIN_EMAIL of the installation
+ * changing) does not make every later start create another.
+ */
+export async function hasSiteAdmin(db: Db, email: string): Promise<boolean> {
+  const n = await db.user.count({
+    where: { OR: [{ email }, { isSiteAdmin: true, deletedAt: null }] },
+  });
+  return n > 0;
+}
+
 /** Idempotent: safe to run on every deploy. */
 export async function seed(db: Db, opts: SeedOptions) {
   await ensureSystemContext(db);
@@ -76,8 +89,7 @@ export async function seed(db: Db, opts: SeedOptions) {
   invalidatePermissionCaches();
 
   let adminCreated = false;
-  const existingAdmin = await db.user.findUnique({ where: { email: opts.adminEmail } });
-  if (!existingAdmin) {
+  if (!(await hasSiteAdmin(db, opts.adminEmail))) {
     await createUserRecord(db, {
       email: opts.adminEmail,
       username: 'admin',
@@ -122,5 +134,6 @@ export async function seed(db: Db, opts: SeedOptions) {
     const { seedDemoCourses } = await import('./demo-courses.ts');
     demoCourses = (await seedDemoCourses(db, users)).created;
   }
-  return { adminCreated, demoUsers: Object.keys(users).length, demoCourses };
+  const embeddings = await seedEmbeddingsFromEnv(db);
+  return { adminCreated, demoUsers: Object.keys(users).length, demoCourses, embeddings };
 }

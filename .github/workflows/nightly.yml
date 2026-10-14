@@ -28,3 +28,24 @@ jobs:
         with: { runtime: node@24, cache: true, require-lockfile: true }
       - run: pnpm --filter @hubium/ai test
         if: env.ANTHROPIC_API_KEY != ''
+
+  # The ai-local compose profile as shipped: Ollama pulls bge-m3, and the embedding client
+  # gets 1024-dimensional vectors from it (too large a download for every CI run).
+  ai-local:
+    name: Local embeddings (ai-local profile)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Start Ollama and pull bge-m3
+        run: |
+          cat > docker/compose.ci-ollama.yml <<'YAML'
+          services:
+            ollama:
+              ports: ["127.0.0.1:11434:11434"]
+          YAML
+          APP_SECRET=nightly-not-used-but-required-by-compose-1234 COMPOSE_PROFILES=ai-local \
+            docker compose -f docker/compose.yml -f docker/compose.ci-ollama.yml up --wait ollama-pull ollama
+      - uses: pnpm/setup@v3
+        with: { runtime: node@24, cache: true, require-lockfile: true }
+      - run: pnpm --filter @hubium/ai exec vitest run test/ollama.test.ts
+        env: { OLLAMA_URL: 'http://127.0.0.1:11434/v1' }

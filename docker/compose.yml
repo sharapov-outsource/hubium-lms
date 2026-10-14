@@ -12,6 +12,9 @@
 #   media    the video transcoding worker (needed by the video activity)
 #   mailpit  catches mail until SMTP_URL points at a real server
 #   clamav   scans uploads for malware (set CLAMAV_URL=tcp://clamav:3310); needs ~3 GB RAM
+#   ai-local Ollama with the bge-m3 embedding model for the AI tutor's search (set
+#            AI_EMBEDDINGS_URL=http://ollama:11434/v1, AI_EMBEDDINGS_MODEL=bge-m3 and
+#            SSRF_ALLOW_HOSTS=ollama); ~2 GB RAM and a 1.2 GB download
 name: hubium
 x-build: &build
   context: ..
@@ -56,6 +59,11 @@ x-app-env: &app-env
   CLAMAV_URL: ${CLAMAV_URL:-}
   CLAMAV_MAX_SCAN_MB: ${CLAMAV_MAX_SCAN_MB:-100}
   CLAMAV_TIMEOUT_MS: ${CLAMAV_TIMEOUT_MS:-20000}
+  # The embedding endpoint the first start configures (the ai-local profile, or your own);
+  # Administration → AI changes it later
+  AI_EMBEDDINGS_URL: ${AI_EMBEDDINGS_URL:-}
+  AI_EMBEDDINGS_MODEL: ${AI_EMBEDDINGS_MODEL:-}
+  AI_EMBEDDINGS_API_KEY: ${AI_EMBEDDINGS_API_KEY:-}
   # JSON log lines on stdout (docker compose logs); see docs/operations.md
   LOG_LEVEL: ${LOG_LEVEL:-info}
   # Traces over OTLP/HTTP to your collector (Jaeger, Tempo…); off while the endpoint is empty
@@ -129,6 +137,31 @@ services:
         limits: { memory: 3g }
     restart: unless-stopped
 
+  # Embeddings for the AI tutor's search on this machine (CPU is enough for bge-m3).
+  ollama:
+    profiles: [ai-local]
+    image: ollama/ollama:0.40.3
+    volumes: [ollama:/root/.ollama]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      retries: 30
+    deploy:
+      resources:
+        limits: { memory: 3g }
+    restart: unless-stopped
+
+  # Downloads the model once (later starts find it in the volume and finish at once).
+  ollama-pull:
+    profiles: [ai-local]
+    image: ollama/ollama:0.40.3
+    entrypoint: ["ollama", "pull", "bge-m3"]
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    depends_on:
+      ollama: { condition: service_healthy }
+    restart: "no"
+
   # Migrations, the S3 bucket and the idempotent seed, before every start.
   migrate:
     image: *image
@@ -143,6 +176,7 @@ services:
     depends_on:
       db: { condition: service_healthy, required: false }
       s3: { condition: service_healthy, required: false }
+      ollama-pull: { condition: service_completed_successfully, required: false }
 
   # Its build section makes the image migrate and worker use too.
   web:
@@ -205,6 +239,7 @@ volumes:
   db:
   s3:
   clamav:
+  ollama:
   # local files of web and the workers (see the Dockerfile)
   data:
   caddy:

@@ -34,7 +34,7 @@ MODE="" VERSION="" DOMAIN="" CONTENT_DOMAIN="" FILES_DOMAIN="" HTTPS="" WEB_PORT
 MODULES="" LIVE="" BBB_URL="" BBB_SECRET="" JITSI_DOMAIN="" JITSI_APP_ID="" JITSI_APP_SECRET=""
 DB="" DATABASE_URL="" STORAGE="" S3_ENDPOINT="" S3_PUBLIC_URL="" S3_REGION="" S3_BUCKET=""
 S3_ACCESS_KEY="" S3_SECRET_KEY="" SMTP_URL="" MAIL_FROM="" ADMIN_EMAIL="" ADMIN_PASSWORD=""
-DEMO="" ANTIVIRUS="" PREFIX=/opt/hubium DATA_DIR=/var/lib/hubium CONFIG_DIR=/etc/hubium FROM_DIR=""
+DEMO="" ANTIVIRUS="" AI_LOCAL="" EMBEDDINGS_URL="" EMBEDDINGS_MODEL="" PREFIX=/opt/hubium DATA_DIR=/var/lib/hubium CONFIG_DIR=/etc/hubium FROM_DIR=""
 IMAGE="" PULL=yes SKIP_PACKAGES=no ASSUME_YES=no DRY_RUN=no BACKUP=""
 
 usage() {
@@ -77,6 +77,12 @@ Files
   --s3-bucket NAME --s3-region R --s3-access-key K --s3-secret-key S
   --antivirus yes|no           scan uploads with ClamAV (about 3 GB of memory); uploads
                                are refused while the scanner is down
+
+AI (the providers themselves are set up later in Administration → AI)
+  --ai-local yes|no            Docker: Ollama with bge-m3 for the AI tutor's search
+                               (about 2 GB of memory, a 1.2 GB model download)
+  --embeddings-url URL         or your own OpenAI-compatible embedding server, e.g.
+  --embeddings-model NAME      http://10.0.0.5:11434/v1 and bge-m3 (1024 dimensions)
 
 Mail and first administrator
   --smtp-url URL               smtp://user:password@smtp.example.org:587 (empty: later)
@@ -134,6 +140,9 @@ while (($#)); do
     --s3-access-key) S3_ACCESS_KEY=${2-}; shift ;;
     --s3-secret-key) S3_SECRET_KEY=${2-}; shift ;;
     --antivirus) ANTIVIRUS=${2-}; shift ;;
+    --ai-local) AI_LOCAL=${2-}; shift ;;
+    --embeddings-url) EMBEDDINGS_URL=${2-}; shift ;;
+    --embeddings-model) EMBEDDINGS_MODEL=${2-}; shift ;;
     --smtp-url) SMTP_URL=${2-}; shift ;;
     --mail-from) MAIL_FROM=${2-}; shift ;;
     --admin-email) ADMIN_EMAIL=${2-}; shift ;;
@@ -613,6 +622,23 @@ ask_everything() {
     warn "ClamAV holds its signatures in memory (about 1.5 GB, twice that while updating): 4 GB or more is advised."
   fi
 
+  section "AI search"
+  if [[ $MODE == docker && -z $EMBEDDINGS_URL ]]; then
+    yes_no AI_LOCAL "Run the bge-m3 embedding model here for the AI tutor's search (Ollama, about 2 GB of memory)?" no
+  else
+    [[ $AI_LOCAL == yes && $MODE == native ]] &&
+      die "--ai-local needs --mode docker; give your embedding server with --embeddings-url instead."
+    AI_LOCAL=no
+  fi
+  if [[ $AI_LOCAL == no ]]; then
+    ask_optional EMBEDDINGS_URL "Your OpenAI-compatible embedding server (http://host:11434/v1)"
+    if [[ -n $EMBEDDINGS_URL ]]; then
+      [[ $EMBEDDINGS_URL == http://* || $EMBEDDINGS_URL == https://* ]] ||
+        die "--embeddings-url must start with http:// or https://"
+      ask EMBEDDINGS_MODEL "Embedding model (1024 dimensions)" bge-m3
+    fi
+  fi
+
   section "Mail"
   ask_optional SMTP_URL "SMTP server (smtp://user:password@smtp.example.org:587)"
   if [[ -n $SMTP_URL ]]; then
@@ -690,6 +716,11 @@ summary() {
     note "Mail:        not configured$([[ $MODE == docker ]] && echo " (caught by Mailpit)")"
   fi
   note "Antivirus:   $([[ $ANTIVIRUS == yes ]] && echo "ClamAV scans uploads" || echo "none")"
+  if [[ $AI_LOCAL == yes ]]; then
+    note "AI search:   bge-m3 in an Ollama container"
+  elif [[ -n $EMBEDDINGS_URL ]]; then
+    note "AI search:   $EMBEDDINGS_MODEL at $(mask_url "$EMBEDDINGS_URL")"
+  fi
   note "Admin:       $ADMIN_EMAIL"
   note "Demo data:   $DEMO"
   note "Paths:       $PREFIX$([[ $MODE == native ]] && echo ", $CONFIG_DIR, $DATA_DIR")"
@@ -713,6 +744,7 @@ docker_env() {
   has_module video && profiles+="${profiles:+,}media"
   [[ -z $SMTP_URL ]] && profiles+="${profiles:+,}mailpit"
   [[ $ANTIVIRUS == yes ]] && profiles+="${profiles:+,}clamav"
+  [[ $AI_LOCAL == yes ]] && profiles+="${profiles:+,}ai-local"
   {
     echo "# Hubium LMS — written by install-hubium.sh. See .env.production.example for every setting;"
     echo "# after a change: docker compose --project-directory $PREFIX up -d"
@@ -744,11 +776,28 @@ docker_env() {
     [[ -n $SMTP_URL ]] && echo "SMTP_URL=$(quote "$SMTP_URL")"
     [[ -n $MAIL_FROM ]] && echo "MAIL_FROM=$(quote "$MAIL_FROM")"
     [[ $ANTIVIRUS == yes ]] && echo "CLAMAV_URL='tcp://clamav:3310'"
+    embeddings_env "$([[ $AI_LOCAL == yes ]] && echo ollama)"
     live_env
     echo "SEED_PROFILE=$(quote "$([[ $DEMO == yes ]] && echo demo || echo minimal)")"
     echo "SEED_ADMIN_EMAIL=$(quote "$ADMIN_EMAIL")"
     echo "SEED_ADMIN_PASSWORD=$(quote "$ADMIN_PASSWORD")"
   }
+}
+
+# The embedding endpoint the first start configures, and its host allowed past the SSRF
+# guard when it is internal (Ollama in compose, a server on the LAN or this machine).
+embeddings_env() {
+  local url=$EMBEDDINGS_URL model=$EMBEDDINGS_MODEL host
+  if [[ $1 == ollama ]]; then url=http://ollama:11434/v1 model=bge-m3; fi
+  [[ -n $url ]] || return 0
+  echo "AI_EMBEDDINGS_URL=$(quote "$url")"
+  echo "AI_EMBEDDINGS_MODEL=$(quote "${model:-bge-m3}")"
+  host=$(sed -E 's#^[a-z]+://([^/:]+|\[[^]]+\]).*#\1#' <<<"$url")
+  # a name without dots (a compose service) or an IP literal; a DNS name of your network
+  # that resolves to an internal address has to be added to SSRF_ALLOW_HOSTS by hand
+  if [[ $host != *.* || $host =~ ^[0-9.]+$ || $host == \[* ]]; then
+    echo "SSRF_ALLOW_HOSTS=$(quote "${host//[\[\]]/}")"
+  fi
 }
 
 live_env() {
@@ -961,6 +1010,7 @@ native_env() {
   [[ -n $SMTP_URL ]] && echo "SMTP_URL=$(quote "$SMTP_URL")"
   [[ -n $MAIL_FROM ]] && echo "MAIL_FROM=$(quote "$MAIL_FROM")"
   [[ $ANTIVIRUS == yes ]] && echo "CLAMAV_URL=$(quote "unix://$CLAMD_SOCKET")"
+  embeddings_env ""
   live_env
   echo "SEED_ADMIN_EMAIL=$(quote "$ADMIN_EMAIL")"
   echo "SEED_ADMIN_PASSWORD=$(quote "$ADMIN_PASSWORD")"

@@ -8,7 +8,7 @@ import {
   OpenAiCompatProvider,
 } from '@hubium/ai';
 import type { AiFeature, AiFeatureConfig, AiProvider, Db } from '@hubium/db';
-import { checkUrlShape, safeFetch } from '@hubium/module-sdk/net';
+import { assertPublicUrl, checkUrlShape, safeFetch } from '@hubium/module-sdk/net';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { decryptSecret, encryptSecret } from '../crypto.ts';
@@ -351,6 +351,40 @@ export const saveEmbeddingConfig = defineOperation({
     return { kind: i.kind };
   },
 });
+
+/**
+ * The embedding endpoint from the environment: AI_EMBEDDINGS_URL, AI_EMBEDDINGS_MODEL and
+ * optionally AI_EMBEDDINGS_API_KEY (the ai-local compose profile points them at its Ollama).
+ * Applied by the seed only while no endpoint is configured, so a choice made later in
+ * Administration → AI is kept. An internal host must be listed in SSRF_ALLOW_HOSTS.
+ */
+export async function seedEmbeddingsFromEnv(
+  db: Db,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<{ status: 'none' | 'created' | 'kept' | 'refused'; reason?: string }> {
+  const baseUrl = env.AI_EMBEDDINGS_URL?.trim();
+  const model = env.AI_EMBEDDINGS_MODEL?.trim();
+  if (!baseUrl || !model) return { status: 'none' };
+  if (await db.aiEmbeddingConfig.findUnique({ where: { id: 'default' } }))
+    return { status: 'kept' };
+  try {
+    await assertPublicUrl(baseUrl);
+  } catch (e) {
+    return { status: 'refused', reason: e instanceof Error ? e.message : String(e) };
+  }
+  const apiKey = env.AI_EMBEDDINGS_API_KEY?.trim();
+  await db.aiEmbeddingConfig.create({
+    data: {
+      id: 'default',
+      kind: 'OPENAI_COMPAT',
+      baseUrl,
+      model,
+      dims: 1024,
+      apiKeyEnc: apiKey ? seal(apiKey) : null,
+    },
+  });
+  return { status: 'created' };
+}
 
 /** Admin view: providers without secrets. */
 export async function listAiProviders(db: Db) {

@@ -844,7 +844,7 @@ interface EmbeddingProvider { model: string; dims: number; embed(texts: string[]
 **Embeddings:** Anthropic offers no embeddings API, so this is a separate provider. Default is an OpenAI-compatible `/v1/embeddings` endpoint:
 - recommended: self-hosted **bge-m3** (multilingual including Russian, 1024 dims) via an optional compose profile `ai-local` (Ollama or TEI);
 - alternatives: Voyage (1024 output dims) or OpenAI `text-embedding-3-small` with `dimensions:1024`;
-- changing the model triggers `pnpm hubium ai:reindex`, which alters the vector dimension and re-embeds.
+- changing the model clears the stored vectors; `hubium ai reindex` (or **Administration → AI → Reindex courses**) embeds the course text again, through the worker or with `--sync` in place.
 
 **Features (`packages/core/src/ai/*`)**
 - **Admin and limits:**

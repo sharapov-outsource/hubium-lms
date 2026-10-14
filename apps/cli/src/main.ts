@@ -27,6 +27,9 @@ Commands:
   modules disable <key...>  turn activity types off (their data is kept)
   secrets rotate            re-encrypt stored secrets after APP_SECRET changed
                             (OLD_APP_SECRET: the previous value)
+  ai reindex [--course <id>] [--sync]
+                            rebuild what the AI tutor searches (after changing the
+                            embedding model): queued for the worker, or here with --sync
   version [--json]          version, commit and build time
 
 Exit codes: 0 ok, 1 error, 2 warnings only (doctor).`;
@@ -39,6 +42,7 @@ const commands: Record<string, () => Promise<Command>> = {
   doctor: async () => (await import('./doctor.ts')).doctorCommand,
   modules: async () => (await import('./modules.ts')).modulesCommand,
   secrets: async () => (await import('./secrets.ts')).secretsCommand,
+  ai: async () => (await import('./ai.ts')).aiCommand,
   version: async () => versionCommand,
 };
 
@@ -81,7 +85,14 @@ export async function cli(argv: string[], io: Io): Promise<number> {
       io.err(`${(e as Error).message}\n\nRun "hubium help" for the commands.`);
       return 1;
     }
-    io.err(`hubium ${name}: ${e instanceof Error ? e.message : String(e)}`);
+    // validation errors say which field was wrong (e.g. a seed value that does not fit)
+    const fields = (e as { fieldErrors?: Record<string, string[]> }).fieldErrors;
+    const detail = fields
+      ? `: ${Object.entries(fields)
+          .map(([k, v]) => `${k}: ${v.join(', ')}`)
+          .join('; ')}`
+      : '';
+    io.err(`hubium ${name}: ${e instanceof Error ? e.message : String(e)}${detail}`);
     return 1;
   }
 }

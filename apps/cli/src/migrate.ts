@@ -39,10 +39,10 @@ async function prepareStorage(io: Io): Promise<void> {
 
 async function runSeed(db: Db, profile: 'minimal' | 'demo', io: Io): Promise<void> {
   await loadApp();
-  const { seed } = await import('@hubium/core/seed/seed');
+  const { hasSiteAdmin, seed } = await import('@hubium/core/seed/seed');
   const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@hubium.local';
   let adminPassword = process.env.SEED_ADMIN_PASSWORD ?? '';
-  if (!adminPassword && !(await db.user.findUnique({ where: { email: adminEmail } }))) {
+  if (!adminPassword && !(await hasSiteAdmin(db, adminEmail))) {
     // a production site never gets the well-known development password
     if (process.env.NODE_ENV === 'production')
       throw new UsageError(
@@ -55,8 +55,13 @@ async function runSeed(db: Db, profile: 'minimal' | 'demo', io: Io): Promise<voi
     `Seed (${profile}): ${r.adminCreated ? `administrator ${adminEmail} created` : 'administrator exists'}` +
       (profile === 'demo'
         ? `, ${r.demoUsers} demo users${r.demoCourses ? ', demo courses created' : ''}`
+        : '') +
+      (r.embeddings.status === 'created'
+        ? `, embeddings: ${process.env.AI_EMBEDDINGS_MODEL} at ${process.env.AI_EMBEDDINGS_URL}`
         : ''),
   );
+  if (r.embeddings.status === 'refused')
+    io.err(`AI_EMBEDDINGS_URL is not used: ${r.embeddings.reason}`);
 }
 
 export async function migrateCommand(args: string[], io: Io): Promise<number> {

@@ -83,6 +83,71 @@ describe('hubium', () => {
       // later runs need no password: the administrator exists
       delete process.env.SEED_ADMIN_PASSWORD;
       expect((await run('seed', '--profile', 'minimal')).code).toBe(0);
+      // nor once the administrator has changed their email
+      await t.db.user.update({
+        where: { email: 'first@hubium.test' },
+        data: { email: 'owner@hubium.test' },
+      });
+      expect(await run('seed', '--profile', 'minimal')).toMatchObject({
+        code: 0,
+        out: 'Seed (minimal): administrator exists',
+      });
+    } finally {
+      process.env = env;
+    }
+  });
+
+  it('takes the embedding endpoint from the environment once and reindexes', async () => {
+    const env = { ...process.env };
+    Object.assign(process.env, {
+      AI_EMBEDDINGS_URL: 'http://ollama.test:11434/v1',
+      AI_EMBEDDINGS_MODEL: 'bge-m3',
+    });
+    try {
+      // an internal host has to be allowed first
+      const refused = await run('seed', '--profile', 'minimal');
+      expect(refused.err).toContain('AI_EMBEDDINGS_URL is not used');
+      expect(await t.db.aiEmbeddingConfig.count()).toBe(0);
+      process.env.SSRF_ALLOW_HOSTS = 'ollama.test';
+      const seeded = await run('seed', '--profile', 'minimal');
+      expect(seeded.out).toContain('embeddings: bge-m3 at http://ollama.test:11434/v1');
+      expect(await t.db.aiEmbeddingConfig.findUnique({ where: { id: 'default' } })).toMatchObject({
+        kind: 'OPENAI_COMPAT',
+        model: 'bge-m3',
+        dims: 1024,
+      });
+      // what the administrator chose later stays
+      await t.db.aiEmbeddingConfig.update({
+        where: { id: 'default' },
+        data: { kind: 'MOCK', model: 'mock-hash', baseUrl: null },
+      });
+      process.env.AI_EMBEDDINGS_MODEL = 'nomic-embed-text';
+      expect((await run('seed', '--profile', 'demo')).out).not.toContain('embeddings');
+      expect(
+        (await t.db.aiEmbeddingConfig.findUniqueOrThrow({ where: { id: 'default' } })).model,
+      ).toBe('mock-hash');
+
+      const courses = await t.db.course.count({ where: { deletedAt: null } });
+      expect(courses).toBeGreaterThan(0);
+      const queued = await run('ai', 'reindex');
+      expect(queued).toMatchObject({ code: 0, out: `Queued ${courses} course(s) for the worker.` });
+      const [jobs] = await t.db.$queryRaw<{ n: bigint }[]>`
+        SELECT count(*) AS n FROM pgboss.job WHERE name = 'ai.index.course'`;
+      expect(Number(jobs!.n)).toBe(courses);
+
+      const course = await t.db.course.findFirstOrThrow({ where: { shortName: 'DEMO-PY' } });
+      const sync = await run('ai', 'reindex', '--course', course.id, '--sync');
+      expect(sync.code).toBe(0);
+      expect(sync.out).toMatch(
+        /^DEMO-PY: \d+ activities, \d+ chunks\nIndexed 1 of 1 course\(s\)\.$/,
+      );
+      const [vectors] = await t.db.$queryRaw<{ n: bigint }[]>`
+        SELECT count(*) AS n FROM "ContentChunk"
+        WHERE "courseId" = ${course.id}::uuid AND "embedding" IS NOT NULL`;
+      expect(Number(vectors!.n)).toBeGreaterThan(0);
+
+      expect((await run('ai', 'reindex', '--course', 'nope')).err).toContain('a course id');
+      expect((await run('ai', 'forget')).err).toContain('Unknown action "ai forget"');
     } finally {
       process.env = env;
     }
