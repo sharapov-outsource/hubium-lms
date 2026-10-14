@@ -1,6 +1,6 @@
 [Unit]
 Description=Hubium LMS video transcoding worker
-Documentation=https://github.com/sharapov-outsource/hubium/blob/main/docs/operations.md
+Documentation=https://github.com/sharapov-outsource/hubium-lms/blob/main/docs/operations.md
 After=network-online.target postgresql.service
 Wants=network-online.target
 

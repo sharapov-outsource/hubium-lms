@@ -7,7 +7,7 @@ database migrations (cli/), Node.js (node/) and the launcher bin/hubium.
 
 The easiest way to install it is install-hubium.sh, published with every release:
 
-  curl -fsSLO https://github.com/sharapov-outsource/hubium/releases/latest/download/install-hubium.sh
+  curl -fsSLO https://github.com/sharapov-outsource/hubium-lms/releases/latest/download/install-hubium.sh
   sudo bash install-hubium.sh
 
 It asks a few questions and sets up PostgreSQL, Caddy, systemd services and the first
@@ -26,5 +26,5 @@ administrator. To do the same by hand:
 
 deploy/compose.yml and .env.production.example run the same release in Docker.
 
-Documentation: https://github.com/sharapov-outsource/hubium/blob/main/docs/operations.md
+Documentation: https://github.com/sharapov-outsource/hubium-lms/blob/main/docs/operations.md
 License: GNU AGPL v3 (LICENSE); Node.js: node/LICENSE.

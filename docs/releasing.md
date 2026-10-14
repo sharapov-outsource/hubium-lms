@@ -60,7 +60,7 @@ If any step fails, nothing is tagged or released; the digests pushed in step 3 s
 
 ```bash
 sha256sum -c SHA256SUMS --ignore-missing
-gh attestation verify hubium-1.2.0-linux-x64.tar.gz --repo sharapov-outsource/hubium
+gh attestation verify hubium-1.2.0-linux-x64.tar.gz --repo sharapov-outsource/hubium-lms
 docker buildx imagetools inspect ghcr.io/sharapov-outsource/hubium-lms:1.2.0 --format '{{json .Provenance}}'
 ```
 

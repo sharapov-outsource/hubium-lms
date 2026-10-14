@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Hubium LMS installer — https://github.com/sharapov-outsource/hubium
+# Hubium LMS installer — https://github.com/sharapov-outsource/hubium-lms
 #
-#   curl -fsSLO https://github.com/sharapov-outsource/hubium/releases/latest/download/install-hubium.sh
+#   curl -fsSLO https://github.com/sharapov-outsource/hubium-lms/releases/latest/download/install-hubium.sh
 #   sudo bash install-hubium.sh             # install; asks what it needs to know
 #   sudo bash install-hubium.sh upgrade     # upgrade an installation made by this script
 #   bash install-hubium.sh --help
@@ -14,7 +14,7 @@ set -Eeuo pipefail
 # The release this copy installs; the release workflow writes it. A copy taken from the
 # repository installs the latest release.
 SCRIPT_VERSION="__HUBIUM_VERSION__"
-REPO="${HUBIUM_REPO:-sharapov-outsource/hubium}"
+REPO="${HUBIUM_REPO:-sharapov-outsource/hubium-lms}"
 LOG=/var/log/hubium-install.log
 
 MODULES_ALL=(assign quiz forum video livesession scorm lti)

@@ -50,7 +50,7 @@ RUN useradd --system --uid 1001 hubium && mkdir -p /data && chown hubium /data
 COPY --from=build /opt/hubium /opt/hubium
 LABEL org.opencontainers.image.title="Hubium LMS" \
       org.opencontainers.image.description="Open-source learning management system: web server, worker and the hubium command" \
-      org.opencontainers.image.source="https://github.com/sharapov-outsource/hubium" \
+      org.opencontainers.image.source="https://github.com/sharapov-outsource/hubium-lms" \
       org.opencontainers.image.licenses="AGPL-3.0-only"
 USER hubium
 WORKDIR /opt/hubium
