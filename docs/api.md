@@ -116,8 +116,9 @@ A learner's own report leaves out hidden items and categories.
 
 | Module | Query | Parameters | Returns |
 |---|---|---|---|
-| forum | `discussions` | `page`, `pageSize` (≤ 50) | discussions you may see (pinned first), unread counts, whether you may start one, your subscription, the groups you may post to |
-| forum | `discussion` | `discussionId` | the discussion and its posts as a flat list (`parentId` gives the tree), attachments, what you may edit or delete; it does not mark posts read (`markRead` does) |
+| forum | `discussions` | `page`, `pageSize` (≤ 50) | discussions you may see (pinned first), unread counts, whether you may start one, your subscription, the groups you may post to, your whole-forum grade once given |
+| forum | `discussion` | `discussionId` | the discussion and its posts as a flat list (`parentId` gives the tree), attachments, what you may edit or delete, each post's rating as you may see it and whether you may rate it (`rate`); it does not mark posts read (`markRead` does) |
+| forum | `userPosts` | `userId` | whole-forum grading: a student's posts, newest first, and their grade (needs `mod.forum:grade`) |
 | quiz | `overview` | — | the window, attempts used and left, the attempt in progress, your grade, your attempts and which of them you may review |
 | quiz | `attempt` | `attemptId` | the questions of your attempt in progress, without correct answers; answer with `save` and `finish`. In the immediate and interactive behaviours each question also carries its state, whether `check` may be used, the tries left and the feedback of the last check |
 | quiz | `review` | `attemptId` | a finished attempt: answers, verdicts and marks, correct answers and feedback as far as the quiz's review settings allow; for teachers the steps of each answer |

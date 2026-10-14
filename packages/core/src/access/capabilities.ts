@@ -108,6 +108,13 @@ export const coreCapabilities = {
   'mod.forum:post': { level: 'ACTIVITY', archetypes: [M, ET, T, S], excludeAdmin: false },
   'mod.forum:startdiscussion': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },
   'mod.forum:moderate': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  // ratings of posts: who rates, who sees the aggregates and who rated what
+  'mod.forum:rate': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  'mod.forum:viewrating': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },
+  'mod.forum:viewanyrating': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },
+  'mod.forum:viewallratings': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  /** Grading students' part in the whole forum. */
+  'mod.forum:grade': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   // video / live
   'mod.video:viewprogress': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.livesession:join': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },

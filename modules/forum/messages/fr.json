@@ -74,7 +74,72 @@
     "postDeleted": "Ce message a été supprimé",
     "notify": {
       "post": "Nouveaux messages des forums",
-      "postTitle": "{user} dans « {title} » ({forum})"
+      "postTitle": "{user} dans « {title} » ({forum})",
+      "graded": "Note du forum",
+      "gradedTitle": "Votre participation au forum a été évaluée : {name}"
+    },
+    "ratings": {
+      "title": "Évaluations des messages",
+      "aggregate": "Note issue des évaluations",
+      "aggregates": {
+        "none": "Pas d'évaluation",
+        "average": "Moyenne des évaluations",
+        "count": "Nombre d'évaluations",
+        "max": "Évaluation maximale",
+        "min": "Évaluation minimale",
+        "sum": "Somme des évaluations"
+      },
+      "type": "Type de note",
+      "points": "Points",
+      "max": "Évaluation maximale en points",
+      "pass": "Note pour réussir (évaluations)",
+      "from": "Évaluer les messages écrits à partir du",
+      "to": "Évaluer les messages écrits jusqu'au",
+      "peer": "Les étudiants évaluent aussi les messages des autres",
+      "hint": "Les enseignants évaluent les messages ; personne n'évalue les siens. Désactiver les évaluations supprime leur élément du carnet de notes avec ses notes."
+    },
+    "whole": {
+      "title": "Évaluation du forum entier",
+      "enable": "Évaluer la participation de chaque étudiant à l'ensemble du forum",
+      "max": "Note maximale",
+      "pass": "Note pour réussir",
+      "hint": "Désactiver l'évaluation du forum entier supprime son élément du carnet de notes avec ses notes."
+    },
+    "rating": {
+      "aggregates": {
+        "average": "Moyenne des évaluations : {value}",
+        "count": "Nombre d'évaluations : {value}",
+        "max": "Évaluation maximale : {value}",
+        "min": "Évaluation minimale : {value}",
+        "sum": "Somme des évaluations : {value}"
+      },
+      "count": "{n, plural, one {# évaluation} other {# évaluations}}",
+      "yours": "Votre évaluation",
+      "rateLabel": "Votre évaluation du message de {name}",
+      "saved": "Évaluation enregistrée",
+      "raters": "Qui a évalué"
+    },
+    "grading": {
+      "yourGrade": "Votre note pour le forum",
+      "outOf": "sur {max}",
+      "open": "Évaluer la participation des étudiants",
+      "title": "Évaluation du forum entier",
+      "titleFor": "Évaluation du forum entier : {name}",
+      "student": "Étudiant",
+      "posts": "Messages",
+      "grade": "Note",
+      "gradeAction": "Évaluer",
+      "back": "Retour à la liste",
+      "next": "Suivant",
+      "started": "A lancé une discussion",
+      "noPosts": "L'étudiant n'a encore rien écrit dans le forum.",
+      "feedback": "Feedback",
+      "save": "Enregistrer la note",
+      "saved": "Note enregistrée"
+    },
+    "gradeItem": {
+      "rating": "Évaluations",
+      "whole": "Forum entier"
     }
   }
 }

@@ -74,7 +74,72 @@
     "postDeleted": "Questo intervento è stato eliminato",
     "notify": {
       "post": "Nuovi interventi nei forum",
-      "postTitle": "{user} in «{title}» ({forum})"
+      "postTitle": "{user} in «{title}» ({forum})",
+      "graded": "Voto del forum",
+      "gradedTitle": "La tua partecipazione al forum è stata valutata: {name}"
+    },
+    "ratings": {
+      "title": "Valutazioni dei messaggi",
+      "aggregate": "Voto dalle valutazioni",
+      "aggregates": {
+        "none": "Nessuna valutazione",
+        "average": "Media delle valutazioni",
+        "count": "Numero di valutazioni",
+        "max": "Valutazione massima",
+        "min": "Valutazione minima",
+        "sum": "Somma delle valutazioni"
+      },
+      "type": "Tipo di voto",
+      "points": "Punti",
+      "max": "Valutazione massima in punti",
+      "pass": "Voto di sufficienza per le valutazioni",
+      "from": "Valuta i messaggi scritti dal",
+      "to": "Valuta i messaggi scritti fino al",
+      "peer": "Anche gli studenti valutano i messaggi degli altri",
+      "hint": "I docenti valutano i messaggi; nessuno valuta i propri. Disattivando le valutazioni, la loro voce nel registro viene eliminata con i voti."
+    },
+    "whole": {
+      "title": "Valutazione dell'intero forum",
+      "enable": "Valuta la partecipazione di ogni studente all'intero forum",
+      "max": "Voto massimo",
+      "pass": "Voto di sufficienza",
+      "hint": "Disattivando la valutazione dell'intero forum, la sua voce nel registro viene eliminata con i voti."
+    },
+    "rating": {
+      "aggregates": {
+        "average": "Media delle valutazioni: {value}",
+        "count": "Numero di valutazioni: {value}",
+        "max": "Valutazione massima: {value}",
+        "min": "Valutazione minima: {value}",
+        "sum": "Somma delle valutazioni: {value}"
+      },
+      "count": "{n, plural, one {# valutazione} other {# valutazioni}}",
+      "yours": "La tua valutazione",
+      "rateLabel": "La tua valutazione del messaggio di {name}",
+      "saved": "Valutazione salvata",
+      "raters": "Chi ha valutato"
+    },
+    "grading": {
+      "yourGrade": "Il tuo voto per il forum",
+      "outOf": "su {max}",
+      "open": "Valuta la partecipazione degli studenti",
+      "title": "Valutazione dell'intero forum",
+      "titleFor": "Valutazione dell'intero forum: {name}",
+      "student": "Studente",
+      "posts": "Messaggi",
+      "grade": "Voto",
+      "gradeAction": "Valuta",
+      "back": "Torna all'elenco",
+      "next": "Successivo",
+      "started": "Ha avviato una discussione",
+      "noPosts": "Lo studente non ha ancora scritto nel forum.",
+      "feedback": "Feedback",
+      "save": "Salva il voto",
+      "saved": "Voto salvato"
+    },
+    "gradeItem": {
+      "rating": "Valutazioni",
+      "whole": "Intero forum"
     }
   }
 }

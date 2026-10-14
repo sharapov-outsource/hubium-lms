@@ -74,7 +74,72 @@
     "postDeleted": "Dieser Beitrag wurde gelöscht",
     "notify": {
       "post": "Neue Forumsbeiträge",
-      "postTitle": "{user} in „{title}“ ({forum})"
+      "postTitle": "{user} in „{title}“ ({forum})",
+      "graded": "Forumsbewertung",
+      "gradedTitle": "Ihre Beteiligung am Forum wurde bewertet: {name}"
+    },
+    "ratings": {
+      "title": "Bewertungen von Beiträgen",
+      "aggregate": "Bewertung aus Beitragsbewertungen",
+      "aggregates": {
+        "none": "Keine Bewertungen",
+        "average": "Durchschnitt der Bewertungen",
+        "count": "Anzahl der Bewertungen",
+        "max": "Höchste Bewertung",
+        "min": "Niedrigste Bewertung",
+        "sum": "Summe der Bewertungen"
+      },
+      "type": "Bewertungstyp",
+      "points": "Punkte",
+      "max": "Höchste Bewertung in Punkten",
+      "pass": "Bestehensgrenze für Bewertungen",
+      "from": "Beiträge bewerten, geschrieben ab",
+      "to": "Beiträge bewerten, geschrieben bis",
+      "peer": "Studierende bewerten auch die Beiträge der anderen",
+      "hint": "Lehrende bewerten Beiträge; eigene Beiträge bewertet niemand. Werden Bewertungen abgeschaltet, wird ihr Element in der Bewertungsübersicht samt Bewertungen gelöscht."
+    },
+    "whole": {
+      "title": "Bewertung des gesamten Forums",
+      "enable": "Die Beteiligung jeder Person am gesamten Forum bewerten",
+      "max": "Höchste Bewertung",
+      "pass": "Bestehensgrenze",
+      "hint": "Wird die Bewertung des gesamten Forums abgeschaltet, wird ihr Element in der Bewertungsübersicht samt Bewertungen gelöscht."
+    },
+    "rating": {
+      "aggregates": {
+        "average": "Durchschnitt der Bewertungen: {value}",
+        "count": "Anzahl der Bewertungen: {value}",
+        "max": "Höchste Bewertung: {value}",
+        "min": "Niedrigste Bewertung: {value}",
+        "sum": "Summe der Bewertungen: {value}"
+      },
+      "count": "{n, plural, one {# Bewertung} other {# Bewertungen}}",
+      "yours": "Ihre Bewertung",
+      "rateLabel": "Ihre Bewertung des Beitrags von {name}",
+      "saved": "Bewertung gespeichert",
+      "raters": "Wer bewertet hat"
+    },
+    "grading": {
+      "yourGrade": "Ihre Bewertung für das Forum",
+      "outOf": "von {max}",
+      "open": "Beteiligung der Studierenden bewerten",
+      "title": "Bewertung des gesamten Forums",
+      "titleFor": "Bewertung des gesamten Forums: {name}",
+      "student": "Studierende Person",
+      "posts": "Beiträge",
+      "grade": "Bewertung",
+      "gradeAction": "Bewerten",
+      "back": "Zurück zur Liste",
+      "next": "Weiter",
+      "started": "Hat eine Diskussion begonnen",
+      "noPosts": "Diese Person hat im Forum noch nichts geschrieben.",
+      "feedback": "Feedback",
+      "save": "Bewertung speichern",
+      "saved": "Bewertung gespeichert"
+    },
+    "gradeItem": {
+      "rating": "Bewertungen",
+      "whole": "Gesamtes Forum"
     }
   }
 }

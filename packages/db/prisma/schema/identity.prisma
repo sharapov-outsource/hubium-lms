@@ -80,6 +80,9 @@ model User {
   assignMarking       AssignUserFlags[]        @relation("AssignUserFlagsMarker")
   assignParticipants  AssignParticipant[]
   gradingInstances    GradingInstance[]
+  forumRatings        ForumRating[]            @relation("ForumRatingRater")
+  forumGrades         ForumGrade[]             @relation("ForumGradeUser")
+  forumGraded         ForumGrade[]             @relation("ForumGradeGrader")
   quizAttempts        QuizAttempt[]
   notifications       Notification[]           @relation("NotificationUser")
   notificationsActed  Notification[]           @relation("NotificationActor")

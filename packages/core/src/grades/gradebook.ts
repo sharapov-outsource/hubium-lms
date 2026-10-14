@@ -1,5 +1,6 @@
 import type { Db, GradeCategory, GradeItem, Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
+import { isLocale } from '@hubium/i18n';
 import { createTranslator } from '@hubium/i18n/packs';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
@@ -10,6 +11,7 @@ import { optionalText } from '../lib/zod.ts';
 import { provideModuleServices, toActivityRef } from '../modules/module-ctx.ts';
 import { getModule } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
+import { getAllSettings, siteLocale } from '../settings/settings.ts';
 import { isMentorOf, learnerPermissions } from '../users/mentors.ts';
 import { parseCsv } from '../users/users.ts';
 import { emitWebhook } from '../webhooks/events.ts';
@@ -60,6 +62,8 @@ export async function syncGradeItemsFor(tx: Tx, activityId: string): Promise<voi
   const { root } = await ensureCourseGradebook(tx, a.courseId);
   const specs = m.grading.items(toActivityRef(a));
   const existing = await tx.gradeItem.findMany({ where: { activityId } });
+  // items named by message keys are named in the course's language, or the site's
+  const t = specs.some((s) => s.nameKey) ? await itemNameTranslator(tx, a.courseId) : null;
   const count = await tx.gradeItem.count({ where: { courseId: a.courseId } });
   // Totals depend on maxima and on which items count (deleted activities do not).
   let totalsChanged = false;
@@ -72,7 +76,8 @@ export async function syncGradeItemsFor(tx: Tx, activityId: string): Promise<voi
         })
       : null;
     const data = {
-      name: specs.length > 1 ? `${a.name}: ${spec.name}` : a.name,
+      name:
+        specs.length > 1 ? `${a.name}: ${spec.nameKey && t ? t(spec.nameKey) : spec.name}` : a.name,
       gradeType: scale ? ('SCALE' as const) : ('VALUE' as const),
       scaleId: scale?.id ?? null,
       gradeMin: scale ? 1 : 0,
@@ -106,6 +111,15 @@ export async function syncGradeItemsFor(tx: Tx, activityId: string): Promise<voi
   const stale = existing.filter((x) => !keep.has(x.itemNumber)).map((x) => x.id);
   if (stale.length) await tx.gradeItem.deleteMany({ where: { id: { in: stale } } });
   if (totalsChanged || stale.length) await recomputeAllTotals(tx, a.courseId);
+}
+
+async function itemNameTranslator(tx: Tx, courseId: string) {
+  const [course, settings] = await Promise.all([
+    tx.course.findUnique({ where: { id: courseId }, select: { lang: true } }),
+    getAllSettings(tx),
+  ]);
+  const site = siteLocale(settings);
+  return createTranslator(isLocale(course?.lang) ? course.lang : site, site);
 }
 
 /** Course totals of everyone enrolled (after a change to the gradebook structure). */

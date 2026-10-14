@@ -9,27 +9,64 @@ import {
   ModuleError,
   type ModuleFile,
 } from '@hubium/module-sdk';
-import { bool } from '@hubium/module-sdk/fields';
+import { bool, isoDate, optionalNumber } from '@hubium/module-sdk/fields';
 import { groupsWhere, userGroupIds, visibleGroupFilter } from '@hubium/module-sdk/groups';
 import { z } from 'zod';
+import { aggregateRatings, inRatingWindow, ratingAggregates } from './ratings.ts';
 
 // mod-forum: standard and Q&A forums with threaded posts, group modes, subscriptions,
-// unread tracking, pin/lock, private replies and moderation.
+// unread tracking, pin/lock, private replies and moderation; ratings of posts and a grade
+// for the whole forum, each with its gradebook item.
 
-export const ForumSettings = z.object({
-  type: z.enum(['general', 'qanda']).default('general'),
-  subscription: z.enum(['optional', 'auto', 'forced', 'disabled']).default('optional'),
-  maxAttachments: z.coerce.number().int().min(0).max(10).default(3),
-  maxFileMB: z.coerce.number().int().min(1).max(100).default(10),
-  allowPrivateReplies: bool(true),
-  /** Minutes during which authors may edit or delete their own posts. */
-  editMinutes: z.coerce
-    .number()
-    .int()
-    .min(0)
-    .max(7 * 24 * 60)
-    .default(30),
-});
+export { aggregateRatings, type RatingAggregate, ratingAggregates } from './ratings.ts';
+
+const scaleId = z
+  .preprocess((v) => (v === '' ? null : v), z.string().uuid().nullable())
+  .default(null);
+
+export const ForumSettings = z
+  .object({
+    type: z.enum(['general', 'qanda']).default('general'),
+    subscription: z.enum(['optional', 'auto', 'forced', 'disabled']).default('optional'),
+    maxAttachments: z.coerce.number().int().min(0).max(10).default(3),
+    maxFileMB: z.coerce.number().int().min(1).max(100).default(10),
+    allowPrivateReplies: bool(true),
+    /** Minutes during which authors may edit or delete their own posts. */
+    editMinutes: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(7 * 24 * 60)
+      .default(30),
+    /** How a student's post ratings make their grade; none turns ratings off. */
+    ratingAggregate: z.enum(ratingAggregates).default('none'),
+    /** Ratings on this scale (1-based positions) instead of points 0..ratingMax. */
+    ratingScaleId: scaleId,
+    ratingMax: z.coerce.number().int().min(1).max(100).default(10),
+    /** Only posts written in this window can be rated (and count). */
+    ratingFrom: isoDate,
+    ratingTo: isoDate,
+    /** Students rate each other's posts too. */
+    allowPeerRating: bool(false),
+    ratingPass: optionalNumber(0, 10_000),
+    /** Teachers grade each student's part in the whole forum. */
+    wholeForumGrading: bool(false),
+    gradeMax: z.coerce.number().min(1).max(10_000).default(100),
+    gradeScaleId: scaleId,
+    gradePass: optionalNumber(0, 10_000),
+  })
+  .refine((s) => !s.ratingFrom || !s.ratingTo || s.ratingTo > s.ratingFrom, {
+    message: 'The end of the rating window must be after its start',
+    path: ['ratingTo'],
+  })
+  .refine((s) => s.ratingPass === undefined || s.ratingPass <= s.ratingMax, {
+    message: 'Pass grade exceeds maximum',
+    path: ['ratingPass'],
+  })
+  .refine((s) => s.gradePass === undefined || s.gradePass <= s.gradeMax, {
+    message: 'Pass grade exceeds maximum',
+    path: ['gradePass'],
+  });
 
 export type ForumSettingsT = z.output<typeof ForumSettings>;
 
@@ -96,6 +133,132 @@ export function postVisible(
   return !p.privateToUserId || moderator || p.authorId === userId || p.privateToUserId === userId;
 }
 
+// ── ratings and the whole-forum grade ──────────────────────────────────────────
+
+/** The grades of a scale, worst first; null for points (or a scale no longer there). */
+export async function scaleItems(db: Db, a: Forum, id: string | null): Promise<string[] | null> {
+  if (!id) return null;
+  const s = await db.scale.findFirst({
+    where: { id, OR: [{ courseId: null }, { courseId: a.courseId }] },
+    select: { items: true },
+  });
+  return s?.items ?? null;
+}
+
+/** Does the user rate posts here: with the right to, or as a student with peer rating? */
+export async function mayRate(ctx: ModuleCtx, a: Forum): Promise<boolean> {
+  if (a.settings.ratingAggregate === 'none') return false;
+  if (await ctx.perm.can('mod.forum:rate', a.id)) return true;
+  return a.settings.allowPeerRating && ctx.perm.can('mod.forum:post', a.id);
+}
+
+/** A student's grade for ratings: the aggregate of the ratings of their posts. */
+async function ratingGrade(db: Db, a: Forum, userId: string, scale: string[] | null) {
+  const rows = await db.forumRating.findMany({
+    where: {
+      post: {
+        authorId: userId,
+        deletedAt: null,
+        discussion: { activityId: a.id },
+        createdAt: {
+          ...(a.settings.ratingFrom ? { gte: new Date(a.settings.ratingFrom) } : {}),
+          ...(a.settings.ratingTo ? { lte: new Date(a.settings.ratingTo) } : {}),
+        },
+      },
+    },
+    select: { value: true },
+  });
+  return aggregateRatings(
+    a.settings.ratingAggregate,
+    rows.map((r) => r.value),
+    scale ? scale.length : a.settings.ratingMax,
+    !!scale,
+  );
+}
+
+/** Pushes the students' rating grades to the gradebook (item 0). */
+export async function pushRatings(ctx: ModuleCtx, a: Forum, userIds: string[]) {
+  if (a.settings.ratingAggregate === 'none' || !userIds.length) return;
+  const scale = await scaleItems(ctx.db, a, a.settings.ratingScaleId);
+  const grades = [];
+  for (const userId of new Set(userIds))
+    grades.push({ userId, itemNumber: 0, rawGrade: await ratingGrade(ctx.db, a, userId, scale) });
+  await ctx.grades.setGrades(a.id, grades);
+}
+
+/** Everyone whose rating grade may change: authors of rated posts, and those graded. */
+async function ratedUsers(db: Db, a: Forum) {
+  const [posts, graded] = await Promise.all([
+    db.forumPost.findMany({
+      where: { discussion: { activityId: a.id }, ratings: { some: {} }, authorId: { not: null } },
+      distinct: ['authorId'],
+      select: { authorId: true },
+    }),
+    db.grade.findMany({
+      where: { item: { activityId: a.id, itemNumber: 0 } },
+      select: { userId: true },
+    }),
+  ]);
+  return [
+    ...new Set([
+      ...posts.flatMap((p) => (p.authorId ? [p.authorId] : [])),
+      ...graded.map((g) => g.userId),
+    ]),
+  ];
+}
+
+/** Pushes a student's whole-forum grade to the gradebook (item 1). */
+async function pushForumGrade(ctx: ModuleCtx, a: Forum, userId: string) {
+  if (!a.settings.wholeForumGrading) return;
+  const g = await ctx.db.forumGrade.findUnique({
+    where: { activityId_userId: { activityId: a.id, userId } },
+  });
+  await ctx.grades.setGrades(a.id, [
+    {
+      userId,
+      itemNumber: 1,
+      rawGrade: g?.grade === null || g?.grade === undefined ? null : Number(g.grade),
+      feedback: g?.feedback ?? null,
+      gradedById: g?.graderId ?? null,
+    },
+  ]);
+}
+
+/** The user's own whole-forum grade, once given. */
+export async function readMyForumGrade(ctx: ModuleCtx, a: Forum) {
+  if (!a.settings.wholeForumGrading) return null;
+  const g = await ctx.db.forumGrade.findUnique({
+    where: { activityId_userId: { activityId: a.id, userId: uid(ctx) } },
+  });
+  if (!g) return null;
+  return {
+    grade: g.grade === null ? null : Number(g.grade),
+    feedback: g.feedback,
+    gradedAt: g.gradedAt,
+    scale: await scaleItems(ctx.db, a, a.settings.gradeScaleId),
+    gradeMax: a.settings.gradeMax,
+  };
+}
+
+/** A student's posts in the forum, newest first, for grading the whole forum. */
+export async function readUserPosts(ctx: ModuleCtx, a: Forum, userId: string) {
+  const rows = await ctx.db.forumPost.findMany({
+    where: { authorId: userId, deletedAt: null, discussion: { activityId: a.id } },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+    include: { discussion: { select: { id: true, title: true } } },
+  });
+  return rows.map((p) => ({
+    id: p.id,
+    discussionId: p.discussion.id,
+    discussionTitle: p.discussion.title,
+    parentId: p.parentId,
+    contentHtml: p.contentHtml,
+    privateToUserId: p.privateToUserId,
+    createdAt: p.createdAt,
+  }));
+}
+
 // ── reading (the forum page and the API queries share these) ────────────────────
 
 export const DISCUSSIONS_PAGE = 30;
@@ -118,7 +281,7 @@ export async function readDiscussions(
     activityId: a.id,
     ...(groupFilter ? { OR: [{ groupId: null }, { groupId: { in: groupFilter } }] } : {}),
   };
-  const [discussions, total, sub] = await Promise.all([
+  const [discussions, total, sub, myGrade, canGrade] = await Promise.all([
     ctx.db.forumDiscussion.findMany({
       where,
       orderBy: [{ pinned: 'desc' }, { lastPostAt: 'desc' }],
@@ -132,6 +295,8 @@ export async function readDiscussions(
     }),
     ctx.db.forumDiscussion.count({ where }),
     subscriptionState(ctx, a, me),
+    readMyForumGrade(ctx, a),
+    a.settings.wholeForumGrading ? ctx.perm.can('mod.forum:grade', a.id) : false,
   ]);
   const unread = await Promise.all(
     discussions.map((d) =>
@@ -163,6 +328,10 @@ export async function readDiscussions(
     moderator,
     subscribed: sub.forum,
     groups,
+    /** The user's whole-forum grade, once given. */
+    myGrade,
+    /** The user grades students' part in the whole forum. */
+    canGrade,
     items: discussions.map((d, i) => ({
       id: d.id,
       title: d.title,
@@ -193,6 +362,19 @@ export interface ForumPostView {
   createdAt: Date;
   editedAt: Date | null;
   attachments: ModuleFile[];
+  /** Ratings on: the aggregate the user may see, their own rating and whether they may rate. */
+  rating: PostRating | null;
+}
+
+export interface PostRating {
+  /** The aggregate of the post's ratings; null without ratings or when not to be seen. */
+  aggregate: number | null;
+  count: number;
+  /** The user's own rating of the post. */
+  mine: number | null;
+  canRate: boolean;
+  /** Who rated what, for those who see every rating. */
+  raters: { name: string; value: number }[];
 }
 
 /**
@@ -233,6 +415,45 @@ export async function readDiscussion(ctx: ModuleCtx, a: Forum, discussionId: str
   const shown = new Set(visible.map((p) => p.id));
   const hasReplies = new Set(visible.map((p) => p.parentId).filter((x) => x && shown.has(x)));
   const now = Date.now();
+  // ratings: the aggregate of one's own posts (viewrating) or anyone's (viewanyrating),
+  // who rated what (viewallratings), and a select for those who rate
+  const s = a.settings;
+  const ratingsOn = s.ratingAggregate !== 'none';
+  const [viewOwn, viewAny, viewAll, rater, ratingScale] = ratingsOn
+    ? await Promise.all([
+        ctx.perm.can('mod.forum:viewrating', a.id),
+        ctx.perm.can('mod.forum:viewanyrating', a.id),
+        ctx.perm.can('mod.forum:viewallratings', a.id),
+        mayRate(ctx, a),
+        scaleItems(ctx.db, a, s.ratingScaleId),
+      ])
+    : [false, false, false, false, null];
+  const ratings = ratingsOn
+    ? await ctx.db.forumRating.findMany({
+        where: { postId: { in: [...shown] } },
+        include: { rater: { select: { name: true } } },
+        orderBy: { createdAt: 'asc' },
+      })
+    : [];
+  const ratingOf = (p: (typeof visible)[number]): PostRating | null => {
+    if (!ratingsOn || p.deletedAt) return null;
+    const rs = ratings.filter((r) => r.postId === p.id);
+    const see = p.authorId === me ? viewOwn : viewAny;
+    return {
+      aggregate: see
+        ? aggregateRatings(
+            s.ratingAggregate,
+            rs.map((r) => r.value),
+            ratingScale ? ratingScale.length : s.ratingMax,
+            !!ratingScale,
+          )
+        : null,
+      count: see ? rs.length : 0,
+      mine: rs.find((r) => r.raterId === me)?.value ?? null,
+      canRate: rater && !!p.authorId && p.authorId !== me && inRatingWindow(p.createdAt, s),
+      raters: viewAll ? rs.map((r) => ({ name: r.rater.name, value: r.value })) : [],
+    };
+  };
   const posts: ForumPostView[] = visible.map((p) => {
     const editable =
       !p.deletedAt &&
@@ -251,6 +472,7 @@ export async function readDiscussion(ctx: ModuleCtx, a: Forum, discussionId: str
       createdAt: p.createdAt,
       editedAt: p.editedAt,
       attachments: p.deletedAt ? [] : files.filter((f) => f.itemId === p.id),
+      rating: ratingOf(p),
     };
   });
   return {
@@ -268,6 +490,10 @@ export async function readDiscussion(ctx: ModuleCtx, a: Forum, discussionId: str
     canReplyPrivately: moderator && a.settings.allowPrivateReplies,
     qandaLocked: locked,
     subscribed: sub.discussion,
+    /** Ratings on: how they aggregate, and the scale (or the most points) they take. */
+    rating: ratingsOn
+      ? { aggregate: s.ratingAggregate, scale: ratingScale, max: s.ratingMax }
+      : null,
     posts,
   };
 }
@@ -429,19 +655,30 @@ export const forum = defineModule<ForumSettingsT>({
   key: 'forum',
   archetype: 'activity',
   icon: 'MessagesSquare',
-  supports: { groups: true, viewCompletion: true, backup: true },
+  supports: { grading: true, groups: true, viewCompletion: true, backup: true },
   privacy: {
     async export(ctx, userId) {
-      return ctx.db.forumPost.findMany({
-        where: { authorId: userId, deletedAt: null },
-        select: {
-          id: true,
-          createdAt: true,
-          contentHtml: true,
-          discussion: { select: { title: true } },
-        },
-        orderBy: { createdAt: 'asc' },
-      });
+      const [posts, ratingsGiven, grades] = await Promise.all([
+        ctx.db.forumPost.findMany({
+          where: { authorId: userId, deletedAt: null },
+          select: {
+            id: true,
+            createdAt: true,
+            contentHtml: true,
+            discussion: { select: { title: true } },
+          },
+          orderBy: { createdAt: 'asc' },
+        }),
+        ctx.db.forumRating.findMany({
+          where: { raterId: userId },
+          select: { postId: true, value: true, createdAt: true },
+        }),
+        ctx.db.forumGrade.findMany({
+          where: { userId },
+          select: { activityId: true, grade: true, feedback: true, gradedAt: true },
+        }),
+      ]);
+      return { posts, ratingsGiven, grades };
     },
     async erase(ctx, userId) {
       // Keep thread structure for other participants; drop the author's words.
@@ -449,6 +686,27 @@ export const forum = defineModule<ForumSettingsT>({
         where: { authorId: userId },
         data: { contentHtml: '', deletedAt: ctx.now },
       });
+      // the user's ratings go; the grades of those they rated follow
+      const rated = await ctx.db.forumRating.findMany({
+        where: { raterId: userId },
+        select: {
+          post: { select: { authorId: true, discussion: { select: { activityId: true } } } },
+        },
+      });
+      await ctx.db.forumRating.deleteMany({ where: { raterId: userId } });
+      for (const activityId of new Set(rated.map((r) => r.post.discussion.activityId))) {
+        const act = await ctx.db.activity.findUnique({ where: { id: activityId } });
+        const settings = act ? ForumSettings.safeParse(act.settings) : null;
+        if (!act || !settings?.success) continue;
+        const a = { ...(act as unknown as Forum), settings: settings.data };
+        await pushRatings(
+          ctx,
+          a,
+          rated.flatMap((r) =>
+            r.post.discussion.activityId === activityId && r.post.authorId ? [r.post.authorId] : [],
+          ),
+        );
+      }
       await ctx.db.forumSubscription.deleteMany({ where: { userId } });
       await ctx.db.forumReadState.deleteMany({ where: { userId } });
     },
@@ -458,7 +716,36 @@ export const forum = defineModule<ForumSettingsT>({
     schema: ForumSettings as unknown as z.ZodType<ForumSettingsT>,
     defaults: () => ForumSettings.parse({}),
   },
-  notifications: { post: { email: 'IMMEDIATE' } },
+  notifications: { post: { email: 'IMMEDIATE' }, graded: { email: 'IMMEDIATE' } },
+  // item 0: the ratings of the student's posts; item 1: the grade for the whole forum
+  grading: {
+    items: (a) => [
+      ...(a.settings.ratingAggregate !== 'none'
+        ? [
+            {
+              itemNumber: 0,
+              name: 'Rating',
+              nameKey: 'mod.forum.gradeItem.rating',
+              gradeMax: a.settings.ratingMax,
+              gradePass: a.settings.ratingPass,
+              scaleId: a.settings.ratingScaleId,
+            },
+          ]
+        : []),
+      ...(a.settings.wholeForumGrading
+        ? [
+            {
+              itemNumber: 1,
+              name: 'Whole forum',
+              nameKey: 'mod.forum.gradeItem.whole',
+              gradeMax: a.settings.gradeMax,
+              gradePass: a.settings.gradePass,
+              scaleId: a.settings.gradeScaleId,
+            },
+          ]
+        : []),
+    ],
+  },
   completion: {
     schema: z.object({ posts: count, discussions: count, replies: count }),
     async evaluate(ctx, a, userId, rules) {
@@ -502,6 +789,17 @@ export const forum = defineModule<ForumSettingsT>({
         moderator: z.boolean(),
         subscribed: z.boolean(),
         groups: z.array(z.object({ id: z.string().uuid(), name: z.string() })),
+        myGrade: z
+          .object({
+            grade: z.number().nullable().describe('points, or a 1-based scale position'),
+            feedback: z.string(),
+            gradedAt: z.string(),
+            scale: z.array(z.string()).nullable(),
+            gradeMax: z.number(),
+          })
+          .nullable()
+          .describe('whole-forum grading: your grade, once given'),
+        canGrade: z.boolean().describe('whole-forum grading: you grade students'),
         items: z.array(
           DiscussionOut.extend({
             authorName: z.string().nullable(),
@@ -523,6 +821,14 @@ export const forum = defineModule<ForumSettingsT>({
         canReplyPrivately: z.boolean(),
         qandaLocked: z.boolean().describe('Q&A forum: other replies show once the user replied'),
         subscribed: z.boolean(),
+        rating: z
+          .object({
+            aggregate: z.enum(ratingAggregates),
+            scale: z.array(z.string()).nullable().describe('ratings on a scale, worst first'),
+            max: z.number().describe('ratings in points: 0..max'),
+          })
+          .nullable()
+          .describe('ratings on'),
         posts: z.array(
           z.object({
             id: z.string().uuid(),
@@ -537,6 +843,15 @@ export const forum = defineModule<ForumSettingsT>({
             createdAt: z.string(),
             editedAt: z.string().nullable(),
             attachments: z.array(FileOut),
+            rating: z
+              .object({
+                aggregate: z.number().nullable(),
+                count: z.number(),
+                mine: z.number().nullable(),
+                canRate: z.boolean(),
+                raters: z.array(z.object({ name: z.string(), value: z.number() })),
+              })
+              .nullable(),
           }),
         ),
       }),
@@ -546,8 +861,139 @@ export const forum = defineModule<ForumSettingsT>({
         return r;
       },
     }),
+    userPosts: defineQuery({
+      summary:
+        "Whole-forum grading: a student's posts in the forum, newest first, with their grade",
+      capability: 'mod.forum:grade',
+      input: z.object({ userId: z.string().uuid() }),
+      output: z.object({
+        posts: z.array(
+          z.object({
+            id: z.string().uuid(),
+            discussionId: z.string().uuid(),
+            discussionTitle: z.string(),
+            parentId: z.string().uuid().nullable(),
+            contentHtml: z.string(),
+            privateToUserId: z.string().uuid().nullable(),
+            createdAt: z.string(),
+          }),
+        ),
+        grade: z
+          .object({ grade: z.number().nullable(), feedback: z.string(), gradedAt: z.string() })
+          .nullable(),
+      }),
+      async handler(ctx, ref, { userId }) {
+        const a = ref as Forum;
+        const g = await ctx.db.forumGrade.findUnique({
+          where: { activityId_userId: { activityId: a.id, userId } },
+        });
+        return {
+          posts: await readUserPosts(ctx, a, userId),
+          grade: g
+            ? {
+                grade: g.grade === null ? null : Number(g.grade),
+                feedback: g.feedback,
+                gradedAt: g.gradedAt,
+              }
+            : null,
+        };
+      },
+    }),
   },
   actions: {
+    rate: defineAction({
+      summary:
+        'Rate a post (null takes your rating back): points 0..max, or a 1-based position on the forum’s scale',
+      input: z.object({ postId: z.string().uuid(), value: z.number().int().nullable() }),
+      async handler(ctx, ref, input) {
+        const a = ref as Forum;
+        const me = uid(ctx);
+        if (a.settings.ratingAggregate === 'none')
+          throw new ModuleError('CONFLICT', 'Ratings are off in this forum');
+        const post = await ctx.db.forumPost.findUnique({ where: { id: input.postId } });
+        if (!post || post.deletedAt) throw new ModuleError('NOT_FOUND', 'Post not found');
+        await loadDiscussion(ctx, a, post.discussionId);
+        const moderator = await isModerator(ctx, a);
+        const hidden =
+          !postVisible(post, me, moderator) ||
+          (!!post.parentId &&
+            post.authorId !== me &&
+            (await qandaLocked(ctx, a, post.discussionId, me)));
+        if (hidden) throw new ModuleError('NOT_FOUND', 'Post not found');
+        if (
+          !(await mayRate(ctx, a)) ||
+          !post.authorId ||
+          post.authorId === me ||
+          !inRatingWindow(post.createdAt, a.settings)
+        )
+          throw new ModuleError('FORBIDDEN', 'You cannot rate this post');
+        if (input.value !== null) {
+          const scale = await scaleItems(ctx.db, a, a.settings.ratingScaleId);
+          const [lo, hi] = scale ? [1, scale.length] : [0, a.settings.ratingMax];
+          if (input.value < lo || input.value > hi)
+            throw new Error(`A rating is from ${lo} to ${hi}`);
+          await ctx.db.forumRating.upsert({
+            where: { postId_raterId: { postId: post.id, raterId: me } },
+            create: { postId: post.id, raterId: me, value: input.value },
+            update: { value: input.value },
+          });
+        } else await ctx.db.forumRating.deleteMany({ where: { postId: post.id, raterId: me } });
+        await pushRatings(ctx, a, [post.authorId]);
+        return { ok: true };
+      },
+    }),
+    gradeUser: defineAction({
+      summary:
+        "Grade a student's part in the whole forum (points, or a 1-based scale position; null clears) with feedback",
+      capability: 'mod.forum:grade',
+      input: z.object({
+        userId: z.string().uuid(),
+        grade: z.number().nullable(),
+        feedback: z.string().max(200_000).default(''),
+      }),
+      async handler(ctx, ref, input) {
+        const a = ref as Forum;
+        if (!a.settings.wholeForumGrading)
+          throw new ModuleError('CONFLICT', 'The forum is not graded as a whole');
+        const enrolled = await ctx.db.enrolment.findFirst({
+          where: { courseId: a.courseId, userId: input.userId },
+        });
+        if (!enrolled) throw new ModuleError('NOT_FOUND', 'User is not enrolled');
+        if (input.grade !== null) {
+          const scale = await scaleItems(ctx.db, a, a.settings.gradeScaleId);
+          if (scale) {
+            if (!Number.isInteger(input.grade) || input.grade < 1 || input.grade > scale.length)
+              throw new Error('Choose a grade of the scale');
+          } else if (input.grade < 0 || input.grade > a.settings.gradeMax)
+            throw new Error(`Grade must be between 0 and ${a.settings.gradeMax}`);
+        }
+        const data = {
+          grade: input.grade,
+          feedback: sanitizeRichText(input.feedback),
+          graderId: uid(ctx),
+          gradedAt: ctx.now,
+        };
+        await ctx.db.forumGrade.upsert({
+          where: { activityId_userId: { activityId: a.id, userId: input.userId } },
+          create: { activityId: a.id, userId: input.userId, ...data },
+          update: data,
+        });
+        await pushForumGrade(ctx, a, input.userId);
+        await ctx.notify.send([input.userId], {
+          type: 'forum.graded',
+          title: { key: 'mod.forum.notify.gradedTitle', values: { name: a.name } },
+          url: `/course/${a.courseId}/a/${a.id}`,
+          courseId: a.courseId,
+          contextId: a.id,
+        });
+        await ctx.log('forum.graded', {
+          activityId: a.id,
+          userId: input.userId,
+          grade: input.grade,
+        });
+        return { ok: true };
+      },
+    }),
     startDiscussion: defineAction({
       summary: 'Start a discussion, optionally in a group, with attachments',
       capability: 'mod.forum:startdiscussion',
@@ -698,15 +1144,29 @@ export const forum = defineModule<ForumSettingsT>({
           throw new Error('You cannot delete this post');
         }
         if (!post.parentId) {
+          // the discussion's posts go with their ratings: their authors' grades change
+          const authors = await ctx.db.forumPost.findMany({
+            where: { discussionId: d.id, authorId: { not: null } },
+            distinct: ['authorId'],
+            select: { authorId: true },
+          });
           await ctx.db.forumDiscussion.delete({ where: { id: d.id } });
           await ctx.log('forum.discussion.deleted', { activityId: a.id, discussionId: d.id });
           if (post.authorId) await ctx.completion.recompute(a.id, post.authorId);
+          await pushRatings(
+            ctx,
+            a,
+            authors.flatMap((x) => (x.authorId ? [x.authorId] : [])),
+          );
           return { discussionDeleted: true };
         }
         await ctx.db.forumPost.update({ where: { id: post.id }, data: { deletedAt: ctx.now } });
         await recount(ctx.db, d.id);
         await ctx.log('forum.post.deleted', { activityId: a.id, postId: post.id });
-        if (post.authorId) await ctx.completion.recompute(a.id, post.authorId);
+        if (post.authorId) {
+          await ctx.completion.recompute(a.id, post.authorId);
+          await pushRatings(ctx, a, [post.authorId]);
+        }
         return { discussionDeleted: false };
       },
     }),
@@ -774,6 +1234,28 @@ export const forum = defineModule<ForumSettingsT>({
     }),
   },
   lifecycle: {
+    // new rating settings change every rating grade; items come and go with the settings
+    async onUpdate(ctx, ref, prev) {
+      const a = ref as Forum;
+      const s = a.settings;
+      const keys = [
+        'ratingAggregate',
+        'ratingScaleId',
+        'ratingMax',
+        'ratingFrom',
+        'ratingTo',
+      ] as const;
+      const ratingsChanged = keys.some((k) => s[k] !== prev[k]);
+      if (!ratingsChanged && s.wholeForumGrading === prev.wholeForumGrading) return;
+      await ctx.grades.syncItems(a.id);
+      if (ratingsChanged) await pushRatings(ctx, a, await ratedUsers(ctx.db, a));
+      if (s.wholeForumGrading && !prev.wholeForumGrading)
+        for (const g of await ctx.db.forumGrade.findMany({
+          where: { activityId: a.id },
+          select: { userId: true },
+        }))
+          await pushForumGrade(ctx, a, g.userId);
+    },
     async onUserUnenrolled(ctx, courseId, userId) {
       await ctx.db.forumSubscription.deleteMany({ where: { userId, activity: { courseId } } });
     },

@@ -74,7 +74,72 @@
     "postDeleted": "This post was deleted",
     "notify": {
       "post": "New forum posts",
-      "postTitle": "{user} in “{title}” ({forum})"
+      "postTitle": "{user} in “{title}” ({forum})",
+      "graded": "Forum grade",
+      "gradedTitle": "Your part in the forum has been graded: {name}"
+    },
+    "ratings": {
+      "title": "Post ratings",
+      "aggregate": "Grade from ratings",
+      "aggregates": {
+        "none": "No ratings",
+        "average": "Average of ratings",
+        "count": "Count of ratings",
+        "max": "Maximum rating",
+        "min": "Minimum rating",
+        "sum": "Sum of ratings"
+      },
+      "type": "Grade type",
+      "points": "Points",
+      "max": "Maximum rating in points",
+      "pass": "Grade to pass for ratings",
+      "from": "Rate posts written from",
+      "to": "Rate posts written until",
+      "peer": "Students rate each other's posts too",
+      "hint": "Teachers rate posts; nobody rates their own. Turning ratings off removes their gradebook item with its grades."
+    },
+    "whole": {
+      "title": "Whole forum grading",
+      "enable": "Grade each student's part in the whole forum",
+      "max": "Maximum grade",
+      "pass": "Grade to pass",
+      "hint": "Turning whole forum grading off removes its gradebook item with its grades."
+    },
+    "rating": {
+      "aggregates": {
+        "average": "Average of ratings: {value}",
+        "count": "Count of ratings: {value}",
+        "max": "Maximum rating: {value}",
+        "min": "Minimum rating: {value}",
+        "sum": "Sum of ratings: {value}"
+      },
+      "count": "{n, plural, one {# rating} other {# ratings}}",
+      "yours": "Your rating",
+      "rateLabel": "Your rating of the post by {name}",
+      "saved": "Rating saved",
+      "raters": "Who rated"
+    },
+    "grading": {
+      "yourGrade": "Your grade for the forum",
+      "outOf": "out of {max}",
+      "open": "Grade students' participation",
+      "title": "Whole forum grading",
+      "titleFor": "Whole forum grading: {name}",
+      "student": "Student",
+      "posts": "Posts",
+      "grade": "Grade",
+      "gradeAction": "Grade",
+      "back": "Back to the list",
+      "next": "Next",
+      "started": "Started a discussion",
+      "noPosts": "The student has not posted in the forum yet.",
+      "feedback": "Feedback",
+      "save": "Save grade",
+      "saved": "Grade saved"
+    },
+    "gradeItem": {
+      "rating": "Ratings",
+      "whole": "Whole forum"
     }
   }
 }

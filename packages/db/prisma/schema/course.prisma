@@ -155,6 +155,7 @@ model Activity {
   assignParticipants AssignParticipant[]
   assignState        AssignState?
   gradingDefinitions GradingDefinition[]
+  forumGrades        ForumGrade[]
   quizSlots          QuizSlot[]
   quizAttempts       QuizAttempt[]
   quizOverrides      QuizOverride[]

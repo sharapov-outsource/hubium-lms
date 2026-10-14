@@ -224,6 +224,11 @@ export interface ActivityRef<S = unknown> {
 export interface GradeItemSpec {
   itemNumber: number;
   name: string;
+  /**
+   * A message key naming the item (e.g. `mod.forum.gradeItem.rating`), in the course's
+   * language or the site's; used instead of `name` when given.
+   */
+  nameKey?: string;
   gradeMax: number;
   gradePass?: number;
   /** Grade on a scale (its grades are then 1..n and gradeMax is ignored). */
