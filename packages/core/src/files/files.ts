@@ -5,6 +5,7 @@ import { type Db, type File, type Prisma, SYSTEM_CONTEXT_ID, uuidv7 } from '@hub
 import { log } from '@hubium/log';
 import type { RequestContext } from '../context.ts';
 import { ValidationError } from '../errors.ts';
+import { assertClean } from './antivirus.ts';
 import { getStorage } from './storage.ts';
 
 const logger = log('files');
@@ -117,6 +118,44 @@ export interface StoreFileInput {
   replace?: boolean;
 }
 
+/**
+ * The blob for this content: one already stored (deduplicated by hash) or a new one. New
+ * content is scanned for malware first when a scanner is configured, and so is a stored
+ * blob that was saved before scanning was turned on.
+ */
+async function storeBlob(
+  db: Tx,
+  content: { data: Buffer } | { filePath: string },
+  meta: { name: string; size: number; sha256: string; mimeType: string },
+) {
+  const existing = await db.fileBlob.findFirst({
+    where: { sha256: meta.sha256, size: meta.size },
+  });
+  if (existing?.scannedAt) return existing;
+  const scanned = await assertClean(content, meta);
+  if (existing)
+    return scanned
+      ? db.fileBlob.update({ where: { id: existing.id }, data: { scannedAt: new Date() } })
+      : existing;
+  const id = uuidv7();
+  const storageKey = `blobs/${id.slice(-2)}/${id}`;
+  await getStorage().put(
+    storageKey,
+    'data' in content ? content.data : createReadStream(content.filePath),
+    meta.mimeType,
+  );
+  return db.fileBlob.create({
+    data: {
+      id,
+      storageKey,
+      size: meta.size,
+      mimeType: meta.mimeType,
+      sha256: meta.sha256,
+      scannedAt: scanned ? new Date() : null,
+    },
+  });
+}
+
 export async function storeFile(db: Tx, input: StoreFileInput): Promise<File> {
   const name = sanitizeFilename(input.name);
   if (input.maxBytes && input.data.length > input.maxBytes) {
@@ -129,15 +168,11 @@ export async function storeFile(db: Tx, input: StoreFileInput): Promise<File> {
     throw new ValidationError({ file: [`File type ${mimeType} is not allowed`] });
   }
   const sha256 = createHash('sha256').update(input.data).digest('hex');
-  let blob = await db.fileBlob.findFirst({ where: { sha256, size: input.data.length } });
-  if (!blob) {
-    const id = uuidv7();
-    const storageKey = `blobs/${id.slice(-2)}/${id}`;
-    await getStorage().put(storageKey, input.data, mimeType);
-    blob = await db.fileBlob.create({
-      data: { id, storageKey, size: input.data.length, mimeType, sha256 },
-    });
-  }
+  const blob = await storeBlob(
+    db,
+    { data: input.data },
+    { name, size: input.data.length, sha256, mimeType },
+  );
   const where = {
     contextId: input.contextId,
     component: input.component,
@@ -189,13 +224,7 @@ export async function storeFileFromPath(
   const hash = createHash('sha256');
   for await (const chunk of createReadStream(input.filePath)) hash.update(chunk as Buffer);
   const sha256 = hash.digest('hex');
-  let blob = await db.fileBlob.findFirst({ where: { sha256, size } });
-  if (!blob) {
-    const id = uuidv7();
-    const storageKey = `blobs/${id.slice(-2)}/${id}`;
-    await getStorage().put(storageKey, createReadStream(input.filePath), mimeType);
-    blob = await db.fileBlob.create({ data: { id, storageKey, size, mimeType, sha256 } });
-  }
+  const blob = await storeBlob(db, { filePath: input.filePath }, { name, size, sha256, mimeType });
   const where = {
     contextId: input.contextId,
     component: input.component,

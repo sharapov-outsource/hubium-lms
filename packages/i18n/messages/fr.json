@@ -375,6 +375,7 @@
         "worker": "Processus d’arrière-plan",
         "jobs": "File de tâches",
         "storage": "Stockage des fichiers",
+        "antivirus": "Antivirus (ClamAV)",
         "smtp": "Messagerie (SMTP)",
         "contentOrigin": "Domaine distinct pour le contenu",
         "push": "Notifications push",
@@ -433,7 +434,8 @@
     "UNAUTHENTICATED": "Veuillez vous connecter",
     "INTERNAL": "Erreur interne. Veuillez réessayer.",
     "BAD_REQUEST": "Requête incorrecte",
-    "RATE_LIMITED": "Trop de requêtes. Veuillez patienter un instant."
+    "RATE_LIMITED": "Trop de requêtes. Veuillez patienter un instant.",
+    "UNAVAILABLE": "Un service nécessaire est indisponible. Réessayez plus tard."
   },
   "editor": {
     "bold": "Gras",

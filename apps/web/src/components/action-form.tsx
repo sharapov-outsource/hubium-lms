@@ -22,6 +22,7 @@ const KNOWN = [
   'INTERNAL',
   'BAD_REQUEST',
   'RATE_LIMITED',
+  'UNAVAILABLE',
 ];
 
 /** Every field error of the surrounding form (for composite inputs). */

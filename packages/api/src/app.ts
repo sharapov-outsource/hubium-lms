@@ -74,6 +74,7 @@ const STATUS = {
   NOT_FOUND: 404,
   CONFLICT: 409,
   RATE_LIMITED: 429,
+  UNAVAILABLE: 503,
   INTERNAL: 500,
 } as const;
 
@@ -100,8 +101,15 @@ const errors = {
   404: err('Not found'),
   429: err('Rate limit exceeded'),
 };
-/** Changes may also collide with existing data (a taken short name, an existing enrolment). */
-const writeErrors = { ...errors, 409: err('Conflicts with existing data') };
+/**
+ * Changes may also collide with existing data (a taken short name, an existing enrolment),
+ * and uploads fail while the virus scanner is configured but unreachable.
+ */
+const writeErrors = {
+  ...errors,
+  409: err('Conflicts with existing data'),
+  503: err('A service the change needs (the virus scanner) is unavailable; retry later'),
+};
 const security = [{ bearerAuth: [] }];
 const Id = z.string().uuid();
 const IdParam = z.object({ id: Id.openapi({ param: { name: 'id', in: 'path' } }) });

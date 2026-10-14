@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import type { Db } from '@hubium/db';
 import { getEnv } from '../env.ts';
+import { antivirusVersion } from '../files/antivirus.ts';
 import { getStorage } from '../files/storage.ts';
 import { getTransport } from '../mail/mail.ts';
 import { pushConfig } from '../notifications/push.ts';
@@ -102,6 +103,15 @@ export async function environmentChecks(db: Db, now = new Date()): Promise<EnvCh
         env.NODE_ENV === 'production' ? 'error' : 'warn',
         'CONTENT_HOST is not a separate origin',
       ];
+    }),
+    run('antivirus', async () => {
+      if (!env.CLAMAV_URL) return ['ok', 'off (CLAMAV_URL is not set; uploads are not scanned)'];
+      try {
+        return ['ok', await antivirusVersion(env)];
+      } catch (e) {
+        const why = e instanceof Error ? e.message : String(e);
+        return ['error', `clamd unreachable, uploads are refused: ${why}`];
+      }
     }),
     run('push', async () =>
       pushConfig()

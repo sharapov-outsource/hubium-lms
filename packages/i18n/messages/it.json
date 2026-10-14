@@ -375,6 +375,7 @@
         "worker": "Processo in background",
         "jobs": "Coda dei processi",
         "storage": "Archiviazione file",
+        "antivirus": "Antivirus (ClamAV)",
         "smtp": "Posta (SMTP)",
         "contentOrigin": "Origine separata per i contenuti",
         "push": "Notifiche push",
@@ -433,7 +434,8 @@
     "UNAUTHENTICATED": "Effettuare l’accesso",
     "INTERNAL": "Errore interno. Riprovare.",
     "BAD_REQUEST": "Richiesta non valida",
-    "RATE_LIMITED": "Troppe richieste. Attendere qualche istante."
+    "RATE_LIMITED": "Troppe richieste. Attendere qualche istante.",
+    "UNAVAILABLE": "Un servizio necessario non è disponibile. Riprova più tardi."
   },
   "editor": {
     "bold": "Grassetto",

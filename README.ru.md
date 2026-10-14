@@ -242,7 +242,7 @@ sudo bash install-hubium.sh --yes --mode native --domain lms.example.org \
 
 | Команда | Что делает |
 |---|---|
-| `hubium doctor` | проверяет настройки, базу, воркер, хранилище, почту и ffmpeg |
+| `hubium doctor` | проверяет настройки, базу, воркер, хранилище, почту, ffmpeg и антивирус |
 | `hubium modules list\|enable\|disable` | показывает модули, включает и выключает их |
 | `hubium migrate --seed minimal` | применяет миграции; Docker делает это при каждом запуске |
 | `hubium secrets rotate` | перешифровывает сохранённые секреты после смены `APP_SECRET` |
@@ -267,7 +267,7 @@ sudo bash install-hubium.sh upgrade --version 1.2.0
 ### Без скрипта
 
 - **Docker.** Возьмите из релиза `compose.yml`, `Caddyfile` и `env.production.example`. Последний сохраните как `.env` рядом с `compose.yml` и заполните.
-  - Необязательные сервисы — профили compose: `db`, `s3`, `caddy`, `media`, `mailpit`.
+  - Необязательные сервисы — профили compose: `db`, `s3`, `caddy`, `media`, `mailpit` и `clamav` (проверка загрузок на вирусы).
   - Запуск: `docker compose pull && docker compose up -d --wait`.
 - **Архив.** Распакуйте и следуйте `README.txt` внутри:
   1. Заполните `/etc/hubium/hubium.env` по `deploy/hubium.env.example`.

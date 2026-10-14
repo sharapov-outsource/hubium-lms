@@ -6,6 +6,7 @@ export type AppErrorCode =
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'RATE_LIMITED'
+  | 'UNAVAILABLE'
   | 'INTERNAL';
 
 const HTTP_STATUS: Record<AppErrorCode, number> = {
@@ -16,6 +17,7 @@ const HTTP_STATUS: Record<AppErrorCode, number> = {
   NOT_FOUND: 404,
   CONFLICT: 409,
   RATE_LIMITED: 429,
+  UNAVAILABLE: 503,
   INTERNAL: 500,
 };
 
@@ -66,6 +68,14 @@ export class ConflictError extends AppError {
   constructor(message: string) {
     super('CONFLICT', message);
     this.name = 'ConflictError';
+  }
+}
+
+/** A service the request depends on (e.g. the virus scanner) cannot be reached. */
+export class UnavailableError extends AppError {
+  constructor(message: string, cause?: unknown) {
+    super('UNAVAILABLE', message, { cause });
+    this.name = 'UnavailableError';
   }
 }
 

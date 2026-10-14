@@ -14,7 +14,7 @@ This page lists the protections built into Hubium and what an operator should ch
 | Framing | `frame-ancestors 'self'`, `X-Frame-Options: SAMEORIGIN`; frames allowed only for the content origin, video providers, registered LTI tools and the configured BBB/Jitsi hosts |
 | SSRF | server-side fetches of admin/tool URLs (AI endpoints, LTI JWKS) refuse loopback, private, link-local and metadata addresses on every redirect hop unless listed in `SSRF_ALLOW_HOSTS` |
 | Secrets | provider keys encrypted at rest with AES-256-GCM under `APP_SECRET`; rotation command; API tokens stored as SHA-256 hashes; LTI keys sealed |
-| Uploads | resumable uploads with a maximum size and chunk checks, zip-slip/symlink/size/ratio checks for SCORM and course archives, MIME sniffing |
+| Uploads | resumable uploads with a maximum size and chunk checks, zip-slip/symlink/size/ratio checks for SCORM and course archives, MIME sniffing; optional ClamAV scan of every upload before it is stored, failing closed (uploads are refused while a configured scanner is down) |
 | Transport | HSTS in production over HTTPS, `upgrade-insecure-requests`, `Referrer-Policy: strict-origin-when-cross-origin`, restrictive `Permissions-Policy` |
 | AI | provider chosen by the administrator, per-feature switches and quotas, consent before first use, pseudonymised grading input, course text and submissions framed as data, suggestions never saved automatically |
 | Privacy | data export for every user, erasure of personal content on deletion, versioned policies with recorded acceptance; learners see on their privacy page who follows their learning |
@@ -29,6 +29,7 @@ This page lists the protections built into Hubium and what an operator should ch
 - [ ] Releases are verified before installing (`install-hubium.sh` checks `SHA256SUMS`; see [releasing.md](releasing.md)), and `hubium doctor` reports no errors.
 - [ ] Activity modules nobody uses are turned off (Admin → Modules); turning LTI off also removes LTI tool origins from the CSP.
 - [ ] Two-factor authentication is required for administrators (Admin → Settings).
+- [ ] Where people upload files from outside, ClamAV scans them (`CLAMAV_URL`; see operations.md, «Антивирус»), and Admin → Environment shows it as OK.
 - [ ] Backups of the database and file storage run daily and a restore was tested.
 - [ ] Only the hosts that really are internal services are listed in `SSRF_ALLOW_HOSTS`.
 - [ ] `METRICS_TOKEN` is long and random, or unset.

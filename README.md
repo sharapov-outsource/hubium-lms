@@ -201,7 +201,7 @@ The `hubium` command checks and maintains an installation. In Docker, run it as 
 
 | Command | What it does |
 |---|---|
-| `hubium doctor` | checks the configuration, the database, the worker, storage, mail and ffmpeg |
+| `hubium doctor` | checks the configuration, the database, the worker, storage, mail, ffmpeg and the virus scanner |
 | `hubium modules list\|enable\|disable` | shows activity modules, or turns them on or off |
 | `hubium migrate --seed minimal` | applies migrations; Docker runs it on every start |
 | `hubium secrets rotate` | re-encrypts stored secrets after `APP_SECRET` changes |
@@ -225,7 +225,7 @@ A native installation keeps the previous releases next to the new one.
 
 ### Without the script
 
-- **Docker:** take `compose.yml`, `Caddyfile` and `env.production.example` from a release. Save the last one as `.env` next to `compose.yml` and fill it in. Optional services are compose profiles: `db`, `s3`, `caddy`, `media` and `mailpit`. Then run:
+- **Docker:** take `compose.yml`, `Caddyfile` and `env.production.example` from a release. Save the last one as `.env` next to `compose.yml` and fill it in. Optional services are compose profiles: `db`, `s3`, `caddy`, `media`, `mailpit` and `clamav` (virus scanning of uploads). Then run:
 
   ```bash
   docker compose pull && docker compose up -d --wait

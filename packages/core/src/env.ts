@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+/** A number from the environment; an empty value (e.g. `X=` in compose) means the default. */
+const num = (fallback: number) =>
+  z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.coerce.number().int().positive().default(fallback),
+  );
+
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   DATABASE_URL: z.string().url(),
@@ -21,6 +28,16 @@ const EnvSchema = z.object({
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().optional(),
+  /** clamd to scan uploads with: `tcp://host:3310` or `unix:///run/clamav/clamd.ctl`. */
+  CLAMAV_URL: z
+    .string()
+    .regex(/^(tcp:\/\/[^/]+|unix:\/\/\/.+)$/, 'Use tcp://host:port or unix:///path/to/socket')
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
+  /** Larger files are stored without a scan (and logged). */
+  CLAMAV_MAX_SCAN_MB: num(100),
+  /** A scan taking longer fails the upload, as an unreachable scanner does. */
+  CLAMAV_TIMEOUT_MS: num(20_000),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

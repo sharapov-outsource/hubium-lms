@@ -11,6 +11,7 @@
 #            127.0.0.1:3000 yourself)
 #   media    the video transcoding worker (needed by the video activity)
 #   mailpit  catches mail until SMTP_URL points at a real server
+#   clamav   scans uploads for malware (set CLAMAV_URL=tcp://clamav:3310); needs ~3 GB RAM
 name: hubium
 x-build: &build
   context: ..
@@ -51,10 +52,15 @@ x-app-env: &app-env
   METRICS_TOKEN: ${METRICS_TOKEN:-}
   API_RATE_LIMIT_PER_MIN: ${API_RATE_LIMIT_PER_MIN:-120}
   SSRF_ALLOW_HOSTS: ${SSRF_ALLOW_HOSTS:-}
+  # Virus scanning of uploads with the clamav profile (or any clamd); see docs/operations.md
+  CLAMAV_URL: ${CLAMAV_URL:-}
+  CLAMAV_MAX_SCAN_MB: ${CLAMAV_MAX_SCAN_MB:-100}
+  CLAMAV_TIMEOUT_MS: ${CLAMAV_TIMEOUT_MS:-20000}
   # JSON log lines on stdout (docker compose logs); see docs/operations.md
   LOG_LEVEL: ${LOG_LEVEL:-info}
 x-after-migrate: &after-migrate
   migrate: { condition: service_completed_successfully }
+  clamav: { condition: service_healthy, required: false }
 
 services:
   db:
@@ -95,6 +101,27 @@ services:
     profiles: [mailpit]
     image: axllent/mailpit:v1.31
     ports: ["127.0.0.1:8025:8025"]
+    restart: unless-stopped
+
+  # Scans uploads before they are stored. While CLAMAV_URL is set and clamd is down, uploads
+  # are refused. The signatures ship in the image and freshclam keeps them up to date.
+  clamav:
+    profiles: [clamav]
+    image: clamav/clamav:1.5.4-debian13-slim
+    environment:
+      # a little above CLAMAV_MAX_SCAN_MB: larger files are stored without a scan
+      CLAMD_CONF_StreamMaxLength: 110M
+      CLAMD_CONF_MaxFileSize: 110M
+    volumes: [clamav:/var/lib/clamav]
+    healthcheck:
+      test: ["CMD-SHELL", "clamdcheck.sh"]
+      interval: 10s
+      retries: 6
+      start_period: 6m
+    deploy:
+      resources:
+        # the signatures take ~1 GB, twice that while freshclam reloads them
+        limits: { memory: 3g }
     restart: unless-stopped
 
   # Migrations, the S3 bucket and the idempotent seed, before every start.
@@ -172,6 +199,7 @@ services:
 volumes:
   db:
   s3:
+  clamav:
   # local files of web and the workers (see the Dockerfile)
   data:
   caddy:

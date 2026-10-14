@@ -376,6 +376,7 @@
         "worker": "Background worker",
         "jobs": "Job queue",
         "storage": "File storage",
+        "antivirus": "Antivirus (ClamAV)",
         "smtp": "Mail (SMTP)",
         "contentOrigin": "Separate content origin",
         "push": "Push notifications",
@@ -434,7 +435,8 @@
     "UNAUTHENTICATED": "Please sign in",
     "INTERNAL": "Internal error. Please try again.",
     "BAD_REQUEST": "Bad request",
-    "RATE_LIMITED": "Too many requests. Please wait a moment."
+    "RATE_LIMITED": "Too many requests. Please wait a moment.",
+    "UNAVAILABLE": "A required service is unavailable. Please try again later."
   },
   "editor": {
     "bold": "Bold",

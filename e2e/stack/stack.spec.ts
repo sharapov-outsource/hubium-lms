@@ -7,8 +7,8 @@ import { ADMIN, DEMO_PASSWORD, login } from '../tests/helpers';
 
 // What only the production images can get wrong: resumable uploads through Caddy into the
 // web container, a worker in another container reading them, transcoding by worker-media
-// (its own ffmpeg, CPU and memory limits) into S3, and playback of the HLS ladder in a
-// browser that decodes H.264. Meant for a throwaway stack: the video and the restored
+// (its own ffmpeg, CPU and memory limits) into S3, playback of the HLS ladder in a
+// browser that decodes H.264, and (with STACK_ANTIVIRUS) virus scanning by clamd. Meant for a throwaway stack: the video and the restored
 // course stay.
 
 test.describe
@@ -103,6 +103,23 @@ test.describe
         type: 'playback',
         description: `${state.mse ? 'hls.js' : 'native HLS'}, ${state.height}p`,
       });
+    });
+
+    test('uploads with malware are refused', async ({ page }) => {
+      test.skip(!process.env.STACK_ANTIVIRUS, 'the stack runs without the clamav profile');
+      // the EICAR test file, assembled here so that this file is not flagged itself
+      const eicar = ['X5O!P%@AP[4\\PZX54(P^)7CC)7}$', 'EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'];
+      await login(page, 'student2', DEMO_PASSWORD);
+      await page.getByRole('link', { name: 'Python для начинающих' }).first().click();
+      await page.getByRole('link', { name: 'Домашнее задание: калькулятор' }).first().click();
+      await page.locator('#assign-files').setInputFiles({
+        name: 'calculator.com',
+        mimeType: 'application/octet-stream',
+        buffer: Buffer.from(eicar.join('')),
+      });
+      await page.getByRole('button', { name: 'Сохранить черновик' }).click();
+      await expect(page.getByText('Malware detected: Eicar-Test-Signature')).toBeVisible();
+      await expect(page.getByRole('link', { name: 'calculator.com' })).toHaveCount(0);
     });
 
     test('admin restores a course backup; the worker reads the upload', async ({ page }, info) => {

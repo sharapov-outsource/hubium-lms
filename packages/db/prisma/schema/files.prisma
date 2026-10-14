@@ -8,12 +8,14 @@ enum FileStatus {
 }
 
 model FileBlob {
-  id         String   @id @default(uuid(7)) @db.Uuid
-  storageKey String   @unique
+  id         String    @id @default(uuid(7)) @db.Uuid
+  storageKey String    @unique
   size       BigInt
   mimeType   String
   sha256     String?
-  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  /// When the content passed a virus scan; null when stored without one (no scanner, too big).
+  scannedAt  DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
 
   files    File[]
   variants FileVariant[]

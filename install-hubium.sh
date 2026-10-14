@@ -34,7 +34,7 @@ MODE="" VERSION="" DOMAIN="" CONTENT_DOMAIN="" FILES_DOMAIN="" HTTPS="" WEB_PORT
 MODULES="" LIVE="" BBB_URL="" BBB_SECRET="" JITSI_DOMAIN="" JITSI_APP_ID="" JITSI_APP_SECRET=""
 DB="" DATABASE_URL="" STORAGE="" S3_ENDPOINT="" S3_PUBLIC_URL="" S3_REGION="" S3_BUCKET=""
 S3_ACCESS_KEY="" S3_SECRET_KEY="" SMTP_URL="" MAIL_FROM="" ADMIN_EMAIL="" ADMIN_PASSWORD=""
-DEMO="" PREFIX=/opt/hubium DATA_DIR=/var/lib/hubium CONFIG_DIR=/etc/hubium FROM_DIR=""
+DEMO="" ANTIVIRUS="" PREFIX=/opt/hubium DATA_DIR=/var/lib/hubium CONFIG_DIR=/etc/hubium FROM_DIR=""
 IMAGE="" PULL=yes SKIP_PACKAGES=no ASSUME_YES=no DRY_RUN=no BACKUP=""
 
 usage() {
@@ -75,6 +75,8 @@ Files
   --files-domain HOST          Docker's own S3: host browsers download from (files.<domain>)
   --s3-public-url URL          external S3: address browsers download from
   --s3-bucket NAME --s3-region R --s3-access-key K --s3-secret-key S
+  --antivirus yes|no           scan uploads with ClamAV (about 3 GB of memory); uploads
+                               are refused while the scanner is down
 
 Mail and first administrator
   --smtp-url URL               smtp://user:password@smtp.example.org:587 (empty: later)
@@ -131,6 +133,7 @@ while (($#)); do
     --s3-region) S3_REGION=${2-}; shift ;;
     --s3-access-key) S3_ACCESS_KEY=${2-}; shift ;;
     --s3-secret-key) S3_SECRET_KEY=${2-}; shift ;;
+    --antivirus) ANTIVIRUS=${2-}; shift ;;
     --smtp-url) SMTP_URL=${2-}; shift ;;
     --mail-from) MAIL_FROM=${2-}; shift ;;
     --admin-email) ADMIN_EMAIL=${2-}; shift ;;
@@ -605,6 +608,10 @@ ask_everything() {
       S3_PUBLIC_URL="https://$FILES_DOMAIN"
     fi
   fi
+  yes_no ANTIVIRUS "Scan uploaded files for viruses with ClamAV (about 3 GB of memory)?" no
+  if [[ $ANTIVIRUS == yes ]] && (($(awk '/^MemTotal:/ { print int($2 / 1024) }' /proc/meminfo) < 3800)); then
+    warn "ClamAV holds its signatures in memory (about 1.5 GB, twice that while updating): 4 GB or more is advised."
+  fi
 
   section "Mail"
   ask_optional SMTP_URL "SMTP server (smtp://user:password@smtp.example.org:587)"
@@ -682,6 +689,7 @@ summary() {
   else
     note "Mail:        not configured$([[ $MODE == docker ]] && echo " (caught by Mailpit)")"
   fi
+  note "Antivirus:   $([[ $ANTIVIRUS == yes ]] && echo "ClamAV scans uploads" || echo "none")"
   note "Admin:       $ADMIN_EMAIL"
   note "Demo data:   $DEMO"
   note "Paths:       $PREFIX$([[ $MODE == native ]] && echo ", $CONFIG_DIR, $DATA_DIR")"
@@ -704,6 +712,7 @@ docker_env() {
   [[ $STORAGE == s3 && -z $S3_ENDPOINT ]] && profiles+="${profiles:+,}s3"
   has_module video && profiles+="${profiles:+,}media"
   [[ -z $SMTP_URL ]] && profiles+="${profiles:+,}mailpit"
+  [[ $ANTIVIRUS == yes ]] && profiles+="${profiles:+,}clamav"
   {
     echo "# Hubium LMS — written by install-hubium.sh. See .env.production.example for every setting;"
     echo "# after a change: docker compose --project-directory $PREFIX up -d"
@@ -734,6 +743,7 @@ docker_env() {
     fi
     [[ -n $SMTP_URL ]] && echo "SMTP_URL=$(quote "$SMTP_URL")"
     [[ -n $MAIL_FROM ]] && echo "MAIL_FROM=$(quote "$MAIL_FROM")"
+    [[ $ANTIVIRUS == yes ]] && echo "CLAMAV_URL='tcp://clamav:3310'"
     live_env
     echo "SEED_PROFILE=$(quote "$([[ $DEMO == yes ]] && echo demo || echo minimal)")"
     echo "SEED_ADMIN_EMAIL=$(quote "$ADMIN_EMAIL")"
@@ -802,6 +812,7 @@ install_packages() {
     apt_install ffmpeg
     ok "ffmpeg $(ffmpeg -version 2>/dev/null | awk 'NR == 1 { print $3 }' || true)"
   fi
+  if [[ $ANTIVIRUS == yes ]]; then install_clamav; fi
   if [[ $HTTPS == caddy ]] && ! have caddy; then
     run install -m 0755 -d /usr/share/keyrings
     fetch https://dl.cloudsmith.io/public/caddy/stable/gpg.key /tmp/caddy-stable.key
@@ -813,6 +824,40 @@ install_packages() {
     apt_install caddy
     ok "Caddy $(caddy version 2>/dev/null | awk '{ print $1 }' || true)"
   fi
+}
+
+# ClamAV from the distribution: freshclam keeps the signatures current, clamd listens on a
+# local socket. Its stream limits are raised above CLAMAV_MAX_SCAN_MB (100 MB).
+CLAMD_SOCKET=/run/clamav/clamd.ctl
+install_clamav() {
+  apt_install clamav-daemon clamav-freshclam
+  local conf=/etc/clamav/clamd.conf key value
+  if [[ $DRY_RUN == no ]]; then
+    for key in StreamMaxLength:110M MaxFileSize:110M MaxScanSize:400M; do
+      value=${key#*:} key=${key%%:*}
+      if grep -q "^$key " "$conf"; then sed -i "s/^$key .*/$key $value/" "$conf"; else echo "$key $value" >>"$conf"; fi
+    done
+    CLAMD_SOCKET=$(awk '$1 == "LocalSocket" { print $2; exit }' "$conf")
+    CLAMD_SOCKET=${CLAMD_SOCKET:-/run/clamav/clamd.ctl}
+  fi
+  # clamd starts once freshclam has downloaded the signatures (a few hundred MB)
+  step "Waiting for the virus signatures"
+  if [[ $DRY_RUN == no ]]; then
+    local i
+    for ((i = 0; i < 120; i++)); do
+      compgen -G '/var/lib/clamav/main.c[vl]d' >/dev/null && compgen -G '/var/lib/clamav/daily.c[vl]d' >/dev/null && break
+      sleep 5
+    done
+    ((i < 120)) || die "freshclam did not download the signatures (journalctl -u clamav-freshclam)."
+    run systemctl enable clamav-daemon
+    run systemctl restart clamav-daemon
+    for ((i = 0; i < 60; i++)); do
+      [[ -S $CLAMD_SOCKET ]] && break
+      sleep 2
+    done
+    ((i < 60)) || die "clamd does not listen on $CLAMD_SOCKET (journalctl -u clamav-daemon)."
+  fi
+  ok "ClamAV $(clamd --version 2>/dev/null | awk '{ print $2 }' | cut -d/ -f1 || true) on $CLAMD_SOCKET"
 }
 
 # PostgreSQL: a running cluster of version 16+ if there is one, else 18 from the
@@ -915,6 +960,7 @@ native_env() {
   fi
   [[ -n $SMTP_URL ]] && echo "SMTP_URL=$(quote "$SMTP_URL")"
   [[ -n $MAIL_FROM ]] && echo "MAIL_FROM=$(quote "$MAIL_FROM")"
+  [[ $ANTIVIRUS == yes ]] && echo "CLAMAV_URL=$(quote "unix://$CLAMD_SOCKET")"
   live_env
   echo "SEED_ADMIN_EMAIL=$(quote "$ADMIN_EMAIL")"
   echo "SEED_ADMIN_PASSWORD=$(quote "$ADMIN_PASSWORD")"

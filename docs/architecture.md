@@ -400,7 +400,7 @@ CalendarEvent     scope(SITE|CATEGORY|COURSE|GROUP|USER) categoryId? courseId? g
 CalendarFeedToken userId tokenHash scope
 
 // ── core/files.prisma
-FileBlob          storageKey(uniq) size BigInt mimeType sha256? createdAt                 // refcount by query, GC'd
+FileBlob          storageKey(uniq) size BigInt mimeType sha256? scannedAt? createdAt      // refcount by query, GC'd; scannedAt: passed ClamAV
 File              blobId contextId component area itemId? path name mimeType size uploadedById status(PENDING|READY|QUARANTINED)
                   sortOrder license? author?      @@unique(contextId,component,area,itemId,path,name)
 FileVariant       fileId variant('thumb@256'|…) blobId
@@ -892,7 +892,7 @@ interface EmbeddingProvider { model: string; dims: number; embed(texts: string[]
   - CSP built per request (frame-src allowlist from embed providers, BBB/Jitsi hosts, registered LTI tool domains, content origin); `frame-ancestors`; HSTS;
   - Origin/`Sec-Fetch-Site` checks on cookie-authenticated route handlers;
   - SSRF guard for server-side fetches of JWKS, embeds and AI base URLs (block private ranges unless allowlisted);
-  - upload limits; optional ClamAV profile;
+  - upload limits; optional ClamAV scan of every upload before it is stored (`CLAMAV_URL`, compose profile `clamav`), failing closed while the scanner is down;
   - secret rotation commands; security headers test; dependency audit (osv-scanner); CodeQL.
 - **Privacy:** data export and deletion/anonymisation using module `privacy` hooks; policy management UI.
 - **Accessibility:** axe in every e2e; manual NVDA and VoiceOver passes on core flows; reduced motion; quiz timer aria-live announcing only at thresholds; focus management audit.
