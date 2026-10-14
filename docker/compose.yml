@@ -43,6 +43,14 @@ x-app-env: &app-env
   AUTH_YANDEX_SECRET: ${AUTH_YANDEX_SECRET:-}
   AUTH_VK_ID: ${AUTH_VK_ID:-}
   AUTH_VK_SECRET: ${AUTH_VK_SECRET:-}
+  # Web Push, the Prometheus endpoint, the REST API limit and internal hosts the server may
+  # call (a local Ollama, an LTI tool on the LAN); see docs/operations.md
+  VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+  VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+  VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+  METRICS_TOKEN: ${METRICS_TOKEN:-}
+  API_RATE_LIMIT_PER_MIN: ${API_RATE_LIMIT_PER_MIN:-120}
+  SSRF_ALLOW_HOSTS: ${SSRF_ALLOW_HOSTS:-}
   # JSON log lines on stdout (docker compose logs); see docs/operations.md
   LOG_LEVEL: ${LOG_LEVEL:-info}
 x-after-migrate: &after-migrate

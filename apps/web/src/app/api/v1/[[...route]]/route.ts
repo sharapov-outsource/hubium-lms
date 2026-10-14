@@ -6,7 +6,8 @@ export const dynamic = 'force-dynamic';
 const api = createApi({
   db,
   origin: process.env.APP_URL?.replace(/\/+$/, ''),
-  rateLimitPerMinute: Number(process.env.API_RATE_LIMIT_PER_MIN ?? 120),
+  // unset or empty means the default; 0 would block every request
+  rateLimitPerMinute: Number(process.env.API_RATE_LIMIT_PER_MIN) || 120,
 });
 
 const handle = (req: Request) => api.fetch(req);

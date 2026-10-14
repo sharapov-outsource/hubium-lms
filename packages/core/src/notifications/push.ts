@@ -20,7 +20,7 @@ export function pushConfig(env = getEnv()) {
   return {
     publicKey: env.VAPID_PUBLIC_KEY,
     privateKey: env.VAPID_PRIVATE_KEY,
-    subject: env.VAPID_SUBJECT ?? `mailto:admin@${new URL(env.APP_URL).hostname}`,
+    subject: env.VAPID_SUBJECT || `mailto:admin@${new URL(env.APP_URL).hostname}`,
   };
 }
 
