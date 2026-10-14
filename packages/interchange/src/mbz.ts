@@ -1,9 +1,12 @@
 import { Readable } from 'node:stream';
 import {
   buildModuleCtx,
+  calculationOrder,
+  calculationRefs,
   createCourse,
   disabledTypesIn,
   disabledTypesWarning,
+  ensureCourseGradebook,
   getModule,
   importActivity,
   type RequestContext,
@@ -14,6 +17,7 @@ import { fileUrl, storeFile } from '@hubium/core/files/files';
 import type { Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { createTranslator } from '@hubium/i18n/packs';
+import { Guide, Rubric } from '@hubium/module-sdk/grading';
 import { invalidIpListEntries } from '@hubium/module-sdk/net';
 import {
   type ClozePart,
@@ -237,6 +241,182 @@ type Mapped = {
 };
 
 /** A calculated question of any kind, with its datasets. */
+const AGGREGATIONS: Record<
+  string,
+  'MEAN' | 'MEDIAN' | 'LOWEST' | 'HIGHEST' | 'WEIGHTED_MEAN' | 'NATURAL'
+> = {
+  '0': 'MEAN',
+  '2': 'MEDIAN',
+  '4': 'LOWEST',
+  '6': 'HIGHEST',
+  '10': 'WEIGHTED_MEAN',
+  '13': 'NATURAL',
+};
+
+/**
+ * Moodle's aggregation of a grade category as Hubium's. Those Hubium lacks (mode, simple
+ * weighted mean, mean with extra credit) come as the nearest, and are reported.
+ */
+export function gradeAggregation(code: string, warn: (why: string) => void) {
+  const a = AGGREGATIONS[code];
+  if (a) return a;
+  const near = code === '11' ? ('WEIGHTED_MEAN' as const) : ('MEAN' as const);
+  warn(`grade category aggregation ${code} is not available: ${near} is used`);
+  return near;
+}
+
+/** The text of a Moodle HTML field, for fields that are plain text here. */
+const fieldText = (v: unknown) =>
+  txt(v)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>\s*<p[^>]*>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+
+/** The first value under a key anywhere below a node (plugin wrappers differ by version). */
+function below(n: unknown, key: string): Node | undefined {
+  if (!n || typeof n !== 'object') return undefined;
+  for (const [k, v] of Object.entries(n as Node)) {
+    if (k === key) return v as Node;
+    const inner = Array.isArray(v) ? v.map((x) => below(x, key)).find(Boolean) : below(v, key);
+    if (inner) return inner;
+  }
+  return undefined;
+}
+
+const sortorder = (a: Node, b: Node) => num(a.sortorder) - num(b.sortorder);
+
+/**
+ * An assignment's active rubric or marking guide from its grading.xml, as Hubium defines
+ * them (criteria and levels keep Moodle's ids). null without one.
+ */
+export function mbzGradingForm(
+  doc: Node | null,
+): { method: 'rubric' | 'guide'; definition: unknown } | null {
+  const areas = arr(((doc?.areas ?? {}) as Node).area as Node | Node[]);
+  const area = areas.find((a) => txt(a.areaname) === 'submissions') ?? areas[0];
+  const method = txt(area?.activemethod);
+  if (method !== 'rubric' && method !== 'guide') return null;
+  const def = arr(((area!.definitions ?? {}) as Node).definition as Node | Node[]).find(
+    (d) => txt(d.method) === method,
+  );
+  if (!def) return null;
+  if (method === 'rubric') {
+    let options: { lockzeropoints?: string | number } = {};
+    try {
+      options = JSON.parse(txt(def.options) || '{}');
+    } catch {}
+    const criteria = arr(below(def, 'criteria')?.criterion as Node | Node[]).sort(sortorder);
+    return {
+      method,
+      definition: {
+        criteria: criteria.map((c, i) => ({
+          id: `c${String(c['@_id'] ?? i)}`,
+          description: fieldText(c.description).slice(0, 2000) || `${i + 1}`,
+          levels: arr(below(c, 'levels')?.level as Node | Node[]).map((l, k) => ({
+            id: `l${String(l['@_id'] ?? k)}`,
+            score: num(l.score),
+            definition: fieldText(l.definition).slice(0, 2000),
+          })),
+        })),
+        lockZeroPoints: String(options.lockzeropoints ?? '1') !== '0',
+      },
+    };
+  }
+  const criteria = arr(below(def, 'guidecriteria')?.guidecriterion as Node | Node[]).sort(
+    sortorder,
+  );
+  return {
+    method,
+    definition: {
+      criteria: criteria.map((c, i) => ({
+        id: `g${String(c['@_id'] ?? i)}`,
+        shortName: fieldText(c.shortname).slice(0, 255) || `${i + 1}`,
+        descriptionStudents: fieldText(c.description).slice(0, 2000),
+        descriptionMarkers: fieldText(c.descriptionmarkers).slice(0, 2000),
+        maxScore: num(c.maxscore, 1),
+      })),
+    },
+  };
+}
+
+/**
+ * Moodle's assignment settings as Hubium's: what can be submitted (the submission plugins'
+ * settings), dates, grade or scale, reopening, the statement, teams, the marking workflow,
+ * allocation and blind marking.
+ */
+export function mbzAssignSettings(data: Node, scaleOf: (moodleId: string) => string | undefined) {
+  const cfg = new Map(
+    arr(((data.plugin_configs ?? {}) as Node).plugin_config as Node | Node[]).map((c) => [
+      `${txt(c.subtype)}/${txt(c.plugin)}/${txt(c.name)}`,
+      txt(c.value),
+    ]),
+  );
+  const has = (k: string) => cfg.has(k);
+  const on = (k: string, d: boolean) => (has(k) ? cfg.get(k) === '1' : d);
+  const grade = num(data.grade, 100);
+  const scaleId = grade < 0 ? (scaleOf(String(-grade)) ?? null) : null;
+  const bytes = num(cfg.get('assignsubmission/file/maxsubmissionsizebytes'));
+  const reopen = txt(data.attemptreopenmethod);
+  const allowText = on('assignsubmission/onlinetext/enabled', true);
+  const allowFiles = on('assignsubmission/file/enabled', true);
+  return {
+    openAt: date(data.allowsubmissionsfromdate),
+    dueAt: date(data.duedate),
+    cutoffAt: date(data.cutoffdate),
+    gradeMax: grade > 0 ? grade : 100,
+    scaleId,
+    submitButton: txt(data.submissiondrafts) === '1',
+    // at least one way to hand in work
+    allowText: allowText || !allowFiles,
+    allowFiles,
+    maxFiles: Math.min(
+      20,
+      Math.max(1, num(cfg.get('assignsubmission/file/maxfilesubmissions'), 5)),
+    ),
+    maxFileMB: bytes > 0 ? Math.min(500, Math.max(1, Math.ceil(bytes / 1024 / 1024))) : 20,
+    wordLimit: on('assignsubmission/onlinetext/wordlimitenabled', false)
+      ? Math.max(0, num(cfg.get('assignsubmission/onlinetext/wordlimit')))
+      : 0,
+    reopen: reopen === 'manual' || reopen === 'untilpass' ? reopen : 'none',
+    maxAttempts: Math.max(0, num(data.maxattempts, -1)),
+    requireStatement: txt(data.requiresubmissionstatement) === '1',
+    teamSubmission: txt(data.teamsubmission) === '1',
+    requireAllTeamMembers: txt(data.requireallteammemberssubmit) === '1',
+    preventSubmissionNotInGroup: txt(data.preventsubmissionnotingroup) === '1',
+    markingWorkflow: txt(data.markingworkflow) === '1',
+    markingAllocation: txt(data.markingallocation) === '1',
+    blindMarking: txt(data.blindmarking) === '1',
+  };
+}
+
+/**
+ * Moodle's forum ratings and whole-forum grade as Hubium's: the aggregate, points or a
+ * scale (a negative scale is a scale's id), the window of posts that can be rated.
+ */
+export function mbzForumGrading(data: Node, scaleOf: (moodleId: string) => string | undefined) {
+  const aggregates = ['none', 'average', 'count', 'max', 'min', 'sum'] as const;
+  const scale = num(data.scale);
+  const whole = num(data.grade_forum);
+  return {
+    ratingAggregate: aggregates[num(data.assessed)] ?? 'none',
+    ratingMax: scale > 0 ? Math.min(100, Math.round(scale)) : 10,
+    ratingScaleId: scale < 0 ? (scaleOf(String(-scale)) ?? null) : null,
+    ratingFrom: date(data.assesstimestart),
+    ratingTo: date(data.assesstimefinish),
+    wholeForumGrading: whole !== 0,
+    gradeMax: whole > 0 ? whole : 100,
+    gradeScaleId: whole < 0 ? (scaleOf(String(-whole)) ?? null) : null,
+  };
+}
+
 function mapCalculated(qtype: string, plugin: Node, answers: Node[]): Mapped {
   const records = arr(
     (plugin.calculated_records as Node | undefined)?.calculated_record as Node | Node[],
@@ -833,6 +1013,57 @@ export async function importMbz(
       }
     }
 
+    // scales (the site's come as the course's), then groups and groupings without members
+    const scaleMap = new Map<string, string>();
+    for (const sc of arr(
+      (xml(archive, 'scales.xml')?.scales_definition as Node | undefined)?.scale as Node | Node[],
+    )) {
+      const items = txt(sc.scale)
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean);
+      if (!items.length) continue;
+      const created = await db.scale.create({
+        data: { courseId, name: (txt(sc.name) || items.join(', ')).slice(0, 255), items },
+      });
+      scaleMap.set(String(sc['@_id']), created.id);
+    }
+    const scaleOf = (moodleId: string) => scaleMap.get(moodleId);
+    const groupMap = new Map<string, string>();
+    const groupingMap = new Map<string, string>();
+    const groupsXml = (xml(archive, 'groups.xml')?.groups ?? {}) as Node;
+    for (const g of arr(groupsXml.group as Node | Node[])) {
+      const name = txt(g.name).slice(0, 255);
+      if (!name) continue;
+      const created = await db.group.create({
+        data: {
+          courseId,
+          name,
+          idNumber: txt(g.idnumber) || null,
+          description: sanitizeRichText(txt(g.description)),
+        },
+      });
+      groupMap.set(String(g['@_id']), created.id);
+    }
+    for (const gg of arr(((groupsXml.groupings ?? {}) as Node).grouping as Node | Node[])) {
+      const name = txt(gg.name).slice(0, 255);
+      if (!name) continue;
+      const created = await db.grouping.create({
+        data: { courseId, name, description: sanitizeRichText(txt(gg.description)) },
+      });
+      groupingMap.set(String(gg['@_id']), created.id);
+      const members = arr(((gg.grouping_groups ?? {}) as Node).grouping_group as Node | Node[])
+        .map((x) => groupMap.get(txt(x.groupid)))
+        .filter((x): x is string => !!x);
+      if (members.length)
+        await db.groupingGroup.createMany({
+          data: members.map((groupId) => ({ groupingId: created.id, groupId })),
+          skipDuplicates: true,
+        });
+    }
+    const groupCount = groupMap.size;
+    if (groupCount) warnings.push(`${groupCount} groups were created without their members`);
+
     // activities in section order
     const actInfo = new Map(activitiesInfo.map((a) => [txt(a.moduleid), a]));
     const ordered = sections.flatMap((s) =>
@@ -845,6 +1076,13 @@ export async function importMbz(
       }
     }
     let activityCount = 0;
+    const createdActivities: { dir: string; id: string }[] = [];
+    const idNumberTaken = async (idNumber: string) => {
+      const where = { courseId, idNumber: { equals: idNumber, mode: 'insensitive' as const } };
+      return !!(
+        (await db.gradeItem.findFirst({ where })) ?? (await db.gradeCategory.findFirst({ where }))
+      );
+    };
     for (const { section, a } of ordered) {
       const dir = txt(a.directory);
       const modname = txt(a.modulename);
@@ -856,6 +1094,13 @@ export async function importMbz(
       const sectionId = sectionMap.get(section.moodleId) ?? newSections[0]!.id;
       const introFiles = await storeArea(contextid, `mod_${modname}`, 'intro');
       const intro = rewrite(txt(data.intro), introFiles);
+      const groupMode = ({ '1': 'SEPARATE', '2': 'VISIBLE' } as const)[txt(module.groupmode)];
+      // an ID number already in the gradebook stays with the first (and is reported)
+      let idNumber: string | null = txt(module.idnumber).trim().slice(0, 100) || null;
+      if (idNumber && (await idNumberTaken(idNumber))) {
+        warnings.push(`"${name}": the ID number ${idNumber} is used already and was left out`);
+        idNumber = null;
+      }
       const base = {
         courseId,
         sectionId,
@@ -863,11 +1108,21 @@ export async function importMbz(
         intro,
         showIntro: txt(module.showdescription) === '1',
         visibility: txt(module.visible) === '0' ? ('HIDDEN' as const) : ('SHOWN' as const),
+        groupMode: groupMode ?? ('NONE' as const),
+        groupingId: groupingMap.get(txt(module.groupingid)) ?? null,
+        idNumber: idNumber ?? undefined,
+      };
+      // what the gradebook and the activity's own data are matched by afterwards
+      const create = async (input: Parameters<typeof importActivity.run>[1]) => {
+        const r = await importActivity.run(ctx, input);
+        createdActivities.push({ dir, id: r.id });
+        return r;
       };
       const placeholder = async (why: string) => {
         warnings.push(`"${name}" (${modname}): ${why}`);
-        await importActivity.run(ctx, {
+        await create({
           ...base,
+          idNumber: undefined,
           moduleKey: 'label',
           settings: { content: `<p><strong>${name.replace(/[<>&]/g, '')}</strong></p>${intro}` },
         });
@@ -880,11 +1135,11 @@ export async function importMbz(
               txt(data.content),
               await storeArea(contextid, 'mod_page', 'content'),
             );
-            await importActivity.run(ctx, { ...base, moduleKey: 'page', settings: { content } });
+            await create({ ...base, moduleKey: 'page', settings: { content } });
             break;
           }
           case 'label':
-            await importActivity.run(ctx, {
+            await create({
               ...base,
               intro: '',
               moduleKey: 'label',
@@ -897,7 +1152,7 @@ export async function importMbz(
               await placeholder('link is not http(s)');
               continue;
             }
-            await importActivity.run(ctx, {
+            await create({
               ...base,
               moduleKey: 'url',
               settings: { url, display: 'newtab' },
@@ -906,7 +1161,7 @@ export async function importMbz(
           }
           case 'resource':
           case 'folder': {
-            const { id } = await importActivity.run(ctx, {
+            const { id } = await create({
               ...base,
               moduleKey: 'file',
               settings: { display: 'list' },
@@ -934,18 +1189,54 @@ export async function importMbz(
             break;
           }
           case 'assign': {
-            const grade = num(data.grade, 100);
-            await importActivity.run(ctx, {
+            const form = mbzGradingForm(xml(archive, `${dir}/grading.xml`));
+            const settings = {
+              ...mbzAssignSettings(data, scaleOf),
+              gradingMethod: form?.method ?? 'simple',
+            };
+            if (num(data.grade, 100) < 0 && !settings.scaleId)
+              warnings.push(`"${name}": its scale was not in the backup: graded by points`);
+            // teams are the groups of the assignment's team grouping
+            const teams = groupingMap.get(txt(data.teamsubmissiongroupingid));
+            const { id } = await create({
               ...base,
+              groupingId: base.groupingId ?? (settings.teamSubmission ? (teams ?? null) : null),
               moduleKey: 'assign',
-              settings: {
-                openAt: date(data.allowsubmissionsfromdate),
-                dueAt: date(data.duedate),
-                cutoffAt: date(data.cutoffdate),
-                gradeMax: grade > 0 ? grade : 100,
-                submitButton: txt(data.submissiondrafts) === '1',
-              },
+              settings,
             });
+            if (form) {
+              const parsed = (form.method === 'rubric' ? Rubric : Guide).safeParse(form.definition);
+              if (parsed.success)
+                await db.gradingDefinition.create({
+                  data: {
+                    activityId: id,
+                    area: 'submission',
+                    method: form.method === 'rubric' ? 'RUBRIC' : 'GUIDE',
+                    definition: parsed.data as Prisma.InputJsonValue,
+                  },
+                });
+              else
+                warnings.push(`"${name}": its ${form.method} could not be read and was left out`);
+            }
+            if (settings.blindMarking && txt(data.revealidentities) === '1')
+              await db.assignState.create({
+                data: { activityId: id, identitiesRevealedAt: new Date() },
+              });
+            // the dates of groups (students' own are user data, left out)
+            for (const o of arr(((data.overrides ?? {}) as Node).override as Node | Node[])) {
+              const groupId = groupMap.get(txt(o.groupid));
+              if (!groupId) continue;
+              await db.assignOverride.create({
+                data: {
+                  activityId: id,
+                  groupId,
+                  sortOrder: num(o.sortorder),
+                  allowSubmissionsFrom: date(o.allowsubmissionsfromdate),
+                  dueAt: date(o.duedate),
+                  cutoffAt: date(o.cutoffdate),
+                },
+              });
+            }
             break;
           }
           case 'quiz': {
@@ -964,7 +1255,7 @@ export async function importMbz(
               .split(/[\s,;]+/)
               .filter((e) => e && !badNets.includes(e))
               .join(', ');
-            const { id } = await importActivity.run(ctx, {
+            const { id } = await create({
               ...base,
               moduleKey: 'quiz',
               settings: {
@@ -1036,10 +1327,16 @@ export async function importMbz(
               );
               continue;
             }
-            await importActivity.run(ctx, {
+            const grading = mbzForumGrading(data, scaleOf);
+            if (
+              (num(data.scale) < 0 && !grading.ratingScaleId) ||
+              (num(data.grade_forum) < 0 && !grading.gradeScaleId)
+            )
+              warnings.push(`"${name}": its scale was not in the backup: graded by points`);
+            await create({
               ...base,
               moduleKey: 'forum',
-              settings: { type: type === 'qanda' ? 'qanda' : 'general' },
+              settings: { type: type === 'qanda' ? 'qanda' : 'general', ...grading },
             });
             break;
           }
@@ -1055,7 +1352,7 @@ export async function importMbz(
               await placeholder('SCORM package file is missing');
               continue;
             }
-            const { id } = await importActivity.run(ctx, {
+            const { id } = await create({
               ...base,
               moduleKey: 'scorm',
               settings: { gradeMax: num(data.maxgrade, 100) || 100 },
@@ -1086,7 +1383,7 @@ export async function importMbz(
             }
             const start = date(data.openingtime) ?? new Date(Date.now() + 86_400_000).toISOString();
             const close = num(data.closingtime);
-            await importActivity.run(ctx, {
+            await create({
               ...base,
               moduleKey: 'livesession',
               settings: {
@@ -1116,6 +1413,8 @@ export async function importMbz(
         );
       }
     }
+    await importGradebook();
+
     return {
       courseId,
       moodleRelease: txt(info.moodle_release),
@@ -1125,5 +1424,184 @@ export async function importMbz(
       files: fileCount,
       warnings: [...warnings, ...disabledTypesWarning(await disabledTypesIn(db, courseId))],
     };
+
+    /**
+     * The gradebook: the category tree, manual items, ID numbers, letters and formulas,
+     * whose ##giNN## references follow the items and categories (a category's item
+     * stands for the category) to their copies. Grades are user data, left out.
+     */
+    async function importGradebook() {
+      const gb = xml(archive, 'gradebook.xml')?.gradebook as Node | undefined;
+      if (!gb) return;
+      const warnGb = (why: string) => warnings.push(`Gradebook: ${why}`);
+      const { root: gradeRoot } = await ensureCourseGradebook(db, courseId);
+      const catMap = new Map<string, string>();
+      const catAggregation = new Map<string, string>();
+      const cats = arr(((gb.grade_categories ?? {}) as Node).grade_category as Node | Node[]).sort(
+        (x, y) => num(x.depth) - num(y.depth),
+      );
+      for (const c of cats) {
+        const id = String(c['@_id']);
+        const aggregation = gradeAggregation(txt(c.aggregation), warnGb);
+        const common = {
+          aggregation,
+          dropLowest: Math.min(100, num(c.droplow)),
+          keepHighest: Math.min(100, num(c.keephigh)),
+          aggregateOnlyGraded: txt(c.aggregateonlygraded) !== '0',
+        };
+        if (!txt(c.parent)) {
+          catMap.set(id, gradeRoot.id);
+          await db.gradeCategory.update({ where: { id: gradeRoot.id }, data: common });
+        } else {
+          const created = await db.gradeCategory.create({
+            data: {
+              ...common,
+              courseId,
+              parentId: catMap.get(txt(c.parent)) ?? gradeRoot.id,
+              name: (txt(c.fullname) || '—').slice(0, 255),
+              hidden: num(c.hidden) !== 0,
+              sortOrder: num(c.sortorder),
+            },
+          });
+          catMap.set(id, created.id);
+        }
+        catAggregation.set(catMap.get(id)!, aggregation);
+      }
+      /** Weight in the parent: its own with a weighted mean, otherwise 1. */
+      const weightIn = (categoryId: string, it: Node) =>
+        catAggregation.get(categoryId) === 'WEIGHTED_MEAN' ? num(it.aggregationcoef, 1) : 1;
+      const token = new Map<string, string>();
+      const formulas: { id: string; name: string; calculation: string }[] = [];
+      const freeIdNumber = async (v: unknown, what: string) => {
+        const idNumber = txt(v).trim().slice(0, 100);
+        if (!idNumber) return null;
+        if (await idNumberTaken(idNumber)) {
+          warnGb(`${what}: the ID number ${idNumber} is used already and was left out`);
+          return null;
+        }
+        return idNumber;
+      };
+      const displays: Record<string, 'REAL' | 'PERCENT' | 'LETTER'> = {
+        '1': 'REAL',
+        '2': 'PERCENT',
+        '3': 'LETTER',
+      };
+      for (const it of arr(((gb.grade_items ?? {}) as Node).grade_item as Node | Node[])) {
+        const id = String(it['@_id']);
+        const type = txt(it.itemtype);
+        const name = (txt(it.itemname) || '—').slice(0, 255);
+        if (type === 'course' || type === 'category') {
+          if (txt(it.calculation)) warnGb('calculated category totals are not supported');
+          if (type === 'course') continue;
+          const categoryId = catMap.get(txt(it.iteminstance));
+          if (!categoryId) continue;
+          token.set(id, `##gc${categoryId}##`);
+          const cat = await db.gradeCategory.findUniqueOrThrow({ where: { id: categoryId } });
+          await db.gradeCategory.update({
+            where: { id: categoryId },
+            data: {
+              idNumber: await freeIdNumber(it.idnumber, cat.name),
+              weight: cat.parentId ? weightIn(cat.parentId, it) : 1,
+              hidden: cat.hidden || num(it.hidden) !== 0,
+            },
+          });
+          continue;
+        }
+        if (type !== 'manual') continue;
+        const gradeType = txt(it.gradetype);
+        if (gradeType !== '1' && gradeType !== '2') {
+          warnGb(`"${name}": only items graded by points or a scale are imported`);
+          continue;
+        }
+        const scaleId = gradeType === '2' ? scaleMap.get(txt(it.scaleid)) : undefined;
+        if (gradeType === '2' && !scaleId)
+          warnGb(`"${name}": its scale was not in the backup: graded by points`);
+        const scale = scaleId ? await db.scale.findUniqueOrThrow({ where: { id: scaleId } }) : null;
+        const categoryId = catMap.get(txt(it.categoryid)) ?? gradeRoot.id;
+        const created = await db.gradeItem.create({
+          data: {
+            courseId,
+            categoryId,
+            kind: 'MANUAL',
+            name,
+            idNumber: await freeIdNumber(it.idnumber, name),
+            gradeType: scale ? 'SCALE' : 'VALUE',
+            scaleId: scale?.id ?? null,
+            gradeMin: scale ? 1 : num(it.grademin),
+            gradeMax: scale ? scale.items.length : num(it.grademax, 100),
+            gradePass: num(it.gradepass) || null,
+            weight: weightIn(categoryId, it),
+            display: scale ? 'REAL' : (displays[txt(it.display)] ?? 'REAL'),
+            decimals: Math.min(5, Math.max(0, num(it.decimals, 2))),
+            hidden: num(it.hidden) !== 0,
+            locked: num(it.locked) !== 0,
+            sortOrder: num(it.sortorder),
+          },
+        });
+        token.set(id, `##gi${created.id}##`);
+        if (txt(it.calculation))
+          formulas.push({ id: created.id, name, calculation: txt(it.calculation) });
+      }
+      // activities' items: their category, weight and ID numbers, from each grades.xml
+      for (const act of createdActivities) {
+        const items = arr(
+          (
+            (xml(archive, `${act.dir}/grades.xml`)?.activity_gradebook as Node | undefined)
+              ?.grade_items as Node | undefined
+          )?.grade_item as Node | Node[],
+        );
+        for (const it of items) {
+          const own = await db.gradeItem.findFirst({
+            where: { activityId: act.id, itemNumber: num(it.itemnumber) },
+          });
+          if (!own) continue;
+          token.set(String(it['@_id']), `##gi${own.id}##`);
+          const categoryId = catMap.get(txt(it.categoryid)) ?? gradeRoot.id;
+          const idNumber = own.idNumber ?? (await freeIdNumber(it.idnumber, own.name));
+          await db.gradeItem.update({
+            where: { id: own.id },
+            data: { categoryId, weight: weightIn(categoryId, it), idNumber },
+          });
+        }
+      }
+      // formulas, their references following; one that cannot be read or ordered is left out
+      for (const f of formulas) {
+        const stored = f.calculation
+          .replace(/##gi(\d+)##/g, (all, moodleId: string) => token.get(moodleId) ?? all)
+          .trim();
+        try {
+          calculationRefs(stored);
+          await db.gradeItem.update({
+            where: { id: f.id },
+            data: { calculation: stored.startsWith('=') ? stored : `=${stored}` },
+          });
+        } catch {
+          warnGb(`"${f.name}": its formula could not be read and was left out`);
+        }
+      }
+      const [categories, items] = await Promise.all([
+        db.gradeCategory.findMany({ where: { courseId } }),
+        db.gradeItem.findMany({ where: { courseId } }),
+      ]);
+      try {
+        calculationOrder(items, categories);
+      } catch {
+        warnGb('formulas that use their own grade were left out');
+        await db.gradeItem.updateMany({
+          where: { courseId, calculation: { not: null } },
+          data: { calculation: null },
+        });
+      }
+      const letters = arr(((gb.grade_letters ?? {}) as Node).grade_letter as Node | Node[]);
+      if (letters.length)
+        await db.gradeLetter.createMany({
+          data: letters.map((l) => ({
+            contextId: courseId,
+            lowerBound: num(l.lowerboundary),
+            letter: txt(l.letter).slice(0, 20) || '?',
+          })),
+          skipDuplicates: true,
+        });
+    }
   }
 }

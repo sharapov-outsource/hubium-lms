@@ -94,6 +94,8 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 - `.hubium` backup and restore, and course duplication.
 - Import of Moodle `.mbz` backups (4.1–5.x):
   - pages, labels, links, files and folders, assignments, quizzes with their question bank, forums, SCORM and BigBlueButton;
+  - assignment teams, marking workflow, blind marking, rubrics and marking guides, and the dates of groups; forum ratings and whole-forum grades;
+  - groups and groupings (without members), scales, and the gradebook: categories, manual items, ID numbers, formulas and letters;
   - other activities become labels, so nothing is silently dropped;
   - every import ends with a report.
 

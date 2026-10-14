@@ -23,6 +23,7 @@ export * from './events/log.ts';
 export * from './files/text.ts';
 export * from './files/uploads.ts';
 export * from './grades/aggregate.ts';
+export * from './grades/calculation.ts';
 export * from './grades/gradebook.ts';
 export * from './grades/import.ts';
 export * from './grades/scales.ts';

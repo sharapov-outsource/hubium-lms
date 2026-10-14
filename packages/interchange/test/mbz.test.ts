@@ -1,3 +1,4 @@
+import { displayCalculations } from '@hubium/core';
 import { ctxFor, useTestDb } from '@hubium/core/testing';
 import { courseFixture } from '@hubium/core/testing/course-fixture';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -76,6 +77,102 @@ describe('.mbz import', () => {
     expect(
       await t.db.file.count({ where: { contextId: get('Методичка').id, name: 'guide.pdf' } }),
     ).toBe(1);
+  });
+
+  it('maps groups, assignment marking, forum ratings and the gradebook', async () => {
+    const courseId = report.courseId;
+    expect(report.warnings.join('\n')).toContain('2 groups were created without their members');
+    expect(report.warnings.join('\n')).toContain('"Заметка": only items graded by points');
+    const groups = await t.db.group.findMany({ where: { courseId }, orderBy: { name: 'asc' } });
+    expect(groups.map((g) => [g.name, g.idNumber])).toEqual([
+      ['Команда А', 'A'],
+      ['Команда Б', null],
+    ]);
+    const grouping = await t.db.grouping.findFirstOrThrow({
+      where: { courseId },
+      include: { groups: true },
+    });
+    expect([grouping.name, grouping.groups.length]).toEqual(['Команды', 2]);
+    const scale = await t.db.scale.findFirstOrThrow({ where: { courseId } });
+    expect(scale.items).toEqual(['Слабо', 'Хорошо', 'Отлично']);
+
+    // the assignment: what can be handed in, teams, marking, blind marking, its rubric
+    const assign = await t.db.activity.findFirstOrThrow({ where: { courseId, name: 'Задание' } });
+    expect(assign).toMatchObject({
+      groupMode: 'SEPARATE',
+      groupingId: grouping.id,
+      idNumber: 'essay',
+    });
+    expect(assign.settings).toMatchObject({
+      allowText: false,
+      allowFiles: true,
+      maxFiles: 2,
+      maxFileMB: 3,
+      reopen: 'manual',
+      maxAttempts: 3,
+      requireStatement: true,
+      teamSubmission: true,
+      preventSubmissionNotInGroup: true,
+      markingWorkflow: true,
+      markingAllocation: true,
+      blindMarking: true,
+      gradingMethod: 'rubric',
+    });
+    const rubric = await t.db.gradingDefinition.findFirstOrThrow({
+      where: { activityId: assign.id },
+    });
+    expect(rubric.definition).toMatchObject({
+      lockZeroPoints: false,
+      criteria: [
+        { id: 'c21', description: 'Верность', levels: [{ id: 'l211', score: 1 }, { score: 4 }] },
+        { id: 'c22', description: 'Стиль кода' },
+      ],
+    });
+    // the group's dates come; a student's own are user data and do not
+    const overrides = await t.db.assignOverride.findMany({ where: { activityId: assign.id } });
+    expect(overrides.map((o) => [o.groupId, o.dueAt?.toISOString()])).toEqual([
+      [groups[0]!.id, '2026-01-02T00:00:00.000Z'],
+    ]);
+
+    // the forum's ratings on the scale, and its whole-forum grade
+    const forum = await t.db.activity.findFirstOrThrow({ where: { courseId, name: 'Вопросы' } });
+    expect(forum.settings).toMatchObject({
+      ratingAggregate: 'average',
+      ratingScaleId: scale.id,
+      ratingFrom: '2025-01-01T00:00:00.000Z',
+      wholeForumGrading: true,
+      gradeMax: 20,
+    });
+    expect(await t.db.gradeItem.count({ where: { activityId: forum.id } })).toBe(2);
+
+    // the gradebook: categories, items, ID numbers, the formula and letters
+    const [categories, items] = await Promise.all([
+      t.db.gradeCategory.findMany({ where: { courseId } }),
+      t.db.gradeItem.findMany({ where: { courseId } }),
+    ]);
+    const works = categories.find((c) => c.name === 'Работы')!;
+    expect(categories.find((c) => !c.parentId)!.aggregation).toBe('NATURAL');
+    expect(works).toMatchObject({ aggregation: 'WEIGHTED_MEAN', dropLowest: 1, idNumber: 'works' });
+    const essay = items.find((i) => i.activityId === assign.id)!;
+    expect([essay.categoryId, essay.idNumber, Number(essay.weight)]).toEqual([
+      works.id,
+      'essay',
+      3,
+    ]);
+    const oral = items.find((i) => i.name === 'Устный ответ')!;
+    expect(oral).toMatchObject({ categoryId: works.id, idNumber: 'oral', display: 'PERCENT' });
+    expect([Number(oral.gradeMax), Number(oral.gradePass)]).toEqual([10, 6]);
+    const final = items.find((i) => i.name === 'Итог')!;
+    expect(final.calculation).toBe(`=##gi${essay.id}## + ##gi${oral.id}## * 2 + ##gc${works.id}##`);
+    expect(displayCalculations(items, categories).get(final.id)).toBe(
+      '=[[essay]] + [[oral]] * 2 + [[works]]',
+    );
+    expect(items.some((i) => i.name === 'Заметка')).toBe(false);
+    const letters = await t.db.gradeLetter.findMany({
+      where: { contextId: courseId },
+      orderBy: { lowerBound: 'desc' },
+    });
+    expect(letters.map((l) => l.letter)).toEqual(['A', 'F']);
   });
 
   it('imports questions (latest version) and quiz slots', async () => {

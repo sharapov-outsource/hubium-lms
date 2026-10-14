@@ -4,7 +4,9 @@ import tar from 'tar-stream';
 
 // A small Moodle 4.5 course backup (.mbz) with the structure Moodle writes: sections,
 // a page with an embedded image, a quiz using question bank entries and a random slot,
-// an assignment, a URL, a file resource, Q&A and news forums and an unsupported wiki.
+// an assignment (teams, marking workflow, blind marking, a rubric, a group's dates), a
+// URL, a file resource, Q&A (rated) and news forums and an unsupported wiki; groups and a
+// grouping, a scale, and a gradebook with a category, a manual item and a formula.
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
 const PDF = Buffer.from('%PDF-1.4\n% test\n');
@@ -13,8 +15,14 @@ const hash = (b: Buffer) => createHash('sha1').update(b).digest('hex');
 const activity = (id: number, mod: string, title: string, section: number) =>
   `<activity><moduleid>${id}</moduleid><sectionid>${section}</sectionid><modulename>${mod}</modulename><title>${title}</title><directory>activities/${mod}_${id}</directory></activity>`;
 
-const moduleXml = (id: number, mod: string, section: number, visible = 1) =>
-  `<?xml version="1.0" encoding="UTF-8"?><module id="${id}" version="2024100700"><modulename>${mod}</modulename><sectionid>${section}</sectionid><sectionnumber>0</sectionnumber><idnumber></idnumber><added>1700000000</added><visible>${visible}</visible><showdescription>0</showdescription></module>`;
+const moduleXml = (
+  id: number,
+  mod: string,
+  section: number,
+  visible = 1,
+  extra: { idnumber?: string; groupmode?: number; groupingid?: number } = {},
+) =>
+  `<?xml version="1.0" encoding="UTF-8"?><module id="${id}" version="2024100700"><modulename>${mod}</modulename><sectionid>${section}</sectionid><sectionnumber>0</sectionnumber><idnumber>${extra.idnumber ?? ''}</idnumber><added>1700000000</added><visible>${visible}</visible><showdescription>0</showdescription><groupmode>${extra.groupmode ?? 0}</groupmode><groupingid>${extra.groupingid ?? 0}</groupingid></module>`;
 
 const wrap = (id: number, mod: string, ctx: number, inner: string) =>
   `<?xml version="1.0" encoding="UTF-8"?><activity id="${id}" moduleid="${id}" modulename="${mod}" contextid="${ctx}"><${mod} id="${id}">${inner}</${mod}></activity>`;
@@ -73,13 +81,42 @@ export async function mbzFixture(): Promise<Buffer> {
         <question_instance id="3"><slot>3</slot><page>2</page><maxmark>1.0000000</maxmark><question_set_reference id="3"><filtercondition>{"questioncategoryid":"2","includingsubcategories":"0"}</filtercondition></question_set_reference></question_instance>
       </question_instances>`,
     ),
-    'activities/assign_13/module.xml': moduleXml(13, 'assign', 2, 0),
+    'activities/assign_13/module.xml': moduleXml(13, 'assign', 2, 0, {
+      idnumber: 'essay',
+      groupmode: 1,
+    }),
     'activities/assign_13/assign.xml': wrap(
       13,
       'assign',
       33,
-      '<name>Задание</name><intro>&lt;p&gt;Сдайте код&lt;/p&gt;</intro><duedate>1767225600</duedate><allowsubmissionsfromdate>0</allowsubmissionsfromdate><cutoffdate>0</cutoffdate><grade>20</grade><submissiondrafts>1</submissiondrafts>',
+      '<name>Задание</name><intro>&lt;p&gt;Сдайте код&lt;/p&gt;</intro><duedate>1767225600</duedate><allowsubmissionsfromdate>0</allowsubmissionsfromdate><cutoffdate>0</cutoffdate><grade>20</grade><submissiondrafts>1</submissiondrafts>' +
+        '<requiresubmissionstatement>1</requiresubmissionstatement><teamsubmission>1</teamsubmission><requireallteammemberssubmit>0</requireallteammemberssubmit><teamsubmissiongroupingid>71</teamsubmissiongroupingid><preventsubmissionnotingroup>1</preventsubmissionnotingroup>' +
+        '<blindmarking>1</blindmarking><revealidentities>0</revealidentities><markingworkflow>1</markingworkflow><markingallocation>1</markingallocation><attemptreopenmethod>manual</attemptreopenmethod><maxattempts>3</maxattempts>' +
+        '<plugin_configs><plugin_config id="1"><plugin>onlinetext</plugin><subtype>assignsubmission</subtype><name>enabled</name><value>0</value></plugin_config>' +
+        '<plugin_config id="2"><plugin>file</plugin><subtype>assignsubmission</subtype><name>enabled</name><value>1</value></plugin_config>' +
+        '<plugin_config id="3"><plugin>file</plugin><subtype>assignsubmission</subtype><name>maxfilesubmissions</name><value>2</value></plugin_config>' +
+        '<plugin_config id="4"><plugin>file</plugin><subtype>assignsubmission</subtype><name>maxsubmissionsizebytes</name><value>3145728</value></plugin_config></plugin_configs>' +
+        '<overrides><override id="1"><groupid>61</groupid><userid>$@NULL@$</userid><sortorder>1</sortorder><allowsubmissionsfromdate>0</allowsubmissionsfromdate><duedate>1767312000</duedate><cutoffdate>0</cutoffdate></override>' +
+        '<override id="2"><groupid>$@NULL@$</groupid><userid>5</userid><sortorder>$@NULL@$</sortorder><duedate>1767400000</duedate></override></overrides>',
     ),
+    'activities/assign_13/grading.xml': `<?xml version="1.0" encoding="UTF-8"?><areas><area id="1"><areaname>submissions</areaname><activemethod>rubric</activemethod><definitions><definition id="7"><method>rubric</method><name>Рубрика</name><options>{"sortlevelsasc":"1","lockzeropoints":"0"}</options><plugin_gradingform_rubric_definition><criteria>
+      <criterion id="22"><sortorder>2</sortorder><description>Стиль кода</description><levels><level id="221"><score>0</score><definition>Трудно читать</definition></level><level id="222"><score>2</score><definition>Аккуратно</definition></level></levels></criterion>
+      <criterion id="21"><sortorder>1</sortorder><description>&lt;p&gt;Верность&lt;/p&gt;</description><levels><level id="211"><score>1</score><definition>Не работает</definition></level><level id="212"><score>4</score><definition>Работает</definition></level></levels></criterion>
+    </criteria></plugin_gradingform_rubric_definition></definition></definitions></area></areas>`,
+    'activities/assign_13/grades.xml': `<?xml version="1.0" encoding="UTF-8"?><activity_gradebook><grade_items><grade_item id="101"><categoryid>201</categoryid><itemname>Задание</itemname><itemtype>mod</itemtype><itemmodule>assign</itemmodule><iteminstance>13</iteminstance><itemnumber>0</itemnumber><idnumber>essay</idnumber><aggregationcoef>3</aggregationcoef></grade_item></grade_items></activity_gradebook>`,
+    'groups.xml': `<?xml version="1.0" encoding="UTF-8"?><groups><group id="61"><name>Команда А</name><idnumber>A</idnumber><description></description></group><group id="62"><name>Команда Б</name><idnumber></idnumber><description></description></group>
+      <groupings><grouping id="71"><name>Команды</name><description></description><grouping_groups><grouping_group id="1"><groupid>61</groupid></grouping_group><grouping_group id="2"><groupid>62</groupid></grouping_group></grouping_groups></grouping></groupings></groups>`,
+    'scales.xml': `<?xml version="1.0" encoding="UTF-8"?><scales_definition><scale id="5"><courseid>0</courseid><name>Качество</name><scale>Слабо,Хорошо,Отлично</scale></scale></scales_definition>`,
+    'gradebook.xml': `<?xml version="1.0" encoding="UTF-8"?><gradebook><grade_categories>
+      <grade_category id="201"><parent>200</parent><depth>2</depth><fullname>Работы</fullname><aggregation>10</aggregation><keephigh>0</keephigh><droplow>1</droplow><aggregateonlygraded>1</aggregateonlygraded><hidden>0</hidden></grade_category>
+      <grade_category id="200"><parent>$@NULL@$</parent><depth>1</depth><fullname>?</fullname><aggregation>13</aggregation><keephigh>0</keephigh><droplow>0</droplow><aggregateonlygraded>1</aggregateonlygraded><hidden>0</hidden></grade_category>
+    </grade_categories><grade_items>
+      <grade_item id="300"><categoryid>$@NULL@$</categoryid><itemname>$@NULL@$</itemname><itemtype>course</itemtype><iteminstance>200</iteminstance><gradetype>1</gradetype><grademax>100</grademax></grade_item>
+      <grade_item id="301"><categoryid>$@NULL@$</categoryid><itemname>$@NULL@$</itemname><itemtype>category</itemtype><iteminstance>201</iteminstance><idnumber>works</idnumber><gradetype>1</gradetype><grademax>100</grademax><aggregationcoef>2</aggregationcoef></grade_item>
+      <grade_item id="302"><categoryid>201</categoryid><itemname>Устный ответ</itemname><itemtype>manual</itemtype><idnumber>oral</idnumber><gradetype>1</gradetype><grademax>10</grademax><grademin>0</grademin><gradepass>6</gradepass><aggregationcoef>1</aggregationcoef><display>2</display><decimals>1</decimals><hidden>0</hidden><locked>0</locked><sortorder>3</sortorder></grade_item>
+      <grade_item id="303"><categoryid>200</categoryid><itemname>Итог</itemname><itemtype>manual</itemtype><idnumber>final</idnumber><calculation>=##gi101## + ##gi302## * 2 + ##gi301##</calculation><gradetype>1</gradetype><grademax>200</grademax><sortorder>4</sortorder></grade_item>
+      <grade_item id="304"><categoryid>200</categoryid><itemname>Заметка</itemname><itemtype>manual</itemtype><gradetype>3</gradetype></grade_item>
+    </grade_items><grade_letters><grade_letter id="1"><lowerboundary>90</lowerboundary><letter>A</letter></grade_letter><grade_letter id="2"><lowerboundary>0</lowerboundary><letter>F</letter></grade_letter></grade_letters></gradebook>`,
     'activities/resource_15/module.xml': moduleXml(15, 'resource', 2),
     'activities/resource_15/resource.xml': wrap(
       15,
@@ -92,7 +129,7 @@ export async function mbzFixture(): Promise<Buffer> {
       16,
       'forum',
       36,
-      '<type>qanda</type><name>Вопросы</name><intro></intro>',
+      '<type>qanda</type><name>Вопросы</name><intro></intro><assessed>1</assessed><scale>-5</scale><assesstimestart>1735689600</assesstimestart><assesstimefinish>0</assesstimefinish><grade_forum>20</grade_forum>',
     ),
     'activities/forum_17/module.xml': moduleXml(17, 'forum', 2),
     'activities/forum_17/forum.xml': wrap(
