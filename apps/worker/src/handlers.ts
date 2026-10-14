@@ -6,6 +6,7 @@ import {
   INDEX_JOB,
   indexActivity,
   indexCourse,
+  LDAP_SYNC_JOB,
   PUSH_JOB,
   pruneWebhookDeliveries,
   QUIZGEN_JOB,
@@ -13,6 +14,7 @@ import {
   recordHeartbeat,
   runQuizGeneration,
   sendPushNotifications,
+  syncLdapUsers,
   WEBHOOK_JOB,
 } from '@hubium/core';
 import { publishDueAnnouncements } from '@hubium/core/announcements/announcements';
@@ -175,6 +177,14 @@ export const coreHandlers: JobHandlerDef[] = [
     cron: '17 3 * * *',
     async handler(_data: never, { db }) {
       return { deleted: await garbageCollectBlobs(db), uploads: await cleanupUploads(db) };
+    },
+  },
+  {
+    // directory accounts follow the directory (does nothing while LDAP is off)
+    name: LDAP_SYNC_JOB,
+    cron: '47 2 * * *',
+    async handler(_data: never, { db }) {
+      return syncLdapUsers(db);
     },
   },
   {

@@ -3,7 +3,7 @@ import { symmetricDecrypt, symmetricEncrypt } from 'better-auth/crypto';
 import { decryptSecret, encryptSecret } from '../crypto.ts';
 
 // APP_SECRET rotation: re-encrypts every secret envelope stored in the database with the
-// new secret (AI keys, webhook signing secrets, SSO client secrets and signing keys), including the TOTP secrets better-auth encrypts with it (otherwise every
+// new secret (AI keys, webhook signing secrets, SSO client secrets and signing keys, the LDAP service password), including the TOTP secrets better-auth encrypts with it (otherwise every
 // two-factor user would be locked out). Signed links (unsubscribe, content tokens, LTI
 // hints) simply expire; the LTI platform key should be rotated from Admin → LTI afterwards.
 
@@ -35,6 +35,13 @@ export async function rotateAppSecret(db: Db, oldSecret: string, newSecret: stri
           clientSecretEnc: p.clientSecretEnc && re(p.clientSecretEnc),
           spPrivateKeyEnc: p.spPrivateKeyEnc && re(p.spPrivateKeyEnc),
         },
+      });
+      count++;
+    }
+    for (const l of await tx.ldapServer.findMany({ where: { bindPasswordEnc: { not: null } } })) {
+      await tx.ldapServer.update({
+        where: { id: l.id },
+        data: { bindPasswordEnc: re(l.bindPasswordEnc!) },
       });
       count++;
     }

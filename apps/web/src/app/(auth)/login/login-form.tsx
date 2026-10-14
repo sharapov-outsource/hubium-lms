@@ -11,12 +11,15 @@ import { authClient, safeNext } from '@/lib/auth-client';
 export function LoginForm({
   providers,
   sso,
+  ldap = false,
   registration,
   next,
   initialError,
 }: {
   providers: BuiltInOAuth[];
   sso: { providerId: string; name: string; protocol: string }[];
+  /** An LDAP directory is on: it is asked first, local passwords after it. */
+  ldap?: boolean;
   registration: boolean;
   next?: string;
   /** Why a single sign-on came back without signing in. */
@@ -33,6 +36,36 @@ export function LoginForm({
     const fd = new FormData(e.currentTarget);
     const login = String(fd.get('login') ?? '').trim();
     const password = String(fd.get('password') ?? '');
+    if (ldap) {
+      const r = await authClient.$fetch<{ token?: string; twoFactorRedirect?: boolean }>(
+        '/sign-in/ldap',
+        { method: 'POST', body: { login, password } },
+      );
+      if (!r.error) {
+        // a two-factor challenge redirects through the two-factor client plugin
+        if (r.data?.twoFactorRedirect) return;
+        window.location.href = safeNext(next);
+        return;
+      }
+      const code = (r.error as { code?: string }).code ?? '';
+      if (code !== 'LDAP_FALLBACK') {
+        setPending(false);
+        setError(
+          code === 'ACCOUNT_LOCKED'
+            ? t('accountLocked')
+            : code === 'ACCOUNT_SUSPENDED'
+              ? t('accountSuspended')
+              : code === 'LDAP_NO_ACCOUNT'
+                ? t('ssoNoAccount')
+                : code === 'LDAP_ACCOUNT_NOT_LINKED'
+                  ? t('ssoNotLinked')
+                  : r.error.status === 429
+                    ? t('tooManyAttempts')
+                    : t('invalidCredentials'),
+        );
+        return;
+      }
+    }
     const res = login.includes('@')
       ? await authClient.signIn.email({ email: login, password })
       : await authClient.signIn.username({ username: login, password });

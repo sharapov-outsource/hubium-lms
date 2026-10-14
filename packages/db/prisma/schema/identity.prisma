@@ -263,6 +263,35 @@ model SsoProvider {
   updatedAt       DateTime @updatedAt @db.Timestamptz(3)
 }
 
+/// The LDAP directory people sign in with (one per site, id "default"; auth/ldap.ts).
+model LdapServer {
+  id              String    @id @default("default")
+  enabled         Boolean   @default(false)
+  /// ldap://host:389 or ldaps://host:636
+  url             String
+  startTls        Boolean   @default(false)
+  /// PEM of a private CA, for ldaps:// and StartTLS
+  caCertificate   String?
+  bindDn          String    @default("")
+  /// AES-GCM sealed password of the service account
+  bindPasswordEnc String?
+  baseDn          String
+  /// {login} is replaced by the escaped login
+  userFilter      String    @default("(&(objectClass=person)(uid={login}))")
+  loginAttribute  String    @default("uid")
+  /// A stable id, kept as the account id (entryUUID, objectGUID); the login when empty
+  idAttribute     String    @default("entryUUID")
+  /// { email, firstName, lastName, fields: { profileFieldShortName: attribute } }
+  mapping         Json      @default("{}")
+  autoCreate      Boolean   @default(false)
+  linkByEmail     Boolean   @default(true)
+  /// The nightly sync suspends accounts the directory no longer has
+  suspendMissing  Boolean   @default(false)
+  lastSyncAt      DateTime? @db.Timestamptz(3)
+  lastSyncResult  Json?
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+}
+
 model RateLimit {
   id          String @id @default(uuid(7)) @db.Uuid
   key         String @unique

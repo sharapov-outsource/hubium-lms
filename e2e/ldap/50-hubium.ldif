@@ -1,0 +1,33 @@
+# Test directory for the LDAP scenarios (base dc=hubium,dc=test). Passwords: Ldap-pass-123.
+dn: ou=people,dc=hubium,dc=test
+objectClass: organizationalUnit
+ou: people
+
+dn: uid=lena,ou=people,dc=hubium,dc=test
+objectClass: inetOrgPerson
+uid: lena
+cn: Лена Лебедева
+givenName: Лена
+sn: Лебедева
+mail: lena@example.org
+departmentNumber: Матфак
+userPassword: Ldap-pass-123
+
+dn: uid=oleg,ou=people,dc=hubium,dc=test
+objectClass: inetOrgPerson
+uid: oleg
+cn: Олег Орлов
+givenName: Олег
+sn: Орлов
+mail: oleg@example.org
+departmentNumber: Биофак
+userPassword: Ldap-pass-123
+
+dn: uid=gone,ou=people,dc=hubium,dc=test
+objectClass: inetOrgPerson
+uid: gone
+cn: Галина Гусева
+givenName: Галина
+sn: Гусева
+mail: gone@example.org
+userPassword: Ldap-pass-123

@@ -14,6 +14,7 @@ import { ValidationError } from '../errors.ts';
 import { sendAuthEmail } from '../mail/mail.ts';
 import { getAllSettings, userLocale } from '../settings/settings.ts';
 import { noteSignIn } from './devices.ts';
+import { ldapSignIn } from './ldap.ts';
 import { clearFailedSignIns, findSignInUser, isLocked, recordFailedSignIn } from './lockout.ts';
 import { impersonatedBy, loginAs } from './login-as.ts';
 import {
@@ -463,6 +464,7 @@ export function createAuth({
       loginAs(db),
       recoveryPassphrase(db, baseURL),
       ssoPlugin(db),
+      ldapSignIn(db, baseURL),
       ...(generic.length ? [genericOAuth({ config: generic })] : []),
       ...extraPlugins,
     ],

@@ -42,6 +42,20 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
     ports: ["8080:8080"]
     volumes: [../e2e/keycloak:/opt/keycloak/data/import:ro]
+  # LDAP directory for trying LDAP sign-in and the LDAP tests:
+  # `docker compose -f docker/compose.dev.yml --profile ldap up -d`, then
+  # LDAP_TEST_URL=ldap://127.0.0.1:1389 for the unit tests. Base dc=hubium,dc=test, service
+  # account cn=admin,dc=hubium,dc=test / ldap-admin, people from e2e/ldap (Ldap-pass-123).
+  openldap:
+    image: osixia/openldap:1.5.0
+    profiles: [ldap]
+    command: --copy-service
+    environment:
+      LDAP_ORGANISATION: Hubium
+      LDAP_DOMAIN: hubium.test
+      LDAP_ADMIN_PASSWORD: ldap-admin
+    ports: ["1389:389"]
+    volumes: [../e2e/ldap:/container/service/slapd/assets/config/bootstrap/ldif/custom]
 volumes:
   db:
   s3:

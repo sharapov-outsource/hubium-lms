@@ -1,4 +1,4 @@
-import { enabledSsoProviders, getAllSettings } from '@hubium/core';
+import { enabledSsoProviders, getAllSettings, ldapEnabled } from '@hubium/core';
 import { configuredOAuthProviders } from '@hubium/core/auth/auth';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
@@ -17,11 +17,12 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string; error?: string }>;
 }) {
   if (await getCurrentUser()) redirect('/dashboard');
-  const [settings, t, sp, sso] = await Promise.all([
+  const [settings, t, sp, sso, ldap] = await Promise.all([
     getAllSettings(db),
     getTranslations('auth'),
     searchParams,
     enabledSsoProviders(db),
+    ldapEnabled(db),
   ]);
   const ssoErrors: Record<string, string> = {
     SSO_NO_ACCOUNT: t('ssoNoAccount'),
@@ -42,6 +43,7 @@ export default async function LoginPage({
       <LoginForm
         providers={providers}
         sso={sso}
+        ldap={ldap}
         registration={settings['registration.enabled']}
         next={sp.next}
         initialError={error}
