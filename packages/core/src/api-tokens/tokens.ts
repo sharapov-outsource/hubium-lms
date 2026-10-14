@@ -7,6 +7,7 @@ import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { enabledLocales, getAllSettings, siteLocale } from '../settings/settings.ts';
+import { noteUserAccess } from '../users/last-access.ts';
 
 // Personal access tokens for the REST API. The secret is shown once; only its SHA-256 is
 // stored. A token acts as its user, narrowed by scopes:
@@ -119,6 +120,7 @@ export async function authenticateApiToken(
   const perm = new Permissions(db, await loadUserAccess(db, u));
   // Losing API access (e.g. a PROHIBIT on the role) disables existing tokens too.
   if (!(await perm.can('webservice:createtoken'))) return null;
+  await noteUserAccess(db, u, now);
   const settings = await getAllSettings(db);
   const enabled = enabledLocales(settings);
   const locale = [meta.locale, u.locale].find((l): l is Locale => !!l && enabled.includes(l));

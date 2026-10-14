@@ -5,15 +5,19 @@ import {
   type Capability,
   isSwitchableRole,
   loadUserAccess,
+  noteUserAccess,
   Permissions,
   type RequestContext,
 } from '@hubium/core';
+import { log } from '@hubium/log';
 import { cookies, headers } from 'next/headers';
 import { forbidden, redirect } from 'next/navigation';
 import { getLocale } from 'next-intl/server';
 import { cache } from 'react';
 import { auth } from './auth';
 import { db } from './db';
+
+const logger = log('web');
 
 export const getSession = cache(async () => {
   return auth.api.getSession({ headers: await headers() });
@@ -24,6 +28,11 @@ export const getCurrentUser = cache(async () => {
   if (!session) return null;
   const user = await db.user.findUnique({ where: { id: session.user.id } });
   if (user?.status !== 'ACTIVE') return null;
+  // an administrator logged in as the user is not the user's visit
+  if (!session.session.impersonatedBy)
+    await noteUserAccess(db, user).catch((err) =>
+      logger.warn({ err, userId: user.id }, 'Could not record the last visit'),
+    );
   return user;
 });
 
