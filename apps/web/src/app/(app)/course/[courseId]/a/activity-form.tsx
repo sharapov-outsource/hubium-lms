@@ -2,7 +2,7 @@
 
 import type { ActionResult } from '@hubium/core/operation';
 import { EditorField } from '@hubium/editor/field';
-import { DateInput, LocalDateTimeInput } from '@hubium/module-sdk/form';
+import { DateInput, LocalDateTimeInput, useZonedValue } from '@hubium/module-sdk/form';
 import {
   Button,
   Card,
@@ -13,7 +13,6 @@ import {
   Input,
   Label,
   Select,
-  useHydrated,
 } from '@hubium/ui';
 import { Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -50,13 +49,6 @@ export interface ActivityFormValues {
   availability?: { op: '&' | '|'; hidden?: boolean; c: Cond[] } | null;
 }
 
-function toLocalInput(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 function AvailabilityEditor({
   initial,
   activities,
@@ -73,15 +65,18 @@ function AvailabilityEditor({
 }) {
   const t = useTranslations('activity');
   const error = useFieldError('availability');
-  // Condition dates are shown in the browser's zone, known only after hydration.
-  const hydrated = useHydrated();
+  // condition dates are shown and picked in the user's profile zone
+  const zoned = useZonedValue();
   const [conds, setConds] = useState<Cond[]>(initial?.c ?? []);
   const [hidden, setHidden] = useState(!!initial?.hidden);
   const json = conds.length
     ? JSON.stringify({
         op: '&',
         hidden,
-        c: conds.map((c) => (c.type === 'date' ? { ...c, at: new Date(c.at).toISOString() } : c)),
+        // a date cleared in the picker stays empty (the server asks for one)
+        c: conds.map((c) =>
+          c.type === 'date' && c.at ? { ...c, at: new Date(c.at).toISOString() } : c,
+        ),
       })
     : '';
   const update = (i: number, patch: Partial<Cond>) =>
@@ -126,8 +121,8 @@ function AvailabilityEditor({
               <LocalDateTimeInput
                 aria-label={t('conditionTypes.date')}
                 className="w-72"
-                value={hydrated ? toLocalInput(c.at) : ''}
-                onChange={(v) => update(i, { at: v ? new Date(v).toISOString() : '' })}
+                value={zoned.toLocal(c.at)}
+                onChange={(v) => update(i, { at: zoned.toIso(v) })}
               />
             </>
           ) : null}

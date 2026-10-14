@@ -1,8 +1,11 @@
 'use client';
 
-import { DatePicker, DateTimePicker, useHydrated } from '@hubium/ui';
-import { useLocale, useTranslations } from 'next-intl';
+import { DatePicker, DateTimePicker } from '@hubium/ui';
+import { useLocale, useTimeZone, useTranslations } from 'next-intl';
 import { createContext, useContext, useState } from 'react';
+import { fromZonedValue, toZonedValue } from './zoned.ts';
+
+export { fromZonedValue, toZonedValue } from './zoned.ts';
 
 /** Field errors of the surrounding form, keyed by input name (e.g. "settings.url"). */
 export const FieldErrorsContext = createContext<Record<string, string[]> | undefined>(undefined);
@@ -11,12 +14,17 @@ export function useFieldErrors(name: string): string[] | undefined {
   return useContext(FieldErrorsContext)?.[name];
 }
 
-function toLocalValue(iso: string | null | undefined): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+/**
+ * Pickers work in the user's profile time zone, the one dates are shown in everywhere
+ * else, whatever zone the browser is in: an instant to the picker's value and back.
+ */
+export function useZonedValue() {
+  const timeZone = useTimeZone() ?? 'UTC';
+  return {
+    timeZone,
+    toLocal: (iso: string | null | undefined) => toZonedValue(iso, timeZone),
+    toIso: (local: string | null | undefined) => fromZonedValue(local, timeZone),
+  };
 }
 
 /** Locale and texts of the date pickers, from the app's messages. */
@@ -88,7 +96,10 @@ export function DateInput({
   );
 }
 
-/** Date and time in the browser's zone; submits "YYYY-MM-DDTHH:mm" like datetime-local. */
+/**
+ * Date and time as a wall-clock value; submits "YYYY-MM-DDTHH:mm" like datetime-local.
+ * Convert with `useZonedValue`, so the value means the user's zone.
+ */
 export function LocalDateTimeInput({
   name,
   id,
@@ -124,8 +135,7 @@ export function LocalDateTimeInput({
 
 /**
  * Date and time picker that submits an ISO timestamp in `name`. The value is shown in the
- * browser's time zone, which only the client knows, so it appears after hydration; an
- * untouched value is submitted exactly as it came.
+ * user's profile time zone; an untouched value is submitted exactly as it came.
  */
 export function DateTimeInput({
   name,
@@ -135,11 +145,11 @@ export function DateTimeInput({
   ariaInvalid,
   ...rest
 }: PickerFieldProps & { name: string; defaultValue?: string | null; defaultTime?: string }) {
-  const hydrated = useHydrated();
+  const zoned = useZonedValue();
   const errors = useFieldErrors(name);
   const [edited, setEdited] = useState<string | null>(null);
-  const local = edited ?? (hydrated ? toLocalValue(defaultValue) : '');
-  const iso = edited === null ? (defaultValue ?? '') : edited ? new Date(edited).toISOString() : '';
+  const local = edited ?? zoned.toLocal(defaultValue);
+  const iso = edited === null ? (defaultValue ?? '') : zoned.toIso(edited);
   return (
     <>
       <LocalDateTimeInput

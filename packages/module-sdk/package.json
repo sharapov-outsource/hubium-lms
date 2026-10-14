@@ -13,7 +13,8 @@
     "./net": "./src/net.ts",
     "./crypto": "./src/crypto.ts",
     "./groups": "./src/groups.ts",
-    "./grading": "./src/grading.ts"
+    "./grading": "./src/grading.ts",
+    "./zoned": "./src/zoned.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

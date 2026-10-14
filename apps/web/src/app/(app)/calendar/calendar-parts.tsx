@@ -4,7 +4,7 @@ import { LocalDateTimeInput } from '@hubium/module-sdk/form';
 import { Button, Checkbox, Input, Select, Textarea } from '@hubium/ui';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { createEventAction, resetFeedTokenAction } from '@/server/actions/calendar';
 
@@ -27,7 +27,6 @@ export function NewEventForm({
       onSuccess={() => router.refresh()}
       className="grid gap-3"
     >
-      <TzOffset />
       <FormField name="title" label={t('eventTitle')} required />
       <div className="grid gap-3 sm:grid-cols-2">
         <FormField name="startsAt" label={t('startsAt')}>
@@ -97,10 +96,4 @@ export function FeedLink({ baseUrl }: { baseUrl: string }) {
       </Button>
     </div>
   );
-}
-
-function TzOffset() {
-  const [offset, setOffset] = useState(0);
-  useEffect(() => setOffset(new Date().getTimezoneOffset()), []);
-  return <input type="hidden" name="tzOffset" value={offset} />;
 }

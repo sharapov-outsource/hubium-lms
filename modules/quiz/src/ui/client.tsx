@@ -1,6 +1,6 @@
 'use client';
 
-import { callModuleAction, LocalDateTimeInput } from '@hubium/module-sdk/form';
+import { callModuleAction, LocalDateTimeInput, useZonedValue } from '@hubium/module-sdk/form';
 import {
   Badge,
   Button,
@@ -427,7 +427,8 @@ export function OverrideForm({
   const [attempts, setAttempts] = useState('');
   const [password, setPassword] = useState('');
   const [noPassword, setNoPassword] = useState(false);
-  const iso = (v: string) => (v ? new Date(v).toISOString() : null);
+  const zoned = useZonedValue();
+  const iso = (v: string) => zoned.toIso(v) || null;
   const int = (v: string) => (v.trim() === '' ? null : Number(v));
   const save = () => {
     const [kind, id] = who.split(':');
