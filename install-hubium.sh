@@ -935,7 +935,10 @@ activate_release() {
   run ln -sfn "$RELEASE_DIR" "$PREFIX/current"
 }
 
-hubium_as() { runuser -u hubium -- env HUBIUM_ENV_FILE="$CONFIG_DIR/hubium.env" "$1/bin/hubium" "${@:2}"; }
+# Runs bin/hubium of a release as the hubium user, from / (it cannot enter root's directory).
+hubium_as() {
+  (cd / && runuser -u hubium -- env HUBIUM_ENV_FILE="$CONFIG_DIR/hubium.env" "$1/bin/hubium" "${@:2}")
+}
 
 install_units() {
   local dir=$1 unit

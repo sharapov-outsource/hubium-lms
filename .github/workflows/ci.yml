@@ -129,7 +129,7 @@ jobs:
       - name: Stack logs
         if: failure()
         run: |
-          sudo docker compose --project-directory /opt/hubium logs --no-color > stack.log || true
+          sudo docker compose --project-directory /opt/hubium logs --no-color 2>&1 | tee stack.log > /dev/null || true
           sudo cp /var/log/hubium-install.log . && sudo chmod a+r hubium-install.log || true
       - uses: actions/upload-artifact@v7
         if: failure()
@@ -174,11 +174,12 @@ jobs:
             --storage fs --modules all --demo yes \
             --admin-email admin@hubium.local --admin-password 'Admin12345!'
       # doctor reports the missing SMTP server; the database must be Hubium's, up to date
-      - run: (sudo -u hubium hubium doctor --json || true) | jq -e '.state == "hubium" and (.pending | length == 0)'
+      - run: (cd / && sudo -u hubium hubium doctor --json || true) | jq -e '.state == "hubium" and (.pending | length == 0)'
       - uses: pnpm/setup@v3
         with: { runtime: node@24, cache: true, require-lockfile: true }
       - run: pnpm --filter @hubium/e2e stack
       - name: PostgreSQL 16, the oldest supported
+        working-directory: /
         run: |
           export DATABASE_URL=postgresql://hubium:hubium@127.0.0.1:5499/hubium
           sudo -u hubium --preserve-env=DATABASE_URL hubium doctor db
@@ -189,7 +190,7 @@ jobs:
       - name: Logs
         if: failure()
         run: |
-          sudo journalctl -u 'hubium-*' -u caddy -u postgresql@18-main --no-pager > services.log || true
+          sudo journalctl -u 'hubium-*' -u caddy -u postgresql@18-main --no-pager | tee services.log > /dev/null || true
           sudo cp /var/log/hubium-install.log . && sudo chmod a+r hubium-install.log || true
       - uses: actions/upload-artifact@v7
         if: failure()
