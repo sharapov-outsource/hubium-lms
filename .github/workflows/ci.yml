@@ -63,8 +63,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: check
     env:
-      # the webhook scenario runs its receiver on the runner's loopback
+      # the webhook scenario runs its receiver on the runner's loopback, and the sign-in
+      # scenarios use the Keycloak started below
       SSRF_ALLOW_HOSTS: 127.0.0.1
+      AUTH_KEYCLOAK_ID: hubium-oauth
+      AUTH_KEYCLOAK_SECRET: hubium-oauth-secret
+      AUTH_KEYCLOAK_ISSUER: http://127.0.0.1:8080/realms/hubium
     services:
       db:
         image: pgvector/pgvector:0.8.7-pg18-bookworm

@@ -3,7 +3,12 @@ import { type BetterAuthOptions, type BetterAuthPlugin, betterAuth } from 'bette
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { admin, twoFactor, username } from 'better-auth/plugins';
-import { genericOAuth, yandex } from 'better-auth/plugins/generic-oauth';
+import {
+  type GenericOAuthConfig,
+  genericOAuth,
+  keycloak,
+  yandex,
+} from 'better-auth/plugins/generic-oauth';
 import { clientIp } from '../client-ip.ts';
 import { ValidationError } from '../errors.ts';
 import { sendAuthEmail } from '../mail/mail.ts';
@@ -18,7 +23,13 @@ import {
   recordPasswordChange,
 } from './password-policy.ts';
 import { dropRecoveryPassphrases, recoveryPassphrase } from './recovery.ts';
-import { isOpenSsoPath, ssoPlugin, ssoTrustedOrigins, withSsoSecrets } from './sso.ts';
+import {
+  type CustomOAuthProvider,
+  isOpenSsoPath,
+  ssoPlugin,
+  ssoTrustedOrigins,
+  withSsoSecrets,
+} from './sso.ts';
 
 // Better Auth instance. Authentication only — authorization is Hubium's own (can()).
 
@@ -28,7 +39,13 @@ export interface CreateAuthOptions {
   secret: string;
   /** Framework plugins (e.g. nextCookies) appended last. */
   extraPlugins?: BetterAuthPlugin[];
+  /** Custom OAuth 2 providers from Administration (loadCustomOAuth); see holder.ts. */
+  customOAuth?: CustomOAuthProvider[];
 }
+
+/** Sign-in providers configured through the environment and switched on in Settings. */
+export const BUILT_IN_OAUTH = ['google', 'yandex', 'vk', 'keycloak'] as const;
+export type BuiltInOAuth = (typeof BUILT_IN_OAUTH)[number];
 
 function oauthProviders() {
   const env = process.env;
@@ -39,20 +56,55 @@ function oauthProviders() {
   if (env.AUTH_VK_ID && env.AUTH_VK_SECRET) {
     social.vk = { clientId: env.AUTH_VK_ID, clientSecret: env.AUTH_VK_SECRET };
   }
-  const generic =
-    env.AUTH_YANDEX_ID && env.AUTH_YANDEX_SECRET
-      ? [yandex({ clientId: env.AUTH_YANDEX_ID, clientSecret: env.AUTH_YANDEX_SECRET })]
-      : [];
+  const generic: GenericOAuthConfig[] = [];
+  if (env.AUTH_YANDEX_ID && env.AUTH_YANDEX_SECRET)
+    generic.push(yandex({ clientId: env.AUTH_YANDEX_ID, clientSecret: env.AUTH_YANDEX_SECRET }));
+  // Keycloak: AUTH_KEYCLOAK_ISSUER is the realm URL, e.g. https://sso.example.org/realms/main
+  if (env.AUTH_KEYCLOAK_ID && env.AUTH_KEYCLOAK_SECRET && env.AUTH_KEYCLOAK_ISSUER)
+    generic.push(
+      keycloak({
+        clientId: env.AUTH_KEYCLOAK_ID,
+        clientSecret: env.AUTH_KEYCLOAK_SECRET,
+        issuer: env.AUTH_KEYCLOAK_ISSUER,
+      }),
+    );
   return { social, generic };
 }
 
-export function configuredOAuthProviders(): ('google' | 'yandex' | 'vk')[] {
+export function configuredOAuthProviders(): BuiltInOAuth[] {
   const env = process.env;
-  const out: ('google' | 'yandex' | 'vk')[] = [];
+  const out: BuiltInOAuth[] = [];
   if (env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET) out.push('google');
   if (env.AUTH_YANDEX_ID && env.AUTH_YANDEX_SECRET) out.push('yandex');
   if (env.AUTH_VK_ID && env.AUTH_VK_SECRET) out.push('vk');
+  if (env.AUTH_KEYCLOAK_ID && env.AUTH_KEYCLOAK_SECRET && env.AUTH_KEYCLOAK_ISSUER)
+    out.push('keycloak');
   return out;
+}
+
+/** A custom provider for Better Auth's generic OAuth: claims mapped to Hubium's names. */
+function customOAuthConfig(p: CustomOAuthProvider): GenericOAuthConfig {
+  const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+  return {
+    providerId: p.providerId,
+    clientId: p.clientId,
+    clientSecret: p.clientSecret,
+    authorizationUrl: p.authorizationUrl,
+    tokenUrl: p.tokenUrl,
+    userInfoUrl: p.userInfoUrl,
+    scopes: p.scopes,
+    mapProfileToUser(profile) {
+      const firstName = str(profile[p.mapping.firstName]);
+      const lastName = str(profile[p.mapping.lastName]);
+      const email = str(profile[p.mapping.email]).toLowerCase();
+      return {
+        ...(email ? { email } : {}),
+        firstName,
+        lastName,
+        ...(firstName || lastName ? { name: `${firstName} ${lastName}`.trim() } : {}),
+      };
+    },
+  };
 }
 
 const EMAIL_SIGN_IN_PATHS = new Set(['/sign-up/email', '/sign-in/email', '/sign-in/username']);
@@ -82,8 +134,16 @@ const PASSWORD_FIELDS: Record<string, string> = {
   '/set-password': 'newPassword',
 };
 
-export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAuthOptions) {
+export function createAuth({
+  db,
+  baseURL,
+  secret,
+  extraPlugins = [],
+  customOAuth = [],
+}: CreateAuthOptions) {
   const { social, generic } = oauthProviders();
+  generic.push(...customOAuth.map(customOAuthConfig));
+  const custom = new Map(customOAuth.map((p) => [p.providerId, p]));
   const pendingPasswordHashes = new Set<string>();
   const siteName = async () => (await getAllSettings(db))['site.name'];
   const localeOf = async (u: object) =>
@@ -160,6 +220,13 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
       },
     },
     socialProviders: social,
+    account: {
+      accountLinking: {
+        enabled: true,
+        // custom providers the administrator lets sign in to accounts with the same email
+        trustedProviders: customOAuth.filter((p) => p.linkByEmail).map((p) => p.providerId),
+      },
+    },
     hooks: {
       before: createAuthMiddleware(async (c) => {
         const passwordField = PASSWORD_FIELDS[c.path];
@@ -246,21 +313,28 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
           return;
         }
         // Providers switched off in Admin → Settings stay off even when their keys are set.
-        const body = (c.body ?? {}) as { provider?: string; providerId?: string };
-        const params = (c.params ?? {}) as { id?: string; providerId?: string };
+        // Generic OAuth providers (Yandex, Keycloak, custom) use the social endpoints too.
+        const body = (c.body ?? {}) as { provider?: string };
+        const params = (c.params ?? {}) as { id?: string };
         const provider =
           c.path === '/sign-in/social' || c.path === '/link-social'
             ? body.provider
-            : c.path === '/sign-in/oauth2' || c.path === '/oauth2/link'
-              ? body.providerId
-              : c.path.startsWith('/callback/')
-                ? params.id
-                : c.path.startsWith('/oauth2/callback/')
-                  ? params.providerId
-                  : undefined;
-        if (provider !== 'google' && provider !== 'yandex' && provider !== 'vk') return;
+            : c.path.startsWith('/callback/')
+              ? params.id
+              : undefined;
+        if (provider && custom.has(provider)) {
+          // read now: this instance may predate a change made a moment ago
+          const row = await db.ssoProvider.findUnique({
+            where: { providerId: provider },
+            select: { enabled: true },
+          });
+          if (!row?.enabled)
+            throw new APIError('FORBIDDEN', { message: 'This sign-in method is disabled' });
+          return;
+        }
+        if (!(BUILT_IN_OAUTH as readonly string[]).includes(provider ?? '')) return;
         const settings = await getAllSettings(db);
-        if (!settings[`auth.oauth.${provider}`])
+        if (!settings[`auth.oauth.${provider as BuiltInOAuth}`])
           throw new APIError('FORBIDDEN', { message: 'This sign-in method is disabled' });
       }),
       after: createAuthMiddleware(async (c) => {
@@ -288,6 +362,14 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
       // so the new hash itself identifies the account afterwards.
       account: {
         create: {
+          // a custom provider that must not sign in to existing accounts by email: an
+          // account linked to a user who already has others is such a link
+          async before(account) {
+            const p = custom.get(account.providerId);
+            if (!p || p.linkByEmail) return { data: account };
+            const others = await db.account.count({ where: { userId: account.userId } });
+            return others ? false : { data: account };
+          },
           async after(account) {
             if (account.password) await recordPasswordChange(db, account.userId);
           },
@@ -316,8 +398,16 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
             const settings = await getAllSettings(db);
             // OAuth sign-ups count as registration; respect the site switch. SSO providers
             // decide for themselves (resolveSsoUser in sso.ts).
+            // custom OAuth 2 providers have their own switch
             const viaSso = context?.path?.startsWith('/sso/') ?? false;
-            if (!viaSso && !settings['registration.enabled']) {
+            const customProvider = context?.path?.startsWith('/callback/')
+              ? custom.get(String((context.params as { id?: string }).id))
+              : undefined;
+            if (
+              customProvider
+                ? !customProvider.autoCreate
+                : !viaSso && !settings['registration.enabled']
+            ) {
               throw new Error('Registration is disabled');
             }
             const name = String(user.name ?? '').trim();

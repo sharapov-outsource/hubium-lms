@@ -21,7 +21,7 @@ export async function saveSsoProviderAction(fd: FormData) {
       id: v.id || undefined,
       providerId: v.providerId ?? '',
       name: v.name ?? '',
-      protocol: v.protocol === 'saml' ? 'saml' : 'oidc',
+      protocol: v.protocol === 'saml' || v.protocol === 'oauth2' ? v.protocol : 'oidc',
       enabled: fd.get('enabled') === 'on',
       autoCreate: fd.get('autoCreate') === 'on',
       linkByEmail: fd.get('linkByEmail') === 'on',
@@ -30,6 +30,9 @@ export async function saveSsoProviderAction(fd: FormData) {
       clientId: v.clientId,
       clientSecret: v.clientSecret,
       scopes: v.scopes,
+      authorizationUrl: v.authorizationUrl,
+      tokenUrl: v.tokenUrl,
+      userInfoUrl: v.userInfoUrl,
       idpMetadataUrl: v.idpMetadataUrl,
       idpMetadataXml: v.idpMetadataXml,
       mapping: {

@@ -1,4 +1,10 @@
-import { toNextJsHandler } from 'better-auth/next-js';
-import { auth } from '@/server/auth';
+import { auth, authReady } from '@/server/auth';
 
-export const { GET, POST } = toNextJsHandler(auth);
+// Requests wait for the first instance with the custom OAuth providers.
+async function handler(request: Request) {
+  await authReady;
+  return auth.handler(request);
+}
+
+export const GET = handler;
+export const POST = handler;

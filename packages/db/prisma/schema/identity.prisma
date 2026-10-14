@@ -223,8 +223,9 @@ model RecoveryPassphrase {
   @@index([userId])
 }
 
-/// Single sign-on through OIDC or SAML 2.0. The first columns are the ones Better Auth's
-/// SSO plugin reads (model "ssoProvider"); Hubium manages the rows (auth/sso.ts).
+/// Single sign-on through OIDC or SAML 2.0, and custom OAuth 2 providers. The first columns
+/// are the ones Better Auth's SSO plugin reads (model "ssoProvider"); Hubium manages the rows
+/// (auth/sso.ts).
 model SsoProvider {
   id              String   @id @default(uuid(7)) @db.Uuid
   /// Slug in callback URLs
@@ -235,6 +236,9 @@ model SsoProvider {
   /// JSON for Better Auth, without the client secret
   oidcConfig      String?
   samlConfig      String?
+  /// OAuth 2 (protocol "oauth2"): endpoints, client id and scopes as JSON; these providers go
+  /// through Better Auth's generic OAuth plugin instead of the SSO plugin
+  oauthConfig     String?
   /// Administrator who added it
   userId          String   @db.Uuid
   organizationId  String?

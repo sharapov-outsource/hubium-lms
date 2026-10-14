@@ -47,6 +47,9 @@ x-app-env: &app-env
   AUTH_YANDEX_SECRET: ${AUTH_YANDEX_SECRET:-}
   AUTH_VK_ID: ${AUTH_VK_ID:-}
   AUTH_VK_SECRET: ${AUTH_VK_SECRET:-}
+  AUTH_KEYCLOAK_ID: ${AUTH_KEYCLOAK_ID:-}
+  AUTH_KEYCLOAK_SECRET: ${AUTH_KEYCLOAK_SECRET:-}
+  AUTH_KEYCLOAK_ISSUER: ${AUTH_KEYCLOAK_ISSUER:-}
   # Web Push, the Prometheus endpoint, the REST API limit and internal hosts the server may
   # call (a local Ollama, an LTI tool on the LAN); see docs/operations.md
   VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}

@@ -1,5 +1,6 @@
 'use client';
 
+import type { BuiltInOAuth } from '@hubium/core/auth/auth';
 import { Alert, Button, Field, Input } from '@hubium/ui';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -14,8 +15,8 @@ export function LoginForm({
   next,
   initialError,
 }: {
-  providers: ('google' | 'yandex' | 'vk')[];
-  sso: { providerId: string; name: string }[];
+  providers: BuiltInOAuth[];
+  sso: { providerId: string; name: string; protocol: string }[];
   registration: boolean;
   next?: string;
   /** Why a single sign-on came back without signing in. */

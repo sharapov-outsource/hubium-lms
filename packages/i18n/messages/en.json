@@ -189,7 +189,8 @@
     "ssoNoAccount": "There is no account on this site for that provider account. Contact an administrator.",
     "ssoNotLinked": "An account with this email exists but is not linked to the provider. Sign in with your password or contact an administrator.",
     "ssoDisabled": "This sign-in method is turned off.",
-    "ssoFailed": "Signing in through the provider failed. Try again."
+    "ssoFailed": "Signing in through the provider failed. Try again.",
+    "keycloak": "Keycloak"
   },
   "dashboard": {
     "title": "Welcome, {name}",
@@ -1874,6 +1875,11 @@
     "saved": "Provider saved",
     "deleted": "Provider deleted",
     "delete": "Delete provider",
-    "deleteConfirm": "Delete \"{name}\"? Accounts stay, but nobody can sign in through this provider."
+    "deleteConfirm": "Delete \"{name}\"? Accounts stay, but nobody can sign in through this provider.",
+    "oauthHint": "For services without OpenID Connect (GitHub, for example): the account comes from the user info address's answer.",
+    "authorizationUrl": "Authorization URL",
+    "tokenUrl": "Token URL",
+    "userInfoUrl": "User info URL",
+    "mappingHintOauth": "Field names in the user info answer. Leave empty for the default."
   }
 }

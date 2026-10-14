@@ -29,6 +29,7 @@ export const settingDefs = {
   'auth.oauth.google': z.boolean().default(false),
   'auth.oauth.yandex': z.boolean().default(false),
   'auth.oauth.vk': z.boolean().default(false),
+  'auth.oauth.keycloak': z.boolean().default(false),
   'auth.require2faForAdmins': z.boolean().default(false),
   /** Notify users of sign-ins from a new device (auth/devices.ts). */
   'auth.newSignInNotice': z.boolean().default(true),

@@ -1,8 +1,14 @@
 import { type SSOOptions, sso } from '@better-auth/sso';
 import type { Db, Prisma, SsoProvider } from '@hubium/db';
 import { log } from '@hubium/log';
-import { safeFetch, ssrfAllowedHosts, UnsafeUrlError } from '@hubium/module-sdk/net';
+import {
+  assertPublicUrl,
+  safeFetch,
+  ssrfAllowedHosts,
+  UnsafeUrlError,
+} from '@hubium/module-sdk/net';
 import { z } from 'zod';
+import { publishInvalidation } from '../cache-bus.ts';
 import type { RequestContext } from '../context.ts';
 import { decryptSecret, encryptSecret } from '../crypto.ts';
 import { getEnv } from '../env.ts';
@@ -25,7 +31,7 @@ const logger = log('sso');
 // the provider allows it, and new accounts are created only when it says so. Names and
 // mapped profile fields are refreshed from the provider at every sign-in.
 
-export const SSO_PROTOCOLS = ['oidc', 'saml'] as const;
+export const SSO_PROTOCOLS = ['oidc', 'saml', 'oauth2'] as const;
 export type SsoProtocol = (typeof SSO_PROTOCOLS)[number];
 
 /** Extra fields carry profile fields under this prefix through Better Auth's mapping. */
@@ -71,6 +77,10 @@ export const SsoProviderInput = z.object({
   /** Empty keeps the stored secret. */
   clientSecret: optionalText(2000),
   scopes: optionalText(500),
+  // OAuth 2 (with clientId, clientSecret and scopes above)
+  authorizationUrl: optionalText(1000),
+  tokenUrl: optionalText(1000),
+  userInfoUrl: optionalText(1000),
   // SAML: identity provider metadata, from a URL or pasted
   idpMetadataUrl: optionalText(1000),
   idpMetadataXml: optionalText(500_000),
@@ -160,6 +170,41 @@ async function buildProvider(
   existing: SsoProvider | null,
 ) {
   const same = existing?.protocol === input.protocol ? existing : null;
+  const none = { oidcConfig: null, samlConfig: null, oauthConfig: null };
+  const noKeys = { spPrivateKeyEnc: null, spCertificate: null };
+  if (input.protocol === 'oauth2') {
+    const errors: Record<string, string[]> = {};
+    for (const f of ['authorizationUrl', 'tokenUrl', 'userInfoUrl', 'clientId'] as const)
+      if (!input[f]) errors[f] = ['Required'];
+    if (!input.clientSecret && !same?.clientSecretEnc) errors.clientSecret = ['Required'];
+    if (Object.keys(errors).length) throw new ValidationError(errors);
+    for (const f of ['authorizationUrl', 'tokenUrl', 'userInfoUrl'] as const) {
+      try {
+        await assertPublicUrl(input[f]!);
+      } catch (e) {
+        throw new ValidationError({ [f]: [e instanceof Error ? e.message : String(e)] });
+      }
+    }
+    const oauthConfig = {
+      clientId: input.clientId!,
+      authorizationUrl: input.authorizationUrl!,
+      tokenUrl: input.tokenUrl!,
+      userInfoUrl: input.userInfoUrl!,
+      scopes: (input.scopes ?? '').split(/[\s,]+/).filter(Boolean),
+      mapping: {
+        email: input.mapping.email || 'email',
+        firstName: input.mapping.firstName || 'given_name',
+        lastName: input.mapping.lastName || 'family_name',
+      },
+    };
+    return {
+      ...none,
+      ...noKeys,
+      issuer: new URL(input.authorizationUrl!).origin,
+      oauthConfig: JSON.stringify(oauthConfig),
+      clientSecretEnc: input.clientSecret ? seal(input.clientSecret) : same!.clientSecretEnc,
+    };
+  }
   if (input.protocol === 'oidc') {
     const storedSecret = same?.clientSecretEnc ?? null;
     const errors: Record<string, string[]> = {};
@@ -189,12 +234,11 @@ async function buildProvider(
       },
     };
     return {
+      ...none,
+      ...noKeys,
       issuer: d.issuer,
       oidcConfig: JSON.stringify(oidcConfig),
-      samlConfig: null,
       clientSecretEnc: input.clientSecret ? seal(input.clientSecret) : storedSecret,
-      spPrivateKeyEnc: null,
-      spCertificate: null,
     };
   }
   // without new metadata an edit keeps the identity provider's
@@ -236,8 +280,8 @@ async function buildProvider(
     },
   };
   return {
+    ...none,
     issuer: idp.entityId,
-    oidcConfig: null,
     samlConfig: JSON.stringify(samlConfig),
     clientSecretEnc: null,
     spPrivateKeyEnc: keys.sealed,
@@ -263,8 +307,48 @@ export async function enabledSsoProviders(db: Db) {
   return db.ssoProvider.findMany({
     where: { enabled: true },
     orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-    select: { providerId: true, name: true },
+    select: { providerId: true, name: true, protocol: true },
   });
+}
+
+/** A custom OAuth 2 provider, with its secret unsealed, for Better Auth's generic OAuth. */
+export interface CustomOAuthProvider {
+  providerId: string;
+  name: string;
+  clientId: string;
+  clientSecret: string;
+  authorizationUrl: string;
+  tokenUrl: string;
+  userInfoUrl: string;
+  scopes: string[];
+  mapping: { email: string; firstName: string; lastName: string };
+  linkByEmail: boolean;
+  autoCreate: boolean;
+}
+
+/** Custom OAuth 2 providers; disabled ones too, so their callbacks can say why. */
+export async function loadCustomOAuth(db: Db): Promise<CustomOAuthProvider[]> {
+  const rows = await db.ssoProvider.findMany({ where: { protocol: 'oauth2' } });
+  const out: CustomOAuthProvider[] = [];
+  for (const r of rows) {
+    try {
+      const c = JSON.parse(r.oauthConfig ?? '{}') as Omit<
+        CustomOAuthProvider,
+        'providerId' | 'name' | 'clientSecret' | 'linkByEmail' | 'autoCreate'
+      >;
+      out.push({
+        ...c,
+        providerId: r.providerId,
+        name: r.name,
+        clientSecret: r.clientSecretEnc ? unseal(r.clientSecretEnc) : '',
+        linkByEmail: r.linkByEmail,
+        autoCreate: r.autoCreate,
+      });
+    } catch (err) {
+      logger.error({ err, providerId: r.providerId }, 'cannot load an OAuth 2 provider');
+    }
+  }
+  return out;
 }
 
 export const saveSsoProvider = defineOperation({
@@ -298,6 +382,8 @@ export const saveSsoProvider = defineOperation({
       mapping: input.mapping as Prisma.InputJsonValue,
       ...built,
     };
+    // every process rebuilds its Better Auth instance with the custom OAuth providers
+    await publishInvalidation(ctx.tx, 'auth');
     const row = existing
       ? await ctx.tx.ssoProvider.update({ where: { id: existing.id }, data })
       : await ctx.tx.ssoProvider.create({ data: { ...data, userId: ctx.perm.userId! } });
@@ -321,6 +407,7 @@ export const deleteSsoProvider = defineOperation({
     const p = await ctx.tx.ssoProvider.findUnique({ where: { id } });
     if (!p) throw new NotFoundError('Provider');
     await ctx.tx.ssoProvider.delete({ where: { id } });
+    await publishInvalidation(ctx.tx, 'auth');
     // people keep their Hubium accounts; only the link to this provider goes
     await ctx.tx.account.deleteMany({ where: { providerId: p.providerId } });
     await logEvent(ctx.tx, {
@@ -477,9 +564,12 @@ export async function ssoTrustedOrigins(db: Db): Promise<string[]> {
   const origins = new Set<string>();
   if (allowed.size) {
     for (const p of await db.ssoProvider.findMany({
-      select: { oidcConfig: true, samlConfig: true },
+      select: { oidcConfig: true, samlConfig: true, oauthConfig: true },
     })) {
-      const c = JSON.parse(p.oidcConfig ?? p.samlConfig ?? '{}') as Record<string, unknown>;
+      const c = JSON.parse(p.oidcConfig ?? p.samlConfig ?? p.oauthConfig ?? '{}') as Record<
+        string,
+        unknown
+      >;
       for (const v of Object.values(c)) {
         if (typeof v !== 'string' || !/^https?:\/\//.test(v)) continue;
         const u = new URL(v);

@@ -29,9 +29,13 @@ export default async function SsoProviderPage({
   ]);
   const p = providers.find((x) => x.id === id);
   if (!p) notFound();
-  const oidc = p.oidcConfig
-    ? (JSON.parse(p.oidcConfig) as { clientId?: string; scopes?: string[] })
-    : {};
+  const config = JSON.parse(p.oidcConfig ?? p.oauthConfig ?? '{}') as {
+    clientId?: string;
+    scopes?: string[];
+    authorizationUrl?: string;
+    tokenUrl?: string;
+    userInfoUrl?: string;
+  };
   const appUrl = process.env.APP_URL ?? 'http://localhost:3000';
   return (
     <>
@@ -49,15 +53,18 @@ export default async function SsoProviderPage({
             id: p.id,
             providerId: p.providerId,
             name: p.name,
-            protocol: p.protocol === 'saml' ? 'saml' : 'oidc',
+            protocol: p.protocol === 'saml' || p.protocol === 'oauth2' ? p.protocol : 'oidc',
             enabled: p.enabled,
             autoCreate: p.autoCreate,
             linkByEmail: p.linkByEmail,
             domain: p.domain,
             issuer: p.protocol === 'oidc' ? p.issuer : undefined,
-            clientId: oidc.clientId,
+            clientId: config.clientId,
             hasSecret: p.hasSecret,
-            scopes: oidc.scopes?.join(' '),
+            scopes: config.scopes?.join(' '),
+            authorizationUrl: config.authorizationUrl,
+            tokenUrl: config.tokenUrl,
+            userInfoUrl: config.userInfoUrl,
             mapping: p.mapping as SsoMapping,
           }}
         />

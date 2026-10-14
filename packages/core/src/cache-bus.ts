@@ -12,14 +12,25 @@ const logger = log('cache-bus');
 // instance listens on `hubium_cache`; NOTIFY inside a transaction is delivered on commit.
 // The same connection listens on `hubium_rt` for realtime events (see realtime.ts).
 
-export type CacheTopic = 'settings' | 'roles' | 'contexts' | 'webhooks';
+export type CacheTopic = 'settings' | 'roles' | 'contexts' | 'webhooks' | 'auth';
 export const CACHE_CHANNEL = 'hubium_cache';
+
+const subscribers = new Map<string, Set<() => void>>();
+
+/** Runs `fn` whenever any process publishes `topic` (e.g. sign-in providers changed). */
+export function onCacheInvalidation(topic: CacheTopic, fn: () => void): () => void {
+  let set = subscribers.get(topic);
+  if (!set) subscribers.set(topic, (set = new Set()));
+  set.add(fn);
+  return () => set.delete(fn);
+}
 
 function applyLocal(topic: string): void {
   if (topic === 'settings') invalidateSettingsCache();
   else if (topic === 'roles') invalidatePermissionCaches('roles');
   else if (topic === 'contexts') invalidatePermissionCaches('contexts');
   else if (topic === 'webhooks') invalidateWebhookCache();
+  for (const fn of subscribers.get(topic) ?? []) fn();
 }
 
 export async function publishInvalidation(
@@ -52,6 +63,7 @@ export async function startCacheListener(
     invalidateSettingsCache();
     invalidatePermissionCaches();
     invalidateWebhookCache();
+    for (const set of subscribers.values()) for (const fn of set) fn();
     setTimeout(() => void startCacheListener(connectionString), 2000);
   });
   try {

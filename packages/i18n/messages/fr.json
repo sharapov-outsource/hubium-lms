@@ -188,7 +188,8 @@
     "ssoNoAccount": "Aucun compte sur ce site ne correspond à ce compte du fournisseur. Contactez un administrateur.",
     "ssoNotLinked": "Un compte avec cette adresse existe mais n'est pas lié au fournisseur. Connectez-vous avec votre mot de passe ou contactez un administrateur.",
     "ssoDisabled": "Ce mode de connexion est désactivé.",
-    "ssoFailed": "La connexion via le fournisseur a échoué. Réessayez."
+    "ssoFailed": "La connexion via le fournisseur a échoué. Réessayez.",
+    "keycloak": "Keycloak"
   },
   "dashboard": {
     "title": "Bienvenue, {name}",
@@ -1873,6 +1874,11 @@
     "saved": "Fournisseur enregistré",
     "deleted": "Fournisseur supprimé",
     "delete": "Supprimer le fournisseur",
-    "deleteConfirm": "Supprimer « {name} » ? Les comptes restent, mais personne ne pourra se connecter via ce fournisseur."
+    "deleteConfirm": "Supprimer « {name} » ? Les comptes restent, mais personne ne pourra se connecter via ce fournisseur.",
+    "oauthHint": "Pour les services sans OpenID Connect (GitHub par exemple) : le compte provient de la réponse de l'adresse d'informations utilisateur.",
+    "authorizationUrl": "URL d'autorisation",
+    "tokenUrl": "URL du jeton",
+    "userInfoUrl": "URL des informations utilisateur",
+    "mappingHintOauth": "Noms des champs dans la réponse des informations utilisateur. Laissez vide pour la valeur par défaut."
   }
 }

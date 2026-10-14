@@ -188,7 +188,8 @@
     "ssoNoAccount": "Für dieses Anbieterkonto gibt es kein Konto auf dieser Website. Wenden Sie sich an einen Administrator.",
     "ssoNotLinked": "Ein Konto mit dieser E-Mail existiert, ist aber nicht mit dem Anbieter verknüpft. Melden Sie sich mit Ihrem Passwort an oder wenden Sie sich an einen Administrator.",
     "ssoDisabled": "Diese Anmeldemethode ist deaktiviert.",
-    "ssoFailed": "Die Anmeldung über den Anbieter ist fehlgeschlagen. Versuchen Sie es erneut."
+    "ssoFailed": "Die Anmeldung über den Anbieter ist fehlgeschlagen. Versuchen Sie es erneut.",
+    "keycloak": "Keycloak"
   },
   "dashboard": {
     "title": "Willkommen, {name}",
@@ -1873,6 +1874,11 @@
     "saved": "Anbieter gespeichert",
     "deleted": "Anbieter gelöscht",
     "delete": "Anbieter löschen",
-    "deleteConfirm": "„{name}“ löschen? Die Konten bleiben, aber niemand kann sich mehr über diesen Anbieter anmelden."
+    "deleteConfirm": "„{name}“ löschen? Die Konten bleiben, aber niemand kann sich mehr über diesen Anbieter anmelden.",
+    "oauthHint": "Für Dienste ohne OpenID Connect (zum Beispiel GitHub): Das Konto ergibt sich aus der Antwort der Benutzerinfo-Adresse.",
+    "authorizationUrl": "Autorisierungs-URL",
+    "tokenUrl": "Token-URL",
+    "userInfoUrl": "Benutzerinfo-URL",
+    "mappingHintOauth": "Feldnamen in der Benutzerinfo-Antwort. Leer lassen für den Standard."
   }
 }

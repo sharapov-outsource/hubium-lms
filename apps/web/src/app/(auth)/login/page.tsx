@@ -27,6 +27,9 @@ export default async function LoginPage({
     SSO_NO_ACCOUNT: t('ssoNoAccount'),
     SSO_ACCOUNT_NOT_LINKED: t('ssoNotLinked'),
     SSO_DISABLED: t('ssoDisabled'),
+    // OAuth callbacks (Better Auth codes): no account may be created, or the email is taken
+    unable_to_create_user: t('ssoNoAccount'),
+    account_not_linked: t('ssoNotLinked'),
   };
   const error = sp.error ? (ssoErrors[sp.error] ?? t('ssoFailed')) : undefined;
   const providers = configuredOAuthProviders().filter((p) => settings[`auth.oauth.${p}`]);

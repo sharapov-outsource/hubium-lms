@@ -6,11 +6,13 @@ import { useState } from 'react';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { saveSsoProviderAction } from '@/server/actions/sso';
 
+type Protocol = 'oidc' | 'saml' | 'oauth2';
+
 export interface SsoFormValues {
   id?: string;
   providerId?: string;
   name?: string;
-  protocol?: 'oidc' | 'saml';
+  protocol?: Protocol;
   enabled?: boolean;
   autoCreate?: boolean;
   linkByEmail?: boolean;
@@ -19,6 +21,9 @@ export interface SsoFormValues {
   clientId?: string;
   hasSecret?: boolean;
   scopes?: string;
+  authorizationUrl?: string;
+  tokenUrl?: string;
+  userInfoUrl?: string;
   mapping?: {
     email?: string;
     firstName?: string;
@@ -44,17 +49,19 @@ function Endpoints({
 }: {
   appUrl: string;
   providerId: string;
-  protocol: 'oidc' | 'saml';
+  protocol: Protocol;
 }) {
   const t = useTranslations('adminSso');
   const id = providerId || '…';
   const rows =
     protocol === 'oidc'
       ? [[t('redirectUri'), `${appUrl}/api/auth/sso/callback/${id}`]]
-      : [
-          [t('spEntityId'), `${appUrl}/api/auth/sso/saml2/sp/metadata?providerId=${id}`],
-          [t('acsUrl'), `${appUrl}/api/auth/sso/saml2/sp/acs/${id}`],
-        ];
+      : protocol === 'oauth2'
+        ? [[t('redirectUri'), `${appUrl}/api/auth/callback/${id}`]]
+        : [
+            [t('spEntityId'), `${appUrl}/api/auth/sso/saml2/sp/metadata?providerId=${id}`],
+            [t('acsUrl'), `${appUrl}/api/auth/sso/saml2/sp/acs/${id}`],
+          ];
   return (
     <dl className="grid gap-2 rounded-lg border border-border p-3 text-sm">
       {rows.map(([label, value]) => (
@@ -80,7 +87,7 @@ export function SsoForm({
 }) {
   const t = useTranslations('adminSso');
   const tc = useTranslations('common');
-  const [protocol, setProtocol] = useState<'oidc' | 'saml'>(values.protocol ?? 'oidc');
+  const [protocol, setProtocol] = useState<Protocol>(values.protocol ?? 'oidc');
   const [providerId, setProviderId] = useState(values.providerId ?? '');
   const m = values.mapping ?? {};
   return (
@@ -92,10 +99,11 @@ export function SsoForm({
           name={values.id ? undefined : 'protocol'}
           value={protocol}
           disabled={!!values.id}
-          onChange={(e) => setProtocol(e.currentTarget.value === 'saml' ? 'saml' : 'oidc')}
+          onChange={(e) => setProtocol(e.currentTarget.value as Protocol)}
         >
           <option value="oidc">OpenID Connect</option>
           <option value="saml">SAML 2.0</option>
+          <option value="oauth2">OAuth 2</option>
         </Select>
       </FormField>
       {values.id ? <input type="hidden" name="protocol" value={protocol} /> : null}
@@ -112,7 +120,41 @@ export function SsoForm({
       </div>
       <Endpoints appUrl={appUrl} providerId={providerId} protocol={protocol} />
 
-      {protocol === 'oidc' ? (
+      {protocol === 'oauth2' ? (
+        <fieldset className="grid gap-4">
+          <legend className="mb-2 font-semibold">OAuth 2</legend>
+          <p className="text-sm text-muted-foreground">{t('oauthHint')}</p>
+          <FormField
+            name="authorizationUrl"
+            type="url"
+            label={t('authorizationUrl')}
+            defaultValue={values.authorizationUrl}
+          />
+          <FormField
+            name="tokenUrl"
+            type="url"
+            label={t('tokenUrl')}
+            defaultValue={values.tokenUrl}
+          />
+          <FormField
+            name="userInfoUrl"
+            type="url"
+            label={t('userInfoUrl')}
+            defaultValue={values.userInfoUrl}
+          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField name="clientId" label={t('clientId')} defaultValue={values.clientId} />
+            <FormField
+              name="clientSecret"
+              type="password"
+              autoComplete="off"
+              label={t('clientSecret')}
+              hint={values.hasSecret ? t('clientSecretKept') : undefined}
+            />
+          </div>
+          <FormField name="scopes" label={t('scopes')} defaultValue={values.scopes} />
+        </fieldset>
+      ) : protocol === 'oidc' ? (
         <fieldset className="grid gap-4">
           <legend className="mb-2 font-semibold">OpenID Connect</legend>
           <FormField
@@ -170,7 +212,11 @@ export function SsoForm({
       <fieldset className="grid gap-4">
         <legend className="mb-1 font-semibold">{t('mapping')}</legend>
         <p className="text-sm text-muted-foreground">
-          {protocol === 'oidc' ? t('mappingHintOidc') : t('mappingHintSaml')}
+          {protocol === 'saml'
+            ? t('mappingHintSaml')
+            : protocol === 'oidc'
+              ? t('mappingHintOidc')
+              : t('mappingHintOauth')}
         </p>
         <div className="grid gap-4 sm:grid-cols-3">
           <FormField
@@ -182,17 +228,17 @@ export function SsoForm({
           <FormField
             name="mapFirstName"
             label={t('mapFirstName')}
-            placeholder={protocol === 'oidc' ? 'given_name' : 'firstName'}
+            placeholder={protocol === 'saml' ? 'firstName' : 'given_name'}
             defaultValue={m.firstName}
           />
           <FormField
             name="mapLastName"
             label={t('mapLastName')}
-            placeholder={protocol === 'oidc' ? 'family_name' : 'lastName'}
+            placeholder={protocol === 'saml' ? 'lastName' : 'family_name'}
             defaultValue={m.lastName}
           />
         </div>
-        {profileFields.length ? (
+        {profileFields.length && protocol !== 'oauth2' ? (
           <div className="grid gap-4 sm:grid-cols-2">
             {profileFields.map((f) => (
               <FormField

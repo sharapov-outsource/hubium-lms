@@ -232,11 +232,13 @@ Better Auth is the right choice. Auth.js has effectively folded into it, and Luc
   - `twoFactor`: TOTP plus backup codes. Admins can require it for chosen roles.
   - `bearer`: for the mobile app.
   - `admin`: only for impersonation and ban primitives, wrapped by our `user:loginas` capability. Its role field is **not** used; all authorization is ours.
-  - Later: `sso` (OIDC/SAML) and passkeys.
+  - `sso` (`@better-auth/sso`): OIDC and SAML providers kept in `SsoProvider` and managed in Administration; the plugin's own provider endpoints are closed. Hubium's `resolveUser` decides between a linked account, an account with the same email and a new one. The adapter runs in transactions because the plugin needs them.
 - **Social login.**
   - Google is built-in. VK ID is built-in in recent versions; verify it uses the current id.vk.com OAuth 2.1 + PKCE flow.
   - Yandex ID goes through the `genericOAuth` plugin (`oauth.yandex.ru/authorize`, userinfo `login.yandex.ru/info`).
-  - Client secrets come from env vars (`AUTH_GOOGLE_*`, `AUTH_YANDEX_*`, `AUTH_VK_*`). The admin UI only toggles visibility and shows the callback URLs, so no auth-instance hot-reload is needed.
+  - Keycloak goes through `genericOAuth` too (its `keycloak` helper, discovery from the realm URL).
+  - Client secrets of these built-in providers come from env vars (`AUTH_GOOGLE_*`, `AUTH_YANDEX_*`, `AUTH_VK_*`, `AUTH_KEYCLOAK_*`); the admin UI toggles them and shows the callback URLs.
+  - Custom OAuth 2 providers are rows of `SsoProvider` (protocol `oauth2`) passed to `genericOAuth`, which takes its providers when the instance is created. `createAuthHolder` (core/auth/holder.ts) therefore rebuilds the Better Auth instance when any process publishes the `auth` cache topic, and `auth` in the web app forwards to the current instance.
 - **Users without email** (children, bulk-created accounts).
   - Better Auth requires `email`. Store a placeholder `<username>@users.invalid` with `emailPlaceholder=true`.
   - Notifications skip email for these users, and the profile asks them to add a real address.

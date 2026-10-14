@@ -216,6 +216,7 @@ export async function saveSettingsAction(fd: FormData) {
           'auth.oauth.google': bool(fd.get('google')),
           'auth.oauth.yandex': bool(fd.get('yandex')),
           'auth.oauth.vk': bool(fd.get('vk')),
+          'auth.oauth.keycloak': bool(fd.get('keycloak')),
           'auth.require2faForAdmins': bool(fd.get('require2fa')),
         });
         break;

@@ -56,7 +56,13 @@ export default async function SsoProvidersPage({
                     {p.name}
                   </Link>
                 </Td>
-                <Td>{p.protocol === 'saml' ? 'SAML 2.0' : 'OpenID Connect'}</Td>
+                <Td>
+                  {p.protocol === 'saml'
+                    ? 'SAML 2.0'
+                    : p.protocol === 'oauth2'
+                      ? 'OAuth 2'
+                      : 'OpenID Connect'}
+                </Td>
                 <Td className="font-mono text-xs">{p.providerId}</Td>
                 <Td>
                   <Badge variant={p.enabled ? 'success' : 'warning'}>

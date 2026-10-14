@@ -1,17 +1,27 @@
 'use client';
 
+import type { BuiltInOAuth } from '@hubium/core/auth/auth';
 import { Button } from '@hubium/ui';
 import { useTranslations } from 'next-intl';
 import { authClient, safeNext } from '@/lib/auth-client';
+
+/** Every OAuth provider, built in or custom, signs in through the social endpoint. */
+function socialSignIn(provider: string, callbackURL: string) {
+  return authClient.signIn.social({
+    provider: provider as Parameters<typeof authClient.signIn.social>[0]['provider'],
+    callbackURL,
+    errorCallbackURL: '/login',
+  });
+}
 
 export function OAuthButtons({
   providers,
   sso = [],
   next,
 }: {
-  providers: ('google' | 'yandex' | 'vk')[];
-  /** Single sign-on providers from Administration → Single sign-on. */
-  sso?: { providerId: string; name: string }[];
+  providers: BuiltInOAuth[];
+  /** Single sign-on and custom OAuth 2 providers from Administration → Single sign-on. */
+  sso?: { providerId: string; name: string; protocol: string }[];
   next?: string;
 }) {
   const t = useTranslations('auth');
@@ -30,18 +40,7 @@ export function OAuthButtons({
             key={p}
             type="button"
             variant="outline"
-            onClick={() =>
-              p === 'yandex'
-                ? authClient
-                    .$fetch<{ url: string }>('/sign-in/oauth2', {
-                      method: 'POST',
-                      body: { providerId: 'yandex', callbackURL },
-                    })
-                    .then((r) => {
-                      if (r.data?.url) window.location.href = r.data.url;
-                    })
-                : authClient.signIn.social({ provider: p, callbackURL })
-            }
+            onClick={() => socialSignIn(p, callbackURL)}
           >
             {t(p)}
           </Button>
@@ -52,14 +51,16 @@ export function OAuthButtons({
             type="button"
             variant="outline"
             onClick={() =>
-              authClient
-                .$fetch<{ url: string }>('/sign-in/sso', {
-                  method: 'POST',
-                  body: { providerId: p.providerId, callbackURL, errorCallbackURL: '/login' },
-                })
-                .then((r) => {
-                  if (r.data?.url) window.location.href = r.data.url;
-                })
+              p.protocol === 'oauth2'
+                ? socialSignIn(p.providerId, callbackURL)
+                : authClient
+                    .$fetch<{ url: string }>('/sign-in/sso', {
+                      method: 'POST',
+                      body: { providerId: p.providerId, callbackURL, errorCallbackURL: '/login' },
+                    })
+                    .then((r) => {
+                      if (r.data?.url) window.location.href = r.data.url;
+                    })
             }
           >
             {p.name}

@@ -1,5 +1,6 @@
 'use client';
 
+import type { BuiltInOAuth } from '@hubium/core/auth/auth';
 import { Alert, Button, Checkbox, Field, Input } from '@hubium/ui';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
@@ -13,7 +14,7 @@ export function RegisterForm({
   consentText,
   passwordRules,
 }: {
-  providers: ('google' | 'yandex' | 'vk')[];
+  providers: BuiltInOAuth[];
   consentText: string;
   passwordRules: PasswordRules;
 }) {

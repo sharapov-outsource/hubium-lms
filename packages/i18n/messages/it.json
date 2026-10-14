@@ -188,7 +188,8 @@
     "ssoNoAccount": "Non esiste un account su questo sito per quell'account del provider. Contatta un amministratore.",
     "ssoNotLinked": "Esiste un account con questa email ma non è collegato al provider. Accedi con la password o contatta un amministratore.",
     "ssoDisabled": "Questo metodo di accesso è disattivato.",
-    "ssoFailed": "L'accesso tramite il provider non è riuscito. Riprova."
+    "ssoFailed": "L'accesso tramite il provider non è riuscito. Riprova.",
+    "keycloak": "Keycloak"
   },
   "dashboard": {
     "title": "Le diamo il benvenuto, {name}",
@@ -1873,6 +1874,11 @@
     "saved": "Provider salvato",
     "deleted": "Provider eliminato",
     "delete": "Elimina provider",
-    "deleteConfirm": "Eliminare \"{name}\"? Gli account restano, ma nessuno potrà accedere tramite questo provider."
+    "deleteConfirm": "Eliminare \"{name}\"? Gli account restano, ma nessuno potrà accedere tramite questo provider.",
+    "oauthHint": "Per servizi senza OpenID Connect (ad esempio GitHub): l'account deriva dalla risposta dell'indirizzo delle informazioni utente.",
+    "authorizationUrl": "URL di autorizzazione",
+    "tokenUrl": "URL del token",
+    "userInfoUrl": "URL delle informazioni utente",
+    "mappingHintOauth": "Nomi dei campi nella risposta delle informazioni utente. Lascia vuoto per il valore predefinito."
   }
 }

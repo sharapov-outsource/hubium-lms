@@ -1,5 +1,5 @@
 import { getAllSettings, roleName, siteLocale } from '@hubium/core';
-import { configuredOAuthProviders } from '@hubium/core/auth/auth';
+import { BUILT_IN_OAUTH, configuredOAuthProviders } from '@hubium/core/auth/auth';
 import { languageInfo } from '@hubium/i18n/packs';
 import { Badge, Card, CardContent, Checkbox, Select, Textarea } from '@hubium/ui';
 import Link from 'next/link';
@@ -12,6 +12,13 @@ import { requireCapability } from '@/server/session';
 import { BrandingForm } from './branding-form';
 import { SectionNav } from './section-nav';
 import { TestEmailButton } from './test-email';
+
+const OAUTH_LABELS = {
+  google: 'Google',
+  yandex: 'Яндекс ID',
+  vk: 'VK ID',
+  keycloak: 'Keycloak',
+} as const;
 
 const SECTIONS = [
   'general',
@@ -121,17 +128,13 @@ export default async function SettingsSectionPage({
       body = (
         <Form section="authentication" save={tc('save')} saved={tc('saved')}>
           <p className="text-sm text-muted-foreground">{t('settings.oauthHint')}</p>
-          {(['google', 'yandex', 'vk'] as const).map((p) => (
+          {BUILT_IN_OAUTH.map((p) => (
             <div key={p} className="grid gap-1 rounded-lg border border-border p-3">
-              <Toggle
-                name={p}
-                label={p === 'google' ? 'Google' : p === 'yandex' ? 'Яндекс ID' : 'VK ID'}
-                checked={s[`auth.oauth.${p}`]}
-              />
+              <Toggle name={p} label={OAUTH_LABELS[p]} checked={s[`auth.oauth.${p}`]} />
               <p className="text-xs text-muted-foreground">
                 {t('settings.callbackUrl')}:{' '}
-                <code className="select-all">
-                  {appUrl}/api/auth/{p === 'yandex' ? 'oauth2/callback/yandex' : `callback/${p}`}
+                <code className="select-all break-all">
+                  {appUrl}/api/auth/callback/{p}
                 </code>
               </p>
               {!configured.includes(p) ? (
