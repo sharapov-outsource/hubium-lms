@@ -696,7 +696,9 @@
     "progress": "{percent}% complete",
     "notEnrolled": "You are not enrolled in this course",
     "hiddenCourse": "Hidden from students",
-    "stealthBadge": "Link only"
+    "stealthBadge": "Link only",
+    "reset": "Reset the course",
+    "resetHint": "Get the course ready for a new intake: remove work and grades, unenrol students, move the dates."
   },
   "activity": {
     "new": "New {module}",
@@ -1992,5 +1994,28 @@
     "done": "Import done",
     "problems": "Lines with problems",
     "lineProblem": "Line {line} ({target}, {user})"
+  },
+  "courseReset": {
+    "title": "Course reset",
+    "description": "The course, its activities and settings stay. Only what is ticked goes.",
+    "dates": "Dates",
+    "startDate": "New course start date",
+    "startDateHint": "Every date in the course (activity deadlines, access rules, events) moves by the same difference.",
+    "learnersData": "Learners' data",
+    "moduleData": "{name}: work, attempts and posts ({count} activities)",
+    "grades": "All gradebook grades ({count})",
+    "completion": "Completion records ({count})",
+    "people": "People and groups",
+    "unenrol": "Unenrol: {role} ({count})",
+    "groupMembers": "Remove everyone from groups",
+    "groups": "Delete groups ({count})",
+    "groupings": "Delete groupings",
+    "other": "Other",
+    "events": "Course calendar events ({count})",
+    "announcements": "Course announcements ({count})",
+    "submit": "Reset the course",
+    "confirmTitle": "Reset the course?",
+    "confirm": "The ticked data will be deleted. This cannot be undone; make a backup first if you need one.",
+    "done": "Course reset: {activities} activities cleared, {grades} grades deleted, {unenrolled} unenrolled, dates moved by {days} days."
   }
 }

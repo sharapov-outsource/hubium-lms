@@ -157,6 +157,12 @@ export const livesession = defineModule<LiveSettingsT>({
   archetype: 'activity',
   icon: 'Presentation',
   supports: { viewCompletion: true, backup: true },
+  // recordings are course material and stay
+  reset: {
+    async userData(ctx, a) {
+      await ctx.db.liveAttendance.deleteMany({ where: { activityId: a.id } });
+    },
+  },
   privacy: {
     async export(ctx, userId) {
       return ctx.db.liveAttendance.findMany({

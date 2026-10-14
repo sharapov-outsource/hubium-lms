@@ -30,6 +30,7 @@ import {
   overrideCompletion,
   purgeActivity,
   removeEnrolmentMethod,
+  resetCourse,
   restoreActivity,
   restoreCourse,
   searchEnrollableUsers,
@@ -662,6 +663,29 @@ export async function autoGroupsAction(fd: FormData) {
       grouping: v.grouping ?? '',
     });
     revalidatePath(`/course/${v.courseId}/groups`);
+    return r;
+  });
+}
+
+/** Course → Reset. */
+export async function resetCourseAction(courseId: string, fd: FormData) {
+  return runAction(async () => {
+    const on = (k: string) => fd.get(k) === 'on';
+    const start = String(fd.get('startDate') ?? '');
+    const r = await resetCourse.run(await getContext(), {
+      courseId,
+      startDate: start || undefined,
+      activityData: fd.getAll('activityData').map(String),
+      unenrolRoleIds: fd.getAll('unenrolRoleIds').map(String),
+      grades: on('grades'),
+      completion: on('completion'),
+      groupMembers: on('groupMembers'),
+      groups: on('groups'),
+      groupings: on('groupings'),
+      events: on('events'),
+      announcements: on('announcements'),
+    });
+    revalidatePath(`/course/${courseId}`, 'layout');
     return r;
   });
 }

@@ -695,7 +695,9 @@
     "progress": "Completato al {percent}%",
     "notEnrolled": "Nessuna iscrizione a questo corso",
     "hiddenCourse": "Nascosto agli studenti",
-    "stealthBadge": "Solo tramite link"
+    "stealthBadge": "Solo tramite link",
+    "reset": "Reimposta il corso",
+    "resetHint": "Preparare il corso per un nuovo gruppo: eliminare lavori e voti, disiscrivere gli studenti, spostare le date."
   },
   "activity": {
     "new": "Nuova attività: {module}",
@@ -1991,5 +1993,28 @@
     "done": "Importazione completata",
     "problems": "Righe con errori",
     "lineProblem": "Riga {line} ({target}, {user})"
+  },
+  "courseReset": {
+    "title": "Reimpostazione del corso",
+    "description": "Il corso, le attività e le impostazioni restano. Si elimina solo ciò che è spuntato.",
+    "dates": "Date",
+    "startDate": "Nuova data di inizio",
+    "startDateHint": "Tutte le date del corso (scadenze, restrizioni di accesso, eventi) si spostano della stessa differenza.",
+    "learnersData": "Dati degli studenti",
+    "moduleData": "{name}: lavori, tentativi e messaggi ({count} attività)",
+    "grades": "Tutti i voti del registro ({count})",
+    "completion": "Completamenti ({count})",
+    "people": "Partecipanti e gruppi",
+    "unenrol": "Disiscrivi: {role} ({count})",
+    "groupMembers": "Rimuovi tutti dai gruppi",
+    "groups": "Elimina i gruppi ({count})",
+    "groupings": "Elimina i raggruppamenti",
+    "other": "Altro",
+    "events": "Eventi del calendario del corso ({count})",
+    "announcements": "Annunci del corso ({count})",
+    "submit": "Reimposta il corso",
+    "confirmTitle": "Reimpostare il corso?",
+    "confirm": "I dati spuntati verranno eliminati. Non si può annullare; se serve, fai prima un backup.",
+    "done": "Corso reimpostato: {activities} attività svuotate, {grades} voti eliminati, {unenrolled} disiscritti, date spostate di {days} giorni."
   }
 }

@@ -443,6 +443,18 @@ export const assign = defineModule<AssignSettingsT>({
   archetype: 'activity',
   icon: 'ClipboardCheck',
   supports: { grading: true, groups: true, viewCompletion: true, backup: true },
+  reset: {
+    async userData(ctx, a) {
+      const where = { activityId: a.id };
+      // team members' "submitted" marks go with the submissions
+      await ctx.db.assignSubmission.deleteMany({ where });
+      await ctx.db.assignGrade.deleteMany({ where });
+      await ctx.db.assignOverride.deleteMany({ where });
+      await ctx.db.assignUserFlags.deleteMany({ where });
+      await ctx.db.assignParticipant.deleteMany({ where });
+      await ctx.db.assignState.deleteMany({ where });
+    },
+  },
   privacy: {
     async export(ctx, uid) {
       const groups = await ctx.db.groupMember.findMany({

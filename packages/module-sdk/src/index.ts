@@ -358,6 +358,12 @@ export interface ActivityModule<S = Record<string, unknown>> {
     export?(ctx: ModuleCtx, userId: string): Promise<unknown>;
     erase?(ctx: ModuleCtx, userId: string): Promise<void>;
   };
+  /**
+   * Course reset: drops learners' work in the activity (attempts, submissions, posts,
+   * overrides) and keeps the activity itself. Grades, completion and files in
+   * `backup.userFileAreas` are cleared by core; dates in settings are shifted by core.
+   */
+  reset?: { userData(ctx: ModuleCtx, a: ActivityRef<S>): Promise<void> };
   /** Notification types; labels come from `mod.<key>.notify.<name>` messages. */
   notifications?: Record<string, NotificationTypeDef>;
   /** Who may read files in each file area (besides users who can manage the course). */

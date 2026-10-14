@@ -695,7 +695,9 @@
     "progress": "{percent} % achevé",
     "notEnrolled": "Vous n’êtes pas inscrit à ce cours",
     "hiddenCourse": "Caché aux étudiants",
-    "stealthBadge": "Accessible par lien"
+    "stealthBadge": "Accessible par lien",
+    "reset": "Réinitialiser le cours",
+    "resetHint": "Préparer le cours pour une nouvelle promotion : supprimer travaux et notes, désinscrire les étudiants, décaler les dates."
   },
   "activity": {
     "new": "Nouvel élément : {module}",
@@ -1991,5 +1993,28 @@
     "done": "Import terminé",
     "problems": "Lignes en erreur",
     "lineProblem": "Ligne {line} ({target}, {user})"
+  },
+  "courseReset": {
+    "title": "Réinitialisation du cours",
+    "description": "Le cours, ses activités et réglages restent. Seul ce qui est coché est supprimé.",
+    "dates": "Dates",
+    "startDate": "Nouvelle date de début",
+    "startDateHint": "Toutes les dates du cours (échéances, restrictions d'accès, événements) sont décalées d'autant.",
+    "learnersData": "Données des apprenants",
+    "moduleData": "{name} : travaux, tentatives et messages ({count} activités)",
+    "grades": "Toutes les notes du carnet ({count})",
+    "completion": "Achèvements ({count})",
+    "people": "Participants et groupes",
+    "unenrol": "Désinscrire : {role} ({count})",
+    "groupMembers": "Retirer tout le monde des groupes",
+    "groups": "Supprimer les groupes ({count})",
+    "groupings": "Supprimer les groupements",
+    "other": "Autre",
+    "events": "Événements du calendrier du cours ({count})",
+    "announcements": "Annonces du cours ({count})",
+    "submit": "Réinitialiser le cours",
+    "confirmTitle": "Réinitialiser le cours ?",
+    "confirm": "Les données cochées seront supprimées. C'est irréversible ; faites d'abord une sauvegarde si nécessaire.",
+    "done": "Cours réinitialisé : {activities} activités vidées, {grades} notes supprimées, {unenrolled} désinscrits, dates décalées de {days} jours."
   }
 }

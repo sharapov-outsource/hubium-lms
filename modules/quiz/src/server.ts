@@ -1105,6 +1105,12 @@ export const quiz = defineModule<QuizSettingsT>({
   archetype: 'activity',
   icon: 'ListChecks',
   supports: { grading: true, groups: true, viewCompletion: true, backup: true },
+  reset: {
+    async userData(ctx, a) {
+      await ctx.db.quizAttempt.deleteMany({ where: { activityId: a.id } });
+      await ctx.db.quizOverride.deleteMany({ where: { activityId: a.id } });
+    },
+  },
   ai: {
     // Questions never reach the tutor, and the tutor is off while an attempt is open.
     tutorPolicy: 'exclude-while-open',

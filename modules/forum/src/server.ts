@@ -656,6 +656,14 @@ export const forum = defineModule<ForumSettingsT>({
   archetype: 'activity',
   icon: 'MessagesSquare',
   supports: { grading: true, groups: true, viewCompletion: true, backup: true },
+  reset: {
+    // discussions take their posts, ratings, subscriptions and read states with them
+    async userData(ctx, a) {
+      await ctx.db.forumDiscussion.deleteMany({ where: { activityId: a.id } });
+      await ctx.db.forumSubscription.deleteMany({ where: { activityId: a.id } });
+      await ctx.db.forumGrade.deleteMany({ where: { activityId: a.id } });
+    },
+  },
   privacy: {
     async export(ctx, userId) {
       const [posts, ratingsGiven, grades] = await Promise.all([

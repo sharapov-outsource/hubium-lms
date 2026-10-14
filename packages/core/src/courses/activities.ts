@@ -136,7 +136,8 @@ function validateAvailability(raw: unknown): Prisma.InputJsonValue | typeof Pris
   return r.data.c.length ? (r.data as unknown as Prisma.InputJsonValue) : Prisma.DbNull;
 }
 
-async function syncCalendar(tx: Prisma.TransactionClient, a: Activity): Promise<void> {
+/** The calendar events an activity's module declares, kept in step with its settings. */
+export async function syncCalendar(tx: Prisma.TransactionClient, a: Activity): Promise<void> {
   const m = requireModule(a.moduleKey);
   const specs = m.calendar?.events(toActivityRef(a)) ?? [];
   const kinds = specs.map((s) => s.kind);

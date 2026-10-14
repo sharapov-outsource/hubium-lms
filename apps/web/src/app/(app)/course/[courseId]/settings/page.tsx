@@ -5,7 +5,8 @@ import {
   getCourseAccess,
   resolveFeature,
 } from '@hubium/core';
-import { Card, CardContent } from '@hubium/ui';
+import { Button, Card, CardContent } from '@hubium/ui';
+import Link from 'next/link';
 import { forbidden } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { CommandButton } from '@/components/confirm-button';
@@ -38,6 +39,7 @@ export default async function CourseSettingsPage({
   const t = await getTranslations('course');
   const canDelete = await ctx.perm.can('course:delete', courseId);
   const canBackup = await ctx.perm.can('backup:create', courseId);
+  const canReset = await ctx.perm.can('course:reset', courseId);
   const restoreCats = canBackup ? await categoriesWhereCan(ctx, 'restore:course') : [];
   const dupCats = restoreCats.filter((x) => cats.some((y) => y.id === x.id));
   // AI features enabled site-wide can be switched off per course.
@@ -90,6 +92,16 @@ export default async function CourseSettingsPage({
           categories={dupCats.map((x) => ({ id: x.id, name: x.name, depth: x.depth }))}
           canDuplicate={dupCats.length > 0}
         />
+      ) : null}
+      {canReset ? (
+        <Card className="max-w-3xl">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-5">
+            <span className="text-sm">{t('resetHint')}</span>
+            <Button asChild variant="outline">
+              <Link href={`/course/${courseId}/reset`}>{t('reset')}</Link>
+            </Button>
+          </CardContent>
+        </Card>
       ) : null}
       {canDelete ? (
         <Card className="max-w-3xl border-destructive/40">

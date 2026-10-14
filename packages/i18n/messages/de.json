@@ -695,7 +695,9 @@
     "progress": "{percent}% abgeschlossen",
     "notEnrolled": "Sie sind nicht in diesen Kurs eingeschrieben",
     "hiddenCourse": "Für Teilnehmer/innen verborgen",
-    "stealthBadge": "Nur per Link"
+    "stealthBadge": "Nur per Link",
+    "reset": "Kurs zurücksetzen",
+    "resetHint": "Den Kurs für einen neuen Durchgang vorbereiten: Arbeiten und Bewertungen löschen, Studierende austragen, Termine verschieben."
   },
   "activity": {
     "new": "{module} hinzufügen",
@@ -1991,5 +1993,28 @@
     "done": "Import abgeschlossen",
     "problems": "Fehlerhafte Zeilen",
     "lineProblem": "Zeile {line} ({target}, {user})"
+  },
+  "courseReset": {
+    "title": "Kurs zurücksetzen",
+    "description": "Kurs, Aktivitäten und Einstellungen bleiben. Nur das Angekreuzte wird gelöscht.",
+    "dates": "Termine",
+    "startDate": "Neues Startdatum",
+    "startDateHint": "Alle Termine im Kurs (Fristen, Zugangsregeln, Ereignisse) verschieben sich um denselben Abstand.",
+    "learnersData": "Daten der Lernenden",
+    "moduleData": "{name}: Arbeiten, Versuche und Beiträge ({count} Aktivitäten)",
+    "grades": "Alle Bewertungen ({count})",
+    "completion": "Abschlüsse ({count})",
+    "people": "Teilnehmende und Gruppen",
+    "unenrol": "Austragen: {role} ({count})",
+    "groupMembers": "Alle aus den Gruppen entfernen",
+    "groups": "Gruppen löschen ({count})",
+    "groupings": "Gruppierungen löschen",
+    "other": "Sonstiges",
+    "events": "Kalenderereignisse des Kurses ({count})",
+    "announcements": "Kursankündigungen ({count})",
+    "submit": "Kurs zurücksetzen",
+    "confirmTitle": "Kurs zurücksetzen?",
+    "confirm": "Die angekreuzten Daten werden gelöscht. Das lässt sich nicht rückgängig machen; legen Sie bei Bedarf zuerst eine Sicherung an.",
+    "done": "Kurs zurückgesetzt: {activities} Aktivitäten geleert, {grades} Bewertungen gelöscht, {unenrolled} ausgetragen, Termine um {days} Tage verschoben."
   }
 }

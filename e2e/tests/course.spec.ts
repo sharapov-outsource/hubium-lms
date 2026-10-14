@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { deleteCourse, sql } from './db';
-import { chooseOption, DEMO_PASSWORD, expectAccessible, login, pickDateTime } from './helpers';
+import {
+  ADMIN,
+  chooseOption,
+  DEMO_PASSWORD,
+  expectAccessible,
+  login,
+  pickDateTime,
+} from './helpers';
 
 const stamp = `${Date.now().toString(36).slice(-5)}${Math.random().toString(36).slice(2, 5)}`;
 const shortName = `E2E-${stamp}`;
@@ -214,5 +221,36 @@ test('teacher puts groups into a grouping', async ({ page }) => {
   } finally {
     await sql(`DELETE FROM "Grouping" WHERE "courseId" = $1 AND name = $2`, [c!.id, grouping]);
     await sql(`DELETE FROM "Group" WHERE "courseId" = $1 AND name = $2`, [c!.id, group]);
+  }
+});
+
+test('course reset moves the dates and clears what is ticked', async ({ page }) => {
+  const resetName = `RESET-${stamp}`;
+  let courseId = '';
+  try {
+    await login(page, ADMIN.login, ADMIN.password);
+    await page.goto('/course/new');
+    await page.locator('#f-fullName').fill(`Сброс ${stamp}`);
+    await page.locator('#f-shortName').fill(resetName);
+    await page.getByRole('button', { name: 'Создать', exact: true }).click();
+    await page.waitForURL(/\/course\/[0-9a-f-]{36}/);
+    courseId = new URL(page.url()).pathname.split('/')[2]!;
+    await sql(`UPDATE "Course" SET "startDate" = '2026-09-01T06:00:00Z' WHERE id = $1`, [courseId]);
+
+    await page.goto(`/course/${courseId}/settings`);
+    await page.getByRole('link', { name: 'Сбросить курс' }).click();
+    await page.waitForURL(/\/reset$/);
+    await expectAccessible(page);
+    await page.getByLabel('Новая дата начала курса').fill('2027-02-01');
+    await page.getByLabel(/Все оценки журнала/).check();
+    await page.getByRole('button', { name: 'Сбросить курс' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Сбросить курс' }).click();
+    await expect(page.getByText(/Курс сброшен: .* даты сдвинуты на 153 дн\./)).toBeVisible();
+    const [c] = await sql<{ startDate: Date }>(`SELECT "startDate" FROM "Course" WHERE id = $1`, [
+      courseId,
+    ]);
+    expect(c!.startDate.toISOString()).toBe('2027-02-01T06:00:00.000Z');
+  } finally {
+    if (courseId) await deleteCourse(courseId);
   }
 });

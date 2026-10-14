@@ -18,6 +18,7 @@ export * from './courses/activities.ts';
 export * from './courses/availability.ts';
 export * from './courses/categories.ts';
 export * from './courses/courses.ts';
+export * from './courses/reset.ts';
 export * from './crypto.ts';
 export * from './dashboard/todo.ts';
 export * from './enrol/enrol.ts';

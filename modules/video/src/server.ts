@@ -301,6 +301,11 @@ export const video = defineModule<VideoSettingsT>({
   archetype: 'activity',
   icon: 'PlaySquare',
   supports: { viewCompletion: true, backup: true },
+  reset: {
+    async userData(ctx, a) {
+      await ctx.db.videoProgress.deleteMany({ where: { activityId: a.id } });
+    },
+  },
   privacy: {
     async export(ctx, userId) {
       return ctx.db.videoProgress.findMany({
