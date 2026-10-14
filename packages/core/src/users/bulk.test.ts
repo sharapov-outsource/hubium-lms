@@ -50,13 +50,16 @@ describe('bulk user actions', () => {
   it('runs large selections in the background and notifies when done', async () => {
     const ctx = await ctxFor(t.db, 'admin@test.local');
     capturedJobs.length = 0;
-    for (let i = 3; i < 101; i++)
-      await createUserRecord(t.db, {
-        username: `bulk${i}`,
+    // straight into the table: hashing 98 passwords takes longer than the test may
+    await t.db.user.createMany({
+      data: Array.from({ length: 98 }, (_, k) => ({
+        email: `bulk${k + 3}@bulk.invalid`,
+        username: `bulk${k + 3}`,
+        name: `Bulk User${k + 3}`,
         firstName: 'Bulk',
-        lastName: `User${i}`,
-        password: 'Bulk-pass-1',
-      });
+        lastName: `User${k + 3}`,
+      })),
+    });
     const r = await startBulkUserAction.run(ctx, {
       selection: { filter: { q: 'bulk' } },
       action: { kind: 'unlock' },
