@@ -70,8 +70,8 @@ describe('question behaviours', () => {
       'interactive',
     );
     expect(out).toMatchObject({ state: 'COMPLETE', fraction: 0, tries: 3 });
-    // finishing while a wrong try waits counts it as the last one
-    expect(replay(q, [check('5'), { kind: 'FINISH' }], 'interactive').fraction).toBe(0.5);
+    // finishing while a wrong try waits: that try costs the penalty too (as Moodle)
+    expect(replay(q, [check('5'), { kind: 'FINISH' }], 'interactive').fraction).toBeCloseTo(0.2);
     // an unchecked answer after a wrong try is the next try
     const next = replay(
       q,
@@ -123,6 +123,46 @@ describe('question behaviours', () => {
     // single answers are simply cleared when wrong
     expect(clearWrongParts(numerical(0), { text: '3' })).toEqual({});
     expect(clearWrongParts(numerical(0), { text: '4' })).toEqual({ text: '4' });
+  });
+
+  it('interactive countback: each part loses the penalty for the tries it was wrong in', () => {
+    const match: QuestionSnapshot = {
+      id: 'q4',
+      type: 'MATCH',
+      name: 'm',
+      text: '',
+      generalFeedback: '',
+      defaultMark: 1,
+      data: MatchData.parse({
+        pairs: [
+          { id: 'p1', question: '1', answer: 'один' },
+          { id: 'p2', question: '2', answer: 'два' },
+        ],
+      }),
+      penalty: 0.3,
+      hints: [{ text: 'Ещё', clearWrong: false, showNumCorrect: false }],
+    };
+    const half = { kind: 'CHECK' as const, response: { choices: { p1: 'один', p2: 'один' } } };
+    const all = { kind: 'CHECK' as const, response: { choices: { p1: 'один', p2: 'два' } } };
+    // p1 right throughout: 1; p2 wrong once: 0.7 → 0.85 (not 1 − 0.3)
+    expect(replay(match, [half, { kind: 'TRYAGAIN' }, all], 'interactive').fraction).toBeCloseTo(
+      0.85,
+    );
+    // out of tries with p2 still wrong: p1 only
+    expect(replay(match, [half, { kind: 'TRYAGAIN' }, half], 'interactive').fraction).toBe(0.5);
+    // finished after a wrong check: the parts right then
+    expect(replay(match, [half, { kind: 'FINISH' }], 'interactive').fraction).toBe(0.5);
+    // fixed after "try again" but never checked: counts as one more try
+    const saved = { kind: 'SAVE' as const, response: all.response };
+    expect(
+      replay(match, [half, { kind: 'TRYAGAIN' }, saved, { kind: 'FINISH' }], 'interactive')
+        .fraction,
+    ).toBeCloseTo(0.85);
+    // no checks at all: the parts right
+    expect(
+      replay(match, [{ kind: 'SAVE', response: half.response }, { kind: 'FINISH' }], 'interactive')
+        .fraction,
+    ).toBe(0.5);
   });
 
   it('essays always defer to the teacher', () => {

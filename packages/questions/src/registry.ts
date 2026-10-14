@@ -72,6 +72,12 @@ export interface QuestionTypeDef<T extends QuestionType> {
    * it a wrong response is cleared entirely.
    */
   clearWrong?(q: QuestionView<T>, r: ResponseOf<T>): ResponseOf<T>;
+  /**
+   * Which parts of a response are right. Types with it are graded part by part in the
+   * interactive behaviour (Moodle's "countback"): each part loses the penalty for every
+   * try it was wrong in, rather than the whole question for every wrong try.
+   */
+  rightParts?(q: QuestionView<T>, r: ResponseOf<T>): boolean[];
 }
 
 export type QuestionTypeDefs = { [K in QuestionType]: QuestionTypeDef<K> };

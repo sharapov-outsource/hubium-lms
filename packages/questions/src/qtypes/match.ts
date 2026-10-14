@@ -40,6 +40,7 @@ export const match: QuestionTypeDef<'MATCH'> = {
     right: q.data.pairs.filter((p) => r.choices[p.id] === p.answer).length,
     total: q.data.pairs.length,
   }),
+  rightParts: (q, r) => q.data.pairs.map((p) => r.choices[p.id] === p.answer),
   clearWrong: (q, r) => ({
     choices: Object.fromEntries(
       q.data.pairs.filter((p) => r.choices[p.id] === p.answer).map((p) => [p.id, p.answer]),

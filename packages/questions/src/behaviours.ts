@@ -7,7 +7,10 @@ import { type Hint, type QuestionSnapshot, ResponseSchemas } from './types.ts';
 //   deferred     answers are graded when the attempt is finished
 //   immediate    each question can be checked once; checking grades and locks it
 //   interactive  checking a wrong answer shows the next hint and costs `penalty` of the
-//                mark; the learner tries again until right or out of tries (hints + 1)
+//                mark; the learner tries again until right or out of tries (hints + 1).
+//                Types made of parts (rightParts) are graded part by part instead, each
+//                part losing the penalty for the tries it was wrong in (Moodle's
+//                "interactive with countback").
 // The steps of a question are replayed to get its state and grade, so finishing,
 // manual grading and regrading all compute the same way. Questions graded by hand
 // (essays) always behave as deferred.
@@ -83,11 +86,35 @@ export function clearWrongParts(q: Replayable, response: unknown): unknown {
   return (gradeResponse(q, response).fraction ?? 0) >= RIGHT ? response : {};
 }
 
+/**
+ * Countback: each part scores 1 less the penalty for every try up to the last one it was
+ * wrong in, if it is right in the end; the grade is the average over the parts.
+ */
+function countback(q: Replayable, responses: unknown[], penalty: number): number | null {
+  const def = typeDef(q.type);
+  if (!def.rightParts || !responses.length) return null;
+  const parts = responses.map((r) => {
+    const parsed = ResponseSchemas[q.type].safeParse(r ?? {});
+    return parsed.success ? def.rightParts!(q as QuestionView, parsed.data as never) : [];
+  });
+  const total = Math.max(...parts.map((p) => p.length));
+  if (!total) return 0;
+  let score = 0;
+  for (let k = 0; k < total; k++) {
+    let lastWrong = -1;
+    for (const [i, p] of parts.entries()) if (!p[k]) lastWrong = i;
+    if (lastWrong < parts.length - 1) score += Math.max(0, 1 - (lastWrong + 1) * penalty);
+  }
+  return score / total;
+}
+
 export function replay(q: Replayable, steps: Step[], behaviour: Behaviour): Outcome {
   const b = behaviourOf(q, behaviour);
   const hints = q.hints ?? [];
   const penalty = q.penalty ?? 0;
   const tryLimit = maxTries(q, b);
+  // the responses of the checks, for countback
+  const checked: unknown[] = [];
   const out: Outcome = {
     fraction: null,
     rawFraction: null,
@@ -110,13 +137,17 @@ export function replay(q: Replayable, steps: Step[], behaviour: Behaviour): Outc
         if (b === 'deferred' || out.state !== 'TODO') break;
         if (s.response !== undefined) out.response = s.response;
         out.tries++;
+        checked.push(out.response);
         const r = gradeResponse(q, out.response);
         const raw = r.fraction ?? 0;
         out.rawFraction = raw;
         out.feedback = r.feedback;
         if (b === 'immediate' || raw >= RIGHT || out.tries >= tryLimit) {
           out.state = 'COMPLETE';
-          out.fraction = b === 'interactive' ? Math.max(0, raw - penalty * (out.tries - 1)) : raw;
+          out.fraction =
+            b === 'interactive'
+              ? (countback(q, checked, penalty) ?? Math.max(0, raw - penalty * (out.tries - 1)))
+              : raw;
           out.hint = null;
           out.numCorrect = null;
         } else {
@@ -140,13 +171,14 @@ export function replay(q: Replayable, steps: Step[], behaviour: Behaviour): Outc
         out.rawFraction = r.fraction;
         out.feedback = r.feedback;
         out.needsGrading = r.needsGrading;
-        // a pending wrong try counts as the last one; an unchecked answer as the next one
-        const used = out.state === 'TRYAGAIN' ? out.tries - 1 : out.tries;
+        // As Moodle: every check so far was wrong and costs the penalty. The answer as it
+        // stands is graded, and counts as one more response unless it waits for a new try.
+        const responses = out.state === 'TODO' ? [...checked, out.response] : checked;
         out.fraction =
           r.fraction === null
             ? null
             : b === 'interactive'
-              ? Math.max(0, r.fraction - penalty * used)
+              ? (countback(q, responses, penalty) ?? Math.max(0, r.fraction - penalty * out.tries))
               : r.fraction;
         out.state = 'COMPLETE';
         out.hint = null;
