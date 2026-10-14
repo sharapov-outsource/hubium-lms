@@ -147,7 +147,7 @@ Every release is published three ways:
 ### Quick start
 
 ```bash
-curl -fsSLO https://github.com/sharapov-outsource/hubium/releases/latest/download/install-hubium.sh
+curl -fsSLO https://github.com/sharapov-outsource/hubium-lms/releases/latest/download/install-hubium.sh
 sudo bash install-hubium.sh
 ```
 

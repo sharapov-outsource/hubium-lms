@@ -6,4 +6,4 @@ We acknowledge reports within three working days and aim to release a fix within
 
 See [docs/security.md](docs/security.md) for the protections built into Hubium.
 
-Release files are listed with their checksums in `SHA256SUMS`, and the archives carry signed build provenance: `gh attestation verify <archive> --repo sharapov-outsource/hubium` ([docs/releasing.md](docs/releasing.md)).
+Release files are listed with their checksums in `SHA256SUMS`, and the archives carry signed build provenance: `gh attestation verify <archive> --repo sharapov-outsource/hubium-lms` ([docs/releasing.md](docs/releasing.md)).
