@@ -210,6 +210,17 @@ export async function saveSettingsAction(fd: FormData) {
           'auth.require2faForAdmins': bool(fd.get('require2fa')),
         });
         break;
+      case 'security':
+        Object.assign(values, {
+          'password.minLength': v.minLength,
+          'password.requireDigit': bool(fd.get('requireDigit')),
+          'password.requireLower': bool(fd.get('requireLower')),
+          'password.requireUpper': bool(fd.get('requireUpper')),
+          'password.requireSymbol': bool(fd.get('requireSymbol')),
+          'password.history': v.history,
+          'password.maxAgeDays': v.maxAgeDays,
+        });
+        break;
       case 'email':
         Object.assign(values, { 'email.fromName': v.fromName });
         break;

@@ -1,12 +1,14 @@
 'use server';
 
 import {
+  assertPasswordAllowed,
   listProfileFields,
   profileValuesFromForm,
   ValidationError,
   validateProfileValues,
   writeProfileValues,
 } from '@hubium/core';
+import { APIError } from 'better-auth/api';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { z } from 'zod';
@@ -70,10 +72,12 @@ export async function changeEmailAction(fd: FormData) {
 
 export async function changePasswordAction(fd: FormData) {
   return runAction(async () => {
-    await requireUser();
+    const user = await requireUser();
     const v = formToObject(fd);
-    if ((v.newPassword ?? '').length < 8)
-      throw new ValidationError({ newPassword: ['At least 8 characters'] });
+    await assertPasswordAllowed(db, v.newPassword ?? '', {
+      userId: user.id,
+      field: 'newPassword',
+    });
     if (v.newPassword !== v.newPassword2)
       throw new ValidationError({ newPassword2: ['Passwords do not match'] });
     try {
@@ -85,11 +89,12 @@ export async function changePasswordAction(fd: FormData) {
         },
         headers: await headers(),
       });
-    } catch {
+    } catch (e) {
+      if (e instanceof APIError && e.body?.code === 'PASSWORD_POLICY') throw e;
       throw new ValidationError({ currentPassword: ['Invalid password'] });
     }
     await db.user.update({
-      where: { id: (await requireUser()).id },
+      where: { id: user.id },
       data: { mustChangePassword: false },
     });
     return null;

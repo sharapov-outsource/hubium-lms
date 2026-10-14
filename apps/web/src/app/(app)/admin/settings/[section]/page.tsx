@@ -13,7 +13,14 @@ import { BrandingForm } from './branding-form';
 import { SectionNav } from './section-nav';
 import { TestEmailButton } from './test-email';
 
-const SECTIONS = ['general', 'branding', 'registration', 'authentication', 'email'] as const;
+const SECTIONS = [
+  'general',
+  'branding',
+  'registration',
+  'authentication',
+  'security',
+  'email',
+] as const;
 type Section = (typeof SECTIONS)[number];
 
 export async function generateMetadata({ params }: { params: Promise<{ section: string }> }) {
@@ -138,6 +145,59 @@ export default async function SettingsSectionPage({
             name="require2fa"
             label={t('settings.require2fa')}
             checked={s['auth.require2faForAdmins']}
+          />
+        </Form>
+      );
+      break;
+    case 'security':
+      body = (
+        <Form section="security" save={tc('save')} saved={tc('saved')}>
+          <h2 className="font-semibold">{t('settings.passwordPolicy')}</h2>
+          <FormField
+            name="minLength"
+            type="number"
+            min={8}
+            max={128}
+            label={t('settings.passwordMinLength')}
+            defaultValue={s['password.minLength']}
+          />
+          <Toggle
+            name="requireDigit"
+            label={t('settings.passwordRequireDigit')}
+            checked={s['password.requireDigit']}
+          />
+          <Toggle
+            name="requireLower"
+            label={t('settings.passwordRequireLower')}
+            checked={s['password.requireLower']}
+          />
+          <Toggle
+            name="requireUpper"
+            label={t('settings.passwordRequireUpper')}
+            checked={s['password.requireUpper']}
+          />
+          <Toggle
+            name="requireSymbol"
+            label={t('settings.passwordRequireSymbol')}
+            checked={s['password.requireSymbol']}
+          />
+          <FormField
+            name="history"
+            type="number"
+            min={0}
+            max={20}
+            label={t('settings.passwordHistory')}
+            hint={t('settings.passwordHistoryHint')}
+            defaultValue={s['password.history']}
+          />
+          <FormField
+            name="maxAgeDays"
+            type="number"
+            min={0}
+            max={3650}
+            label={t('settings.passwordMaxAge')}
+            hint={t('settings.passwordMaxAgeHint')}
+            defaultValue={s['password.maxAgeDays']}
           />
         </Form>
       );

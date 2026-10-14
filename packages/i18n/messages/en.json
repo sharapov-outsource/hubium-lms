@@ -139,7 +139,6 @@
     "resetTitle": "New password",
     "resetDone": "Password changed. You can sign in now.",
     "resetInvalid": "The link is invalid or expired",
-    "passwordHint": "At least 8 characters",
     "passwordsMismatch": "Passwords do not match",
     "repeatPassword": "Repeat password",
     "twoFactorTitle": "Two-factor check",
@@ -154,7 +153,16 @@
     "verifiedTitle": "Email verified",
     "verifyEmailTitle": "Email verification",
     "backToSignIn": "Back to sign in",
-    "tooManyAttempts": "Too many sign-in attempts. Wait a minute and try again."
+    "tooManyAttempts": "Too many sign-in attempts. Wait a minute and try again.",
+    "passwordRules": {
+      "minLength": "At least {n} characters",
+      "needs": "must include: {list}",
+      "digit": "a digit",
+      "lower": "a lowercase letter",
+      "upper": "an uppercase letter",
+      "symbol": "a symbol such as ! or %",
+      "history": "not one of your last {n} passwords"
+    }
   },
   "dashboard": {
     "title": "Welcome, {name}",
@@ -206,7 +214,8 @@
     "privacy": "Privacy",
     "requiredPassword": "An administrator set a temporary password for you. Choose a new one to continue.",
     "required2fa": "Site administrators must turn on two-factor authentication to continue.",
-    "timezoneDefault": "Site default"
+    "timezoneDefault": "Site default",
+    "requiredPasswordExpired": "Your password has expired. Choose a new one to continue."
   },
   "admin": {
     "title": "Administration",
@@ -350,7 +359,17 @@
       "testEmailSent": "Test email queued",
       "creatorRole": "Role given to a new course's author",
       "mentorsEnabled": "Mentors and parents",
-      "mentorsHint": "Administrators link mentors and parents to learners on the user card or by CSV upload; they then follow the learners’ courses, progress, grades and deadlines."
+      "mentorsHint": "Administrators link mentors and parents to learners on the user card or by CSV upload; they then follow the learners’ courses, progress, grades and deadlines.",
+      "passwordPolicy": "Password policy",
+      "passwordMinLength": "Minimum length",
+      "passwordRequireDigit": "Require a digit",
+      "passwordRequireLower": "Require a lowercase letter",
+      "passwordRequireUpper": "Require an uppercase letter",
+      "passwordRequireSymbol": "Require a symbol",
+      "passwordHistory": "Do not reuse recent passwords",
+      "passwordHistoryHint": "How many recent passwords cannot be used again; 0 for no limit",
+      "passwordMaxAge": "Password lifetime, days",
+      "passwordMaxAgeHint": "After this, the password must be changed at sign-in; 0 for never"
     },
     "env": {
       "title": "Environment",
@@ -399,7 +418,8 @@
     "profileFields": "Profile fields",
     "grades": "Grades",
     "languages": "Languages",
-    "modules": "Modules"
+    "modules": "Modules",
+    "security": "Security"
   },
   "email": {
     "footer": "You received this email because you have an account on this site.",

@@ -1,4 +1,4 @@
-import { getAllSettings } from '@hubium/core';
+import { getAllSettings, passwordExpired, passwordPolicy } from '@hubium/core';
 import {
   Alert,
   Badge,
@@ -11,6 +11,7 @@ import {
 import { headers } from 'next/headers';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
+import { passwordHint } from '@/lib/password-hint';
 import { changePasswordAction } from '@/server/actions/account';
 import { auth } from '@/server/auth';
 import { db } from '@/server/db';
@@ -64,10 +65,18 @@ export default async function SecuritySettings({
     getAllSettings(db),
   ]);
   const sessions = await auth.api.listSessions({ headers: await headers() });
+  const { passwordChangedAt } = await db.user.findUniqueOrThrow({
+    where: { id: user.id },
+    select: { passwordChangedAt: true },
+  });
   return (
     <div className="grid gap-6">
       {required === 'password' && user.mustChangePassword ? (
-        <Alert variant="warning">{t('requiredPassword')}</Alert>
+        <Alert variant="warning">
+          {passwordExpired(passwordPolicy(settings), passwordChangedAt)
+            ? t('requiredPasswordExpired')
+            : t('requiredPassword')}
+        </Alert>
       ) : null}
       {required === '2fa' && !user.twoFactorEnabled ? (
         <Alert variant="warning">{t('required2fa')}</Alert>
@@ -93,7 +102,7 @@ export default async function SecuritySettings({
               name="newPassword"
               type="password"
               label={ta('newPassword')}
-              hint={ta('passwordHint')}
+              hint={passwordHint(ta, passwordPolicy(settings))}
               autoComplete="new-password"
             />
             <FormField

@@ -5,6 +5,7 @@ import { Checkbox, Select } from '@hubium/ui';
 import { useTranslations } from 'next-intl';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { ProfileFieldInputs, type ProfileFieldView } from '@/components/profile-field-inputs';
+import { type PasswordRules, passwordHint } from '@/lib/password-hint';
 
 export interface UserFormValues {
   id?: string;
@@ -25,6 +26,7 @@ export function UserForm({
   mode,
   profileFields = [],
   languages,
+  passwordRules,
 }: {
   action: (fd: FormData) => Promise<ActionResult<unknown>>;
   values?: UserFormValues;
@@ -33,6 +35,7 @@ export function UserForm({
   profileFields?: ProfileFieldView[];
   /** Enabled languages, by their own names. */
   languages: { code: string; name: string }[];
+  passwordRules: PasswordRules;
 }) {
   const t = useTranslations('admin.user');
   const tp = useTranslations('profileFields');
@@ -74,7 +77,11 @@ export function UserForm({
         name="password"
         type="password"
         label={ta('password')}
-        hint={mode === 'edit' ? t('passwordHint') : ta('passwordHint')}
+        hint={
+          mode === 'edit'
+            ? `${t('passwordHint')}. ${passwordHint(ta, passwordRules)}`
+            : passwordHint(ta, passwordRules)
+        }
         autoComplete="new-password"
       />
       <div className="grid gap-4 sm:grid-cols-2">

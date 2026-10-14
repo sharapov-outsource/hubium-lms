@@ -30,6 +30,16 @@ export const settingDefs = {
   'auth.oauth.yandex': z.boolean().default(false),
   'auth.oauth.vk': z.boolean().default(false),
   'auth.require2faForAdmins': z.boolean().default(false),
+  // Password policy (auth/password-policy.ts). It applies when a password is set.
+  'password.minLength': z.coerce.number().int().min(8).max(128).default(8),
+  'password.requireDigit': z.boolean().default(false),
+  'password.requireLower': z.boolean().default(false),
+  'password.requireUpper': z.boolean().default(false),
+  'password.requireSymbol': z.boolean().default(false),
+  /** How many earlier passwords cannot be used again (0 = any). */
+  'password.history': z.coerce.number().int().min(0).max(20).default(0),
+  /** Days until a password must be changed (0 = never). */
+  'password.maxAgeDays': z.coerce.number().int().min(0).max(3650).default(0),
   'email.fromName': z.string().default('Hubium LMS'),
   'course.creatorRole': z.string().default('editingteacher'),
   'mentors.enabled': z.boolean().default(false),

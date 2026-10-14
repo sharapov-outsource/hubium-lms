@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { sql } from './db';
-import { ADMIN, expectAccessible, login } from './helpers';
+import { setSetting, sql } from './db';
+import { ADMIN, DEMO_PASSWORD, expectAccessible, login } from './helpers';
 import { firstLink, waitForMail } from './mail';
 import { totp } from './totp';
 
@@ -87,4 +87,63 @@ test('TOTP enrolment and sign-in with a code', async ({ page }) => {
   await sql(
     `DELETE FROM "TwoFactor" WHERE "userId"=(SELECT id FROM "User" WHERE username='student3')`,
   );
+});
+
+test('password policy: rules in the forms, refusals and expiry', async ({ page }) => {
+  await login(page, ADMIN.login, ADMIN.password);
+  await page.goto('/admin/settings/security');
+  await expectAccessible(page);
+  await page.getByLabel('Минимальная длина').fill('12');
+  await page.getByLabel('Требовать спецсимвол').check();
+  await page.getByLabel('Срок действия пароля, дней').fill('30');
+  await page.getByRole('button', { name: 'Сохранить' }).click();
+  await expect(page.getByText('Сохранено').first()).toBeVisible();
+  await page.context().clearCookies();
+
+  try {
+    // a password set long ago has expired: the user must pick a new one
+    await sql(
+      `UPDATE "User" SET "passwordChangedAt" = now() - interval '60 days' WHERE username = 'student2'`,
+    );
+    await page.goto('/login');
+    await page.locator('#login').fill('student2');
+    await page.locator('#password').fill(DEMO_PASSWORD);
+    await page.locator('form button[type=submit]').click();
+    await page.waitForURL(/\/settings\/security\?required=password/);
+    await expect(page.getByText('Срок действия вашего пароля истёк')).toBeVisible();
+    await expect(
+      page.getByText('Не короче 12 символов; нужны: спецсимвол, например ! или %'),
+    ).toBeVisible();
+
+    await page.locator('#f-currentPassword').fill(DEMO_PASSWORD);
+    await page.locator('#f-newPassword').fill('Longer12345');
+    await page.locator('#f-newPassword2').fill('Longer12345');
+    await page.getByRole('button', { name: 'Сохранить' }).first().click();
+    await expect(page.getByText('Include a symbol such as ! or %').first()).toBeVisible();
+
+    await page.locator('#f-newPassword').fill('Longer-12345');
+    await page.locator('#f-newPassword2').fill('Longer-12345');
+    await page.getByRole('button', { name: 'Сохранить' }).first().click();
+    await expect(page.getByText(/Пароль изменён/).first()).toBeVisible();
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/\/dashboard/);
+  } finally {
+    for (const [k, v] of [
+      ['password.minLength', 8],
+      ['password.requireSymbol', false],
+      ['password.maxAgeDays', 0],
+    ] as const)
+      await setSetting(k, v);
+    // back to the demo password for other tests (the policy is off again)
+    await page.context().clearCookies();
+    await login(page, 'student2', 'Longer-12345').catch(() => undefined);
+    if (page.url().includes('/dashboard')) {
+      await page.goto('/settings/security');
+      await page.locator('#f-currentPassword').fill('Longer-12345');
+      await page.locator('#f-newPassword').fill(DEMO_PASSWORD);
+      await page.locator('#f-newPassword2').fill(DEMO_PASSWORD);
+      await page.getByRole('button', { name: 'Сохранить' }).first().click();
+      await expect(page.getByText(/Пароль изменён/).first()).toBeVisible();
+    }
+  }
 });

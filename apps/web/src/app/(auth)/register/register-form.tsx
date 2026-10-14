@@ -6,13 +6,16 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { OAuthButtons } from '@/components/oauth-buttons';
 import { authClient } from '@/lib/auth-client';
+import { type PasswordRules, passwordHint } from '@/lib/password-hint';
 
 export function RegisterForm({
   providers,
   consentText,
+  passwordRules,
 }: {
   providers: ('google' | 'yandex' | 'vk')[];
   consentText: string;
+  passwordRules: PasswordRules;
 }) {
   const t = useTranslations('auth');
   const tc = useTranslations('common');
@@ -29,7 +32,8 @@ export function RegisterForm({
     const errs: Record<string, string> = {};
     if (!v.firstName?.trim()) errs.firstName = tc('required');
     if (!v.lastName?.trim()) errs.lastName = tc('required');
-    if ((v.password ?? '').length < 8) errs.password = t('passwordHint');
+    if ((v.password ?? '').length < passwordRules.minLength)
+      errs.password = passwordHint(t, passwordRules);
     if (v.password !== v.password2) errs.password2 = t('passwordsMismatch');
     if (!v.consent) errs.consent = t('consentRequired');
     setErrors(errs);
@@ -97,7 +101,7 @@ export function RegisterForm({
         <Field
           label={t('password')}
           htmlFor="password"
-          hint={t('passwordHint')}
+          hint={passwordHint(t, passwordRules)}
           error={errors.password}
         >
           <Input

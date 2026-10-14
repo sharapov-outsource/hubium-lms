@@ -4,9 +4,16 @@ import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { admin, twoFactor, username } from 'better-auth/plugins';
 import { genericOAuth, yandex } from 'better-auth/plugins/generic-oauth';
+import { ValidationError } from '../errors.ts';
 import { sendAuthEmail } from '../mail/mail.ts';
 import { getAllSettings, userLocale } from '../settings/settings.ts';
 import { impersonatedBy, loginAs } from './login-as.ts';
+import {
+  assertPasswordAllowed,
+  passwordExpired,
+  passwordPolicy,
+  recordPasswordChange,
+} from './password-policy.ts';
 
 // Better Auth instance. Authentication only — authorization is Hubium's own (can()).
 
@@ -61,8 +68,17 @@ const CREDENTIAL_PATHS = new Set([
   '/two-factor/generate-backup-codes',
 ]);
 
+/** Endpoints that set a password, and the body field that carries it. */
+const PASSWORD_FIELDS: Record<string, string> = {
+  '/sign-up/email': 'password',
+  '/change-password': 'newPassword',
+  '/reset-password': 'newPassword',
+  '/set-password': 'newPassword',
+};
+
 export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAuthOptions) {
   const { social, generic } = oauthProviders();
+  const pendingPasswordHashes = new Set<string>();
   const siteName = async () => (await getAllSettings(db))['site.name'];
   const localeOf = async (u: object) =>
     userLocale(await getAllSettings(db), (u as { locale?: string | null }).locale);
@@ -136,6 +152,40 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
     socialProviders: social,
     hooks: {
       before: createAuthMiddleware(async (c) => {
+        const passwordField = PASSWORD_FIELDS[c.path];
+        if (passwordField) {
+          const body = (c.body ?? {}) as Record<string, unknown>;
+          const password = body[passwordField];
+          if (typeof password === 'string') {
+            // whose password it is, for the "no reuse" rule
+            let userId: string | undefined;
+            if (c.path === '/reset-password') {
+              const token = (body.token ?? (c.query as { token?: string } | undefined)?.token) as
+                | string
+                | undefined;
+              const v = token
+                ? await db.verification.findFirst({
+                    where: { identifier: `reset-password:${token}` },
+                    select: { value: true },
+                  })
+                : null;
+              userId = v?.value;
+            } else if (c.path !== '/sign-up/email') {
+              userId = (await getSessionFromCtx(c))?.user.id;
+            }
+            try {
+              await assertPasswordAllowed(db, password, { userId, field: passwordField });
+            } catch (e) {
+              if (!(e instanceof ValidationError)) throw e;
+              throw new APIError('BAD_REQUEST', {
+                code: 'PASSWORD_POLICY',
+                message: Object.values(e.fieldErrors ?? {})
+                  .flat()
+                  .join('. '),
+              });
+            }
+          }
+        }
         // "Require email verification" is a site setting: Better Auth reads the option on
         // each call, so this request's copy of the context gets the current value.
         if (EMAIL_SIGN_IN_PATHS.has(c.path)) {
@@ -182,6 +232,33 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
       }),
     },
     databaseHooks: {
+      // Every password Better Auth stores (sign-up, change, reset) is remembered for the
+      // password policy. Updates go through updateMany, whose hook does not see the row,
+      // so the new hash itself identifies the account afterwards.
+      account: {
+        create: {
+          async after(account) {
+            if (account.password) await recordPasswordChange(db, account.userId);
+          },
+        },
+        update: {
+          async before(data) {
+            if (typeof data.password === 'string') pendingPasswordHashes.add(data.password);
+            return { data };
+          },
+          async after() {
+            for (const hash of [...pendingPasswordHashes]) {
+              const acc = await db.account.findFirst({
+                where: { password: hash, providerId: 'credential' },
+                select: { userId: true },
+              });
+              if (!acc) continue;
+              pendingPasswordHashes.delete(hash);
+              await recordPasswordChange(db, acc.userId);
+            }
+          },
+        },
+      },
       user: {
         create: {
           async before(user) {
@@ -215,10 +292,18 @@ export function createAuth({ db, baseURL, secret, extraPlugins = [] }: CreateAut
           async after(session) {
             // logging in as someone is not that person's login
             if (impersonatedBy(session)) return;
-            await db.user.update({
+            const user = await db.user.update({
               where: { id: session.userId },
               data: { lastLoginAt: new Date() },
+              select: { passwordChangedAt: true, mustChangePassword: true },
             });
+            // an expired password has to be changed before going on (see the (gate) layout)
+            const policy = passwordPolicy(await getAllSettings(db));
+            if (!user.mustChangePassword && passwordExpired(policy, user.passwordChangedAt))
+              await db.user.update({
+                where: { id: session.userId },
+                data: { mustChangePassword: true },
+              });
           },
         },
       },

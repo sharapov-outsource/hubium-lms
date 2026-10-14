@@ -107,3 +107,12 @@ test('main pages fit a phone screen', async ({ page }) => {
     await sql(`SELECT pg_notify('hubium_cache', 'settings')`);
   }
 });
+
+test('sign-in and security administration fit 375 px', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 740 });
+  for (const path of ['/login', '/register', '/forgot-password'])
+    await expectNoSideScroll(page, path);
+  await login(page, ADMIN.login, ADMIN.password);
+  for (const path of ['/admin/settings/security', '/settings/security'])
+    await expectNoSideScroll(page, path);
+});

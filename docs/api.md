@@ -89,7 +89,7 @@ Webhook endpoints are for administrators (`site:config`) and need a token with t
 
 Users carry their custom profile fields (**Administration → Profile fields**) as `customFields`, an object keyed by each field's short name: text, a `YYYY-MM-DD` date, a menu option or `true`/`false`. `GET /me` and `GET /users` return them, and `POST /users` accepts them; values are validated by field type.
 
-`POST /users` needs a username, an email or both: pupils without an email sign in with their username, and the API shows their `email` as `null`. It also takes `locale`, `timezone` and `mustChangePassword`.
+`POST /users` needs a username, an email or both: pupils without an email sign in with their username, and the API shows their `email` as `null`. It also takes `locale`, `timezone` and `mustChangePassword`. A `password` must meet the site's password policy (Administration → Settings → Security); otherwise the answer is `400` `VALIDATION` with the broken rules under `fieldErrors.password`.
 
 ### Mentors and parents
 

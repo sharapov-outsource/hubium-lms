@@ -43,6 +43,8 @@ model User {
   avatarFileId       String?        @db.Uuid
   customFields       Json           @default("{}")
   lastLoginAt        DateTime?      @db.Timestamptz(3)
+  /// When the local password was last set; null without one. Drives password expiry.
+  passwordChangedAt  DateTime?      @db.Timestamptz(3)
   lastAccessAt       DateTime?      @db.Timestamptz(3)
   deletedAt          DateTime?      @db.Timestamptz(3)
   // Better Auth `admin` plugin primitives (ban/impersonation only; authorization is ours).
@@ -56,6 +58,7 @@ model User {
   sessions            Session[]
   accounts            Account[]
   twoFactors          TwoFactor[]
+  passwordHistory     PasswordHistory[]
   mentees             UserRelation[]           @relation("mentor")
   mentors             UserRelation[]           @relation("mentee")
   apiTokens           ApiToken[]
@@ -168,6 +171,18 @@ model TwoFactor {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/// Hashes of earlier passwords, newest first, for the "no reuse" rule of the password policy.
+model PasswordHistory {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @db.Uuid
+  hash      String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model RateLimit {

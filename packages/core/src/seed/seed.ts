@@ -90,15 +90,19 @@ export async function seed(db: Db, opts: SeedOptions) {
 
   let adminCreated = false;
   if (!(await hasSiteAdmin(db, opts.adminEmail))) {
-    await createUserRecord(db, {
-      email: opts.adminEmail,
-      username: 'admin',
-      firstName: 'Site',
-      lastName: 'Admin',
-      password: opts.adminPassword,
-      isSiteAdmin: true,
-      emailVerified: true,
-    });
+    await createUserRecord(
+      db,
+      {
+        email: opts.adminEmail,
+        username: 'admin',
+        firstName: 'Site',
+        lastName: 'Admin',
+        password: opts.adminPassword,
+        isSiteAdmin: true,
+        emailVerified: true,
+      },
+      { passwordPolicy: false },
+    );
     adminCreated = true;
   }
 
@@ -108,14 +112,18 @@ export async function seed(db: Db, opts: SeedOptions) {
       const existing = await db.user.findUnique({ where: { email: u.email } });
       const user =
         existing ??
-        (await createUserRecord(db, {
-          email: u.email,
-          username: u.username,
-          firstName: u.firstName,
-          lastName: u.lastName,
-          password: DEMO_PASSWORD,
-          emailVerified: true,
-        }));
+        (await createUserRecord(
+          db,
+          {
+            email: u.email,
+            username: u.username,
+            firstName: u.firstName,
+            lastName: u.lastName,
+            password: DEMO_PASSWORD,
+            emailVerified: true,
+          },
+          { passwordPolicy: false },
+        ));
       users[u.username] = user.id;
     }
     const manager = await db.role.findUniqueOrThrow({ where: { shortName: 'manager' } });

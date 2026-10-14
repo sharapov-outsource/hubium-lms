@@ -138,7 +138,6 @@
     "resetTitle": "Nuova password",
     "resetDone": "Password modificata. Ora è possibile accedere.",
     "resetInvalid": "Il link non è valido o è scaduto",
-    "passwordHint": "Almeno 8 caratteri",
     "passwordsMismatch": "Le password non coincidono",
     "repeatPassword": "Ripeti la password",
     "twoFactorTitle": "Verifica in due passaggi",
@@ -153,7 +152,16 @@
     "verifiedTitle": "Email verificata",
     "verifyEmailTitle": "Verifica dell’email",
     "backToSignIn": "Torna all’accesso",
-    "tooManyAttempts": "Troppi tentativi di accesso. Attendere un minuto e riprovare."
+    "tooManyAttempts": "Troppi tentativi di accesso. Attendere un minuto e riprovare.",
+    "passwordRules": {
+      "minLength": "Almeno {n} caratteri",
+      "needs": "deve contenere: {list}",
+      "digit": "una cifra",
+      "lower": "una lettera minuscola",
+      "upper": "una lettera maiuscola",
+      "symbol": "un simbolo come ! o %",
+      "history": "diversa dalle ultime {n} password"
+    }
   },
   "dashboard": {
     "title": "Le diamo il benvenuto, {name}",
@@ -205,7 +213,8 @@
     "privacy": "Privacy",
     "requiredPassword": "Un amministratore ha impostato una password temporanea. Sceglierne una nuova per continuare.",
     "required2fa": "Gli amministratori del sito devono attivare l’autenticazione a due fattori per continuare.",
-    "timezoneDefault": "Predefinito del sito"
+    "timezoneDefault": "Predefinito del sito",
+    "requiredPasswordExpired": "La tua password è scaduta. Scegline una nuova per continuare."
   },
   "admin": {
     "title": "Amministrazione",
@@ -349,7 +358,17 @@
       "testEmailSent": "Email di prova messa in coda",
       "creatorRole": "Ruolo assegnato all’autore di un nuovo corso",
       "mentorsEnabled": "Mentori e genitori",
-      "mentorsHint": "Gli amministratori collegano mentori e genitori ai partecipanti dalla scheda utente o con un file CSV; questi seguono poi corsi, avanzamento, valutazioni e scadenze dei partecipanti."
+      "mentorsHint": "Gli amministratori collegano mentori e genitori ai partecipanti dalla scheda utente o con un file CSV; questi seguono poi corsi, avanzamento, valutazioni e scadenze dei partecipanti.",
+      "passwordPolicy": "Criteri per le password",
+      "passwordMinLength": "Lunghezza minima",
+      "passwordRequireDigit": "Richiedi una cifra",
+      "passwordRequireLower": "Richiedi una lettera minuscola",
+      "passwordRequireUpper": "Richiedi una lettera maiuscola",
+      "passwordRequireSymbol": "Richiedi un simbolo",
+      "passwordHistory": "Non riutilizzare le ultime password",
+      "passwordHistoryHint": "Quante password recenti non possono essere riusate; 0 per nessun limite",
+      "passwordMaxAge": "Validità della password, giorni",
+      "passwordMaxAgeHint": "Dopo questo periodo la password va cambiata all'accesso; 0 per mai"
     },
     "env": {
       "title": "Ambiente",
@@ -398,7 +417,8 @@
     "profileFields": "Campi del profilo",
     "grades": "Valutazioni",
     "languages": "Lingue",
-    "modules": "Moduli"
+    "modules": "Moduli",
+    "security": "Sicurezza"
   },
   "email": {
     "footer": "Questa email è stata inviata perché l’indirizzo è associato a un account su questo sito.",

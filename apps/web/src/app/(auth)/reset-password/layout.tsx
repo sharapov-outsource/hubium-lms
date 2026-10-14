@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { titled } from '@/server/page-title';
 
-// The page is a client component, so its title is set here.
+// The form is a client component, so the title is set here.
 export const generateMetadata = titled('auth', 'resetTitle');
 
 export default function ResetPasswordLayout({ children }: { children: ReactNode }) {

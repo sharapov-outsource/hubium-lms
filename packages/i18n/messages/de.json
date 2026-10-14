@@ -138,7 +138,6 @@
     "resetTitle": "Neues Passwort",
     "resetDone": "Passwort geändert. Sie können sich jetzt anmelden.",
     "resetInvalid": "Der Link ist ungültig oder abgelaufen",
-    "passwordHint": "Mindestens 8 Zeichen",
     "passwordsMismatch": "Die Passwörter stimmen nicht überein",
     "repeatPassword": "Passwort wiederholen",
     "twoFactorTitle": "Zwei-Faktor-Prüfung",
@@ -153,7 +152,16 @@
     "verifiedTitle": "E-Mail-Adresse bestätigt",
     "verifyEmailTitle": "Bestätigung der E-Mail-Adresse",
     "backToSignIn": "Zurück zur Anmeldung",
-    "tooManyAttempts": "Zu viele Anmeldeversuche. Warten Sie eine Minute und versuchen Sie es erneut."
+    "tooManyAttempts": "Zu viele Anmeldeversuche. Warten Sie eine Minute und versuchen Sie es erneut.",
+    "passwordRules": {
+      "minLength": "Mindestens {n} Zeichen",
+      "needs": "muss enthalten: {list}",
+      "digit": "eine Ziffer",
+      "lower": "einen Kleinbuchstaben",
+      "upper": "einen Großbuchstaben",
+      "symbol": "ein Sonderzeichen wie ! oder %",
+      "history": "keines Ihrer letzten {n} Passwörter"
+    }
   },
   "dashboard": {
     "title": "Willkommen, {name}",
@@ -205,7 +213,8 @@
     "privacy": "Datenschutz",
     "requiredPassword": "Die Administration hat ein vorläufiges Passwort für Sie festgelegt. Wählen Sie ein neues, um fortzufahren.",
     "required2fa": "Administrator/innen der Website müssen die Zwei-Faktor-Authentifizierung aktivieren, um fortzufahren.",
-    "timezoneDefault": "Standard der Website"
+    "timezoneDefault": "Standard der Website",
+    "requiredPasswordExpired": "Ihr Passwort ist abgelaufen. Wählen Sie ein neues, um fortzufahren."
   },
   "admin": {
     "title": "Website-Administration",
@@ -349,7 +358,17 @@
       "testEmailSent": "Test-E-Mail in die Warteschlange gestellt",
       "creatorRole": "Rolle für Ersteller/innen neuer Kurse",
       "mentorsEnabled": "Mentor/innen und Eltern",
-      "mentorsHint": "Administrator/innen verknüpfen Mentor/innen und Eltern mit Lernenden auf der Nutzerkarte oder per CSV-Upload; diese verfolgen dann Kurse, Fortschritt, Bewertungen und Fristen der Lernenden."
+      "mentorsHint": "Administrator/innen verknüpfen Mentor/innen und Eltern mit Lernenden auf der Nutzerkarte oder per CSV-Upload; diese verfolgen dann Kurse, Fortschritt, Bewertungen und Fristen der Lernenden.",
+      "passwordPolicy": "Passwortrichtlinie",
+      "passwordMinLength": "Mindestlänge",
+      "passwordRequireDigit": "Ziffer verlangen",
+      "passwordRequireLower": "Kleinbuchstaben verlangen",
+      "passwordRequireUpper": "Großbuchstaben verlangen",
+      "passwordRequireSymbol": "Sonderzeichen verlangen",
+      "passwordHistory": "Letzte Passwörter nicht wiederverwenden",
+      "passwordHistoryHint": "Wie viele letzte Passwörter gesperrt sind; 0 für keine Einschränkung",
+      "passwordMaxAge": "Gültigkeit des Passworts in Tagen",
+      "passwordMaxAgeHint": "Danach muss das Passwort bei der Anmeldung geändert werden; 0 für nie"
     },
     "env": {
       "title": "Umgebung",
@@ -398,7 +417,8 @@
     "profileFields": "Profilfelder",
     "grades": "Bewertungen",
     "languages": "Sprachen",
-    "modules": "Module"
+    "modules": "Module",
+    "security": "Sicherheit"
   },
   "email": {
     "footer": "Sie erhalten diese E-Mail, weil Sie ein Konto auf dieser Website haben.",

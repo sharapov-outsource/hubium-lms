@@ -138,7 +138,6 @@
     "resetTitle": "Nouveau mot de passe",
     "resetDone": "Mot de passe modifié. Vous pouvez maintenant vous connecter.",
     "resetInvalid": "Le lien est invalide ou a expiré",
-    "passwordHint": "Au moins 8 caractères",
     "passwordsMismatch": "Les mots de passe ne correspondent pas",
     "repeatPassword": "Confirmer le mot de passe",
     "twoFactorTitle": "Vérification en deux étapes",
@@ -153,7 +152,16 @@
     "verifiedTitle": "Adresse e-mail vérifiée",
     "verifyEmailTitle": "Vérification de l’adresse e-mail",
     "backToSignIn": "Retour à la connexion",
-    "tooManyAttempts": "Trop de tentatives de connexion. Patientez une minute et réessayez."
+    "tooManyAttempts": "Trop de tentatives de connexion. Patientez une minute et réessayez.",
+    "passwordRules": {
+      "minLength": "Au moins {n} caractères",
+      "needs": "doit contenir : {list}",
+      "digit": "un chiffre",
+      "lower": "une minuscule",
+      "upper": "une majuscule",
+      "symbol": "un caractère spécial comme ! ou %",
+      "history": "différent de vos {n} derniers mots de passe"
+    }
   },
   "dashboard": {
     "title": "Bienvenue, {name}",
@@ -205,7 +213,8 @@
     "privacy": "Confidentialité",
     "requiredPassword": "Un administrateur vous a attribué un mot de passe temporaire. Choisissez-en un nouveau pour continuer.",
     "required2fa": "Les administrateurs du site doivent activer l’authentification à deux facteurs pour continuer.",
-    "timezoneDefault": "Par défaut du site"
+    "timezoneDefault": "Par défaut du site",
+    "requiredPasswordExpired": "Votre mot de passe a expiré. Choisissez-en un nouveau pour continuer."
   },
   "admin": {
     "title": "Administration",
@@ -349,7 +358,17 @@
       "testEmailSent": "E-mail de test mis en file d’attente",
       "creatorRole": "Rôle attribué à l’auteur d’un nouveau cours",
       "mentorsEnabled": "Mentors et parents",
-      "mentorsHint": "Les administrateurs associent mentors et parents aux apprenants depuis la fiche utilisateur ou par import CSV ; ils suivent ensuite les cours, la progression, les notes et les échéances des apprenants."
+      "mentorsHint": "Les administrateurs associent mentors et parents aux apprenants depuis la fiche utilisateur ou par import CSV ; ils suivent ensuite les cours, la progression, les notes et les échéances des apprenants.",
+      "passwordPolicy": "Politique de mots de passe",
+      "passwordMinLength": "Longueur minimale",
+      "passwordRequireDigit": "Exiger un chiffre",
+      "passwordRequireLower": "Exiger une minuscule",
+      "passwordRequireUpper": "Exiger une majuscule",
+      "passwordRequireSymbol": "Exiger un caractère spécial",
+      "passwordHistory": "Ne pas réutiliser les derniers mots de passe",
+      "passwordHistoryHint": "Nombre de mots de passe récents interdits ; 0 pour aucune limite",
+      "passwordMaxAge": "Durée de validité du mot de passe, en jours",
+      "passwordMaxAgeHint": "Ensuite, le mot de passe doit être changé à la connexion ; 0 pour jamais"
     },
     "env": {
       "title": "Environnement",
@@ -398,7 +417,8 @@
     "profileFields": "Champs de profil",
     "grades": "Notes",
     "languages": "Langues",
-    "modules": "Modules"
+    "modules": "Modules",
+    "security": "Sécurité"
   },
   "email": {
     "footer": "Vous recevez cet e-mail car vous avez un compte sur ce site.",

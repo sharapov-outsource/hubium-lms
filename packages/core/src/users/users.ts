@@ -1,6 +1,7 @@
 import { type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { hashPassword } from 'better-auth/crypto';
 import { z } from 'zod';
+import { assertPasswordAllowed, recordPasswordChange } from '../auth/password-policy.ts';
 import type { RequestContext } from '../context.ts';
 import { assertCanAssignRole } from '../enrol/enrol.ts';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
@@ -64,9 +65,17 @@ export function placeholderEmail(username: string): string {
   return `${username}@users.invalid`;
 }
 
-/** Creates a user with a credential account. Used by admin UI, CSV upload and seed. */
-export async function createUserRecord(db: Tx, raw: UserCreate) {
+/**
+ * Creates a user with a credential account. Used by admin UI, CSV upload and seed; the
+ * seed skips the password policy (its passwords come from the environment).
+ */
+export async function createUserRecord(
+  db: Tx,
+  raw: UserCreate,
+  opts: { passwordPolicy?: boolean } = {},
+) {
   const input = UserCreateInput.parse(raw);
+  if (opts.passwordPolicy !== false) await assertPasswordAllowed(db, input.password);
   const customFields: ProfileValues = input.customFields
     ? validateProfileValues(await listProfileFields(db), input.customFields)
     : {};
@@ -110,6 +119,7 @@ export async function createUserRecord(db: Tx, raw: UserCreate) {
       password: await hashPassword(input.password),
     },
   });
+  await recordPasswordChange(db, user.id);
   return user;
 }
 
@@ -260,7 +270,9 @@ export const updateUser = defineOperation({
   },
 });
 
+/** Sets a user's local password after checking it against the password policy. */
 export async function setPassword(db: Tx, userId: string, password: string): Promise<void> {
+  await assertPasswordAllowed(db, password, { userId });
   const hash = await hashPassword(password);
   const acc = await db.account.findFirst({ where: { userId, providerId: 'credential' } });
   if (acc) await db.account.update({ where: { id: acc.id }, data: { password: hash } });
@@ -268,6 +280,7 @@ export async function setPassword(db: Tx, userId: string, password: string): Pro
     await db.account.create({
       data: { userId, providerId: 'credential', accountId: userId, password: hash },
     });
+  await recordPasswordChange(db, userId);
 }
 
 export const setUserSuspended = defineOperation({

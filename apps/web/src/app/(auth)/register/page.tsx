@@ -1,4 +1,4 @@
-import { getAllSettings } from '@hubium/core';
+import { getAllSettings, passwordPolicy } from '@hubium/core';
 import { configuredOAuthProviders } from '@hubium/core/auth/auth';
 import { Alert } from '@hubium/ui';
 import { getTranslations } from 'next-intl/server';
@@ -25,6 +25,7 @@ export default async function RegisterPage() {
       <RegisterForm
         providers={providers}
         consentText={settings['registration.consentText'] || t('consent')}
+        passwordRules={passwordPolicy(settings)}
       />
     </div>
   );

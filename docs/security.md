@@ -6,7 +6,7 @@ This page lists the protections built into Hubium and what an operator should ch
 
 | Area | Protection |
 |---|---|
-| Authentication | Better Auth sessions (HttpOnly, SameSite=Lax cookies), scrypt password hashing, database-backed rate limiting of auth endpoints in production, TOTP two-factor (can be required for administrators), OAuth (Google, Yandex, VK) |
+| Authentication | Better Auth sessions (HttpOnly, SameSite=Lax cookies), scrypt password hashing, a password policy (length, character classes, no reuse of recent passwords, expiry) checked wherever a password is set, database-backed rate limiting of auth endpoints in production, TOTP two-factor (can be required for administrators), OAuth (Google, Yandex, VK) |
 | Authorisation | code-defined capabilities checked in core for every operation; roles with overrides per category/course/activity; the API never exceeds the token owner's rights |
 | CSRF | server actions check `Origin`; custom route handlers reject cross-site cookie requests (`Sec-Fetch-Site`), except endpoints built for cross-site use (LTI, one-click unsubscribe, bearer API) |
 | XSS | rich text sanitised on write (allowlist, iframe hosts limited to known video providers); nonce-based CSP with `strict-dynamic`, no `unsafe-inline` scripts; Markdown for AI and policies rendered without raw HTML |
