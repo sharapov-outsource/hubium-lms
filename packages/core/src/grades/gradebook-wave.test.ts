@@ -13,12 +13,12 @@ import {
   exportGradesXlsx,
   gradeExportRows,
   gradeHistory,
-  importGradesCsv,
   moveGradebookEntry,
   overrideGrade,
   saveGradeCategory,
   updateGradeItem,
 } from './gradebook.ts';
+import { importGradesCsv } from './import.ts';
 import { courseLetters, deleteScale, saveLetters, saveScale } from './scales.ts';
 
 const total = async (db: import('@hubium/db').Db, courseId: string, userId: string) => {

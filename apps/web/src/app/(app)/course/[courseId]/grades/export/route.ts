@@ -1,10 +1,10 @@
-import { exportGradesCsv, exportGradesXlsx } from '@hubium/core';
+import { exportGradesCsv, exportGradesOds, exportGradesXlsx } from '@hubium/core';
 import { db } from '@/server/db';
 import { getContext } from '@/server/session';
 
 export const dynamic = 'force-dynamic';
 
-/** Grades as CSV (default) or, with ?format=xlsx, as an Excel workbook. */
+/** Grades as CSV (default), or with ?format=xlsx or ?format=ods as a spreadsheet. */
 export async function GET(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
   const { courseId } = await params;
   const ctx = await getContext();
@@ -14,13 +14,21 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
     where: { id: courseId },
     select: { shortName: true },
   });
-  const xlsx = new URL(req.url).searchParams.get('format') === 'xlsx';
-  const name = `grades-${course?.shortName ?? courseId}.${xlsx ? 'xlsx' : 'csv'}`;
+  const asked = new URL(req.url).searchParams.get('format');
+  const format = asked === 'xlsx' || asked === 'ods' ? asked : 'csv';
+  const name = `grades-${course?.shortName ?? courseId}.${format}`;
   const disposition = `attachment; filename*=UTF-8''${encodeURIComponent(name)}`;
-  if (xlsx)
+  if (format === 'xlsx')
     return new Response(Buffer.from(await exportGradesXlsx(ctx, courseId)), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': disposition,
+      },
+    });
+  if (format === 'ods')
+    return new Response(Buffer.from(await exportGradesOds(ctx, courseId)), {
+      headers: {
+        'Content-Type': 'application/vnd.oasis.opendocument.spreadsheet',
         'Content-Disposition': disposition,
       },
     });

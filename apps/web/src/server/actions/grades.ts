@@ -1,6 +1,7 @@
 'use server';
 
 import {
+  applyGradeImport,
   createManualItem,
   deleteGradeCategory,
   deleteManualItem,
@@ -8,9 +9,9 @@ import {
   deleteQuestionCategory,
   deleteScale,
   importGift,
-  importGradesCsv,
   moveGradebookEntry,
   overrideGrade,
+  previewGradeImport,
   saveGradeCategory,
   saveLetters,
   saveQuestion,
@@ -181,17 +182,30 @@ export async function saveLettersAction(fd: FormData) {
   });
 }
 
-export async function importGradesAction(fd: FormData) {
+/** The sheet of a grade import, and the mapping chosen so far (none: guessed). */
+async function importInput(fd: FormData) {
+  const file = fd.get('file');
+  if (!(file instanceof File) || !file.size)
+    throw new ValidationError({ file: ['Choose a CSV, XLSX or ODS file'] });
+  const mapping = fd.get('mapping');
+  return {
+    courseId: String(fd.get('courseId')),
+    data: new Uint8Array(await file.arrayBuffer()),
+    mapping: typeof mapping === 'string' && mapping ? JSON.parse(mapping) : undefined,
+  };
+}
+
+/** Grade import, step one: what the sheet would do. */
+export async function previewGradeImportAction(fd: FormData) {
+  return runAction(async () => previewGradeImport.run(await getContext(), await importInput(fd)));
+}
+
+/** Grade import, step two: the sheet applied with the mapping chosen. */
+export async function applyGradeImportAction(fd: FormData) {
   return runAction(async () => {
-    const courseId = String(fd.get('courseId'));
-    const file = fd.get('file');
-    if (!(file instanceof File) || !file.size)
-      throw new ValidationError({ file: ['Choose a CSV file'] });
-    const r = await importGradesCsv.run(await getContext(), {
-      courseId,
-      csv: Buffer.from(await file.arrayBuffer()).toString('utf8'),
-    });
-    revalidatePath(`/course/${courseId}/grades`);
+    const input = await importInput(fd);
+    const r = await applyGradeImport.run(await getContext(), input);
+    revalidatePath(`/course/${input.courseId}/grades`);
     return r;
   });
 }

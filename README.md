@@ -61,7 +61,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
   - display as points, percentage or letter, with letter boundaries for the site and per course.
 - Scales of the site and of a course, for manual items and assignments.
 - Calculated items: a formula over other items and categories, referred to by ID number (`=([[hw1]] + [[hw2]]) / 2`), recomputed with every grade.
-- Grader report with inline overrides and category totals, a user report, a grade history with filters, CSV import, and CSV and XLSX export.
+- Grader report with inline overrides and category totals, a user report, a grade history with filters, import from CSV, XLSX or ODS (columns mapped to items, with a preview), and CSV, XLSX and ODS export.
 - Question bank:
   - multiple choice, true/false, short answer, numerical, matching, essay and description;
   - tags and drafts;

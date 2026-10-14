@@ -8,12 +8,12 @@ import {
   csvEscape,
   exportGradesCsv,
   graderReport,
-  importGradesCsv,
   overrideGrade,
   saveGradeCategory,
   updateGradeItem,
   userReport,
 } from './gradebook.ts';
+import { importGradesCsv } from './import.ts';
 
 const total = async (db: import('@hubium/db').Db, courseId: string, userId: string) => {
   const item = await db.gradeItem.findFirstOrThrow({ where: { courseId, kind: 'COURSE' } });

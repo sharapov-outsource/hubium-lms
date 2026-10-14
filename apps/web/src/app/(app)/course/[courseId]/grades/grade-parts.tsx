@@ -1,6 +1,6 @@
 'use client';
 
-import { Alert, Badge, Button, Checkbox, Input, Select, Td, Tr } from '@hubium/ui';
+import { Badge, Button, Checkbox, Input, Select, Td, Tr } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -9,7 +9,6 @@ import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import {
   createManualItemAction,
   deleteGradeItemAction,
-  importGradesAction,
   overrideGradeAction,
   updateGradeItemAction,
 } from '@/server/actions/grades';
@@ -363,42 +362,5 @@ export function ManualItemForm({
       />
       <SubmitButton className="w-fit">{tc('add')}</SubmitButton>
     </ActionForm>
-  );
-}
-
-export function ImportGradesForm({ courseId }: { courseId: string }) {
-  const t = useTranslations('grades');
-  const tc = useTranslations('common');
-  const [result, setResult] = useState<{
-    updated: number;
-    errors: { line: number; message: string }[];
-  } | null>(null);
-  return (
-    <div className="grid gap-3">
-      <p className="text-sm text-muted-foreground">{t('importHint')}</p>
-      <ActionForm
-        action={importGradesAction}
-        onSuccess={(r) => setResult(r)}
-        className="flex flex-wrap items-end gap-2"
-      >
-        <input type="hidden" name="courseId" value={courseId} />
-        <FormField name="file" type="file" accept=".csv,text/csv" label="CSV" />
-        <SubmitButton variant="secondary">{tc('upload')}</SubmitButton>
-      </ActionForm>
-      {result ? (
-        <Alert variant={result.errors.length ? 'warning' : 'success'}>
-          {t('importResult', { updated: result.updated, errors: result.errors.length })}
-          {result.errors.length ? (
-            <ul className="mt-1 list-disc pl-5">
-              {result.errors.map((e) => (
-                <li key={`${e.line}-${e.message}`}>
-                  {e.line}: {e.message}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </Alert>
-      ) : null}
-    </div>
   );
 }

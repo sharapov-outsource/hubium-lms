@@ -6,6 +6,7 @@ import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { writeOds } from '../lib/sheets.ts';
 import { writeXlsx } from '../lib/xlsx.ts';
 import { optionalText } from '../lib/zod.ts';
 import { provideModuleServices, toActivityRef } from '../modules/module-ctx.ts';
@@ -13,7 +14,6 @@ import { getModule } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
 import { getAllSettings, siteLocale } from '../settings/settings.ts';
 import { isMentorOf, learnerPermissions } from '../users/mentors.ts';
-import { parseCsv } from '../users/users.ts';
 import { emitWebhook } from '../webhooks/events.ts';
 import { type Aggregation, aggregate } from './aggregate.ts';
 import {
@@ -24,7 +24,7 @@ import {
   displayCalculation,
   storeCalculation,
 } from './calculation.ts';
-import { requireScaleFor, scaleValue } from './scales.ts';
+import { requireScaleFor } from './scales.ts';
 
 type Tx = Prisma.TransactionClient | Db;
 
@@ -165,7 +165,8 @@ export async function recomputeAllTotals(tx: Tx, courseId: string): Promise<void
   );
 }
 
-async function writeGrade(
+/** Writes one grade (respecting locks and overrides) and records it in the history. */
+export async function writeGrade(
   tx: Tx,
   item: GradeItem,
   userId: string,
@@ -1138,6 +1139,14 @@ export async function exportGradesXlsx(ctx: RequestContext, courseId: string): P
   );
 }
 
+/** The grades as an OpenDocument spreadsheet (LibreOffice, and Excel opens it too). */
+export async function exportGradesOds(ctx: RequestContext, courseId: string): Promise<Uint8Array> {
+  return writeOds(
+    await gradeExportRows(ctx, courseId),
+    createTranslator(ctx.locale)('grades.title'),
+  );
+}
+
 // ── history ───────────────────────────────────────────────────────────────────
 
 export const GradeHistoryQuery = z.object({
@@ -1220,69 +1229,4 @@ export async function gradeHistory(
 }
 
 /** Imports grades for MANUAL items by column name; users matched by email or username. */
-export const importGradesCsv = defineOperation({
-  name: 'grade.import',
-  input: z.object({ courseId: z.string().uuid(), csv: z.string().min(1).max(5_000_000) }),
-  authorize: (ctx, i) => ctx.perm.require('grade:import', i.courseId),
-  async handler(ctx, { courseId, csv }) {
-    const rows = parseCsv(csv);
-    const header = rows.shift() ?? [];
-    const idx = (n: string) => header.findIndex((h) => h.trim().toLowerCase() === n);
-    const emailCol = idx('email');
-    const userCol = idx('username');
-    if (emailCol < 0 && userCol < 0)
-      throw new ValidationError({ csv: ['Header must contain email or username'] });
-    const items = await ctx.tx.gradeItem.findMany({
-      where: { courseId, kind: 'MANUAL' },
-      include: { scale: true },
-    });
-    const cols = header
-      .map((h, i) => ({
-        i,
-        item: items.find((it) => it.name.toLowerCase() === h.trim().toLowerCase()),
-      }))
-      .filter((c): c is { i: number; item: (typeof items)[number] } => !!c.item);
-    if (!cols.length) throw new ValidationError({ csv: ['No columns match manual grade items'] });
-    const errors: { line: number; message: string }[] = [];
-    let updated = 0;
-    const touched = new Set<string>();
-    for (const [n, r] of rows.entries()) {
-      const key = (emailCol >= 0 ? r[emailCol] : r[userCol])?.trim().toLowerCase();
-      const user = key
-        ? await ctx.tx.user.findFirst({
-            where: { OR: [{ email: key }, { username: key }], enrolments: { some: { courseId } } },
-          })
-        : null;
-      if (!user) {
-        errors.push({ line: n + 2, message: `User not found: ${key ?? ''}` });
-        continue;
-      }
-      for (const c of cols) {
-        const cellText = (r[c.i] ?? '').trim();
-        if (cellText === '') continue;
-        const raw = cellText.replace(',', '.');
-        // scale grades by their name (as exported) or position
-        const v = c.item.scale
-          ? (scaleValue(c.item.scale.items, cellText) ?? Number.NaN)
-          : Number(raw);
-        if (Number.isNaN(v) || v < num(c.item.gradeMin)! || v > num(c.item.gradeMax)!) {
-          errors.push({ line: n + 2, message: `${c.item.name}: invalid grade ${raw}` });
-          continue;
-        }
-        await writeGrade(
-          ctx.tx,
-          c.item,
-          user.id,
-          { rawGrade: v },
-          { source: 'import', changedById: ctx.perm.userId },
-        );
-        updated++;
-        touched.add(user.id);
-      }
-    }
-    await recomputeCourseTotals(ctx.tx, courseId, [...touched]);
-    return { updated, errors };
-  },
-});
-
 export { num as decimalToNumber };

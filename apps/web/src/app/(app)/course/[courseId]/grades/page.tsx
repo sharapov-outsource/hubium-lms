@@ -37,7 +37,8 @@ import { Pagination } from '@/components/pagination';
 import { UserGradeTable } from '@/components/user-grade-table';
 import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
-import { GradeCell, ImportGradesForm, ItemSetupRow, ManualItemForm } from './grade-parts';
+import { GradeImport } from './grade-import';
+import { GradeCell, ItemSetupRow, ManualItemForm } from './grade-parts';
 import {
   CategoryForm,
   DeleteCategoryButton,
@@ -137,6 +138,12 @@ export default async function GradesPage({
             <a href={`${base}/export?format=xlsx`}>
               <Download />
               {t('exportXlsx')}
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a href={`${base}/export?format=ods`}>
+              <Download />
+              {t('exportOds')}
             </a>
           </Button>
         </>
@@ -303,12 +310,12 @@ export default async function GradesPage({
             </CardContent>
           </Card>
           {(await ctx.perm.can('grade:import', courseId)) ? (
-            <Card>
+            <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle>{t('import')}</CardTitle>
               </CardHeader>
               <CardContent>
-                <ImportGradesForm courseId={courseId} />
+                <GradeImport courseId={courseId} />
               </CardContent>
             </Card>
           ) : null}
