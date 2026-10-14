@@ -7,7 +7,7 @@ import { toast } from '@hubium/ui/theme';
 import { Sigma } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useRef, useState, useTransition } from 'react';
+import { useLayoutEffect, useRef, useState, useTransition } from 'react';
 import { setGradeCalculationAction } from '@/server/actions/grades';
 
 /** What is wrong with a formula as written, checked as the server will, or null. */
@@ -58,17 +58,23 @@ export function CalculationDialog({
   const [src, setSrc] = useState(formula ?? '=');
   const [pending, start] = useTransition();
   const area = useRef<HTMLTextAreaElement>(null);
+  // where the caret goes once an inserted reference is rendered: set in the same commit,
+  // so a key pressed right after the click lands after the reference
+  const caret = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (caret.current === null) return;
+    area.current?.focus();
+    area.current?.setSelectionRange(caret.current, caret.current);
+    caret.current = null;
+  });
   const issue = problem(src, ids);
   const insert = (id: string) => {
     const el = area.current;
     const ref = `[[${id}]]`;
     const at = el?.selectionStart ?? src.length;
     const end = el?.selectionEnd ?? at;
+    caret.current = at + ref.length;
     setSrc(src.slice(0, at) + ref + src.slice(end));
-    requestAnimationFrame(() => {
-      el?.focus();
-      el?.setSelectionRange(at + ref.length, at + ref.length);
-    });
   };
   const save = (value: string | null) =>
     start(async () => {
