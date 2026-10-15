@@ -89,6 +89,26 @@ describe('mod-glossary', () => {
     expect(await completion()).toBe('COMPLETE');
     await runModuleAction(teacher, id, 'approveEntry', { id: own.id, approved: false });
     expect(await completion()).toBe('INCOMPLETE');
+
+    // an approved entry its author changes waits for approval again: else the author could
+    // turn it into spam linked from every text of the course
+    await runModuleAction(teacher, id, 'approveEntry', { id: own.id, approved: true });
+    await runModuleAction(s1, id, 'updateEntry', {
+      id: own.id,
+      concept: 'Энтропия',
+      definition: '<p>Купите слона</p>',
+      aliases: ['и', 'в', 'на'],
+      autoLink: true,
+    });
+    expect((await list(s2, id)).items.map((e) => e.concept)).not.toContain('Энтропия');
+    // a teacher's change keeps the approval
+    await runModuleAction(teacher, id, 'approveEntry', { id: own.id, approved: true });
+    await runModuleAction(teacher, id, 'updateEntry', {
+      id: own.id,
+      concept: 'Энтропия',
+      definition: '<p>Мера беспорядка</p>',
+    });
+    expect((await list(s2, id)).items.map((e) => e.concept)).toContain('Энтропия');
   });
 
   it('teachers rate approved entries; the ratings make the author’s grade', async () => {

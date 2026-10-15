@@ -527,10 +527,21 @@ export const glossary = defineModule<GlossarySettingsT>({
           throw new ModuleError('FORBIDDEN', 'You cannot change this entry');
         await checkDuplicate(ctx, a, input.concept, e.id);
         const { id, ...data } = input;
+        // where entries need approval, a change by anyone but a moderator needs it again
+        const recheck =
+          a.settings.approvalRequired && !(await ctx.perm.can('mod.glossary:manageentries', a.id));
         await ctx.db.glossaryEntry.update({
           where: { id },
-          data: { ...data, definition: sanitizeRichText(data.definition) },
+          data: {
+            ...data,
+            definition: sanitizeRichText(data.definition),
+            ...(recheck ? { approved: false } : {}),
+          },
         });
+        if (recheck && e.approved) {
+          if (e.authorId) await ctx.completion.recompute(a.id, e.authorId);
+          await pushGrades(ctx, a, e.authorId ? [e.authorId] : []);
+        }
         return { id };
       },
     }),
