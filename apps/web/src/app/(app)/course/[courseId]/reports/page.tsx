@@ -12,6 +12,7 @@ import {
   Th,
   Tr,
 } from '@hubium/ui';
+import Link from 'next/link';
 import { forbidden } from 'next/navigation';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { db } from '@/server/db';
@@ -20,8 +21,20 @@ import { getContext } from '@/server/session';
 
 export const generateMetadata = titled('course', 'tabs.reports');
 
-export default async function ReportsPage({ params }: { params: Promise<{ courseId: string }> }) {
+/** The participation report's periods, in days; 0 is all the event log keeps. */
+const PERIODS = [30, 90, 365, 0];
+
+export default async function ReportsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ courseId: string }>;
+  searchParams: Promise<{ days?: string }>;
+}) {
   const { courseId } = await params;
+  const asked = Number((await searchParams).days);
+  const days = PERIODS.includes(asked) ? asked : 90;
+  const since = days ? new Date(Date.now() - days * 86_400_000) : new Date(0);
   const ctx = await getContext();
   const access = await getCourseAccess(ctx, courseId);
   if (!access.canViewReports) forbidden();
@@ -44,13 +57,19 @@ export default async function ReportsPage({ params }: { params: Promise<{ course
     }),
     db.eventLog.groupBy({
       by: ['contextId'],
-      where: { courseId, name: 'activity.viewed', actorId: { in: learnerIds } },
+      where: {
+        courseId,
+        name: 'activity.viewed',
+        actorId: { in: learnerIds },
+        createdAt: { gte: since },
+      },
       _count: { _all: true },
     }),
   ]);
   const distinct = await db.$queryRaw<{ contextId: string; n: bigint }[]>`
     SELECT "contextId", count(DISTINCT "actorId")::bigint AS n FROM "EventLog"
      WHERE "courseId" = ${courseId}::uuid AND name = 'activity.viewed' AND "actorId" = ANY(${learnerIds}::uuid[])
+       AND "createdAt" >= ${since}
      GROUP BY "contextId"`;
   const canLogs = await ctx.perm.can('report:logs', courseId);
   const logs = canLogs
@@ -75,7 +94,23 @@ export default async function ReportsPage({ params }: { params: Promise<{ course
           <CardTitle>{t('participation')}</CardTitle>
           <CardDescription>{t('participationHint')}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="grid gap-3">
+          <nav aria-label={t('period')} className="flex flex-wrap gap-1 text-sm">
+            {PERIODS.map((d) => (
+              <Link
+                key={d}
+                href={`/course/${courseId}/reports?days=${d}`}
+                aria-current={d === days ? 'page' : undefined}
+                className={
+                  d === days
+                    ? 'rounded-md bg-secondary px-2 py-1 font-medium'
+                    : 'rounded-md px-2 py-1 text-accent hover:underline'
+                }
+              >
+                {d ? t('lastDays', { n: d }) : t('allTime')}
+              </Link>
+            ))}
+          </nav>
           <Table>
             <THead>
               <Tr>

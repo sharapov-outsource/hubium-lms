@@ -204,6 +204,8 @@ model Activity {
   gradingSuggestions GradingSuggestion[]
 
   @@index([courseId, sectionId, rank])
+  // a section's activities in order (adding, moving and copying ask by section alone)
+  @@index([sectionId, rank])
   @@index([moduleKey])
 }
 

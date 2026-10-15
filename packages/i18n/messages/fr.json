@@ -438,7 +438,9 @@
       "maintenanceUntilHint": "Affichée aux utilisateurs ; les clients de l’API y apprennent quand réessayer (Retry-After).",
       "maintenanceCli": "La même chose depuis la ligne de commande du serveur :",
       "sectionsNav": "Sections des paramètres",
-      "sampleLink": "Lien"
+      "sampleLink": "Lien",
+      "eventlogDays": "Jours de conservation du journal des événements",
+      "eventlogDaysHint": "Les événements plus anciens (consultations, connexions, modifications) sont supprimés chaque nuit ; les rapports de cours remontent jusque-là. 0 les conserve tous."
     },
     "env": {
       "title": "Environnement",
@@ -1599,7 +1601,10 @@
       "workshop": {
         "phase": "Phase de l’atelier modifiée"
       }
-    }
+    },
+    "period": "Période",
+    "lastDays": "{n, plural, one {Dernier # jour} other {Derniers # jours}}",
+    "allTime": "Depuis le début"
   },
   "calendar": {
     "title": "Calendrier",
@@ -2903,7 +2908,8 @@
       "livesession_remind": "Rappels des webinaires",
       "badges_review": "Vérifier et décerner les badges",
       "competency_plans_sync": "Plans de formation des cohortes",
-      "reports_schedules": "Envoi des rapports"
+      "reports_schedules": "Envoi des rapports",
+      "eventlog_prune": "Suppression des anciens événements du journal"
     }
   },
   "badges": {

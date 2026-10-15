@@ -438,7 +438,9 @@
       "maintenanceUntilHint": "Mostrata agli utenti; i client dell’API vi leggono quando riprovare (Retry-After).",
       "maintenanceCli": "Lo stesso dalla riga di comando del server:",
       "sectionsNav": "Sezioni delle impostazioni",
-      "sampleLink": "Link"
+      "sampleLink": "Link",
+      "eventlogDays": "Giorni di conservazione del registro eventi",
+      "eventlogDaysHint": "Gli eventi più vecchi (visualizzazioni, accessi, modifiche) vengono rimossi ogni notte; i report dei corsi risalgono fin lì. 0 li conserva tutti."
     },
     "env": {
       "title": "Ambiente",
@@ -1599,7 +1601,10 @@
       "workshop": {
         "phase": "Fase del workshop modificata"
       }
-    }
+    },
+    "period": "Periodo",
+    "lastDays": "{n, plural, one {Ultimo # giorno} other {Ultimi # giorni}}",
+    "allTime": "Da sempre"
   },
   "calendar": {
     "title": "Calendario",
@@ -2903,7 +2908,8 @@
       "livesession_remind": "Promemoria dei webinar",
       "badges_review": "Verifica e assegnazione dei badge",
       "competency_plans_sync": "Piani di formazione per le coorti",
-      "reports_schedules": "Invio dei report"
+      "reports_schedules": "Invio dei report",
+      "eventlog_prune": "Rimozione degli eventi vecchi dal registro"
     }
   },
   "badges": {

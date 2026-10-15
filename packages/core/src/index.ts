@@ -43,6 +43,7 @@ export * from './env.ts';
 export * from './errors.ts';
 export * from './events/actor-scope.ts';
 export * from './events/log.ts';
+export * from './events/prune.ts';
 export * from './files/text.ts';
 export * from './files/uploads.ts';
 export * from './grades/aggregate.ts';

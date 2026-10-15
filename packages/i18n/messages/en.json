@@ -439,7 +439,9 @@
       "maintenanceUntilHint": "Shown to users; API clients learn from it when to retry (Retry-After).",
       "maintenanceCli": "The same from the server command line:",
       "sectionsNav": "Settings sections",
-      "sampleLink": "Link"
+      "sampleLink": "Link",
+      "eventlogDays": "Days to keep the event log",
+      "eventlogDaysHint": "Older events (views, sign-ins, changes) are removed every night; course reports reach back as far. 0 keeps them all."
     },
     "env": {
       "title": "Environment",
@@ -1600,7 +1602,10 @@
       "workshop": {
         "phase": "Workshop phase changed"
       }
-    }
+    },
+    "period": "Period",
+    "lastDays": "{n, plural, one {Last # day} other {Last # days}}",
+    "allTime": "All time"
   },
   "calendar": {
     "title": "Calendar",
@@ -2904,7 +2909,8 @@
       "livesession_remind": "Webinar reminders",
       "badges_review": "Review and award badges",
       "competency_plans_sync": "Learning plans for cohorts",
-      "reports_schedules": "Report schedules"
+      "reports_schedules": "Report schedules",
+      "eventlog_prune": "Removing old events from the event log"
     }
   },
   "badges": {

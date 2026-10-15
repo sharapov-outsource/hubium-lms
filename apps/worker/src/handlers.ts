@@ -30,6 +30,7 @@ import { syncDueSubscriptions } from '@hubium/core/calendar/subscriptions';
 import { CERTIFICATES_REVIEW_JOB, reviewCertificate } from '@hubium/core/certificates/certificates';
 import { syncTemplateCohorts } from '@hubium/core/competencies/plans';
 import { purgeRecycleBin } from '@hubium/core/courses/recyclebin';
+import { pruneEventLog } from '@hubium/core/events/prune';
 import { garbageCollectBlobs, reconcileBlobObjects } from '@hubium/core/files/files';
 import { cleanupUploads } from '@hubium/core/files/uploads';
 import { deliverMail } from '@hubium/core/mail/mail';
@@ -189,6 +190,13 @@ export const coreHandlers: JobHandlerDef[] = [
     cron: CORE_SCHEDULE['notifications.prune'],
     async handler(_data: never, { db }) {
       return { deleted: await pruneNotifications(db) };
+    },
+  },
+  {
+    name: 'eventlog.prune',
+    cron: CORE_SCHEDULE['eventlog.prune'],
+    async handler(_data: never, { db }) {
+      return { deleted: await pruneEventLog(db) };
     },
   },
   {

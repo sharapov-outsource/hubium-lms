@@ -232,6 +232,7 @@ const SETTING_FIELDS: Record<string, string> = {
   'site.defaultTimezone': 'defaultTimezone',
   'course.creatorRole': 'creatorRole',
   'recyclebin.days': 'recyclebinDays',
+  'eventlog.retentionDays': 'eventlogDays',
   'registration.consentText': 'consentText',
   'password.minLength': 'minLength',
   'password.history': 'history',
@@ -262,6 +263,7 @@ export async function saveSettingsAction(fd: FormData) {
             'site.defaultTimezone': v.defaultTimezone,
             'course.creatorRole': v.creatorRole,
             'recyclebin.days': Number(v.recyclebinDays ?? 30),
+            'eventlog.retentionDays': Number(v.eventlogDays ?? 365),
             'mentors.enabled': bool(fd.get('mentorsEnabled')),
           });
           break;

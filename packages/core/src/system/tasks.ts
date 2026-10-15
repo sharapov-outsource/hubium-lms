@@ -27,6 +27,7 @@ export const CORE_SCHEDULE = {
   'reports.schedules': '*/15 * * * *',
   'enrol.expire': '5 * * * *',
   'notifications.prune': '41 4 * * *',
+  'eventlog.prune': '13 4 * * *',
   'webhooks.prune': '29 4 * * *',
   'files.gc': '17 3 * * *',
   // courses and activities kept in the recycle bin long enough

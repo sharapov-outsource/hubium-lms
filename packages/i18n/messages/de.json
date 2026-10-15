@@ -438,7 +438,9 @@
       "maintenanceUntilHint": "Wird Nutzern gezeigt; API-Clients erfahren daraus, wann sie es erneut versuchen sollen (Retry-After).",
       "maintenanceCli": "Dasselbe über die Kommandozeile des Servers:",
       "sectionsNav": "Einstellungsbereiche",
-      "sampleLink": "Link"
+      "sampleLink": "Link",
+      "eventlogDays": "Tage, die das Ereignisprotokoll aufbewahrt wird",
+      "eventlogDaysHint": "Ältere Ereignisse (Aufrufe, Anmeldungen, Änderungen) werden jede Nacht entfernt; Kursberichte reichen so weit zurück. 0 behält alle."
     },
     "env": {
       "title": "Umgebung",
@@ -1599,7 +1601,10 @@
       "workshop": {
         "phase": "Phase der gegenseitigen Beurteilung geändert"
       }
-    }
+    },
+    "period": "Zeitraum",
+    "lastDays": "{n, plural, one {Letzter # Tag} other {Letzte # Tage}}",
+    "allTime": "Gesamter Zeitraum"
   },
   "calendar": {
     "title": "Kalender",
@@ -2903,7 +2908,8 @@
       "livesession_remind": "Webinar-Erinnerungen",
       "badges_review": "Auszeichnungen prüfen und verleihen",
       "competency_plans_sync": "Lernpläne für globale Gruppen",
-      "reports_schedules": "Berichtsversand"
+      "reports_schedules": "Berichtsversand",
+      "eventlog_prune": "Alte Ereignisse aus dem Protokoll entfernen"
     }
   },
   "badges": {

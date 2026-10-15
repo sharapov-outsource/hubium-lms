@@ -121,6 +121,15 @@ export default async function SettingsSectionPage({
             hint={t('settings.recyclebinDaysHint')}
             defaultValue={s['recyclebin.days']}
           />
+          <FormField
+            name="eventlogDays"
+            type="number"
+            min={0}
+            max={36500}
+            label={t('settings.eventlogDays')}
+            hint={t('settings.eventlogDaysHint')}
+            defaultValue={s['eventlog.retentionDays']}
+          />
           <Toggle
             name="mentorsEnabled"
             label={t('settings.mentorsEnabled')}

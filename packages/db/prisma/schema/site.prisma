@@ -65,6 +65,8 @@ model EventLog {
   @@index([createdAt(ops: TimestampTzMinMaxOps)], type: Brin)
   @@index([courseId, createdAt])
   @@index([actorId, createdAt])
+  // what happened to a person (LDAP sync looks up each account's last sync)
+  @@index([relatedUserId, name, createdAt])
 }
 
 model Tag {

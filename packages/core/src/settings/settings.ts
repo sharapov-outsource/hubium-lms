@@ -75,6 +75,8 @@ export const settingDefs = {
   /** Days a course or an activity stays in the recycle bin before it is deleted for good;
    *  0 keeps them until deleted by hand. */
   'recyclebin.days': z.number().int().min(0).max(3650).default(30),
+  /** Days the event log keeps an event (course reports, sign-in history); 0 keeps them all. */
+  'eventlog.retentionDays': z.number().int().min(0).max(36500).default(365),
   'mentors.enabled': z.boolean().default(false),
   'ai.enabled': z.boolean().default(false),
   /** Privacy notice users accept before their first AI request (Markdown). */
