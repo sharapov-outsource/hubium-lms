@@ -2227,7 +2227,8 @@
     "site": "Site announcements",
     "siteHint": "Shown on the dashboard to every user",
     "recent": "New in your courses",
-    "saved": "Announcement saved"
+    "saved": "Announcement saved",
+    "older": "Earlier announcements"
   },
   "adminLti": {
     "title": "LTI 1.3 tools",

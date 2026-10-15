@@ -2226,7 +2226,8 @@
     "site": "Website-Ankündigungen",
     "siteHint": "Wird allen Nutzer/innen auf der Startseite angezeigt",
     "recent": "Neu in Ihren Kursen",
-    "saved": "Ankündigung gespeichert"
+    "saved": "Ankündigung gespeichert",
+    "older": "Ältere Ankündigungen"
   },
   "adminLti": {
     "title": "LTI-1.3-Tools",

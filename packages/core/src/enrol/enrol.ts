@@ -130,6 +130,15 @@ export const enrolUsers = defineOperation({
   async handler(ctx, input) {
     const role = await assertCourseRole(ctx, input.courseId, input.roleId);
     const method = await manualMethod(ctx.tx, input.courseId);
+    // who is in the course already, by any method, is not told they were enrolled
+    const already = new Set(
+      (
+        await ctx.tx.enrolment.findMany({
+          where: { courseId: input.courseId, userId: { in: input.userIds }, status: 'ACTIVE' },
+          select: { userId: true },
+        })
+      ).map((e) => e.userId),
+    );
     for (const userId of input.userIds) {
       await enrolUserRecord(ctx.tx, {
         courseId: input.courseId,
@@ -149,12 +158,13 @@ export const enrolUsers = defineOperation({
       });
     }
     // Seeding and sync jobs run as system and stay quiet.
-    if (ctx.actor.kind === 'user') {
+    const fresh = input.userIds.filter((u) => !already.has(u));
+    if (ctx.actor.kind === 'user' && fresh.length) {
       const course = await ctx.tx.course.findUniqueOrThrow({
         where: { id: input.courseId },
         select: { fullName: true },
       });
-      await notifyUsers(ctx.tx, input.userIds, {
+      await notifyUsers(ctx.tx, fresh, {
         type: 'enrol.enrolled',
         title: { key: 'notifications.text.enrolled', values: { course: course.fullName } },
         url: `/course/${input.courseId}`,

@@ -8,6 +8,7 @@ import {
   deleteAnnouncement,
   listCourseAnnouncements,
   listSiteAnnouncements,
+  pinAnnouncement,
   publishDueAnnouncements,
   recentCourseAnnouncements,
   updateAnnouncement,
@@ -113,5 +114,31 @@ describe('announcements', () => {
     expect(await t.db.notification.count({ where: { type: 'announcement.site' } })).toBe(
       active - 1,
     );
+  });
+
+  it('pages the course stream, the pinned items heading the first page', async () => {
+    const g = await courseFixture(t.db, 'ANN-PAGE');
+    const teacher = await ctxFor(t.db, g.users.teacher!);
+    const ids: string[] = [];
+    for (let n = 1; n <= 5; n++)
+      ids.push(
+        (
+          await createAnnouncement.run(teacher, {
+            courseId: g.courseId,
+            title: `Новость ${n}`,
+            contentHtml: '<p>Текст</p>',
+          })
+        ).id,
+      );
+    await pinAnnouncement.run(teacher, { id: ids[0]!, pinned: true });
+    const s1 = await ctxFor(t.db, g.users.student1!);
+    const first = await listCourseAnnouncements(s1, g.courseId, { limit: 2 });
+    expect(first.items.map((a) => a.title)).toEqual(['Новость 1', 'Новость 5', 'Новость 4']);
+    const second = await listCourseAnnouncements(s1, g.courseId, {
+      limit: 2,
+      before: first.next!,
+    });
+    expect(second.items.map((a) => a.title)).toEqual(['Новость 3', 'Новость 2']);
+    expect(second.next).toBeNull();
   });
 });

@@ -202,11 +202,15 @@ const include = {
   group: { select: { id: true, name: true } },
 } as const;
 
-/** Course stream: pinned first, newest first. Managers also see scheduled items. */
+/**
+ * Course stream, newest first, a page at a time: the pinned items head the first page, the
+ * others follow by date, and `before` (the last item's id) gives the page after it. Managers
+ * also see scheduled items.
+ */
 export async function listCourseAnnouncements(
   ctx: RequestContext,
   courseId: string,
-  opts: { limit?: number; before?: Date } = {},
+  opts: { limit?: number; before?: string } = {},
 ) {
   const access = await getCourseAccess(ctx, courseId);
   if (!access.canView) throw new ForbiddenError(msg('errors.common.cannotViewCourse'));
@@ -220,20 +224,50 @@ export async function listCourseAnnouncements(
         })
       ).map((g) => g.groupId)
     : [];
-  const items = await ctx.db.announcement.findMany({
+  const seen: Prisma.AnnouncementWhereInput[] = [
+    canPost ? {} : { publishAt: { lte: ctx.now } },
+    canPost ? {} : { OR: [{ groupId: null }, { groupId: { in: myGroups } }] },
+  ];
+  const limit = opts.limit ?? 30;
+  const after = opts.before
+    ? await ctx.db.announcement.findFirst({
+        where: { id: opts.before, courseId },
+        select: { id: true, publishAt: true },
+      })
+    : null;
+  const pinned = after
+    ? []
+    : await ctx.db.announcement.findMany({
+        where: { courseId, pinned: true, AND: seen },
+        orderBy: { publishAt: 'desc' },
+        include,
+      });
+  const rest = await ctx.db.announcement.findMany({
     where: {
       courseId,
+      pinned: false,
       AND: [
-        canPost ? {} : { publishAt: { lte: ctx.now } },
-        canPost ? {} : { OR: [{ groupId: null }, { groupId: { in: myGroups } }] },
-        opts.before ? { publishAt: { lt: opts.before } } : {},
+        ...seen,
+        after
+          ? {
+              OR: [
+                { publishAt: { lt: after.publishAt } },
+                { publishAt: after.publishAt, id: { lt: after.id } },
+              ],
+            }
+          : {},
       ],
     },
-    orderBy: [{ pinned: 'desc' }, { publishAt: 'desc' }],
-    take: opts.limit ?? 50,
+    orderBy: [{ publishAt: 'desc' }, { id: 'desc' }],
+    take: limit + 1,
     include,
   });
-  return { items, canPost };
+  const page = rest.slice(0, limit);
+  return {
+    items: [...pinned, ...page],
+    canPost,
+    next: rest.length > limit ? (page.at(-1)?.id ?? null) : null,
+  };
 }
 
 export async function listSiteAnnouncements(db: Db, now = new Date(), limit = 5) {

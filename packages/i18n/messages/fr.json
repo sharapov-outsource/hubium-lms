@@ -2226,7 +2226,8 @@
     "site": "Annonces du site",
     "siteHint": "Affichées sur le tableau de bord de chaque utilisateur",
     "recent": "Nouveautés dans vos cours",
-    "saved": "Annonce enregistrée"
+    "saved": "Annonce enregistrée",
+    "older": "Annonces plus anciennes"
   },
   "adminLti": {
     "title": "Outils LTI 1.3",

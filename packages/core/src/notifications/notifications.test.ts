@@ -13,6 +13,7 @@ import {
   markNotificationsRead,
   notifyUsers,
   parseUnsubscribeToken,
+  pruneNotifications,
   sendDigests,
   sendNotificationEmails,
   unreadNotificationCount,
@@ -223,5 +224,45 @@ describe('notifications', () => {
     });
     expect(n.url).toBe(`/course/${f.courseId}`);
     expect(n.title).toContain('NOTIF1');
+  });
+
+  it('tells only those it enrols, not who is in the course already', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const student = f.users.student1!;
+    const before = await t.db.notification.count({
+      where: { userId: student, type: 'enrol.enrolled' },
+    });
+    await enrolUsers.run(admin, {
+      courseId: f.courseId,
+      userIds: [student],
+      roleId: f.roles.student!,
+    });
+    expect(
+      await t.db.notification.count({ where: { userId: student, type: 'enrol.enrolled' } }),
+    ).toBe(before);
+  });
+
+  it('prunes read notifications, and unread ones only much later', async () => {
+    const userId = f.users.student2!;
+    const days = (n: number) => new Date(Date.now() - n * 86_400_000);
+    const row = (createdAt: Date, readAt: Date | null) => ({
+      id: uuidv7(),
+      userId,
+      type: 'test.prune',
+      title: 'x',
+      createdAt,
+      readAt,
+      emailState: 'NONE' as const,
+    });
+    await t.db.notification.createMany({
+      data: [row(days(200), days(199)), row(days(200), null), row(days(400), null)],
+    });
+    await pruneNotifications(t.db);
+    const left = await t.db.notification.findMany({
+      where: { userId, type: 'test.prune' },
+      select: { readAt: true, createdAt: true },
+    });
+    expect(left).toHaveLength(1);
+    expect(left[0]!.readAt).toBeNull();
   });
 });

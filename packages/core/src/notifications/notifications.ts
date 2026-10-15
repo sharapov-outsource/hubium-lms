@@ -497,12 +497,25 @@ export async function sendDigests(
   return sent;
 }
 
-/** Removes read notifications older than `days` (cron daily). */
-export async function pruneNotifications(db: Db, now = new Date(), days = 180): Promise<number> {
+/**
+ * Removes read notifications older than `days`, and unread ones older than `unreadDays`, so
+ * what someone has not seen yet stays longer but the table does not grow for ever (cron
+ * daily). Ones an email is still due for stay.
+ */
+export async function pruneNotifications(
+  db: Db,
+  now = new Date(),
+  days = 180,
+  unreadDays = 365,
+): Promise<number> {
+  const before = (d: number) => new Date(now.getTime() - d * 86_400_000);
   const r = await db.notification.deleteMany({
     where: {
-      createdAt: { lt: new Date(now.getTime() - days * 86_400_000) },
       emailState: { notIn: ['PENDING', 'DIGEST'] },
+      OR: [
+        { readAt: { not: null }, createdAt: { lt: before(days) } },
+        { readAt: null, createdAt: { lt: before(unreadDays) } },
+      ],
     },
   });
   return r.count;

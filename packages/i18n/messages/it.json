@@ -2226,7 +2226,8 @@
     "site": "Annunci del sito",
     "siteHint": "Mostrati nella home a tutti gli utenti",
     "recent": "Novità nei corsi",
-    "saved": "Annuncio salvato"
+    "saved": "Annuncio salvato",
+    "older": "Annunci precedenti"
   },
   "adminLti": {
     "title": "Strumenti LTI 1.3",
