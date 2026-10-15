@@ -698,8 +698,15 @@ export async function listTemplates(ctx: RequestContext) {
   });
 }
 
-export async function templateDetail(ctx: RequestContext, id: string) {
+/** A template with its competencies, cohorts and a page of the plans made from it. */
+export async function templateDetail(
+  ctx: RequestContext,
+  id: string,
+  opts: { page?: number; pageSize?: number } = {},
+) {
   await ctx.perm.require('competency:templatemanage');
+  const pageSize = Math.min(200, Math.max(1, Math.floor(opts.pageSize ?? 50)));
+  const page = Math.max(1, Math.floor(opts.page ?? 1));
   const t = await ctx.db.learningPlanTemplate.findUnique({
     where: { id },
     include: {
@@ -712,12 +719,19 @@ export async function templateDetail(ctx: RequestContext, id: string) {
       cohorts: { include: { cohort: { select: { id: true, name: true } } } },
       plans: {
         include: { user: { select: { id: true, name: true } } },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
       },
+      _count: { select: { plans: true } },
     },
   });
   if (!t) throw new NotFoundError('Learning plan template');
-  return { ...t, createPlans: await ctx.perm.can('competency:planmanage') };
+  return {
+    ...t,
+    plansPage: { page, pageSize, total: t._count.plans },
+    createPlans: await ctx.perm.can('competency:planmanage'),
+  };
 }
 
 /** A person's plans, for them and those who see their competencies. */

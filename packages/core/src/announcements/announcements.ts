@@ -279,14 +279,25 @@ export async function listSiteAnnouncements(db: Db, now = new Date(), limit = 5)
   });
 }
 
-export async function listAllSiteAnnouncements(ctx: RequestContext) {
+/** The site's announcements, scheduled ones too, a page at a time (the latest first). */
+export async function listAllSiteAnnouncements(
+  ctx: RequestContext,
+  opts: { page?: number; pageSize?: number } = {},
+) {
   await ctx.perm.require('site:config', SYSTEM_CONTEXT_ID);
-  return ctx.db.announcement.findMany({
-    where: { courseId: null },
-    orderBy: { publishAt: 'desc' },
-    take: 200,
-    include,
-  });
+  const pageSize = Math.min(200, Math.max(1, Math.floor(opts.pageSize ?? 50)));
+  const page = Math.max(1, Math.floor(opts.page ?? 1));
+  const [total, items] = await Promise.all([
+    ctx.db.announcement.count({ where: { courseId: null } }),
+    ctx.db.announcement.findMany({
+      where: { courseId: null },
+      orderBy: [{ publishAt: 'desc' }, { id: 'desc' }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include,
+    }),
+  ]);
+  return { items, total, page, pageSize };
 }
 
 /** Latest announcements across the user's courses for the dashboard. */

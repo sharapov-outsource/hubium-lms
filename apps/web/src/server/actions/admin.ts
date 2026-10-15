@@ -139,6 +139,37 @@ export async function bulkTargetsAction(kind: 'course' | 'cohort', q: string) {
   });
 }
 
+/** Categories and courses for the permission check, found by name. */
+export async function permissionContextsAction(q: string) {
+  return runAction(async () => {
+    const ctx = await getContext();
+    await ctx.perm.require('role:manage');
+    const s = q.trim().slice(0, 100);
+    const has = { contains: s, mode: 'insensitive' as const };
+    const [categories, courses] = await Promise.all([
+      db.category.findMany({
+        where: s ? { name: has } : {},
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        take: 10,
+        select: { id: true, name: true },
+      }),
+      db.course.findMany({
+        where: {
+          deletedAt: null,
+          ...(s ? { OR: [{ fullName: has }, { shortName: has }] } : {}),
+        },
+        orderBy: [{ fullName: 'asc' }, { id: 'asc' }],
+        take: 20,
+        select: { id: true, fullName: true, shortName: true },
+      }),
+    ]);
+    return [
+      ...categories.map((c) => ({ value: c.id, label: `📁 ${c.name}` })),
+      ...courses.map((c) => ({ value: c.id, label: c.fullName, hint: c.shortName })),
+    ];
+  });
+}
+
 export async function unlockUserAction(id: string) {
   return runAction(async () => {
     const r = await unlockUser.run(await getContext(), { id });

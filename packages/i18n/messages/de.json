@@ -1702,7 +1702,9 @@
     "title": "Kurse",
     "new": "Kurs anlegen",
     "bin": "Papierkorb für Kurse",
-    "restore": "Wiederherstellen"
+    "restore": "Wiederherstellen",
+    "empty": "Noch keine Kurse",
+    "binEmpty": "Der Papierkorb für Kurse ist leer"
   },
   "cohorts": {
     "title": "Globale Gruppen",

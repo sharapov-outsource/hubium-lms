@@ -7,6 +7,8 @@ import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { CompetencyPicker } from '@/components/competencies/picker';
 import { pickerFrameworks, StatusBadge } from '@/components/competencies/shared';
 import { CommandButton } from '@/components/confirm-button';
+import { Pagination } from '@/components/pagination';
+import { pageParam } from '@/lib/url-params';
 import {
   addTemplateCompetenciesAction,
   createPlansAction,
@@ -23,13 +25,15 @@ export const generateMetadata = titled('competencies', 'templates');
 
 export default async function PlanTemplatePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ templateId: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { ctx } = await requireCapability('competency:templatemanage');
-  const { templateId } = await params;
+  const [{ templateId }, sp] = await Promise.all([params, searchParams]);
   if (!/^[0-9a-f-]{36}$/.test(templateId)) notFound();
-  const tpl = await templateDetail(ctx, templateId).catch(() => null);
+  const tpl = await templateDetail(ctx, templateId, { page: pageParam(sp.page) }).catch(() => null);
   if (!tpl) notFound();
   const [t, tc, frameworks, cohorts] = await Promise.all([
     getTranslations('competencies'),
@@ -128,6 +132,7 @@ export default async function PlanTemplatePage({
               ) : (
                 <p className="text-sm text-muted-foreground">{t('noPlans')}</p>
               )}
+              <Pagination {...tpl.plansPage} />
             </CardContent>
           </Card>
         </div>

@@ -20,9 +20,11 @@ import {
   Select,
 } from '@hubium/ui';
 import { getLocale, getTranslations } from 'next-intl/server';
+import { uuidParam } from '@/lib/url-params';
 import { db } from '@/server/db';
 import { titled } from '@/server/page-title';
 import { requireCapability } from '@/server/session';
+import { ContextPick } from './context-pick';
 
 export const generateMetadata = titled('admin.check', 'title');
 
@@ -34,16 +36,20 @@ export default async function PermissionCheckPage({
   await requireCapability('role:manage');
   const sp = await searchParams;
   const [t, locale] = await Promise.all([getTranslations('admin.check'), getLocale()]);
-  const courses = await db.course.findMany({
-    where: { deletedAt: null },
-    select: { id: true, fullName: true },
-    orderBy: { fullName: 'asc' },
-    take: 500,
-  });
-  const categories = await db.category.findMany({
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' },
-  });
+  const contextId = uuidParam(sp.context);
+  // names of the contexts the page mentions, not of every course and category: the
+  // context field searches them as it is typed
+  const names = async (ids: string[]) => {
+    const [courses, categories] = await Promise.all([
+      db.course.findMany({ where: { id: { in: ids } }, select: { id: true, fullName: true } }),
+      db.category.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } }),
+    ]);
+    return new Map<string, string>([
+      ...courses.map((c) => [c.id, c.fullName] as [string, string]),
+      ...categories.map((c) => [c.id, `📁 ${c.name}`] as [string, string]),
+    ]);
+  };
+  const chosen = contextId ? (await names([contextId])).get(contextId) : undefined;
   let result: React.ReactNode = null;
   if (sp.user && sp.cap) {
     const login = sp.user.trim().toLowerCase();
@@ -52,16 +58,16 @@ export default async function PermissionCheckPage({
     });
     if (!user) result = <Alert variant="destructive">{t('userNotFound')}</Alert>;
     else if (capabilities.has(sp.cap as never)) {
-      const contextId = sp.context || SYSTEM_CONTEXT_ID;
       const [access, chain, defs] = await Promise.all([
         loadUserAccess(db, user),
-        getContextChain(db, contextId),
+        getContextChain(db, contextId ?? SYSTEM_CONTEXT_ID),
         loadRoleDefinitions(db),
       ]);
       const ex = explain({ actor: access, cap: sp.cap, def: getCapability(sp.cap), chain, defs });
-      const roles = await db.role.findMany({
-        where: { id: { in: ex.roles.map((r) => r.roleId) } },
-      });
+      const [roles, at] = await Promise.all([
+        db.role.findMany({ where: { id: { in: ex.roles.map((r) => r.roleId) } } }),
+        names(ex.roles.map((r) => r.at)),
+      ]);
       const roleLabel = (id: string) => {
         const r = roles.find((x) => x.id === id);
         return r ? roleName(r, locale) : id;
@@ -69,9 +75,7 @@ export default async function PermissionCheckPage({
       const ctxName = (id: string) =>
         id === SYSTEM_CONTEXT_ID
           ? t('contextSystem')
-          : (courses.find((c) => c.id === id)?.fullName ??
-            categories.find((c) => c.id === id)?.name ??
-            id.slice(0, 8));
+          : (at.get(id)?.replace(/^📁 /, '') ?? id.slice(0, 8));
       result = (
         <Alert variant={ex.result ? 'success' : 'destructive'}>
           <p className="flex items-center gap-2 font-medium">
@@ -115,19 +119,10 @@ export default async function PermissionCheckPage({
               </Select>
             </Field>
             <Field label={t('context')} htmlFor="context">
-              <Select id="context" name="context" defaultValue={sp.context ?? ''}>
-                <option value="">{t('contextSystem')}</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    📁 {c.name}
-                  </option>
-                ))}
-                {courses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.fullName}
-                  </option>
-                ))}
-              </Select>
+              <ContextPick
+                site={t('contextSystem')}
+                chosen={contextId && chosen ? { value: contextId, label: chosen } : null}
+              />
             </Field>
             <Button type="submit">{t('run')}</Button>
           </form>

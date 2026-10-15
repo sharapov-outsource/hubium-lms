@@ -1703,7 +1703,9 @@
     "title": "Courses",
     "new": "Create course",
     "bin": "Course recycle bin",
-    "restore": "Restore"
+    "restore": "Restore",
+    "empty": "No courses yet",
+    "binEmpty": "The course recycle bin is empty"
   },
   "cohorts": {
     "title": "Cohorts",

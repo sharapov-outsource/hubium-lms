@@ -640,18 +640,27 @@ export async function listBadges(ctx: RequestContext, courseId: string | null) {
   };
 }
 
-/** A badge with its awards, for those who manage or award it. */
-export async function badgeDetail(ctx: RequestContext, id: string) {
+/** A badge with a page of its awards (the latest first), for those who manage or award it. */
+export async function badgeDetail(
+  ctx: RequestContext,
+  id: string,
+  opts: { page?: number; pageSize?: number } = {},
+) {
   const b = await loadBadge(ctx.db, id);
   const viewAwards = b.courseId
     ? await ctx.perm.can('badge:viewawards', b.courseId)
     : await ctx.perm.can('badge:managesite');
   if (!viewAwards) throw new ForbiddenError();
-  const [awards, manage, award] = await Promise.all([
+  const pageSize = Math.min(200, Math.max(1, Math.floor(opts.pageSize ?? 50)));
+  const page = Math.max(1, Math.floor(opts.page ?? 1));
+  const [total, awards, manage, award] = await Promise.all([
+    ctx.db.badgeAward.count({ where: { badgeId: id } }),
     ctx.db.badgeAward.findMany({
       where: { badgeId: id },
       include: { user: { select: { id: true, name: true, email: true } } },
-      orderBy: { issuedAt: 'desc' },
+      orderBy: [{ issuedAt: 'desc' }, { id: 'asc' }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     }),
     b.courseId ? ctx.perm.can('badge:manage', b.courseId) : ctx.perm.can('badge:managesite'),
     b.courseId ? ctx.perm.can('badge:award', b.courseId) : ctx.perm.can('badge:managesite'),
@@ -659,22 +668,30 @@ export async function badgeDetail(ctx: RequestContext, id: string) {
   const criteria = checkCriteria(b.criteria, !b.courseId);
   const manual = criteria.rules.find((r) => r.kind === 'manual');
   // people the badge can be awarded to by hand (course badges: the course's learners)
-  const awardable =
-    award && manual && b.status === 'ACTIVE' && b.courseId
-      ? await ctx.db.user.findMany({
+  let awardable: { id: string; name: string }[] = [];
+  if (award && manual && b.status === 'ACTIVE' && b.courseId) {
+    // a revoked or expired award can be given again
+    const holding = new Set(
+      (
+        await ctx.db.badgeAward.findMany({
           where: {
-            id: {
-              // a revoked or expired award can be given again
-              in: (await courseLearnerIds(ctx.db, b.courseId)).filter(
-                (u) => !awards.some((a) => a.userId === u && isValid(a, ctx.now)),
-              ),
-            },
+            badgeId: id,
+            revokedAt: null,
+            OR: [{ expiresAt: null }, { expiresAt: { gt: ctx.now } }],
           },
-          select: { id: true, name: true },
-          orderBy: { name: 'asc' },
+          select: { userId: true },
         })
-      : [];
-  return { badge: { ...b, criteria }, awards, manage, award, awardable };
+      ).map((a) => a.userId),
+    );
+    awardable = await ctx.db.user.findMany({
+      where: {
+        id: { in: (await courseLearnerIds(ctx.db, b.courseId)).filter((u) => !holding.has(u)) },
+      },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+  return { badge: { ...b, criteria }, awards, total, page, pageSize, manage, award, awardable };
 }
 
 /** A person's badges (revoked ones too: they say so). */

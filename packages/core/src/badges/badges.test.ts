@@ -243,6 +243,11 @@ describe('badges', () => {
     expect((await badgeDetail(admin, id)).awardable.map((u) => u.id)).not.toContain(
       f.users.student2,
     );
+    // the awards come a page at a time, with how many there are in all
+    expect(await badgeDetail(admin, id, { page: 2, pageSize: 1 })).toMatchObject({
+      total: 1,
+      awards: [],
+    });
     // only the course's learners
     await expect(
       markBadge.run(admin, { badgeId: id, userId: f.users.teacher! }),

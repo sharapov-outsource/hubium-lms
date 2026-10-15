@@ -29,6 +29,7 @@ import { forbidden, notFound } from 'next/navigation';
 import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { CommandButton } from '@/components/confirm-button';
+import { Pagination } from '@/components/pagination';
 import { RevokeButton } from '@/components/revoke-button';
 import {
   awardBadgeAgainAction,
@@ -229,13 +230,16 @@ export async function BadgeNew({ courseId }: { courseId: string | null }) {
 export async function BadgeView({
   courseId,
   badgeId,
+  page = 1,
 }: {
   courseId: string | null;
   badgeId: string;
+  /** Of the awards, 50 a page. */
+  page?: number;
 }) {
   if (!/^[0-9a-f-]{36}$/.test(badgeId)) notFound();
   const ctx = await getContext();
-  const d = await badgeDetail(ctx, badgeId).catch((e) => {
+  const d = await badgeDetail(ctx, badgeId, { page }).catch((e) => {
     if (e instanceof ForbiddenError) forbidden();
     notFound();
   });
@@ -248,7 +252,7 @@ export async function BadgeView({
   ]);
   const b = d.badge;
   const narrative = await criteriaNarrative(db, b, locale);
-  const awarded = d.awards.length > 0;
+  const awarded = d.total > 0;
   const manual = (b.criteria as BadgeCriteriaT).rules.some((r) => r.kind === 'manual');
   const date = (x: Date) => format.dateTime(x, { dateStyle: 'medium' });
   const status = (s: 'DRAFT' | 'ACTIVE' | 'ARCHIVED') =>
@@ -326,7 +330,7 @@ export async function BadgeView({
               <CardTitle>{t('awards')}</CardTitle>
             </CardHeader>
             <CardContent>
-              {d.awards.length === 0 ? (
+              {d.total === 0 ? (
                 <p className="text-sm text-muted-foreground">{t('noAwards')}</p>
               ) : (
                 <div className="overflow-x-auto">
@@ -388,6 +392,7 @@ export async function BadgeView({
                       ))}
                     </TBody>
                   </Table>
+                  <Pagination page={d.page} pageSize={d.pageSize} total={d.total} />
                 </div>
               )}
             </CardContent>

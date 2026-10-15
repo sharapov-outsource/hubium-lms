@@ -1702,7 +1702,9 @@
     "title": "Corsi",
     "new": "Crea corso",
     "bin": "Cestino dei corsi",
-    "restore": "Ripristina"
+    "restore": "Ripristina",
+    "empty": "Ancora nessun corso",
+    "binEmpty": "Il cestino dei corsi è vuoto"
   },
   "cohorts": {
     "title": "Coorti",

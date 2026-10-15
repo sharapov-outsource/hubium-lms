@@ -1702,7 +1702,9 @@
     "title": "Cours",
     "new": "Créer un cours",
     "bin": "Corbeille des cours",
-    "restore": "Restaurer"
+    "restore": "Restaurer",
+    "empty": "Aucun cours pour l’instant",
+    "binEmpty": "La corbeille des cours est vide"
   },
   "cohorts": {
     "title": "Cohortes",
