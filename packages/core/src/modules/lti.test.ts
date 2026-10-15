@@ -1,4 +1,4 @@
-import { endpoint, issuer, LTI, saveTool } from '@hubium/mod-lti/server';
+import { endpoint, issuer, LTI, rotateKey, saveTool } from '@hubium/mod-lti/server';
 import { createLocalJWKSet, exportSPKI, generateKeyPair, type JWK, jwtVerify, SignJWT } from 'jose';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
@@ -129,6 +129,27 @@ describe('mod-lti (LTI 1.3 platform)', () => {
     );
     const teacher = await verifyIdToken((await launch(f.users.teacher!)).idToken!);
     expect(teacher[LTI.claim('roles')]).toEqual([LTI.roles.instructor]);
+    // launched again straight away (a double click): a hint of its own, which works too
+    expect((await launch(f.users.student1!)).idToken).toBeTruthy();
+  });
+
+  it('replaces a platform key sealed under a former APP_SECRET', async () => {
+    const secret = process.env.APP_SECRET;
+    process.env.APP_SECRET = 'a-former-secret-a-former-secret-0000';
+    try {
+      await rotateKey(t.db);
+    } finally {
+      process.env.APP_SECRET = secret;
+    }
+    const former = await t.db.ltiPlatformKey.findFirstOrThrow({ where: { active: true } });
+    // the launch goes on with a new key, and the former one stays published
+    const { idToken } = await launch(f.users.student1!);
+    const c = await verifyIdToken(idToken!);
+    expect(c.sub).toBe(f.users.student1);
+    const keys = await t.db.ltiPlatformKey.findMany({ where: { active: true } });
+    expect(keys.map((k) => k.kid)).not.toContain(former.kid);
+    const published = (await (await http('anon', 'GET', 'jwks')).json()) as { keys: JWK[] };
+    expect(published.keys.map((k) => k.kid)).toContain(former.kid);
   });
 
   it('rejects replayed nonces, foreign redirect URIs and tampered hints', async () => {

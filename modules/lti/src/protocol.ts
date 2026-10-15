@@ -107,10 +107,22 @@ export async function signingKey(db: Db) {
     where: { active: true },
     orderBy: { createdAt: 'desc' },
   });
-  if (!k) {
-    await rotateKey(db);
-    k = await db.ltiPlatformKey.findFirstOrThrow({ where: { active: true } });
+  if (k) {
+    try {
+      return {
+        kid: k.kid,
+        key: await importJWK(JSON.parse(unseal(k.privateKeyEnc)) as JWK, 'RS256'),
+      };
+    } catch {
+      // sealed under an APP_SECRET changed since (`hubium secrets rotate` leaves it, being
+      // the module's own): a new key takes over, the old one stays published a while
+    }
   }
+  await rotateKey(db);
+  k = await db.ltiPlatformKey.findFirstOrThrow({
+    where: { active: true },
+    orderBy: { createdAt: 'desc' },
+  });
   return { kid: k.kid, key: await importJWK(JSON.parse(unseal(k.privateKeyEnc)) as JWK, 'RS256') };
 }
 
@@ -178,6 +190,8 @@ export interface MessageHint {
   m: 'LtiResourceLinkRequest' | 'LtiDeepLinkingRequest';
   /** Expiry (unix seconds). */
   e: number;
+  /** Random: each launch its own hint, which works once, even two in the same second. */
+  n?: string;
 }
 
 const hmac = (v: string) =>
@@ -185,7 +199,11 @@ const hmac = (v: string) =>
 
 export function signHint(h: Omit<MessageHint, 'e'>, ttlSec = 300): string {
   const data = Buffer.from(
-    JSON.stringify({ ...h, e: Math.floor(Date.now() / 1000) + ttlSec }),
+    JSON.stringify({
+      ...h,
+      e: Math.floor(Date.now() / 1000) + ttlSec,
+      n: randomBytes(9).toString('base64url'),
+    }),
   ).toString('base64url');
   return `${data}.${hmac(data)}`;
 }

@@ -6,8 +6,8 @@ import { decryptSecret, encryptSecret } from '../crypto.ts';
 // new secret (AI keys, webhook signing secrets, SSO client secrets and signing keys, the
 // LDAP service password), including the TOTP secrets and backup codes better-auth encrypts
 // with it (otherwise every two-factor user would be locked out). Signed links
-// (unsubscribe, content tokens, LTI hints) simply expire; the LTI platform key should be
-// rotated from Admin → LTI afterwards.
+// (unsubscribe, content tokens, LTI hints) simply expire. The LTI module seals its platform
+// key itself: on the first launch after, it finds the key unreadable and makes a new one.
 
 export async function rotateAppSecret(db: Db, oldSecret: string, newSecret: string) {
   if (newSecret.length < 32) throw new Error('The new secret must be at least 32 characters');
