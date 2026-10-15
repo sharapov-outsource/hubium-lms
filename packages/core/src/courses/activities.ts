@@ -241,7 +241,7 @@ async function insertActivity(ctx: MutationContext, input: z.output<typeof Activ
   const m = requireModule(a.moduleKey);
   const mctx = buildModuleCtx(ctx, ctx.tx);
   await m.lifecycle?.onCreate?.(mctx, toActivityRef(a));
-  if (m.grading) await mctx.grades.syncItems(a.id).catch(() => {});
+  if (m.grading) await mctx.grades.syncItems(a.id);
   await syncCalendar(ctx.tx, a);
   if (countsTowardsProgress(a)) await scheduleCourseProgress(ctx.tx, a.courseId);
   await logEvent(ctx.tx, {
@@ -299,7 +299,7 @@ export const updateActivity = defineOperation({
     const m = requireModule(a.moduleKey);
     const mctx = buildModuleCtx(ctx, ctx.tx);
     await m.lifecycle?.onUpdate?.(mctx, toActivityRef(a), parseSettings(m, prev.settings));
-    if (m.grading) await mctx.grades.syncItems(a.id).catch(() => {});
+    if (m.grading) await mctx.grades.syncItems(a.id);
     await syncCalendar(ctx.tx, a);
     // New completion rules apply to everyone, not just to the next person who acts.
     if (
