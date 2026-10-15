@@ -220,16 +220,36 @@ describe('mod-quiz', () => {
     const s2 = await ctxFor(t.db, 'student2@hubium.local');
     const { attemptId } = (await runModuleAction(s2, id, 'start', {})) as { attemptId: string };
     await runModuleAction(s2, id, 'save', { attemptId, answers: { '1': { value: true } } });
-    await t.db.quizAttempt.update({
-      where: { id: attemptId },
-      data: { dueAt: new Date(Date.now() - 5 * 60_000) },
+    const dueAt = new Date(Date.now() - 5 * 60_000);
+    await t.db.quizAttempt.update({ where: { id: attemptId }, data: { dueAt } });
+    // an essay quiz left open as well: its markers hear of it
+    const { id: essayQuiz } = await f.addActivity('quiz', 'Эссе на время', {
+      attempts: 0,
+      timeLimitMin: 1,
     });
+    await runModuleAction(teacher, essayQuiz, 'addQuestions', { questionIds: [essayId] });
+    const open = (await runModuleAction(s2, essayQuiz, 'start', {})) as { attemptId: string };
+    await runModuleAction(s2, essayQuiz, 'save', {
+      attemptId: open.attemptId,
+      answers: { '1': { text: 'Тёплое' } },
+    });
+    await t.db.quizAttempt.update({ where: { id: open.attemptId }, data: { dueAt } });
+    const notices = () =>
+      t.db.notification.count({
+        where: { userId: f.users.teacher, type: 'quiz.needsGrading', contextId: essayQuiz },
+      });
+    expect(await notices()).toBe(0);
+
     const quiz = listModules().find((m) => m.key === 'quiz')!;
     const sys = await ctxFor(t.db, 'system');
-    await quiz.cron![0]!.handler(buildModuleCtx(sys));
+    // as the worker runs it, in a transaction
+    await t.db.$transaction((tx) => quiz.cron![0]!.handler(buildModuleCtx(sys, tx)));
     const at = await t.db.quizAttempt.findUniqueOrThrow({ where: { id: attemptId } });
     expect(at.state).toBe('FINISHED');
     expect(Number(at.sumGrades)).toBe(1);
+    // it ended when its time ran out (and the minute's grace), not when the sweep came
+    expect(at.finishedAt?.getTime()).toBe(dueAt.getTime() + 60_000);
+    expect(await notices()).toBe(1);
   });
 
   it('time limit: a late save submits the attempt instead of failing', async () => {

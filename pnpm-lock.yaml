@@ -1026,6 +1026,9 @@ importers:
       '@hubium/editor':
         specifier: workspace:*
         version: link:../../packages/editor
+      '@hubium/log':
+        specifier: workspace:*
+        version: link:../../packages/log
       '@hubium/module-sdk':
         specifier: workspace:*
         version: link:../../packages/module-sdk

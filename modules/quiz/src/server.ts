@@ -1,5 +1,6 @@
 import type { Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
+import { log } from '@hubium/log';
 import {
   type ActivityRef,
   defineAction,
@@ -119,6 +120,8 @@ export const QuizSettings = z
 export type QuizSettingsT = z.output<typeof QuizSettings>;
 
 /** Grace period for network delays after the time limit. */
+const logger = log('quiz');
+
 export const GRACE_MS = 60_000;
 
 type Db = Prisma.TransactionClient;
@@ -644,13 +647,19 @@ export async function finishAttempt(
     if (o.needsGrading) manual = true;
     if (o.fraction !== null) sum += o.fraction * Number(qa.maxMark);
   }
+  // closed by the sweep after its time ran out: it ended then, not now (how long it took,
+  // and the wait before the next attempt, count from there)
+  const ended =
+    attempt.dueAt && ctx.now.getTime() > attempt.dueAt.getTime() + GRACE_MS
+      ? new Date(attempt.dueAt.getTime() + GRACE_MS)
+      : ctx.now;
   const at = await ctx.db.quizAttempt.update({
     where: { id: attemptId },
-    data: { state, finishedAt: ctx.now, sumGrades: sum, needsManualGrading: manual },
+    data: { state, finishedAt: ended, sumGrades: sum, needsManualGrading: manual },
   });
   if (!at.preview) await updateQuizGrade(ctx, a, at.userId);
   // Here rather than in the "finish" action: time-outs and the overdue sweep close attempts too.
-  if (state === 'FINISHED')
+  if (state === 'FINISHED') {
     await ctx.log('quiz.attempt.finished', {
       activityId: a.id,
       attemptId: at.id,
@@ -658,6 +667,15 @@ export async function finishAttempt(
       sumGrades: sum,
       preview: at.preview,
     });
+    if (manual && !at.preview)
+      await ctx.notify.send(await ctx.perm.usersWithCap('mod.quiz:grade', a.id), {
+        type: 'quiz.needsGrading',
+        title: { key: 'mod.quiz.notify.needsGradingTitle', values: { name: a.name } },
+        url: `/course/${a.courseId}/a/${a.id}?tab=grading`,
+        courseId: a.courseId,
+        contextId: a.id,
+      });
+  }
   return at;
 }
 
@@ -1774,22 +1792,6 @@ export const quiz = defineModule<QuizSettingsT>({
         if (!late)
           await saveResponses(ctx, at.id, input.answers, undefined, currentPageOnly(quizA, at));
         await finishAttempt(ctx, quizA, at.id);
-        if (!at.preview) {
-          const graders = await ctx.perm.usersWithCap('mod.quiz:grade', a.id);
-          const needs = await ctx.db.quizAttempt.findUnique({
-            where: { id: at.id },
-            select: { needsManualGrading: true },
-          });
-          if (needs?.needsManualGrading) {
-            await ctx.notify.send(graders, {
-              type: 'quiz.needsGrading',
-              title: { key: 'mod.quiz.notify.needsGradingTitle', values: { name: a.name } },
-              url: `/course/${a.courseId}/a/${a.id}?tab=grading`,
-              courseId: a.courseId,
-              contextId: a.id,
-            });
-          }
-        }
         return { attemptId: at.id };
       },
     }),
@@ -2004,20 +2006,32 @@ export const quiz = defineModule<QuizSettingsT>({
         // Closes attempts whose time ran out while the browser was closed.
         const due = await ctx.db.quizAttempt.findMany({
           where: { state: 'IN_PROGRESS', dueAt: { lt: new Date(ctx.now.getTime() - GRACE_MS) } },
+          orderBy: { dueAt: 'asc' },
           take: 200,
         });
+        let closed = 0;
         for (const at of due) {
           const act = await ctx.db.activity.findUnique({ where: { id: at.activityId } });
           if (!act) continue;
           const s = QuizSettings.safeParse(act.settings);
           if (!s.success) continue;
-          await finishAttempt(
-            ctx,
-            { ...(act as never as ActivityRef<QuizSettingsT>), settings: s.data },
-            at.id,
-          );
+          // one attempt that cannot be closed must not hold up the others: what it wrote
+          // is undone and it waits for the next run
+          await ctx.db.$executeRaw`SAVEPOINT quiz_sweep`;
+          try {
+            await finishAttempt(
+              ctx,
+              { ...(act as never as ActivityRef<QuizSettingsT>), settings: s.data },
+              at.id,
+            );
+            await ctx.db.$executeRaw`RELEASE SAVEPOINT quiz_sweep`;
+            closed++;
+          } catch (err) {
+            await ctx.db.$executeRaw`ROLLBACK TO SAVEPOINT quiz_sweep`;
+            logger.warn({ err, attemptId: at.id }, 'overdue attempt not closed');
+          }
         }
-        return { closed: due.length };
+        return { closed };
       },
     },
   ],

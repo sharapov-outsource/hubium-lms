@@ -17,6 +17,7 @@
   "dependencies": {
     "@hubium/db": "workspace:*",
     "@hubium/editor": "workspace:*",
+    "@hubium/log": "workspace:*",
     "@hubium/module-sdk": "workspace:*",
     "@hubium/questions": "workspace:*",
     "@hubium/ui": "workspace:*",
