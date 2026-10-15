@@ -2,11 +2,11 @@ import { getAllSettings, roleName, siteLocale } from '@hubium/core';
 import { BUILT_IN_OAUTH, configuredOAuthProviders } from '@hubium/core/auth/auth';
 import { languageInfo } from '@hubium/i18n/packs';
 import { DateTimeInput } from '@hubium/module-sdk/form';
-import { Badge, Card, CardContent, Checkbox, Combobox, Select, Textarea } from '@hubium/ui';
+import { Badge, Card, CardContent, Combobox, Select, Textarea } from '@hubium/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
-import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
+import { ActionForm, FormField, SubmitButton, ToggleField } from '@/components/action-form';
 import { saveSettingsAction } from '@/server/actions/admin';
 import { db } from '@/server/db';
 import { requireCapability } from '@/server/session';
@@ -130,7 +130,7 @@ export default async function SettingsSectionPage({
             hint={t('settings.eventlogDaysHint')}
             defaultValue={s['eventlog.retentionDays']}
           />
-          <Toggle
+          <ToggleField
             name="mentorsEnabled"
             label={t('settings.mentorsEnabled')}
             checked={s['mentors.enabled']}
@@ -145,12 +145,12 @@ export default async function SettingsSectionPage({
     case 'registration':
       body = (
         <Form section="registration" save={tc('save')} saved={tc('saved')}>
-          <Toggle
+          <ToggleField
             name="enabled"
             label={t('settings.registrationEnabled')}
             checked={s['registration.enabled']}
           />
-          <Toggle
+          <ToggleField
             name="requireEmailVerification"
             label={t('settings.requireEmailVerification')}
             checked={s['registration.requireEmailVerification']}
@@ -171,7 +171,7 @@ export default async function SettingsSectionPage({
           <p className="text-sm text-muted-foreground">{t('settings.oauthHint')}</p>
           {BUILT_IN_OAUTH.map((p) => (
             <div key={p} className="grid gap-1 rounded-lg border border-border p-3">
-              <Toggle name={p} label={OAUTH_LABELS[p]} checked={s[`auth.oauth.${p}`]} />
+              <ToggleField name={p} label={OAUTH_LABELS[p]} checked={s[`auth.oauth.${p}`]} />
               <p className="text-xs text-muted-foreground">
                 {t('settings.callbackUrl')}:{' '}
                 <code className="select-all break-all">
@@ -185,7 +185,7 @@ export default async function SettingsSectionPage({
               ) : null}
             </div>
           ))}
-          <Toggle
+          <ToggleField
             name="require2fa"
             label={t('settings.require2fa')}
             checked={s['auth.require2faForAdmins']}
@@ -205,22 +205,22 @@ export default async function SettingsSectionPage({
             label={t('settings.passwordMinLength')}
             defaultValue={s['password.minLength']}
           />
-          <Toggle
+          <ToggleField
             name="requireDigit"
             label={t('settings.passwordRequireDigit')}
             checked={s['password.requireDigit']}
           />
-          <Toggle
+          <ToggleField
             name="requireLower"
             label={t('settings.passwordRequireLower')}
             checked={s['password.requireLower']}
           />
-          <Toggle
+          <ToggleField
             name="requireUpper"
             label={t('settings.passwordRequireUpper')}
             checked={s['password.requireUpper']}
           />
-          <Toggle
+          <ToggleField
             name="requireSymbol"
             label={t('settings.passwordRequireSymbol')}
             checked={s['password.requireSymbol']}
@@ -244,7 +244,7 @@ export default async function SettingsSectionPage({
             defaultValue={s['password.maxAgeDays']}
           />
           <h2 className="mt-2 font-semibold">{t('settings.signInNotices')}</h2>
-          <Toggle
+          <ToggleField
             name="newSignInNotice"
             label={t('settings.newSignInNotice')}
             checked={s['auth.newSignInNotice']}
@@ -299,7 +299,7 @@ export default async function SettingsSectionPage({
       body = (
         <Form section="maintenance" save={tc('save')} saved={tc('saved')}>
           <p className="text-sm text-muted-foreground">{t('settings.maintenanceHint')}</p>
-          <Toggle
+          <ToggleField
             name="maintenanceEnabled"
             label={t('settings.maintenanceEnabled')}
             checked={s['maintenance.enabled']}
@@ -369,14 +369,5 @@ function Form({
         <SubmitButton>{save}</SubmitButton>
       </div>
     </ActionForm>
-  );
-}
-
-function Toggle({ name, label, checked }: { name: string; label: string; checked: boolean }) {
-  return (
-    <label htmlFor={`t-${name}`} className="flex items-center gap-2 text-sm">
-      <Checkbox id={`t-${name}`} name={name} defaultChecked={checked} />
-      {label}
-    </label>
   );
 }

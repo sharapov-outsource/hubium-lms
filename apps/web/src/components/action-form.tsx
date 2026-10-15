@@ -2,7 +2,7 @@
 
 import type { ActionResult } from '@hubium/core/operation';
 import { FieldErrorsContext, useFailureText } from '@hubium/module-sdk/form';
-import { Alert, Button, type ButtonProps, Field, Input } from '@hubium/ui';
+import { Alert, Button, type ButtonProps, Checkbox, Field, Input } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { useTranslations } from 'next-intl';
 import { createContext, type ReactNode, useContext, useRef, useState, useTransition } from 'react';
@@ -156,5 +156,25 @@ export function FormField({
     <Field label={label} htmlFor={id} hint={hint} error={error} className={className}>
       {children ?? <Input id={id} name={name} aria-invalid={!!error} {...inputProps} />}
     </Field>
+  );
+}
+
+/** An on/off setting of a form: a checkbox with its label, sent as "on" when checked. */
+export function ToggleField({
+  name,
+  label,
+  checked,
+  id = `t-${name}`,
+}: {
+  name: string;
+  label: string;
+  checked?: boolean;
+  id?: string;
+}) {
+  return (
+    <label htmlFor={id} className="flex items-center gap-2 text-sm">
+      <Checkbox id={id} name={name} defaultChecked={checked} />
+      {label}
+    </label>
   );
 }

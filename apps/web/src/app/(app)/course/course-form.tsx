@@ -3,9 +3,15 @@
 import type { ActionResult } from '@hubium/core/operation';
 import { EditorField } from '@hubium/editor/field';
 import { DateInput } from '@hubium/module-sdk/form';
-import { Card, CardContent, CardHeader, CardTitle, Checkbox, Select } from '@hubium/ui';
+import { Card, CardContent, CardHeader, CardTitle, Select } from '@hubium/ui';
 import { useTranslations } from 'next-intl';
-import { ActionForm, FormField, SubmitButton, useFieldError } from '@/components/action-form';
+import {
+  ActionForm,
+  FormField,
+  SubmitButton,
+  ToggleField,
+  useFieldError,
+} from '@/components/action-form';
 import { ProfileFieldInputs, type ProfileFieldView } from '@/components/profile-field-inputs';
 
 export interface CourseFormValues {
@@ -25,15 +31,6 @@ export interface CourseFormValues {
   groupModeForced?: boolean;
   guestAccess?: boolean;
   hasImage?: boolean;
-}
-
-function Toggle({ name, label, checked }: { name: string; label: string; checked?: boolean }) {
-  return (
-    <label htmlFor={`c-${name}`} className="flex items-center gap-2 text-sm">
-      <Checkbox id={`c-${name}`} name={name} defaultChecked={checked} />
-      {label}
-    </label>
-  );
 }
 
 function SummaryField({ defaultValue, courseId }: { defaultValue?: string; courseId?: string }) {
@@ -114,7 +111,7 @@ export function CourseForm({
             accept="image/png,image/jpeg,image/webp"
             label={t('image')}
           />
-          {values.hasImage ? <Toggle name="removeImage" label={tc('delete')} /> : null}
+          {values.hasImage ? <ToggleField name="removeImage" label={tc('delete')} /> : null}
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField name="format" label={t('format')}>
               <Select id="f-format" name="format" defaultValue={values.format ?? 'TOPICS'}>
@@ -166,18 +163,18 @@ export function CourseForm({
             </FormField>
           </div>
           <div className="grid gap-2">
-            <Toggle name="visible" label={t('visible')} checked={values.visible ?? true} />
-            <Toggle
+            <ToggleField name="visible" label={t('visible')} checked={values.visible ?? true} />
+            <ToggleField
               name="enableCompletion"
               label={t('enableCompletion')}
               checked={values.enableCompletion ?? true}
             />
-            <Toggle
+            <ToggleField
               name="groupModeForced"
               label={t('groupModeForced')}
               checked={values.groupModeForced}
             />
-            <Toggle name="guestAccess" label={t('guestAccess')} checked={values.guestAccess} />
+            <ToggleField name="guestAccess" label={t('guestAccess')} checked={values.guestAccess} />
           </div>
         </CardContent>
       </Card>

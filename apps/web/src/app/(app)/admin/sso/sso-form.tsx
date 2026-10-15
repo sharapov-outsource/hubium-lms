@@ -1,9 +1,9 @@
 'use client';
 
-import { Checkbox, Select, Textarea } from '@hubium/ui';
+import { Select, Textarea } from '@hubium/ui';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
+import { ActionForm, FormField, SubmitButton, ToggleField } from '@/components/action-form';
 import { saveSsoProviderAction } from '@/server/actions/sso';
 
 type Protocol = 'oidc' | 'saml' | 'oauth2';
@@ -30,15 +30,6 @@ export interface SsoFormValues {
     lastName?: string;
     fields?: Record<string, string>;
   };
-}
-
-function Toggle({ name, label, checked }: { name: string; label: string; checked: boolean }) {
-  return (
-    <label htmlFor={`t-${name}`} className="flex items-center gap-2 text-sm">
-      <Checkbox id={`t-${name}`} name={name} defaultChecked={checked} />
-      {label}
-    </label>
-  );
 }
 
 /** The addresses an identity provider needs, for the identifier being typed. */
@@ -198,9 +189,17 @@ export function SsoForm({
 
       <fieldset className="grid gap-3">
         <legend className="mb-2 font-semibold">{t('accounts')}</legend>
-        <Toggle name="enabled" label={t('enabled')} checked={values.enabled ?? true} />
-        <Toggle name="linkByEmail" label={t('linkByEmail')} checked={values.linkByEmail ?? false} />
-        <Toggle name="autoCreate" label={t('autoCreate')} checked={values.autoCreate ?? false} />
+        <ToggleField name="enabled" label={t('enabled')} checked={values.enabled ?? true} />
+        <ToggleField
+          name="linkByEmail"
+          label={t('linkByEmail')}
+          checked={values.linkByEmail ?? false}
+        />
+        <ToggleField
+          name="autoCreate"
+          label={t('autoCreate')}
+          checked={values.autoCreate ?? false}
+        />
         <FormField
           name="domain"
           label={t('domain')}

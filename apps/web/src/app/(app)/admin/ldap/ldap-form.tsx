@@ -7,14 +7,13 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Checkbox,
   Input,
   Textarea,
 } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
-import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
+import { ActionForm, FormField, SubmitButton, ToggleField } from '@/components/action-form';
 import { saveLdapAction, syncLdapAction, testLdapAction } from '@/server/actions/ldap';
 
 export interface LdapFormValues {
@@ -39,15 +38,6 @@ export interface LdapFormValues {
   suspendMissing: boolean;
 }
 
-function Toggle({ name, label, checked }: { name: string; label: string; checked: boolean }) {
-  return (
-    <label htmlFor={`t-${name}`} className="flex items-center gap-2 text-sm">
-      <Checkbox id={`t-${name}`} name={name} defaultChecked={checked} />
-      {label}
-    </label>
-  );
-}
-
 export function LdapForm({
   values,
   profileFields,
@@ -61,7 +51,7 @@ export function LdapForm({
   const m = v?.mapping ?? {};
   return (
     <ActionForm action={saveLdapAction} success={tc('saved')} className="grid gap-4">
-      <Toggle name="enabled" label={t('enabled')} checked={v?.enabled ?? false} />
+      <ToggleField name="enabled" label={t('enabled')} checked={v?.enabled ?? false} />
       <fieldset className="grid gap-4">
         <legend className="mb-2 font-semibold">{t('connection')}</legend>
         <FormField
@@ -71,7 +61,7 @@ export function LdapForm({
           placeholder="ldaps://ldap.example.org:636"
           defaultValue={v?.url}
         />
-        <Toggle name="startTls" label={t('startTls')} checked={v?.startTls ?? false} />
+        <ToggleField name="startTls" label={t('startTls')} checked={v?.startTls ?? false} />
         <FormField name="caCertificate" label={t('caCertificate')} hint={t('caCertificateHint')}>
           <Textarea
             id="f-caCertificate"
@@ -156,9 +146,13 @@ export function LdapForm({
       </fieldset>
       <fieldset className="grid gap-3">
         <legend className="mb-2 font-semibold">{t('accounts')}</legend>
-        <Toggle name="linkByEmail" label={t('linkByEmail')} checked={v?.linkByEmail ?? false} />
-        <Toggle name="autoCreate" label={t('autoCreate')} checked={v?.autoCreate ?? false} />
-        <Toggle
+        <ToggleField
+          name="linkByEmail"
+          label={t('linkByEmail')}
+          checked={v?.linkByEmail ?? false}
+        />
+        <ToggleField name="autoCreate" label={t('autoCreate')} checked={v?.autoCreate ?? false} />
+        <ToggleField
           name="suspendMissing"
           label={t('suspendMissing')}
           checked={v?.suspendMissing ?? false}

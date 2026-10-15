@@ -1,51 +1,76 @@
 'use client';
 
 import type { CourseField } from '@hubium/core/courses/course-fields';
+import type { ProfileField } from '@hubium/core/users/profile-fields';
 import { useConfirm } from '@hubium/module-sdk/form';
-import { Button, Checkbox, Select, Textarea } from '@hubium/ui';
+import { Button, Select, Textarea } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
-import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
+import { ActionForm, FormField, SubmitButton, ToggleField } from '@/components/action-form';
 import { type LanguageOption, LocalizedFields } from '@/components/localized-fields';
 import { courseFieldCommandAction, saveCourseFieldAction } from '@/server/actions/course-fields';
+import { profileFieldCommandAction, saveProfileFieldAction } from '@/server/actions/profile-fields';
+
+// The forms of the site's own fields of courses and of user profiles: the same but for the
+// flags (a course field may be shown in the catalog, a profile field to other people).
+
+export type FieldKind = 'course' | 'profile';
 
 const TYPES = ['text', 'textarea', 'checkbox', 'menu', 'date'] as const;
 
-export function CourseFieldForm({
+const ACTIONS = {
+  course: { save: saveCourseFieldAction, command: courseFieldCommandAction, id: 'cf' },
+  profile: { save: saveProfileFieldAction, command: profileFieldCommandAction, id: 'f' },
+} as const;
+
+export function FieldForm({
+  kind,
   field,
   languages,
 }: {
-  field?: CourseField;
+  kind: FieldKind;
+  field?: CourseField | ProfileField;
   /** Languages of the label: the site language first. */
   languages: LanguageOption[];
 }) {
-  const t = useTranslations('courseFields');
   const tp = useTranslations('profileFields');
+  const tcf = useTranslations('courseFields');
   const tc = useTranslations('common');
   const sfx = field?.id ?? 'new';
+  const id = (name: string) => `${ACTIONS[kind].id}-${name}-${sfx}`;
   const [type, setType] = useState<string>(field?.type ?? 'text');
-  const flag = (name: 'required' | 'locked' | 'visible', label: string, checked?: boolean) => (
-    <label htmlFor={`cf-${name}-${sfx}`} className="flex items-center gap-2 text-sm">
-      <Checkbox id={`cf-${name}-${sfx}`} name={name} defaultChecked={checked} />
-      {label}
-    </label>
-  );
+  const flags: [name: string, label: string, checked: boolean | undefined][] =
+    kind === 'course'
+      ? [
+          ['required', tp('required'), field?.required],
+          ['locked', tcf('locked'), field?.locked],
+          ['visible', tcf('visible'), field && 'visible' in field ? field.visible : true],
+        ]
+      : [
+          ['required', tp('required'), field?.required],
+          ['locked', tp('locked'), field?.locked],
+          [
+            'visibleToOthers',
+            tp('visibleToOthers'),
+            field && 'visibleToOthers' in field ? field.visibleToOthers : undefined,
+          ],
+        ];
   return (
     <ActionForm
-      action={saveCourseFieldAction}
+      action={ACTIONS[kind].save}
       success={tp('saved')}
       resetOnSuccess={!field}
       className="grid gap-4"
     >
       {field ? <input type="hidden" name="id" value={field.id} /> : null}
       <FormField
-        id={`cf-shortName-${sfx}`}
+        id={id('shortName')}
         name="shortName"
         label={tp('shortName')}
-        hint={t('shortNameHint')}
+        hint={kind === 'course' ? tcf('shortNameHint') : tp('shortNameHint')}
         defaultValue={field?.shortName}
         required
       />
@@ -57,9 +82,9 @@ export function CourseFieldForm({
         idSuffix={`-${sfx}`}
         maxLength={100}
       />
-      <FormField id={`cf-type-${sfx}`} name="type" label={tp('type')}>
+      <FormField id={id('type')} name="type" label={tp('type')}>
         <Select
-          id={`cf-type-${sfx}`}
+          id={id('type')}
           name="type"
           value={type}
           onChange={(e) => setType(e.target.value)}
@@ -73,9 +98,9 @@ export function CourseFieldForm({
         </Select>
       </FormField>
       {type === 'menu' ? (
-        <FormField id={`cf-choices-${sfx}`} name="choices" label={tp('choices')}>
+        <FormField id={id('choices')} name="choices" label={tp('choices')}>
           <Textarea
-            id={`cf-choices-${sfx}`}
+            id={id('choices')}
             name="choices"
             rows={4}
             defaultValue={field?.choices.join('\n')}
@@ -83,9 +108,9 @@ export function CourseFieldForm({
         </FormField>
       ) : null}
       <div className="grid gap-2">
-        {flag('required', tp('required'), field?.required)}
-        {flag('locked', t('locked'), field?.locked)}
-        {flag('visible', t('visible'), field?.visible ?? true)}
+        {flags.map(([name, label, checked]) => (
+          <ToggleField key={name} id={id(name)} name={name} label={label} checked={checked} />
+        ))}
       </div>
       <SubmitButton className="w-fit" variant={field ? 'secondary' : 'primary'}>
         {field ? tc('save') : tc('create')}
@@ -94,27 +119,32 @@ export function CourseFieldForm({
   );
 }
 
-export function CourseFieldCommands({
+export function FieldCommands({
+  kind,
   id,
   name,
   first,
   last,
 }: {
+  kind: FieldKind;
   id: string;
   name: string;
   first: boolean;
   last: boolean;
 }) {
-  const t = useTranslations('courseFields');
+  const tp = useTranslations('profileFields');
+  const tcf = useTranslations('courseFields');
   const tc = useTranslations('common');
   const tco = useTranslations('course');
   const router = useRouter();
   const [pending, start] = useTransition();
   const [confirm, confirmDialog] = useConfirm();
   const run = async (cmd: 'up' | 'down' | 'delete') => {
-    if (cmd === 'delete' && !(await confirm(t('deleteConfirm', { name })))) return;
+    const question =
+      kind === 'course' ? tcf('deleteConfirm', { name }) : tp('deleteConfirm', { name });
+    if (cmd === 'delete' && !(await confirm(question))) return;
     start(async () => {
-      const r = await courseFieldCommandAction(id, cmd);
+      const r = await ACTIONS[kind].command(id, cmd);
       if (!r.ok) toast.error(r.message);
       router.refresh();
     });
