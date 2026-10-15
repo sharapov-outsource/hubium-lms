@@ -66,6 +66,7 @@
     "ended": "Sie haben das Ende der Lektion erreicht",
     "result": "Ihr Ergebnis: {earned} von {total} ({percent} %)",
     "pendingEssays": "{n, plural, one {# Aufsatz wird} other {# Aufsätze werden}} noch von der Lehrkraft bewertet.",
+    "essayGraded": "Aufsatz „{title}“: {score} von {max}",
     "gradeBest": "Ihre Bewertung (bester Versuch): {percent} %",
     "gradeMean": "Ihre Bewertung (Durchschnitt der Versuche): {percent} %",
     "noPages": "Die Lektion hat noch keine Seiten.",

@@ -66,6 +66,7 @@
     "ended": "Вы дошли до конца лекции",
     "result": "Ваш результат: {earned} из {total} ({percent}%)",
     "pendingEssays": "{n, plural, one {# эссе ещё ждёт} few {# эссе ещё ждут} many {# эссе ещё ждут} other {# эссе ещё ждут}} проверки преподавателем.",
+    "essayGraded": "Эссе «{title}»: {score} из {max}",
     "gradeBest": "Ваша оценка (лучшая попытка): {percent}%",
     "gradeMean": "Ваша оценка (среднее по попыткам): {percent}%",
     "noPages": "В лекции пока нет страниц.",

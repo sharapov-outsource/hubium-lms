@@ -380,6 +380,10 @@ export async function lessonState(ctx: ModuleCtx, ref: ActivityRef, userId: stri
       include: { steps: { orderBy: { seq: 'asc' } } },
     }),
   ]);
+  const essayMax = (pageId: string) => {
+    const p = pages.find((x) => x.id === pageId);
+    return s.customScoring ? Math.max(0, ...(p?.answers ?? []).map((x) => x.score)) : 1;
+  };
   const past = finished.map((x) => {
     const g = gradeOf(s, pages, x.steps);
     return {
@@ -392,6 +396,15 @@ export async function lessonState(ctx: ModuleCtx, ref: ActivityRef, userId: stri
       earned: g.earned,
       total: g.total,
       pending: g.pending,
+      /** The teacher's points and comment on each essay graded. */
+      essays: x.steps
+        .filter((r) => r.kind === 'answer' && r.gradedAt && r.essayScore !== null)
+        .map((r) => ({
+          title: pages.find((p) => p.id === r.pageId)?.title ?? '',
+          score: r.essayScore!,
+          max: essayMax(r.pageId),
+          comment: r.essayComment,
+        })),
     };
   });
   const realPast = past.filter((x) => !x.preview);

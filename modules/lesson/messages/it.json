@@ -66,6 +66,7 @@
     "ended": "Sei arrivato alla fine della lezione",
     "result": "Il tuo punteggio: {earned} su {total} ({percent}%)",
     "pendingEssays": "{n, plural, one {# saggio attende} other {# saggi attendono}} ancora la valutazione del docente.",
+    "essayGraded": "Saggio «{title}»: {score} su {max}",
     "gradeBest": "Il tuo voto (tentativo migliore): {percent}%",
     "gradeMean": "Il tuo voto (media dei tentativi): {percent}%",
     "noPages": "La lezione non ha ancora pagine.",

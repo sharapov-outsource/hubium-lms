@@ -66,6 +66,7 @@
     "ended": "You reached the end of the lesson",
     "result": "Your score: {earned} of {total} ({percent}%)",
     "pendingEssays": "{n, plural, one {# essay is} other {# essays are}} still to be graded by the teacher.",
+    "essayGraded": "Essay “{title}”: {score} of {max}",
     "gradeBest": "Your grade (best attempt): {percent}%",
     "gradeMean": "Your grade (mean of attempts): {percent}%",
     "noPages": "The lesson has no pages yet.",

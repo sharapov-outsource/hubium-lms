@@ -66,6 +66,7 @@
     "ended": "Vous avez atteint la fin de la leçon",
     "result": "Votre score : {earned} sur {total} ({percent} %)",
     "pendingEssays": "{n, plural, one {# composition attend} other {# compositions attendent}} encore l'évaluation de l'enseignant.",
+    "essayGraded": "Rédaction « {title} » : {score} sur {max}",
     "gradeBest": "Votre note (meilleure tentative) : {percent} %",
     "gradeMean": "Votre note (moyenne des tentatives) : {percent} %",
     "noPages": "La leçon n'a pas encore de pages.",

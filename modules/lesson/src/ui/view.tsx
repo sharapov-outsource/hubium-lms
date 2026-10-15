@@ -112,6 +112,19 @@ async function LessonTab({ activity: a, ctx, canPreview }: Props & { canPreview:
                 {t('pendingEssays', { n: last.pending })}
               </p>
             ) : null}
+            {last.essays.length ? (
+              <ul className="grid gap-2 text-sm">
+                {last.essays.map((e, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: an attempt's essays in order
+                  <li key={i} className="rounded-md border border-border p-3">
+                    <p className="font-medium">
+                      {t('essayGraded', { title: e.title, score: e.score, max: e.max })}
+                    </p>
+                    {e.comment ? <p className="mt-1 whitespace-pre-line">{e.comment}</p> : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             {mine.length > 1 && st.lessonPercent !== null && !s.practice ? (
               <p className="text-sm">
                 {t(s.useMaxGrade ? 'gradeBest' : 'gradeMean', {

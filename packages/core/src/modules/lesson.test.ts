@@ -126,7 +126,12 @@ describe('mod-lesson', () => {
       comment: 'Хорошо',
     });
     expect(await gradeOf(id, f.users.student1!)).toBe(10);
-    expect((await state(s1, id)).past[0]).toMatchObject({ percent: 100, pending: 0 });
+    // the learner sees the points and the comment
+    expect((await state(s1, id)).past[0]).toMatchObject({
+      percent: 100,
+      pending: 0,
+      essays: [{ title: 'Почему', score: 5, max: 5, comment: 'Хорошо' }],
+    });
 
     // the teacher's try is neither graded nor reported; a reset leaves the pages
     await runModuleAction(teacher, id, 'start', { preview: true });
