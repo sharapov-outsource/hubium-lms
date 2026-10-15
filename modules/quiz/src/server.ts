@@ -831,6 +831,12 @@ export async function readQuizOverview(ctx: ModuleCtx, a: Quiz) {
     : null;
   const open = quizIsOpen(e, ctx.now);
   const canReview = reviewAllowed(a.settings, e.closeAt, ctx.now);
+  // Marks show when the quiz shows them and the gradebook does not hide them (a teacher
+  // may hide an exam's grade until the results are announced).
+  const hiddenInGradebook =
+    !!item &&
+    (item.hidden || (!!item.hiddenUntil && item.hiddenUntil > ctx.now) || !!grade?.hidden);
+  const marksShown = a.settings.reviewMarks && !hiddenInGradebook;
   const rules = accessRules(a, e);
   const next = nextAttemptAt(
     rules,
@@ -854,7 +860,7 @@ export async function readQuizOverview(ctx: ModuleCtx, a: Quiz) {
     inProgressAttemptId: attempts.find((x) => x.state === 'IN_PROGRESS')?.id ?? null,
     gradeMax: a.settings.gradeMax,
     grade:
-      grade?.finalGrade === null || grade?.finalGrade === undefined
+      !marksShown || grade?.finalGrade === null || grade?.finalGrade === undefined
         ? null
         : Number(grade.finalGrade),
     pendingGrade: attempts.some((x) => x.needsManualGrading),
@@ -867,10 +873,10 @@ export async function readQuizOverview(ctx: ModuleCtx, a: Quiz) {
       finishedAt: x.finishedAt,
       needsManualGrading: x.needsManualGrading,
       grade:
-        x.state === 'FINISHED'
+        marksShown && x.state === 'FINISHED'
           ? scaled(x.sumGrades, sumMaxMarks(x.questions), a.settings.gradeMax)
           : null,
-      reviewable: x.state === 'FINISHED' && (canReview || a.settings.reviewMarks),
+      reviewable: x.state === 'FINISHED' && (canReview || marksShown),
     })),
   };
 }

@@ -187,6 +187,20 @@ describe('module queries', () => {
     expect(mine.attempt.userName).toBeNull();
     for (const q of mine.questions)
       expect(q).toMatchObject({ verdict: null, mark: null, correctResponse: null });
+    // the quiz shows no marks, and neither does its page
+    type Overview = { grade: number | null; attempts: { grade: number | null }[] };
+    const page = await query<Overview>(f.users.student1!, id, 'overview');
+    expect([page.grade, page.attempts[0]!.grade]).toEqual([null, null]);
+    // marks shown by the quiz, but the grade hidden in the gradebook until results day
+    await t.db.activity.update({
+      where: { id },
+      data: { settings: { attempts: 0, gradeMax: 10, reviewAnswers: 'never', reviewMarks: true } },
+    });
+    const item = await t.db.gradeItem.findFirstOrThrow({ where: { activityId: id } });
+    await t.db.gradeItem.update({ where: { id: item.id }, data: { hidden: true } });
+    expect((await query<Overview>(f.users.student1!, id, 'overview')).grade).toBeNull();
+    await t.db.gradeItem.update({ where: { id: item.id }, data: { hidden: false } });
+    expect((await query<Overview>(f.users.student1!, id, 'overview')).grade).not.toBeNull();
     const theirs = await query<Review>(f.users.teacher!, id, 'review', { attemptId });
     expect(theirs).toMatchObject({ showAnswers: true, showMarks: true });
     expect(theirs.attempt.userName).toBeTruthy();
