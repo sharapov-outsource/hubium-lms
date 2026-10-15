@@ -22,7 +22,11 @@ describe('APP_SECRET rotation', () => {
       data: {
         userId: student.id,
         secret: await symmetricEncrypt({ key: getEnv().APP_SECRET, data: 'TOTPSECRET' }),
-        backupCodes: '[]',
+        // stored as Better Auth stores them: encrypted with the same secret
+        backupCodes: await symmetricEncrypt({
+          key: getEnv().APP_SECRET,
+          data: JSON.stringify(['AAAAA-11111', 'BBBBB-22222']),
+        }),
       },
     });
     const next = 'n'.repeat(40);
@@ -33,6 +37,11 @@ describe('APP_SECRET rotation', () => {
     expect(() => decryptSecret(row.apiKeyEnc!, getEnv().APP_SECRET)).toThrow();
     const tf2 = await t.db.twoFactor.findUniqueOrThrow({ where: { id: tf.id } });
     expect(await symmetricDecrypt({ key: next, data: tf2.secret })).toBe('TOTPSECRET');
+    // the backup codes still work after the rotation: someone who lost their phone can sign in
+    expect(JSON.parse(await symmetricDecrypt({ key: next, data: tf2.backupCodes }))).toEqual([
+      'AAAAA-11111',
+      'BBBBB-22222',
+    ]);
     await expect(rotateAppSecret(t.db, next, 'short')).rejects.toThrow(/32/);
     // restore for other tests
     await rotateAppSecret(t.db, next, getEnv().APP_SECRET);

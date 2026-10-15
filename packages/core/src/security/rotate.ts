@@ -3,9 +3,11 @@ import { symmetricDecrypt, symmetricEncrypt } from 'better-auth/crypto';
 import { decryptSecret, encryptSecret } from '../crypto.ts';
 
 // APP_SECRET rotation: re-encrypts every secret envelope stored in the database with the
-// new secret (AI keys, webhook signing secrets, SSO client secrets and signing keys, the LDAP service password), including the TOTP secrets better-auth encrypts with it (otherwise every
-// two-factor user would be locked out). Signed links (unsubscribe, content tokens, LTI
-// hints) simply expire; the LTI platform key should be rotated from Admin → LTI afterwards.
+// new secret (AI keys, webhook signing secrets, SSO client secrets and signing keys, the
+// LDAP service password), including the TOTP secrets and backup codes better-auth encrypts
+// with it (otherwise every two-factor user would be locked out). Signed links
+// (unsubscribe, content tokens, LTI hints) simply expire; the LTI platform key should be
+// rotated from Admin → LTI afterwards.
 
 export async function rotateAppSecret(db: Db, oldSecret: string, newSecret: string) {
   if (newSecret.length < 32) throw new Error('The new secret must be at least 32 characters');
@@ -45,11 +47,15 @@ export async function rotateAppSecret(db: Db, oldSecret: string, newSecret: stri
       });
       count++;
     }
-    for (const t of await tx.twoFactor.findMany({ select: { id: true, secret: true } })) {
-      const plain = await symmetricDecrypt({ key: oldSecret, data: t.secret });
+    // the TOTP secret and the backup codes alike, or a lost phone would lock the person out
+    const again = async (data: string) =>
+      symmetricEncrypt({ key: newSecret, data: await symmetricDecrypt({ key: oldSecret, data }) });
+    for (const t of await tx.twoFactor.findMany({
+      select: { id: true, secret: true, backupCodes: true },
+    })) {
       await tx.twoFactor.update({
         where: { id: t.id },
-        data: { secret: await symmetricEncrypt({ key: newSecret, data: plain }) },
+        data: { secret: await again(t.secret), backupCodes: await again(t.backupCodes) },
       });
       count++;
     }
