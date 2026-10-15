@@ -372,6 +372,7 @@ function Thread({
   const [hasMore, setHasMore] = useState(initial.hasMore);
   const [typing, setTyping] = useState<{ name: string; until: number } | null>(null);
   const [sending, start] = useTransition();
+  const inFlight = useRef(false);
   const [files, setFiles] = useState<File[]>([]);
   const scroller = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
@@ -461,7 +462,8 @@ function Thread({
 
   const send = () => {
     const form = formRef.current;
-    if (!form) return;
+    // Enter pressed again before the answer: the button is disabled, the key is not
+    if (!form || sending || inFlight.current) return;
     const fd = new FormData(form);
     fd.delete('files');
     for (const f of files) fd.append('files', f);
@@ -469,15 +471,20 @@ function Thread({
     if (files.reduce((n, f) => n + f.size, 0) > MAX_ATTACHMENTS_BYTES)
       return void toast.error(t('attachmentsTooLarge'));
     stickToBottom.current = true;
+    inFlight.current = true;
     start(async () => {
-      const r = await sendMessageAction(fd).catch(() => null);
-      if (!r) return void toast.error(tc('error'));
-      if (!r.ok) return void toast.error(r.message);
-      form.reset();
-      setFiles([]);
-      lastTyping.current = 0;
-      await fetchNew();
-      onActivity();
+      try {
+        const r = await sendMessageAction(fd).catch(() => null);
+        if (!r) return void toast.error(tc('error'));
+        if (!r.ok) return void toast.error(r.message);
+        form.reset();
+        setFiles([]);
+        lastTyping.current = 0;
+        await fetchNew();
+        onActivity();
+      } finally {
+        inFlight.current = false;
+      }
     });
   };
 
