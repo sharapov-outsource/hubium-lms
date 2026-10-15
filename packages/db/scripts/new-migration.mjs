@@ -56,7 +56,7 @@ if (created.length === 1) {
         +t.slice(10, 12) + 1,
       ),
     );
-    const stamp = next.toISOString().replace(/\D/g, '').slice(0, 12) + '00';
+    const stamp = `${next.toISOString().replace(/\D/g, '').slice(0, 12)}00`;
     const renamed = folder.replace(STAMPED, `${stamp}_`);
     renameSync(join(DIR, folder), join(DIR, renamed));
     console.log(`Named ${renamed} to come after ${last}`);
