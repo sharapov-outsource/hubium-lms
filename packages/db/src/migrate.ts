@@ -47,7 +47,7 @@ export async function deployMigrations(
     const failed = rows.filter((r) => !r.finished && !r.rolledBack).map((r) => r.name);
     if (failed.length)
       throw new MigrationError(
-        `Migration ${failed.join(', ')} failed earlier. Restore the backup taken before the upgrade, or fix the database by hand and mark the migration as rolled back (prisma migrate resolve --rolled-back).`,
+        `Migration ${failed.join(', ')} failed earlier. Restore the backup taken before the upgrade, or fix what made it fail and mark it as rolled back (hubium migrate resolve --rolled-back ${failed[0]}): the next hubium migrate applies it again.`,
       );
     const done = new Set(rows.filter((r) => r.finished && !r.rolledBack).map((r) => r.name));
     for (const name of bundledMigrations(dir)) {
@@ -79,6 +79,28 @@ export async function deployMigrations(
       onApplied(name);
     }
     return applied;
+  } finally {
+    await client.query('SELECT pg_advisory_unlock($1)', [PRISMA_LOCK]).catch(() => {});
+    await client.end().catch(() => {});
+  }
+}
+
+/**
+ * Marks a failed migration as rolled back, as `prisma migrate resolve --rolled-back` does,
+ * once its cause is fixed: the next deploy applies it again. A failed migration left
+ * nothing behind (it runs in one transaction). False when no such failed migration exists.
+ */
+export async function markRolledBack(url: string, name: string): Promise<boolean> {
+  const client = new pg.Client({ connectionString: url });
+  await client.connect();
+  try {
+    await client.query('SELECT pg_advisory_lock($1)', [PRISMA_LOCK]);
+    const r = await client.query(
+      `UPDATE "_prisma_migrations" SET rolled_back_at = now()
+        WHERE migration_name = $1 AND finished_at IS NULL AND rolled_back_at IS NULL`,
+      [name],
+    );
+    return (r.rowCount ?? 0) > 0;
   } finally {
     await client.query('SELECT pg_advisory_unlock($1)', [PRISMA_LOCK]).catch(() => {});
     await client.end().catch(() => {});

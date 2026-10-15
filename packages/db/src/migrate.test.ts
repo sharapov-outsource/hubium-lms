@@ -7,7 +7,7 @@ import { config as loadEnv } from 'dotenv';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { bundledMigrations } from './doctor.ts';
-import { deployMigrations, MigrationError } from './migrate.ts';
+import { deployMigrations, MigrationError, markRolledBack } from './migrate.ts';
 
 loadEnv({ path: path.resolve(import.meta.dirname, '../../../.env'), quiet: true });
 
@@ -102,5 +102,14 @@ describe('release migrations', () => {
     ]);
     expect(rows[1]!.logs).toContain('no_such_column');
     await expect(deployMigrations(urlFor(broken), dir)).rejects.toBeInstanceOf(MigrationError);
+
+    // fixed and marked as rolled back, the next deploy applies it again
+    writeFileSync(
+      path.join(dir, '20000102000000_broken', 'migration.sql'),
+      'CREATE TABLE second_table (id int);',
+    );
+    expect(await markRolledBack(urlFor(broken), '20000101000000_first')).toBe(false);
+    expect(await markRolledBack(urlFor(broken), '20000102000000_broken')).toBe(true);
+    expect(await deployMigrations(urlFor(broken), dir)).toEqual(['20000102000000_broken']);
   });
 });

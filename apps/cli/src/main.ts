@@ -19,6 +19,9 @@ Commands:
   migrate --seed <profile>  apply database migrations, prepare file storage and seed;
                             profile: minimal (administrator only), demo or none
           [--disable-modules a,b]  turn activity types off before seeding
+  migrate resolve --rolled-back <name>
+                            mark a failed migration as rolled back once its cause is
+                            fixed; the next migrate applies it again
   seed --profile <profile>  seed only: minimal or demo
   doctor [db] [--json]      check the configuration, the database and the services;
                             "db" checks the database only (also before installing)

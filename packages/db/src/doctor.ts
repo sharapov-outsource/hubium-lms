@@ -216,7 +216,7 @@ export async function checkDatabase(
         add(
           'migrations',
           'error',
-          `Migration ${report.failed.join(', ')} failed; restore the backup taken before the upgrade, or fix the database and mark it with prisma migrate resolve`,
+          `Migration ${report.failed.join(', ')} failed; restore the backup taken before the upgrade, or fix what made it fail and run hubium migrate resolve --rolled-back ${report.failed[0]}`,
         );
       else if (unknown.length)
         add(

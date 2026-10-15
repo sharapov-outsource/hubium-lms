@@ -1,6 +1,6 @@
 import { parseArgs } from 'node:util';
 import type { Db } from '@hubium/db';
-import { deployMigrations } from '@hubium/db/migrate';
+import { deployMigrations, markRolledBack } from '@hubium/db/migrate';
 import type { Io } from './main.ts';
 import { UsageError } from './main.ts';
 import { setModules } from './modules.ts';
@@ -64,7 +64,22 @@ async function runSeed(db: Db, profile: 'minimal' | 'demo', io: Io): Promise<voi
     io.err(`AI_EMBEDDINGS_URL is not used: ${r.embeddings.reason}`);
 }
 
+/** `hubium migrate resolve --rolled-back <name>`: a failed migration fixed by hand. */
+async function resolveCommand(args: string[], io: Io): Promise<number> {
+  const { values } = parseArgs({ args, options: { 'rolled-back': { type: 'string' } } });
+  const name = values['rolled-back'];
+  if (!name) throw new UsageError('Name the failed migration: --rolled-back <name>.');
+  if (!process.env.DATABASE_URL) throw new UsageError('DATABASE_URL is not set.');
+  if (!(await markRolledBack(process.env.DATABASE_URL, name))) {
+    io.err(`No failed migration ${name} to mark.`);
+    return 1;
+  }
+  io.out(`Migration ${name} marked as rolled back: hubium migrate applies it again.`);
+  return 0;
+}
+
 export async function migrateCommand(args: string[], io: Io): Promise<number> {
+  if (args[0] === 'resolve') return resolveCommand(args.slice(1), io);
   const { values } = parseArgs({
     args,
     options: { seed: { type: 'string' }, 'disable-modules': { type: 'string' } },
