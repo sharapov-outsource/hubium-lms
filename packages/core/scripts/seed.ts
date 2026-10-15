@@ -13,13 +13,25 @@ const { seed } = await import('../src/seed/seed.ts');
 const profile = process.argv.includes('--profile')
   ? process.argv[process.argv.indexOf('--profile') + 1]
   : (process.env.SEED_PROFILE ?? 'demo');
+// a mistyped profile is an error, not the demo with its published passwords
+if (profile !== 'minimal' && profile !== 'demo') {
+  console.error(`Unknown seed profile "${profile}": use minimal or demo.`);
+  process.exit(1);
+}
+// the well-known development password never reaches a production site
+const adminPassword =
+  process.env.SEED_ADMIN_PASSWORD || (process.env.NODE_ENV === 'production' ? '' : 'Admin12345!');
+if (!adminPassword) {
+  console.error('Set SEED_ADMIN_PASSWORD: the seed may create the first administrator.');
+  process.exit(1);
+}
 
 const db = createDb();
 try {
   const result = await seed(db, {
-    profile: profile === 'minimal' ? 'minimal' : 'demo',
+    profile,
     adminEmail: process.env.SEED_ADMIN_EMAIL ?? 'admin@hubium.local',
-    adminPassword: process.env.SEED_ADMIN_PASSWORD ?? 'Admin12345!',
+    adminPassword,
   });
   console.log('Seed complete:', result);
 } finally {

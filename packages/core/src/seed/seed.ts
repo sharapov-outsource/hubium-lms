@@ -154,6 +154,9 @@ export async function seed(db: Db, opts: SeedOptions) {
       update: {},
     });
   }
+  // the embedding endpoint from the environment comes before the demo, whose AI setup would
+  // otherwise take the built-in hash embeddings and index its course with them
+  const embeddings = await seedEmbeddingsFromEnv(db);
   let demoCourses = false;
   if (demo && opts.courses !== false) {
     const { seedDemoCourses } = await import('./demo-courses.ts');
@@ -165,6 +168,5 @@ export async function seed(db: Db, opts: SeedOptions) {
       create: { key: DEMO_SEEDED, value: { at: new Date().toISOString() } },
       update: {},
     });
-  const embeddings = await seedEmbeddingsFromEnv(db);
   return { adminCreated, demoUsers: Object.keys(users).length, demoCourses, embeddings };
 }
