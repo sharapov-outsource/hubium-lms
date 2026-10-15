@@ -16,7 +16,7 @@ export const MultichoiceData = z
     shuffleAnswers: z.boolean().default(true),
     answers: z.array(Answer).min(2).max(20),
   })
-  .refine((d) => d.answers.some((a) => a.fraction > 0), 'At least one answer must be correct');
+  .refine((d) => d.answers.some((a) => a.fraction > 0), 'errors.questions.oneCorrect');
 
 export const TrueFalseData = z.object({
   correct: z.boolean(),
@@ -187,7 +187,7 @@ export const MultianswerData = z.object({
     .array(ClozePart)
     .min(1)
     .max(50)
-    .refine((ps) => ps.some((p) => p.weight > 0), 'At least one gap must carry marks'),
+    .refine((ps) => ps.some((p) => p.weight > 0), 'errors.questions.gapMarks'),
 });
 
 /** Values a variable of a calculated question takes, one per variant (Moodle's dataset). */
@@ -264,7 +264,7 @@ export const CalculatedMultiData = z
       .max(20),
     ...DatasetFields,
   })
-  .refine((d) => d.answers.some((a) => a.fraction > 0), 'At least one answer must be correct');
+  .refine((d) => d.answers.some((a) => a.fraction > 0), 'errors.questions.oneCorrect');
 
 /** As GapSelectData, answered by dragging; an unlimited choice can fill several gaps. */
 export const DdwtosData = z.object({

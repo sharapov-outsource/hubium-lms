@@ -91,8 +91,7 @@ export interface ImportRow {
   key: string;
   user: { id: string; name: string } | null;
   changes: { itemId: string; grade?: number; feedback?: string }[];
-  errors: string[];
-  /** The errors for the interface to word: what is wrong, and with which item and value. */
+  /** What is wrong, and with which item and value: worded by grades.importFlow.problem. */
   problems: { code: 'noKey' | 'noStudent' | 'notAGrade'; item?: string; value: string }[];
 }
 
@@ -142,11 +141,9 @@ export async function planGradeImport(
       key,
       user: u ? { id: u.id, name: u.name } : null,
       changes: [],
-      errors: [],
       problems: [],
     };
     if (!u) {
-      row.errors.push(key ? `No student in the course: ${key}` : 'No email or username');
       row.problems.push({ code: key ? 'noStudent' : 'noKey', value: key });
     }
     for (const c of mapping.columns) {
@@ -162,7 +159,6 @@ export async function planGradeImport(
       // scale grades by their name (as exported) or position; points with , or .
       const v = item.scale ? scaleValue(item.scale.items, cell) : Number(cell.replace(',', '.'));
       if (v === null || Number.isNaN(v) || v < num(item.gradeMin)! || v > num(item.gradeMax)!) {
-        row.errors.push(`${item.name}: not a grade: ${cell}`);
         row.problems.push({ code: 'notAGrade', item: item.name, value: cell });
       } else change.grade = v;
     }
@@ -174,7 +170,7 @@ export async function planGradeImport(
     totals: {
       students: out.filter((r) => r.user).length,
       grades: out.reduce((s, r) => s + (r.user ? r.changes.length : 0), 0),
-      errors: out.reduce((s, r) => s + r.errors.length, 0),
+      errors: out.reduce((s, r) => s + r.problems.length, 0),
     },
   };
 }
@@ -207,7 +203,7 @@ export const previewGradeImport = defineOperation({
       items: items.map((i) => ({ id: i.id, name: i.name, kind: i.kind })),
       rows: plan.rows.slice(0, 20),
       problems: plan.rows
-        .filter((r) => r.errors.length)
+        .filter((r) => r.problems.length)
         .slice(0, 50)
         .map((r) => ({ line: r.line, problems: r.problems })),
       totals: plan.totals,
@@ -273,7 +269,15 @@ async function applyRows(
   return {
     updated,
     errors: [
-      ...plan.rows.flatMap((r) => r.errors.map((message) => ({ line: r.line, message }))),
+      ...plan.rows.flatMap((r) =>
+        r.problems.map((p) => ({
+          line: r.line,
+          message: msg(`grades.importFlow.problem.${p.code}`, {
+            item: p.item ?? '',
+            value: p.value,
+          }).in(ctx.locale),
+        })),
+      ),
       ...locked,
     ].sort((a, b) => a.line - b.line),
   };

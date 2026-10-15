@@ -51,7 +51,8 @@
       "nothingToTranscode": "Rien à transcoder",
       "sourceDeleted": "Le fichier source a été supprimé : téléversez-le à nouveau",
       "captionsTooLarge": "Le fichier de sous-titres est trop volumineux",
-      "pasteLink": "Collez un lien YouTube, RuTube ou VK Video"
+      "pasteLink": "Collez un lien YouTube, RuTube ou VK Video",
+      "unsupportedLink": "Lien vidéo non pris en charge"
     }
   }
 }

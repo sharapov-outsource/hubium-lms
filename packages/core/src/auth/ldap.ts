@@ -74,7 +74,7 @@ export const LdapInput = z.object({
     .string()
     .trim()
     .max(1000)
-    .refine((f) => f.includes('{login}'), 'The filter must contain {login}'),
+    .refine((f) => f.includes('{login}'), 'errors.auth.ldapFilterLogin'),
   loginAttribute: z.string().trim().min(1).max(100),
   idAttribute: z.string().trim().max(100).default(''),
   mapping: LdapMapping,

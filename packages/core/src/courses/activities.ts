@@ -42,7 +42,7 @@ const dateOrNull = z
   .union([z.string(), z.null()])
   .optional()
   .transform((v) => (v ? new Date(v) : null))
-  .refine((d) => d === null || !Number.isNaN(d.getTime()), 'Invalid date');
+  .refine((d) => d === null || !Number.isNaN(d.getTime()), 'errors.field.invalidDate');
 
 export const ActivityInput = z.object({
   courseId: z.string().uuid(),

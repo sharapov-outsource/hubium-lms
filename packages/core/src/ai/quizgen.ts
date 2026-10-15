@@ -178,10 +178,12 @@ export async function runQuizGeneration(db: Db, generationId: string) {
     await ensureDefaultQuestionCategory(db, input.courseId);
     const questionIds: string[] = [];
     const errors: string[] = [];
+    const said = (name: string, problem: string) =>
+      msg('errors.questions.named', { name, problem }).in(locale);
     for (const d of r.questions.slice(0, input.count)) {
       const q = draftToQuestion(d);
       if ('error' in q) {
-        errors.push(`${d.name}: ${msg(q.error).in(locale)}`);
+        errors.push(said(d.name, msg(q.error).in(locale)));
         continue;
       }
       try {
@@ -195,7 +197,7 @@ export async function runQuizGeneration(db: Db, generationId: string) {
         await db.question.update({ where: { id: saved.id }, data: { source: 'AI' } });
         questionIds.push(saved.id);
       } catch (e) {
-        errors.push(`${d.name}: ${describeError(e, locale)}`);
+        errors.push(said(d.name, describeError(e, locale)));
       }
     }
     await db.aiGeneration.update({

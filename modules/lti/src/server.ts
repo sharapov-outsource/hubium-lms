@@ -85,7 +85,7 @@ export const ToolInput = z.object({
     .string()
     .trim()
     .transform((v) => v || null)
-    .refine((v) => v === null || v.includes('BEGIN PUBLIC KEY'), 'Paste a PEM public key'),
+    .refine((v) => v === null || v.includes('BEGIN PUBLIC KEY'), 'mod.lti.errors.pemKey'),
   deepLinkingUrl: z
     .string()
     .trim()

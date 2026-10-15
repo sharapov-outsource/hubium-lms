@@ -1388,7 +1388,7 @@ export const assign = defineModule<AssignSettingsT>({
           dueAt: DateInput,
           cutoffAt: DateInput,
         })
-        .refine((v) => !!v.userId !== !!v.groupId, 'Give either userId or groupId'),
+        .refine((v) => !!v.userId !== !!v.groupId, 'errors.field.userOrGroup'),
       async handler(ctx, a, input) {
         const d = (v: string | null | undefined) => (v ? new Date(v) : null);
         const values = {

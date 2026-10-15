@@ -51,7 +51,8 @@
       "nothingToTranscode": "Перекодировать нечего",
       "sourceDeleted": "Исходный файл удалён: загрузите его снова",
       "captionsTooLarge": "Файл субтитров слишком большой",
-      "pasteLink": "Вставьте ссылку на YouTube, RuTube или VK Видео"
+      "pasteLink": "Вставьте ссылку на YouTube, RuTube или VK Видео",
+      "unsupportedLink": "Неподдерживаемая ссылка на видео"
     }
   }
 }

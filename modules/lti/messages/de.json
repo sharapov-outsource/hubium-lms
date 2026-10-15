@@ -26,7 +26,8 @@
       "noToolKey": "Das Tool hat keinen öffentlichen Schlüssel und keine JWKS-URL",
       "giveToolKey": "Geben Sie eine JWKS-URL oder einen öffentlichen Schlüssel an",
       "chooseTool": "Wählen Sie ein Tool",
-      "addRedirect": "Fügen Sie mindestens eine Weiterleitungs-URI hinzu"
+      "addRedirect": "Fügen Sie mindestens eine Weiterleitungs-URI hinzu",
+      "pemKey": "Fügen Sie einen öffentlichen Schlüssel im PEM-Format ein"
     }
   }
 }

@@ -51,7 +51,8 @@
       "nothingToTranscode": "Nothing to transcode",
       "sourceDeleted": "The source file was deleted; upload it again",
       "captionsTooLarge": "Caption file is too large",
-      "pasteLink": "Paste a YouTube, RuTube or VK Video link"
+      "pasteLink": "Paste a YouTube, RuTube or VK Video link",
+      "unsupportedLink": "Unsupported video link"
     }
   }
 }

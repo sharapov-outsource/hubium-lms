@@ -87,7 +87,10 @@ export const subscribeCalendar = defineOperation({
     pollSeconds: z.coerce
       .number()
       .int()
-      .refine((n) => (POLL_SECONDS as readonly number[]).includes(n), 'Unknown interval'),
+      .refine(
+        (n) => (POLL_SECONDS as readonly number[]).includes(n),
+        'errors.calendar.unknownInterval',
+      ),
   }),
   authorize: authorizeTarget,
   async handler(ctx, input) {

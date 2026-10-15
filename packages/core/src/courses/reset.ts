@@ -38,7 +38,7 @@ export const ResetInput = z.object({
   startDate: z
     .string()
     .optional()
-    .refine((v) => !v || !Number.isNaN(Date.parse(v)), 'Invalid date'),
+    .refine((v) => !v || !Number.isNaN(Date.parse(v)), 'errors.field.invalidDate'),
   /** Activity types whose learners' work goes (attempts, submissions, posts…). */
   activityData: z.array(z.string()).default([]),
   grades: z.boolean().default(false),

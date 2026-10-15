@@ -14,7 +14,7 @@ describe('isoDate', () => {
   it('turns a date that is not one into a validation error', () => {
     const r = isoDate.safeParse('not a date');
     expect(r.success).toBe(false);
-    expect(r.error?.issues[0]?.message).toBe('Invalid date');
+    expect(r.error?.issues[0]?.message).toBe('errors.field.invalidDate');
     // past what a Date can hold
     expect(isoDate.safeParse('+300000-01-01T00:00:00Z').success).toBe(false);
   });

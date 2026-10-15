@@ -600,7 +600,9 @@
       "invalidDate": "Недопустимая дата",
       "anyLanguage": "Введите текст хотя бы на одном языке",
       "slug": "Строчные латинские буквы, цифры и дефисы",
-      "identifier": "Только латинские буквы, цифры и _"
+      "identifier": "Только латинские буквы, цифры и _",
+      "httpUrl": "Допустимы только адреса http(s)",
+      "userOrGroup": "Выберите участника или группу"
     },
     "common": {
       "shortNameInUse": "Это краткое название уже занято",
@@ -656,7 +658,8 @@
         "upper": "Добавьте заглавную букву",
         "symbol": "Добавьте символ, например ! или %"
       },
-      "minWords": "{n, plural, one {Не меньше # слова} few {Не меньше # слов} many {Не меньше # слов} other {Не меньше # слова}}"
+      "minWords": "{n, plural, one {Не меньше # слова} few {Не меньше # слов} many {Не меньше # слов} other {Не меньше # слова}}",
+      "ldapFilterLogin": "Фильтр должен содержать {login}"
     },
     "badges": {
       "unknown": "Неизвестное значение: {name}",
@@ -679,7 +682,8 @@
       "badSubscriptionUrl": "Введите адрес http(s) или webcal",
       "notIcs": "Это не файл iCalendar (.ics)",
       "chooseIcsFile": "Выберите файл .ics",
-      "icsTooLarge": "Файл больше 5 МБ"
+      "icsTooLarge": "Файл больше 5 МБ",
+      "unknownInterval": "Неизвестный интервал"
     },
     "certificates": {
       "checkField": "Проверьте поле {n}",
@@ -876,7 +880,9 @@
       "giftNumber": "Неверный числовой ответ «{value}»",
       "giftNoAnswers": "Ответы не найдены",
       "giftUnreadable": "Этот вопрос не удалось прочитать",
-      "named": "{name}: {problem}"
+      "named": "{name}: {problem}",
+      "oneCorrect": "Хотя бы один ответ должен быть верным",
+      "gapMarks": "Хотя бы один пропуск должен приносить баллы"
     },
     "reports": {
       "chooseSource": "Выберите источник",

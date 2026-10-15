@@ -201,7 +201,7 @@ export const saveAiProvider = defineOperation({
       .string()
       .trim()
       .url()
-      .refine((u) => /^https?:\/\//.test(u), 'Only http(s) URLs')
+      .refine((u) => /^https?:\/\//.test(u), 'errors.field.httpUrl')
       .optional()
       .or(z.literal('').transform(() => undefined)),
     /** Empty keeps the stored key. */

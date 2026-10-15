@@ -31,7 +31,7 @@ export const url = defineModule({
         .string()
         .trim()
         .url()
-        .refine((u) => /^https?:\/\//i.test(u), 'Only http(s) links are allowed'),
+        .refine((u) => /^https?:\/\//i.test(u), 'errors.field.httpUrl'),
       display: z.enum(['link', 'newtab', 'embed']).default('newtab'),
     }),
     defaults: () => ({ url: 'https://', display: 'newtab' as const }),

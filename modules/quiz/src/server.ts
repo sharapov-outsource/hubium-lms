@@ -1829,7 +1829,7 @@ export const quiz = defineModule<QuizSettingsT>({
           /** Their own password; '' lifts the quiz's, null keeps it. */
           password: z.string().max(255).nullable().default(null),
         })
-        .refine((v) => !!v.userId !== !!v.groupId, 'Choose a participant or a group')
+        .refine((v) => !!v.userId !== !!v.groupId, 'errors.field.userOrGroup')
         .refine(
           (v) =>
             v.openAt ||

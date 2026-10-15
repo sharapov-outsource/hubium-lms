@@ -20,7 +20,7 @@ const isoDate = z
   .union([z.string(), z.null()])
   .optional()
   .transform((v) => (v ? new Date(v) : null))
-  .refine((v) => v === null || !Number.isNaN(v.getTime()), 'Invalid date');
+  .refine((v) => v === null || !Number.isNaN(v.getTime()), 'errors.field.invalidDate');
 
 const AnnouncementInput = z.object({
   title: z.string().trim().min(1).max(255),

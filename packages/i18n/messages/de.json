@@ -599,7 +599,9 @@
       "invalidDate": "Ungültiges Datum",
       "anyLanguage": "Geben Sie den Text in mindestens einer Sprache ein",
       "slug": "Kleinbuchstaben, Ziffern und Bindestriche",
-      "identifier": "Nur Buchstaben, Ziffern und _"
+      "identifier": "Nur Buchstaben, Ziffern und _",
+      "httpUrl": "Nur http(s)-Adressen sind erlaubt",
+      "userOrGroup": "Wählen Sie eine teilnehmende Person oder eine Gruppe"
     },
     "common": {
       "shortNameInUse": "Dieser Kurzname ist bereits vergeben",
@@ -655,7 +657,8 @@
         "upper": "Verwenden Sie einen Großbuchstaben",
         "symbol": "Verwenden Sie ein Sonderzeichen wie ! oder %"
       },
-      "minWords": "{n, plural, one {Mindestens # Wort} other {Mindestens # Wörter}}"
+      "minWords": "{n, plural, one {Mindestens # Wort} other {Mindestens # Wörter}}",
+      "ldapFilterLogin": "Der Filter muss {login} enthalten"
     },
     "badges": {
       "unknown": "Unbekannt: {name}",
@@ -678,7 +681,8 @@
       "badSubscriptionUrl": "Geben Sie eine http(s)- oder webcal-Adresse ein",
       "notIcs": "Dies ist keine iCalendar-Datei (.ics)",
       "chooseIcsFile": "Wählen Sie eine .ics-Datei",
-      "icsTooLarge": "Die Datei ist größer als 5 MB"
+      "icsTooLarge": "Die Datei ist größer als 5 MB",
+      "unknownInterval": "Unbekanntes Intervall"
     },
     "certificates": {
       "checkField": "Prüfen Sie Feld {n}",
@@ -875,7 +879,9 @@
       "giftNumber": "Ungültige numerische Antwort „{value}“",
       "giftNoAnswers": "Keine Antworten gefunden",
       "giftUnreadable": "Diese Frage konnte nicht gelesen werden",
-      "named": "{name}: {problem}"
+      "named": "{name}: {problem}",
+      "oneCorrect": "Mindestens eine Antwort muss richtig sein",
+      "gapMarks": "Mindestens eine Lücke muss Punkte bringen"
     },
     "reports": {
       "chooseSource": "Wählen Sie eine Quelle",

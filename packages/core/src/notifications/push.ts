@@ -32,7 +32,7 @@ const Subscription = z.object({
     .string()
     .url()
     .max(2000)
-    .refine((u) => u.startsWith('https://'), 'Invalid endpoint'),
+    .refine((u) => u.startsWith('https://'), 'errors.field.invalid'),
   keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(8).max(100) }),
 });
 

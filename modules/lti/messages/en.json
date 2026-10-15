@@ -26,7 +26,8 @@
       "noToolKey": "The tool has no public key or JWKS URL",
       "giveToolKey": "Provide a JWKS URL or a public key",
       "chooseTool": "Choose a tool",
-      "addRedirect": "Add at least one redirect URI"
+      "addRedirect": "Add at least one redirect URI",
+      "pemKey": "Paste a PEM public key"
     }
   }
 }

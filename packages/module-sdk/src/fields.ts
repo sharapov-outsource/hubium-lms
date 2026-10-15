@@ -7,7 +7,7 @@ import { z } from 'zod';
 export const isoDate = z
   .union([z.string(), z.null()])
   .optional()
-  .refine((v) => !v || !Number.isNaN(Date.parse(v)), 'Invalid date')
+  .refine((v) => !v || !Number.isNaN(Date.parse(v)), 'errors.field.invalidDate')
   .transform((v) => (v ? new Date(v).toISOString() : null));
 
 /** Checkbox value: true, "on", "true" → true. */

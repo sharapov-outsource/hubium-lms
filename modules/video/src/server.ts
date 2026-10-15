@@ -45,7 +45,7 @@ export const VideoSettings = z
       .trim()
       .max(2000)
       .default('')
-      .refine((v) => !v || parseEmbed(v) !== null, 'Unsupported video link'),
+      .refine((v) => !v || parseEmbed(v) !== null, 'mod.video.errors.unsupportedLink'),
     noSeekAhead: bool(false),
     deleteSource: bool(false),
   })
