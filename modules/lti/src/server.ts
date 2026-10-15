@@ -714,6 +714,8 @@ export const lti = defineModule<LtiSettingsT>({
   settings: {
     schema: LtiSettings as unknown as z.ZodType<LtiSettingsT>,
     defaults: () => LtiSettings.parse({ toolId: '00000000-0000-0000-0000-000000000000' }),
+    // the tool adds and removes its grade columns through AGS
+    managed: ['lineItems'],
   },
   grading: {
     items: (a) =>

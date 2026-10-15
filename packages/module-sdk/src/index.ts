@@ -305,7 +305,14 @@ export interface ActivityModule<S = Record<string, unknown>> {
   /** lucide-react icon name, e.g. 'FileText'. */
   icon: string;
   supports: { grading?: boolean; groups?: boolean; viewCompletion?: boolean; backup?: boolean };
-  settings: { schema: z.ZodType<S>; defaults(): S };
+  settings: {
+    schema: z.ZodType<S>;
+    defaults(): S;
+    /** Fields the module keeps up itself rather than the settings form (an LTI tool's grade
+     *  columns, say): creating an activity takes their defaults, updating it keeps the
+     *  stored values, whatever the form or an API client sends. */
+    managed?: readonly (keyof S & string)[];
+  };
   completion?: CompletionRuleDef;
   grading?: { items(a: ActivityRef<S>): GradeItemSpec[] };
   calendar?: { events(a: ActivityRef<S>): CalendarEventSpec[] };

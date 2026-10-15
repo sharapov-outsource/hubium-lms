@@ -3,6 +3,7 @@ import { createLocalJWKSet, exportSPKI, generateKeyPair, type JWK, jwtVerify, Si
 import { beforeAll, describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
+import { updateActivity } from '../courses/activities.ts';
 import { buildModuleCtx } from './module-ctx.ts';
 import { getModule } from './registry.ts';
 
@@ -222,6 +223,29 @@ describe('mod-lti (LTI 1.3 platform)', () => {
       await http('anon', 'GET', `ags/${ltiId}/lineitems?tag=quiz`, { headers: auth })
     ).json()) as unknown[];
     expect(list).toHaveLength(1);
+    // the tool's own column and its grades survive the teacher editing the activity, which
+    // sends only what the form has
+    expect(
+      (
+        await http('anon', 'POST', `ags/${ltiId}/lineitems/1/scores`, {
+          headers: auth,
+          body: JSON.stringify({ userId: f.users.student1, scoreGiven: 15, scoreMaximum: 20 }),
+        })
+      ).status,
+    ).toBe(200);
+    await updateActivity.run(await ctxFor(t.db, f.users.teacher!), {
+      id: ltiId,
+      name: 'Тренажёр',
+      settings: { toolId: tool.id, gradeMax: 100, height: 900, lineItems: [] },
+    });
+    expect(await t.db.gradeItem.count({ where: { activityId: ltiId } })).toBe(2);
+    const column = await t.db.gradeItem.findFirstOrThrow({
+      where: { activityId: ltiId, itemNumber: 1 },
+    });
+    const kept = await t.db.grade.findFirst({
+      where: { gradeItemId: column.id, userId: f.users.student1 },
+    });
+    expect(Number(kept?.rawGrade)).toBe(15);
     // unenrolled users and missing tokens are refused
     expect(
       (

@@ -83,9 +83,16 @@ async function groupSetup(
   };
 }
 
-function validateSettings(moduleKey: string, raw: Record<string, unknown>) {
+/** `stored`: the activity's current settings, when updating it. */
+function validateSettings(moduleKey: string, raw: Record<string, unknown>, stored?: unknown) {
   const m = requireModule(moduleKey);
-  const r = m.settings.schema.safeParse({ ...(m.settings.defaults() as object), ...raw });
+  const defaults = m.settings.defaults() as Record<string, unknown>;
+  const input = { ...defaults, ...raw };
+  // fields the module keeps up itself are not the form's to set
+  const old = (stored ?? {}) as Record<string, unknown>;
+  for (const key of m.settings.managed ?? [])
+    input[key] = stored !== undefined && key in old ? old[key] : defaults[key];
+  const r = m.settings.schema.safeParse(input);
   if (!r.success) {
     const fieldErrors: Record<string, string[]> = {};
     for (const i of r.error.issues)
@@ -261,7 +268,7 @@ export const updateActivity = defineOperation({
     const prev = await ctx.tx.activity.findUniqueOrThrow({ where: { id: input.id } });
     if ((input.idNumber ?? null) !== prev.idNumber)
       await requireActivityIdNumber(ctx.tx, prev.courseId, input.idNumber, prev.id);
-    const settings = validateSettings(prev.moduleKey, input.settings);
+    const settings = validateSettings(prev.moduleKey, input.settings, prev.settings ?? {});
     const completionRules = validateCompletion(
       prev.moduleKey,
       input.completionMode,
