@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chapterBlock, chapterNumbers, movedOrder } from './server.ts';
+import { chapterBlock, chapterNumbers, movedOrder, readableChapters } from './server.ts';
 
 const row = (id: string, subchapter = false) => ({ id, subchapter });
 const ids = (list: { id: string }[]) => list.map((c) => c.id).join(' ');
@@ -18,6 +18,20 @@ describe('book chapters', () => {
     expect(ids(chapterBlock(book, 'a1'))).toBe('a1');
     expect(ids(chapterBlock(book, 'b'))).toBe('b');
     expect(chapterBlock(book, 'nope')).toEqual([]);
+  });
+
+  it('hides the subchapters of a hidden chapter with it', () => {
+    const hidden = (id: string, subchapter = false) => ({ ...row(id, subchapter), hidden: true });
+    const shown = (id: string, subchapter = false) => ({ ...row(id, subchapter), hidden: false });
+    // "Answers to the test", hidden, with a subchapter nobody hid by itself
+    const list = [
+      shown('a'),
+      hidden('answers'),
+      shown('answers-1', true),
+      shown('b'),
+      hidden('b1', true),
+    ];
+    expect(ids(readableChapters(list))).toBe('a b');
   });
 
   it('moves a chapter with its subchapters, and a subchapter alone', () => {

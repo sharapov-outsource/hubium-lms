@@ -105,15 +105,22 @@ async function chapters(ctx: ModuleCtx, activityId: string): Promise<Chapter[]> 
   });
 }
 
-/** Chapters the user may read: hidden ones (and their subchapters) only with the capability. */
-export async function visibleChapters(ctx: ModuleCtx, a: ActivityRef): Promise<Chapter[]> {
-  const all = await chapters(ctx, a.id);
-  if (await ctx.perm.can('mod.book:viewhiddenchapters', a.id)) return all;
+/** The chapters learners read: neither hidden ones nor the subchapters of a hidden one. */
+export function readableChapters<C extends { subchapter: boolean; hidden: boolean }>(
+  all: C[],
+): C[] {
   let parentHidden = false;
   return all.filter((c) => {
     if (!c.subchapter) parentHidden = c.hidden;
     return !c.hidden && !parentHidden;
   });
+}
+
+/** Chapters the user may read: hidden ones (and their subchapters) only with the capability. */
+export async function visibleChapters(ctx: ModuleCtx, a: ActivityRef): Promise<Chapter[]> {
+  const all = await chapters(ctx, a.id);
+  if (await ctx.perm.can('mod.book:viewhiddenchapters', a.id)) return all;
+  return readableChapters(all);
 }
 
 /** Writes the order back as 0..n; the first row cannot be a subchapter. */
@@ -163,9 +170,11 @@ export const book = defineModule<BookSettingsT>({
   },
   ai: {
     async extract(ctx, a) {
-      return (await chapters(ctx, a.id))
-        .filter((c) => !c.hidden)
-        .map((c) => ({ title: c.title, text: c.content }));
+      // the tutor answers learners: what they cannot read stays out
+      return readableChapters(await chapters(ctx, a.id)).map((c) => ({
+        title: c.title,
+        text: c.content,
+      }));
     },
   },
   backup: {
