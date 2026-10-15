@@ -8,7 +8,7 @@ import type { RequestContext } from '../context.ts';
 import { assertCanAssignRole } from '../enrol/enrol.ts';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
-import { localeCode, optionalLocale } from '../lib/zod.ts';
+import { localeCode, optionalLocale, timeZone } from '../lib/zod.ts';
 import { defineOperation } from '../operation.ts';
 import { erasePersonalData } from '../privacy/privacy.ts';
 import {
@@ -44,12 +44,7 @@ export const UserCreateInput = z
     lastName: z.string().trim().min(1).max(100),
     password: z.string().min(8).max(128),
     locale: optionalLocale,
-    timezone: z
-      .string()
-      .trim()
-      .max(64)
-      .optional()
-      .or(z.literal('').transform(() => undefined)),
+    timezone: timeZone.optional().or(z.literal('').transform(() => undefined)),
     isSiteAdmin: z.boolean().optional(),
     mustChangePassword: z.boolean().optional(),
     emailVerified: z.boolean().optional(),
@@ -202,9 +197,20 @@ export const UserUpdateInput = z.object({
   id: z.string().uuid(),
   firstName: z.string().trim().min(1).max(100).optional(),
   lastName: z.string().trim().min(1).max(100).optional(),
-  email: z.string().trim().toLowerCase().email().optional(),
+  // a person without an email keeps none: the card sends their empty field
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email()
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
   locale: localeCode.nullable().optional(),
-  timezone: z.string().nullable().optional(),
+  /** Null or empty: the site's zone. */
+  timezone: timeZone
+    .nullable()
+    .optional()
+    .or(z.literal('').transform(() => null)),
   isSiteAdmin: z.boolean().optional(),
   password: z
     .string()

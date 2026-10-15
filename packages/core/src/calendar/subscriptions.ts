@@ -4,6 +4,7 @@ import { checkUrlShape, safeFetch } from '@hubium/module-sdk/net';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
+import { zoneOr } from '../lib/zod.ts';
 import { defineOperation } from '../operation.ts';
 import { getAllSettings } from '../settings/settings.ts';
 import { parseIcs } from './ics.ts';
@@ -155,7 +156,7 @@ async function feedZone(db: Tx, sub: CalendarSubscription): Promise<string> {
   const user = sub.userId
     ? await db.user.findUnique({ where: { id: sub.userId }, select: { timezone: true } })
     : null;
-  return user?.timezone || settings['site.defaultTimezone'];
+  return zoneOr(user?.timezone, settings['site.defaultTimezone']);
 }
 
 /** Replaces the subscription's events with those of the feed text. */

@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { sign, verifySignature } from '../crypto.ts';
 import { getEnv } from '../env.ts';
 import { enqueue } from '../jobs/jobs.ts';
+import { zoneOr } from '../lib/zod.ts';
 import { deliverMail, renderActionEmail, renderDigestEmail } from '../mail/mail.ts';
 import { provideModuleServices, service } from '../modules/module-ctx.ts';
 import { getModule } from '../modules/registry.ts';
@@ -443,7 +444,7 @@ export async function sendDigests(
       },
     });
     if (!user) continue;
-    const tz = user.timezone || settings['site.defaultTimezone'];
+    const tz = zoneOr(user.timezone, settings['site.defaultTimezone']);
     if (!opts.force && localHour(now, tz) !== user.digestHour) continue;
     const items = await db.notification.findMany({
       where: { userId, emailState: 'DIGEST' },

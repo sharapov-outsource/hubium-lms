@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { ForbiddenError, ValidationError } from '../errors.ts';
+import { getAllSettings, setSettings } from '../settings/settings.ts';
 import {
   bulkUploadUsers,
   createUser,
@@ -147,6 +148,54 @@ describe('users service', () => {
     await setUserSuspended.run(ctx, { id: s.id, suspended: true });
     expect((await t.db.user.findUniqueOrThrow({ where: { id: s.id } })).status).toBe('SUSPENDED');
     expect(await t.db.session.count({ where: { userId: s.id } })).toBe(0);
+  });
+
+  it('saves a user with no email, and only a time zone that is one', async () => {
+    const ctx = await ctxFor(t.db, 'admin@test.local');
+    const { id } = await createUser.run(ctx, {
+      username: 'pupil7',
+      firstName: 'Петя',
+      lastName: 'Иванов',
+      password: 'Password123',
+    });
+    // the card sends the empty email field of a person who has none
+    await updateUser.run(ctx, { id, email: '', firstName: 'Пётр', password: '' });
+    expect(await t.db.user.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      firstName: 'Пётр',
+      emailPlaceholder: true,
+    });
+    for (const timezone of ['MSK', 'Europe/Atlantis', 'x'.repeat(65)])
+      await expect(updateUser.run(ctx, { id, timezone })).rejects.toMatchObject({
+        fieldErrors: { timezone: [expect.any(String)] },
+      });
+    await expect(
+      createUser.run(ctx, {
+        username: 'pupil8',
+        firstName: 'A',
+        lastName: 'B',
+        password: 'Password123',
+        timezone: 'MSK',
+      }),
+    ).rejects.toMatchObject({ fieldErrors: { timezone: [expect.any(String)] } });
+    await updateUser.run(ctx, { id, timezone: 'Asia/Yekaterinburg' });
+    expect((await t.db.user.findUniqueOrThrow({ where: { id } })).timezone).toBe(
+      'Asia/Yekaterinburg',
+    );
+    // an empty choice is the site's zone again
+    await updateUser.run(ctx, { id, timezone: '' });
+    expect((await t.db.user.findUniqueOrThrow({ where: { id } })).timezone).toBeNull();
+    // the site's zone too, and one stored before this check reads as the default
+    await expect(setSettings(t.db, { 'site.defaultTimezone': 'MSK' })).rejects.toBeInstanceOf(
+      ValidationError,
+    );
+    await t.db.siteSetting.upsert({
+      where: { key: 'site.defaultTimezone' },
+      create: { key: 'site.defaultTimezone', value: 'MSK' },
+      update: { value: 'MSK' },
+    });
+    await setSettings(t.db, { 'site.name': 'Hubium' });
+    expect((await getAllSettings(t.db))['site.defaultTimezone']).toBe('Europe/Moscow');
+    await t.db.siteSetting.delete({ where: { key: 'site.defaultTimezone' } });
   });
 
   it('admin cannot suspend themselves', async () => {

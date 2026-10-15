@@ -4,6 +4,7 @@ import {
   addRecoveryPassphrase,
   assertPasswordAllowed,
   deleteRecoveryPassphrase,
+  isTimeZone,
   listProfileFields,
   profileValuesFromForm,
   ValidationError,
@@ -25,15 +26,6 @@ const ProfileInput = z.object({
   timezone: z.string().trim().max(64).optional(),
 });
 
-function validTimezone(tz: string): boolean {
-  try {
-    new Intl.DateTimeFormat('en', { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export async function updateProfileAction(fd: FormData) {
   return runAction(async () => {
     const user = await requireUser();
@@ -41,7 +33,7 @@ export async function updateProfileAction(fd: FormData) {
     const r = ProfileInput.safeParse(form);
     if (!r.success) throw r.error;
     const { firstName, lastName, timezone } = r.data;
-    if (timezone && !validTimezone(timezone))
+    if (timezone && !isTimeZone(timezone))
       throw new ValidationError({ timezone: ['Unknown time zone'] });
     // custom profile fields the person may change themselves
     const fields = (await listProfileFields(db)).filter((f) => !f.locked);

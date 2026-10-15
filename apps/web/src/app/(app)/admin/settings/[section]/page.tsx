@@ -2,7 +2,7 @@ import { getAllSettings, roleName, siteLocale } from '@hubium/core';
 import { BUILT_IN_OAUTH, configuredOAuthProviders } from '@hubium/core/auth/auth';
 import { languageInfo } from '@hubium/i18n/packs';
 import { DateTimeInput } from '@hubium/module-sdk/form';
-import { Badge, Card, CardContent, Checkbox, Select, Textarea } from '@hubium/ui';
+import { Badge, Card, CardContent, Checkbox, Combobox, Select, Textarea } from '@hubium/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
@@ -10,6 +10,7 @@ import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { saveSettingsAction } from '@/server/actions/admin';
 import { db } from '@/server/db';
 import { requireCapability } from '@/server/session';
+import { timezoneOptions } from '@/server/timezones';
 import { BrandingForm } from './branding-form';
 import { SectionNav } from './section-nav';
 import { TestEmailButton } from './test-email';
@@ -77,11 +78,16 @@ export default async function SettingsSectionPage({
               {t('languages')}
             </Link>
           </p>
-          <FormField
-            name="defaultTimezone"
-            label={t('settings.defaultTimezone')}
-            defaultValue={s['site.defaultTimezone']}
-          />
+          <FormField name="defaultTimezone" label={t('settings.defaultTimezone')}>
+            <Combobox
+              id="f-defaultTimezone"
+              name="defaultTimezone"
+              defaultValue={s['site.defaultTimezone']}
+              options={timezoneOptions(locale)}
+              searchPlaceholder={tc('searchPlaceholder')}
+              emptyText={tc('nothingFound')}
+            />
+          </FormField>
           <FormField name="creatorRole" label={t('settings.creatorRole')}>
             <Select id="f-creatorRole" name="creatorRole" defaultValue={s['course.creatorRole']}>
               {roles.map((r) => (

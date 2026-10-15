@@ -1,7 +1,7 @@
 'use client';
 
 import type { ActionResult } from '@hubium/core/operation';
-import { Checkbox, Select } from '@hubium/ui';
+import { Checkbox, Combobox, type ComboboxOption, Select } from '@hubium/ui';
 import { useTranslations } from 'next-intl';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { ProfileFieldInputs, type ProfileFieldView } from '@/components/profile-field-inputs';
@@ -26,6 +26,7 @@ export function UserForm({
   mode,
   profileFields = [],
   languages,
+  timezones,
   passwordRules,
 }: {
   action: (fd: FormData) => Promise<ActionResult<unknown>>;
@@ -35,6 +36,8 @@ export function UserForm({
   profileFields?: ProfileFieldView[];
   /** Enabled languages, by their own names. */
   languages: { code: string; name: string }[];
+  /** IANA zones to choose from (server/timezones.ts). */
+  timezones: ComboboxOption[];
   passwordRules: PasswordRules;
 }) {
   const t = useTranslations('admin.user');
@@ -95,12 +98,16 @@ export function UserForm({
             ))}
           </Select>
         </FormField>
-        <FormField
-          name="timezone"
-          label={ts('timezone')}
-          defaultValue={values.timezone ?? ''}
-          placeholder="Europe/Moscow"
-        />
+        <FormField name="timezone" label={ts('timezone')}>
+          <Combobox
+            id="f-timezone"
+            name="timezone"
+            defaultValue={values.timezone ?? ''}
+            options={[{ value: '', label: ts('timezoneDefault') }, ...timezones]}
+            searchPlaceholder={tc('searchPlaceholder')}
+            emptyText={tc('nothingFound')}
+          />
+        </FormField>
       </div>
       {profileFields.length ? (
         <fieldset className="grid gap-4">

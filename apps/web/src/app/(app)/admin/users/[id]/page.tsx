@@ -25,6 +25,7 @@ import { db } from '@/server/db';
 import { viewerCan } from '@/server/page-title';
 import { profileFieldViews } from '@/server/profile-fields';
 import { requireCapability } from '@/server/session';
+import { timezoneOptions } from '@/server/timezones';
 import { UserForm } from '../user-form';
 import { UserRelations } from './relations';
 import { DangerZone, LockedNotice, SiteRoleToggles } from './user-actions';
@@ -93,6 +94,7 @@ export default async function EditUserPage({
               mode="edit"
               canSetAdmin={ctx.perm.isSiteAdmin}
               languages={await enabledLanguages(db)}
+              timezones={timezoneOptions(locale)}
               passwordRules={passwordPolicy(await getAllSettings(db))}
               profileFields={await profileFieldViews(locale)}
               values={{

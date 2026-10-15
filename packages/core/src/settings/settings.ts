@@ -3,6 +3,7 @@ import { BASE_LOCALE, DEFAULT_SITE_LOCALE, isLocale, type Locale, locales } from
 import { z } from 'zod';
 import { ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { timeZone } from '../lib/zod.ts';
 import { ensureLanguagePacks } from './language-packs.ts';
 
 // Typed site settings. Each setting is declared once with a zod schema and a default;
@@ -22,7 +23,7 @@ export const settingDefs = {
   'i18n.detectBrowser': z.boolean().default(true),
   /** Activity types turned off in Administration → Modules (see settings/modules.ts). */
   'modules.disabled': z.array(z.string()).default([]),
-  'site.defaultTimezone': z.string().default('Europe/Moscow'),
+  'site.defaultTimezone': timeZone.default('Europe/Moscow'),
   /** Who issues the site's Open Badges; the site name when empty. */
   'badges.issuerName': z.string().max(255).default(''),
   'badges.issuerEmail': z.union([z.literal(''), z.string().email().max(255)]).default(''),

@@ -1,4 +1,4 @@
-import { enabledLocales, getAllSettings, siteLocale } from '@hubium/core';
+import { enabledLocales, getAllSettings, siteLocale, zoneOr } from '@hubium/core';
 import { LOCALE_COOKIE, resolveLocale } from '@hubium/i18n';
 import { messagesFor } from '@hubium/i18n/packs';
 import { cookies, headers } from 'next/headers';
@@ -37,6 +37,7 @@ export default getRequestConfig(async () => {
   return {
     locale,
     messages: messagesFor(locale, site),
-    timeZone: user?.timezone ?? settings['site.defaultTimezone'],
+    // a zone stored before zones were checked would break every date on the page
+    timeZone: zoneOr(user?.timezone, settings['site.defaultTimezone']),
   };
 });

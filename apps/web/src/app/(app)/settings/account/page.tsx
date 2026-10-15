@@ -1,12 +1,4 @@
-import {
-  Alert,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Combobox,
-  type ComboboxOption,
-} from '@hubium/ui';
+import { Alert, Card, CardContent, CardHeader, CardTitle, Combobox } from '@hubium/ui';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { ProfileFieldInputs } from '@/components/profile-field-inputs';
@@ -14,6 +6,7 @@ import { changeEmailAction, updateProfileAction } from '@/server/actions/account
 import { titled } from '@/server/page-title';
 import { profileFieldViews } from '@/server/profile-fields';
 import { requireUser } from '@/server/session';
+import { timezoneOptions } from '@/server/timezones';
 
 export const generateMetadata = titled('settings', 'account');
 
@@ -100,19 +93,4 @@ export default async function AccountSettings() {
       </Card>
     </div>
   );
-}
-
-/** Every IANA zone with its current UTC offset; the localized zone name finds it in search. */
-function timezoneOptions(locale: string): ComboboxOption[] {
-  const now = new Date();
-  const part = (timeZone: string, timeZoneName: 'shortOffset' | 'long') =>
-    new Intl.DateTimeFormat(locale, { timeZone, timeZoneName })
-      .formatToParts(now)
-      .find((p) => p.type === 'timeZoneName')?.value ?? '';
-  return Intl.supportedValuesOf('timeZone').map((zone) => ({
-    value: zone,
-    label: zone.replaceAll('_', ' '),
-    hint: part(zone, 'shortOffset').replace('GMT', 'UTC'),
-    keywords: [part(zone, 'long')],
-  }));
 }
