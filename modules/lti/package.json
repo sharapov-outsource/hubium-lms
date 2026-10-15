@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "@hubium/db": "workspace:*",
-    "@hubium/editor": "workspace:*",
     "@hubium/module-sdk": "workspace:*",
     "@hubium/ui": "workspace:*",
     "jose": "6.2.12",

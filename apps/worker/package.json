@@ -16,7 +16,6 @@
     "@hubium/core": "workspace:*",
     "@hubium/db": "workspace:*",
     "@hubium/module-sdk": "workspace:*",
-    "@hubium/i18n": "workspace:*",
     "@hubium/interchange": "workspace:*",
     "@hubium/log": "workspace:*",
     "@hubium/modules": "workspace:*",

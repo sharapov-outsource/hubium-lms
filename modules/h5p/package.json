@@ -21,7 +21,6 @@
     "@hubium/module-sdk": "workspace:*",
     "@hubium/ui": "workspace:*",
     "h5p-standalone": "3.8.2",
-    "lucide-react": "1.55.0",
     "next-intl": "4.14.9",
     "zod": "4.6.7"
   },

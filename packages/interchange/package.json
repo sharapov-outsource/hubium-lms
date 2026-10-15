@@ -25,14 +25,9 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@hubium/mod-assign": "workspace:*",
-    "@hubium/mod-content": "workspace:*",
-    "@hubium/mod-forum": "workspace:*",
-    "@hubium/mod-quiz": "workspace:*",
     "@hubium/tooling": "workspace:*",
     "@types/node": "^24",
     "@types/tar-stream": "3.1.5",
-    "dotenv": "18.0.7",
     "typescript": "~7.0.2",
     "vitest": "5.0.4"
   }

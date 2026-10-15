@@ -328,9 +328,6 @@ importers:
       next-intl:
         specifier: 4.14.9
         version: 4.14.9(@swc/helpers@0.5.23)(@types/react@19.3.0)(next@16.4.0(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@24.19.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
-      pino:
-        specifier: 10.4.0
-        version: 10.4.0
       qrcode.react:
         specifier: 4.2.0
         version: 4.2.0(react@19.3.0)
@@ -389,9 +386,6 @@ importers:
       '@hubium/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@hubium/i18n':
-        specifier: workspace:*
-        version: link:../../packages/i18n
       '@hubium/interchange':
         specifier: workspace:*
         version: link:../../packages/interchange
@@ -435,9 +429,6 @@ importers:
       '@hubium/ai':
         specifier: workspace:*
         version: link:../packages/ai
-      '@hubium/db':
-        specifier: workspace:*
-        version: link:../packages/db
       '@hubium/mod-h5p':
         specifier: workspace:*
         version: link:../modules/h5p
@@ -505,9 +496,6 @@ importers:
 
   modules/book:
     dependencies:
-      '@hubium/db':
-        specifier: workspace:*
-        version: link:../../packages/db
       '@hubium/editor':
         specifier: workspace:*
         version: link:../../packages/editor
@@ -551,12 +539,6 @@ importers:
 
   modules/choice:
     dependencies:
-      '@hubium/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@hubium/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
       '@hubium/module-sdk':
         specifier: workspace:*
         version: link:../../packages/module-sdk
@@ -686,12 +668,6 @@ importers:
 
   modules/feedback:
     dependencies:
-      '@hubium/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@hubium/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
       '@hubium/module-sdk':
         specifier: workspace:*
         version: link:../../packages/module-sdk
@@ -839,9 +815,6 @@ importers:
       h5p-standalone:
         specifier: 3.8.2
         version: 3.8.2
-      lucide-react:
-        specifier: 1.55.0
-        version: 1.55.0(@types/react@19.3.0)(react@19.3.0)
       next-intl:
         specifier: 4.14.9
         version: 4.14.9(@swc/helpers@0.5.23)(@types/react@19.3.0)(next@16.4.0(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@24.19.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
@@ -925,12 +898,6 @@ importers:
 
   modules/livesession:
     dependencies:
-      '@hubium/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@hubium/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
       '@hubium/log':
         specifier: workspace:*
         version: link:../../packages/log
@@ -977,9 +944,6 @@ importers:
       '@hubium/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@hubium/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
       '@hubium/module-sdk':
         specifier: workspace:*
         version: link:../../packages/module-sdk
@@ -1084,9 +1048,6 @@ importers:
       '@hubium/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@hubium/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
       '@hubium/log':
         specifier: workspace:*
         version: link:../../packages/log
@@ -1142,9 +1103,6 @@ importers:
       '@hubium/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@hubium/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
       '@hubium/module-sdk':
         specifier: workspace:*
         version: link:../../packages/module-sdk
@@ -1154,9 +1112,6 @@ importers:
       hls.js:
         specifier: 1.7.3
         version: 1.7.3
-      lucide-react:
-        specifier: 1.55.0
-        version: 1.55.0(@types/react@19.3.0)(react@19.3.0)
       media-chrome:
         specifier: 4.19.3
         version: 4.19.3(react@19.3.0)
@@ -1191,9 +1146,6 @@ importers:
 
   modules/wiki:
     dependencies:
-      '@hubium/db':
-        specifier: workspace:*
-        version: link:../../packages/db
       '@hubium/editor':
         specifier: workspace:*
         version: link:../../packages/editor
@@ -1342,18 +1294,6 @@ importers:
         specifier: 4.6.7
         version: 4.6.7
     devDependencies:
-      '@hubium/mod-assign':
-        specifier: workspace:*
-        version: link:../../modules/assign
-      '@hubium/mod-content':
-        specifier: workspace:*
-        version: link:../../modules/content
-      '@hubium/mod-forum':
-        specifier: workspace:*
-        version: link:../../modules/forum
-      '@hubium/mod-quiz':
-        specifier: workspace:*
-        version: link:../../modules/quiz
       '@hubium/tooling':
         specifier: workspace:*
         version: link:../tooling
@@ -1363,9 +1303,6 @@ importers:
       '@types/node':
         specifier: ^24
         version: 24.19.2
-      dotenv:
-        specifier: 18.0.7
-        version: 18.0.7
       typescript:
         specifier: ~7.0.2
         version: 7.0.2
@@ -1454,15 +1391,9 @@ importers:
       '@hubium/mod-assign':
         specifier: workspace:*
         version: link:../../modules/assign
-      '@hubium/mod-book':
-        specifier: workspace:*
-        version: link:../../modules/book
       '@hubium/mod-choice':
         specifier: workspace:*
         version: link:../../modules/choice
-      '@hubium/mod-content':
-        specifier: workspace:*
-        version: link:../../modules/content
       '@hubium/mod-data':
         specifier: workspace:*
         version: link:../../modules/data
@@ -1496,9 +1427,6 @@ importers:
       '@hubium/mod-video':
         specifier: workspace:*
         version: link:../../modules/video
-      '@hubium/mod-wiki':
-        specifier: workspace:*
-        version: link:../../modules/wiki
       '@hubium/mod-workshop':
         specifier: workspace:*
         version: link:../../modules/workshop
@@ -1563,9 +1491,6 @@ importers:
       prisma:
         specifier: 7.10.0
         version: 7.10.0(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2)
-      tsx:
-        specifier: 4.23.15
-        version: 4.23.15
       typescript:
         specifier: ~7.0.2
         version: 7.0.2
@@ -1701,18 +1626,6 @@ importers:
         specifier: 4.6.7
         version: 4.6.7
     devDependencies:
-      '@hubium/mod-assign':
-        specifier: workspace:*
-        version: link:../../modules/assign
-      '@hubium/mod-content':
-        specifier: workspace:*
-        version: link:../../modules/content
-      '@hubium/mod-forum':
-        specifier: workspace:*
-        version: link:../../modules/forum
-      '@hubium/mod-quiz':
-        specifier: workspace:*
-        version: link:../../modules/quiz
       '@hubium/tooling':
         specifier: workspace:*
         version: link:../tooling
@@ -1722,9 +1635,6 @@ importers:
       '@types/tar-stream':
         specifier: 3.1.5
         version: 3.1.5
-      dotenv:
-        specifier: 18.0.7
-        version: 18.0.7
       typescript:
         specifier: ~7.0.2
         version: 7.0.2

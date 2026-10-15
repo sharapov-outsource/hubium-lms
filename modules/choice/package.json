@@ -15,8 +15,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@hubium/db": "workspace:*",
-    "@hubium/editor": "workspace:*",
     "@hubium/module-sdk": "workspace:*",
     "@hubium/ui": "workspace:*",
     "lucide-react": "1.55.0",

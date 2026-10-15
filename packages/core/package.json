@@ -47,9 +47,7 @@
   },
   "devDependencies": {
     "@hubium/mod-assign": "workspace:*",
-    "@hubium/mod-book": "workspace:*",
     "@hubium/mod-choice": "workspace:*",
-    "@hubium/mod-content": "workspace:*",
     "@hubium/mod-data": "workspace:*",
     "@hubium/mod-feedback": "workspace:*",
     "@hubium/mod-forum": "workspace:*",
@@ -61,7 +59,6 @@
     "@hubium/mod-quiz": "workspace:*",
     "@hubium/mod-scorm": "workspace:*",
     "@hubium/mod-video": "workspace:*",
-    "@hubium/mod-wiki": "workspace:*",
     "@hubium/mod-workshop": "workspace:*",
     "@hubium/modules": "workspace:*",
     "@hubium/tooling": "workspace:*",
