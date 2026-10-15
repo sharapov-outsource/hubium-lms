@@ -1,5 +1,5 @@
 // mod-lti: LTI 1.3 platform — registered tools, platform signing keys, launch nonces,
-// service access tokens (AGS / NRPS).
+// service access tokens (AGS / NRPS), the time of the last score a tool sent.
 
 model LtiTool {
   id             String   @id @default(uuid(7)) @db.Uuid
@@ -54,4 +54,21 @@ model LtiAccessToken {
   tool LtiTool @relation(fields: [toolId], references: [id], onDelete: Cascade)
 
   @@index([expiresAt])
+}
+
+/**
+ * The timestamp of the last score a tool sent for a user on a line item, by the tool's own
+ * clock: AGS takes no score older than it, so scores that arrive out of order keep the newest.
+ */
+model LtiScore {
+  activityId String   @db.Uuid
+  itemNumber Int
+  userId     String   @db.Uuid
+  timestamp  DateTime @db.Timestamptz(3)
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, itemNumber, userId])
+  @@index([userId])
 }

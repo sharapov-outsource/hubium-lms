@@ -197,6 +197,7 @@ model Activity {
   scormAttempts       ScormAttempt[]
   h5pPackage          H5pPackage?
   h5pAttempts         H5pAttempt[]
+  ltiScores           LtiScore[]
 
   contentChunks      ContentChunk[]
   gradingSuggestions GradingSuggestion[]

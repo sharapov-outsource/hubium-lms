@@ -252,7 +252,14 @@ describe('mod-lti (LTI 1.3 platform)', () => {
       (
         await http('anon', 'POST', `ags/${ltiId}/lineitems/1/scores`, {
           headers: auth,
-          body: JSON.stringify({ userId: f.users.student1, scoreGiven: 15, scoreMaximum: 20 }),
+          body: JSON.stringify({
+            userId: f.users.student1,
+            scoreGiven: 15,
+            scoreMaximum: 20,
+            activityProgress: 'Completed',
+            gradingProgress: 'FullyGraded',
+            timestamp: new Date().toISOString(),
+          }),
         })
       ).status,
     ).toBe(200);
@@ -274,11 +281,98 @@ describe('mod-lti (LTI 1.3 platform)', () => {
       (
         await http('anon', 'POST', `ags/${ltiId}/lineitems/0/scores`, {
           headers: auth,
-          body: JSON.stringify({ userId: '00000000-0000-0000-0000-000000000000', scoreGiven: 1 }),
+          body: JSON.stringify({
+            userId: '00000000-0000-0000-0000-000000000000',
+            scoreGiven: 1,
+            activityProgress: 'Completed',
+            gradingProgress: 'FullyGraded',
+            timestamp: new Date().toISOString(),
+          }),
         })
       ).status,
     ).toBe(400);
     expect((await http('anon', 'GET', `ags/${ltiId}/lineitems`)).status).toBe(401);
+  });
+
+  it('AGS keeps the newest score and takes only a fully graded one as the grade', async () => {
+    const { access_token } = (await (await serviceToken(LTI.scopes.score)).json()) as {
+      access_token: string;
+    };
+    const auth = { authorization: `Bearer ${access_token}`, 'content-type': 'application/json' };
+    const send = async (score: Record<string, unknown>) =>
+      (
+        await http('anon', 'POST', `ags/${ltiId}/lineitems/0/scores`, {
+          headers: auth,
+          body: JSON.stringify({
+            userId: f.users.student2,
+            scoreMaximum: 10,
+            activityProgress: 'Completed',
+            ...score,
+          }),
+        })
+      ).status;
+    const item = await t.db.gradeItem.findFirstOrThrow({
+      where: { activityId: ltiId, itemNumber: 0 },
+    });
+    const grade = async () =>
+      t.db.grade.findUnique({
+        where: { gradeItemId_userId: { gradeItemId: item.id, userId: f.users.student2! } },
+      });
+    // what the specification requires of a score
+    expect(await send({ scoreGiven: 5, gradingProgress: 'FullyGraded' })).toBe(400);
+    expect(await send({ scoreGiven: 5, timestamp: '2026-05-01T10:00:00.000Z' })).toBe(400);
+    expect(
+      await send({ scoreGiven: 5, gradingProgress: 'Done', timestamp: '2026-05-01T10:00:00Z' }),
+    ).toBe(400);
+    expect(
+      await send({ scoreGiven: 5, gradingProgress: 'FullyGraded', timestamp: 'yesterday' }),
+    ).toBe(400);
+    // the final score and the pending one before it arrive the other way round
+    expect(
+      await send({
+        scoreGiven: 9,
+        gradingProgress: 'FullyGraded',
+        timestamp: '2026-05-01T10:00:05.000Z',
+      }),
+    ).toBe(200);
+    expect(
+      await send({
+        scoreGiven: 4,
+        gradingProgress: 'Pending',
+        timestamp: '2026-05-01T10:00:01.000Z',
+      }),
+    ).toBe(409);
+    expect(Number((await grade())?.rawGrade)).toBe(90);
+    // the same time again is taken, as the specification allows
+    expect(
+      await send({
+        scoreGiven: 8,
+        gradingProgress: 'FullyGraded',
+        timestamp: '2026-05-01T10:00:05.000Z',
+      }),
+    ).toBe(200);
+    expect(Number((await grade())?.rawGrade)).toBe(80);
+    // a score still being graded is not the grade: the tool takes it back to grade again
+    expect(
+      await send({
+        scoreGiven: 3,
+        gradingProgress: 'PendingManual',
+        timestamp: '2026-05-01T10:01:00.000Z',
+        comment: 'Проверяется',
+      }),
+    ).toBe(200);
+    expect(await grade()).toMatchObject({ rawGrade: null, feedback: '<p>Проверяется</p>' });
+    expect(
+      await t.db.ltiScore.findUniqueOrThrow({
+        where: {
+          activityId_itemNumber_userId: {
+            activityId: ltiId,
+            itemNumber: 0,
+            userId: f.users.student2!,
+          },
+        },
+      }),
+    ).toMatchObject({ timestamp: new Date('2026-05-01T10:01:00.000Z') });
   });
 
   it('NRPS lists course members with LIS roles', async () => {

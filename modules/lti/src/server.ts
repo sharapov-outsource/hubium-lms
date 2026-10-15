@@ -202,6 +202,16 @@ function lineItemsOf(act: { id: string; name: string }, s: LtiSettingsT) {
   return [...base, ...s.lineItems];
 }
 
+/** AGS score values (activityProgress, gradingProgress) the specification defines. */
+const ACTIVITY_PROGRESS = new Set([
+  'Initialized',
+  'Started',
+  'InProgress',
+  'Submitted',
+  'Completed',
+]);
+const GRADING_PROGRESS = new Set(['FullyGraded', 'Pending', 'PendingManual', 'Failed', 'NotReady']);
+
 const lineItemJson = (
   act: { id: string },
   li:
@@ -554,6 +564,8 @@ async function handleAgs(ctx: ModuleCtx, req: Request, activityId: string, rest:
         lineItems: s.lineItems.filter((x) => x.n !== n),
       });
       if (refused) return refused;
+      // a line item made later may take the number again, and starts with no scores
+      await ctx.db.ltiScore.deleteMany({ where: { activityId: act.id, itemNumber: n } });
       return new Response(null, { status: 204 });
     }
     return fail(405, 'Method not allowed');
@@ -568,11 +580,35 @@ async function handleAgs(ctx: ModuleCtx, req: Request, activityId: string, rest:
     });
     if (!enrolled) return fail(400, 'Unknown userId');
     if (!item) return fail(409, 'Grades are not enabled for this activity');
+    const timestamp = typeof body.timestamp === 'string' ? new Date(body.timestamp) : null;
+    if (
+      !timestamp ||
+      Number.isNaN(timestamp.getTime()) ||
+      !ACTIVITY_PROGRESS.has(String(body.activityProgress)) ||
+      !GRADING_PROGRESS.has(String(body.gradingProgress))
+    )
+      return fail(400, 'timestamp, activityProgress and gradingProgress are required');
+    // Only a fully graded score is the grade: one still being graded leaves the grade empty
+    // until the tool sends the final one.
     const given =
-      body.scoreGiven === undefined || body.scoreGiven === null ? null : Number(body.scoreGiven);
+      body.scoreGiven === undefined ||
+      body.scoreGiven === null ||
+      body.gradingProgress !== 'FullyGraded'
+        ? null
+        : Number(body.scoreGiven);
     const max = Number(body.scoreMaximum ?? li.scoreMaximum);
     if (given !== null && (!(max > 0) || given < 0 || Number.isNaN(given)))
       return fail(400, 'Invalid score');
+    // A score older than the last one taken (by the tool's clock) arrived out of order: the
+    // newer one stands. The same time again is taken, as the specification allows.
+    const taken = await ctx.db.$queryRaw<unknown[]>`
+      INSERT INTO "LtiScore" ("activityId", "itemNumber", "userId", "timestamp")
+      VALUES (${act.id}::uuid, ${n}, ${userId}::uuid, ${timestamp})
+      ON CONFLICT ("activityId", "itemNumber", "userId") DO UPDATE
+        SET "timestamp" = EXCLUDED."timestamp"
+        WHERE "LtiScore"."timestamp" <= EXCLUDED."timestamp"
+      RETURNING 1`;
+    if (!taken.length) return fail(409, 'A newer score has already been received');
     const raw = given === null ? null : (given / max) * Number(item.gradeMax);
     await ctx.grades.setGrades(act.id, [
       {
@@ -772,6 +808,23 @@ export const lti = defineModule<LtiSettingsT>({
             })),
           ]
         : [],
+  },
+  reset: {
+    // the grades go with the course reset: the tool's next scores start afresh
+    async userData(ctx, a) {
+      await ctx.db.ltiScore.deleteMany({ where: { activityId: a.id } });
+    },
+  },
+  privacy: {
+    async export(ctx, userId) {
+      return ctx.db.ltiScore.findMany({
+        where: { userId },
+        select: { activityId: true, itemNumber: true, timestamp: true },
+      });
+    },
+    async erase(ctx, userId) {
+      await ctx.db.ltiScore.deleteMany({ where: { userId } });
+    },
   },
   cron: [
     {

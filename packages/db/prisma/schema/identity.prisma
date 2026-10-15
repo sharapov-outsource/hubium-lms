@@ -131,6 +131,7 @@ model User {
   liveAttendance        LiveAttendance[]
   scormAttempts         ScormAttempt[]
   h5pAttempts           H5pAttempt[]
+  ltiScores             LtiScore[]
 
   aiConsents         AiConsent[]
   pushSubscriptions  PushSubscription[]
