@@ -1,6 +1,6 @@
 'use client';
 
-import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
+import { callModuleAction, useConfirm, useFailureText } from '@hubium/module-sdk/form';
 import { Button, Checkbox } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { useRouter } from 'next/navigation';
@@ -113,6 +113,7 @@ export function DeleteResponses({
   activityId: string;
   people: { id: string; name: string; options: string[] }[];
 }) {
+  const [confirm, confirmDialog] = useConfirm();
   const t = useTranslations('mod.choice');
   const { pending, run } = useRun(activityId);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -124,36 +125,39 @@ export function DeleteResponses({
       return n;
     });
   return (
-    <div className="grid gap-3">
-      <ul className="grid gap-1">
-        {people.map((p) => (
-          <li key={p.id}>
-            <label htmlFor={`chd-${p.id}`} className="flex items-start gap-2 text-sm">
-              <Checkbox
-                id={`chd-${p.id}`}
-                checked={selected.has(p.id)}
-                onChange={(e) => toggle(p.id, e.currentTarget.checked)}
-                className="mt-0.5"
-              />
-              <span>
-                {p.name} <span className="text-muted-foreground">— {p.options.join(', ')}</span>
-              </span>
-            </label>
-          </li>
-        ))}
-      </ul>
-      <Button
-        variant="destructive"
-        className="w-fit"
-        disabled={pending || !selected.size}
-        onClick={() => {
-          if (!window.confirm(t('deleteConfirm', { count: selected.size }))) return;
-          run('deleteResponses', { userIds: [...selected] }, t('responsesDeleted'));
-          setSelected(new Set());
-        }}
-      >
-        {t('deleteSelected', { count: selected.size })}
-      </Button>
-    </div>
+    <>
+      {confirmDialog}
+      <div className="grid gap-3">
+        <ul className="grid gap-1">
+          {people.map((p) => (
+            <li key={p.id}>
+              <label htmlFor={`chd-${p.id}`} className="flex items-start gap-2 text-sm">
+                <Checkbox
+                  id={`chd-${p.id}`}
+                  checked={selected.has(p.id)}
+                  onChange={(e) => toggle(p.id, e.currentTarget.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  {p.name} <span className="text-muted-foreground">— {p.options.join(', ')}</span>
+                </span>
+              </label>
+            </li>
+          ))}
+        </ul>
+        <Button
+          variant="destructive"
+          className="w-fit"
+          disabled={pending || !selected.size}
+          onClick={async () => {
+            if (!(await confirm(t('deleteConfirm', { count: selected.size })))) return;
+            run('deleteResponses', { userIds: [...selected] }, t('responsesDeleted'));
+            setSelected(new Set());
+          }}
+        >
+          {t('deleteSelected', { count: selected.size })}
+        </Button>
+      </div>
+    </>
   );
 }

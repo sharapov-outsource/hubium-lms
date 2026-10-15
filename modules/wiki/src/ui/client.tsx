@@ -1,7 +1,7 @@
 'use client';
 
 import { EditorField } from '@hubium/editor/field';
-import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
+import { callModuleAction, useConfirm, useFailureText } from '@hubium/module-sdk/form';
 import { Alert, Button } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import Link from 'next/link';
@@ -156,28 +156,32 @@ export function RestoreVersion({
   version: number;
   back: string;
 }) {
+  const [confirm, confirmDialog] = useConfirm();
   const failed = useFailureText();
   const t = useTranslations('mod.wiki');
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
-    <Button
-      size="sm"
-      variant="ghost"
-      disabled={pending}
-      onClick={() => {
-        if (!window.confirm(t('restoreConfirm', { version }))) return;
-        start(async () => {
-          const r = await callModuleAction(activityId, 'restore', { pageId, version });
-          if (!r.ok) return void toast.error(failed(r));
-          toast.success(t('restored'));
-          router.push(back);
-          router.refresh();
-        });
-      }}
-    >
-      {t('restore')}
-    </Button>
+    <>
+      {confirmDialog}
+      <Button
+        size="sm"
+        variant="ghost"
+        disabled={pending}
+        onClick={async () => {
+          if (!(await confirm(t('restoreConfirm', { version })))) return;
+          start(async () => {
+            const r = await callModuleAction(activityId, 'restore', { pageId, version });
+            if (!r.ok) return void toast.error(failed(r));
+            toast.success(t('restored'));
+            router.push(back);
+            router.refresh();
+          });
+        }}
+      >
+        {t('restore')}
+      </Button>
+    </>
   );
 }
 
@@ -192,28 +196,32 @@ export function DeletePage({
   title: string;
   back: string;
 }) {
+  const [confirm, confirmDialog] = useConfirm();
   const failed = useFailureText();
   const t = useTranslations('mod.wiki');
   const tc = useTranslations('common');
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
-    <Button
-      size="sm"
-      variant="ghost"
-      disabled={pending}
-      onClick={() => {
-        if (!window.confirm(t('deleteConfirm', { title }))) return;
-        start(async () => {
-          const r = await callModuleAction(activityId, 'deletePage', { pageId });
-          if (!r.ok) return void toast.error(failed(r));
-          toast.success(t('deleted'));
-          router.push(back);
-          router.refresh();
-        });
-      }}
-    >
-      {tc('delete')}
-    </Button>
+    <>
+      {confirmDialog}
+      <Button
+        size="sm"
+        variant="ghost"
+        disabled={pending}
+        onClick={async () => {
+          if (!(await confirm(t('deleteConfirm', { title })))) return;
+          start(async () => {
+            const r = await callModuleAction(activityId, 'deletePage', { pageId });
+            if (!r.ok) return void toast.error(failed(r));
+            toast.success(t('deleted'));
+            router.push(back);
+            router.refresh();
+          });
+        }}
+      >
+        {tc('delete')}
+      </Button>
+    </>
   );
 }

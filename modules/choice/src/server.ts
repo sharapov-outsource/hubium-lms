@@ -183,7 +183,7 @@ export async function takenPlaces(ctx: ModuleCtx, a: ActivityRef, except?: strin
 export const choice = defineModule<ChoiceSettingsT>({
   key: 'choice',
   archetype: 'activity',
-  icon: 'ListChecks',
+  icon: 'Vote',
   supports: { viewCompletion: true, backup: true, groups: true },
   settings: {
     schema: ChoiceSettings as unknown as z.ZodType<ChoiceSettingsT>,

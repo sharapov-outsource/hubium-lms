@@ -1681,7 +1681,8 @@
     "courses": "Kurse",
     "edit": "Kursbereich bearbeiten",
     "deleteConfirm": "Kursbereich „{name}“ löschen?",
-    "empty": "Noch keine Kursbereiche"
+    "empty": "Noch keine Kursbereiche",
+    "hidden": "Im Katalog verborgen"
   },
   "adminCourses": {
     "purge": "Endgültig löschen",

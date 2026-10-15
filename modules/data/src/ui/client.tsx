@@ -1,7 +1,7 @@
 'use client';
 
 import { EditorField } from '@hubium/editor/field';
-import { callModuleAction, DateInput, useFailureText } from '@hubium/module-sdk/form';
+import { callModuleAction, DateInput, useConfirm, useFailureText } from '@hubium/module-sdk/form';
 import type { RatingAggregate } from '@hubium/module-sdk/ratings';
 import { RatingControl } from '@hubium/module-sdk/ratings-ui';
 import { Alert, Button, Checkbox, Field, Input, Select, Textarea } from '@hubium/ui';
@@ -226,6 +226,7 @@ export function EntryTools({
   canEdit: boolean;
   canApprove: boolean;
 }) {
+  const [confirm, confirmDialog] = useConfirm();
   const failed = useFailureText();
   const t = useTranslations('mod.data');
   const tc = useTranslations('common');
@@ -241,51 +242,54 @@ export function EntryTools({
     });
   if (!canEdit && !canApprove) return null;
   return (
-    <div role="toolbar" aria-label={t('entryTools')} className="flex flex-wrap gap-1">
-      {canApprove ? (
-        <Button
-          size="sm"
-          variant={entry.approved ? 'ghost' : 'outline'}
-          disabled={pending}
-          onClick={() =>
-            run(
-              'approveEntry',
-              { approved: !entry.approved },
-              entry.approved ? t('unapproved') : t('approved'),
-            )
-          }
-        >
-          {entry.approved ? (
-            <Undo2 className="size-4" aria-hidden />
-          ) : (
-            <Check className="size-4" aria-hidden />
-          )}
-          {entry.approved ? t('unapprove') : t('approve')}
-        </Button>
-      ) : null}
-      {canEdit ? (
-        <>
-          <Button asChild size="sm" variant="ghost">
-            <Link href={`${base}?edit=${entry.id}`}>
-              <Pencil className="size-4" aria-hidden />
-              {tc('edit')}
-            </Link>
-          </Button>
+    <>
+      {confirmDialog}
+      <div role="toolbar" aria-label={t('entryTools')} className="flex flex-wrap gap-1">
+        {canApprove ? (
           <Button
             size="sm"
-            variant="ghost"
+            variant={entry.approved ? 'ghost' : 'outline'}
             disabled={pending}
-            onClick={() => {
-              if (window.confirm(t('deleteConfirm')))
-                run('deleteEntry', {}, t('deleted'), () => router.push(base));
-            }}
+            onClick={() =>
+              run(
+                'approveEntry',
+                { approved: !entry.approved },
+                entry.approved ? t('unapproved') : t('approved'),
+              )
+            }
           >
-            <Trash2 className="size-4" aria-hidden />
-            {tc('delete')}
+            {entry.approved ? (
+              <Undo2 className="size-4" aria-hidden />
+            ) : (
+              <Check className="size-4" aria-hidden />
+            )}
+            {entry.approved ? t('unapprove') : t('approve')}
           </Button>
-        </>
-      ) : null}
-    </div>
+        ) : null}
+        {canEdit ? (
+          <>
+            <Button asChild size="sm" variant="ghost">
+              <Link href={`${base}?edit=${entry.id}`}>
+                <Pencil className="size-4" aria-hidden />
+                {tc('edit')}
+              </Link>
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={pending}
+              onClick={async () => {
+                if (await confirm(t('deleteConfirm')))
+                  run('deleteEntry', {}, t('deleted'), () => router.push(base));
+              }}
+            >
+              <Trash2 className="size-4" aria-hidden />
+              {tc('delete')}
+            </Button>
+          </>
+        ) : null}
+      </div>
+    </>
   );
 }
 
@@ -478,6 +482,7 @@ export function FieldTools({
   first: boolean;
   last: boolean;
 }) {
+  const [confirm, confirmDialog] = useConfirm();
   const failed = useFailureText();
   const t = useTranslations('mod.data');
   const tc = useTranslations('common');
@@ -491,43 +496,50 @@ export function FieldTools({
       router.refresh();
     });
   return (
-    <div role="toolbar" aria-label={t('fields.tools', { name: field.name })} className="flex gap-1">
-      <Button asChild size="icon" variant="ghost" aria-label={tc('edit')}>
-        <Link href={`${base}?tab=fields&field=${field.id}`}>
-          <Pencil className="size-4" />
-        </Link>
-      </Button>
-      <Button
-        size="icon"
-        variant="ghost"
-        aria-label={t('fields.moveUp')}
-        disabled={pending || first}
-        onClick={() => run('moveField', { direction: 'up' })}
+    <>
+      {confirmDialog}
+      <div
+        role="toolbar"
+        aria-label={t('fields.tools', { name: field.name })}
+        className="flex gap-1"
       >
-        <ArrowUp className="size-4" />
-      </Button>
-      <Button
-        size="icon"
-        variant="ghost"
-        aria-label={t('fields.moveDown')}
-        disabled={pending || last}
-        onClick={() => run('moveField', { direction: 'down' })}
-      >
-        <ArrowDown className="size-4" />
-      </Button>
-      <Button
-        size="icon"
-        variant="ghost"
-        aria-label={tc('delete')}
-        disabled={pending}
-        onClick={() => {
-          if (window.confirm(t('fields.deleteConfirm', { name: field.name })))
-            run('deleteField', {}, t('fields.deleted'));
-        }}
-      >
-        <Trash2 className="size-4" />
-      </Button>
-    </div>
+        <Button asChild size="icon" variant="ghost" aria-label={tc('edit')}>
+          <Link href={`${base}?tab=fields&field=${field.id}`}>
+            <Pencil className="size-4" />
+          </Link>
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={t('fields.moveUp')}
+          disabled={pending || first}
+          onClick={() => run('moveField', { direction: 'up' })}
+        >
+          <ArrowUp className="size-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={t('fields.moveDown')}
+          disabled={pending || last}
+          onClick={() => run('moveField', { direction: 'down' })}
+        >
+          <ArrowDown className="size-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={tc('delete')}
+          disabled={pending}
+          onClick={async () => {
+            if (await confirm(t('fields.deleteConfirm', { name: field.name })))
+              run('deleteField', {}, t('fields.deleted'));
+          }}
+        >
+          <Trash2 className="size-4" />
+        </Button>
+      </div>
+    </>
   );
 }
 

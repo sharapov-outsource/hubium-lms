@@ -1,7 +1,7 @@
 'use client';
 
 import { EditorField } from '@hubium/editor/field';
-import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
+import { callModuleAction, useConfirm, useFailureText } from '@hubium/module-sdk/form';
 import type { RatingAggregate } from '@hubium/module-sdk/ratings';
 import { RatingControl } from '@hubium/module-sdk/ratings-ui';
 import { Button, Checkbox, Field, Input, Textarea } from '@hubium/ui';
@@ -164,6 +164,7 @@ export function EntryTools({
   canEdit: boolean;
   canApprove: boolean;
 }) {
+  const [confirm, confirmDialog] = useConfirm();
   const failed = useFailureText();
   const t = useTranslations('mod.glossary');
   const tc = useTranslations('common');
@@ -180,55 +181,58 @@ export function EntryTools({
   const icon = 'size-4';
   if (!canEdit && !canApprove) return null;
   return (
-    <div
-      role="toolbar"
-      aria-label={t('entryTools', { concept: entry.concept })}
-      className="flex flex-wrap gap-1"
-    >
-      {canApprove ? (
-        <Button
-          size="sm"
-          variant={entry.approved ? 'ghost' : 'outline'}
-          disabled={pending}
-          onClick={() =>
-            run(
-              'approveEntry',
-              { approved: !entry.approved },
-              entry.approved ? t('unapproved') : t('approved'),
-            )
-          }
-        >
-          {entry.approved ? (
-            <Undo2 className={icon} aria-hidden />
-          ) : (
-            <Check className={icon} aria-hidden />
-          )}
-          {entry.approved ? t('unapprove') : t('approve')}
-        </Button>
-      ) : null}
-      {canEdit ? (
-        <>
-          <Button asChild size="sm" variant="ghost">
-            <Link href={`${base}?edit=${entry.id}`}>
-              <Pencil className={icon} aria-hidden />
-              {tc('edit')}
-            </Link>
-          </Button>
+    <>
+      {confirmDialog}
+      <div
+        role="toolbar"
+        aria-label={t('entryTools', { concept: entry.concept })}
+        className="flex flex-wrap gap-1"
+      >
+        {canApprove ? (
           <Button
             size="sm"
-            variant="ghost"
+            variant={entry.approved ? 'ghost' : 'outline'}
             disabled={pending}
-            onClick={() => {
-              if (!window.confirm(t('deleteConfirm', { concept: entry.concept }))) return;
-              run('deleteEntry', {}, t('deleted'), () => router.push(base));
-            }}
+            onClick={() =>
+              run(
+                'approveEntry',
+                { approved: !entry.approved },
+                entry.approved ? t('unapproved') : t('approved'),
+              )
+            }
           >
-            <Trash2 className={icon} aria-hidden />
-            {tc('delete')}
+            {entry.approved ? (
+              <Undo2 className={icon} aria-hidden />
+            ) : (
+              <Check className={icon} aria-hidden />
+            )}
+            {entry.approved ? t('unapprove') : t('approve')}
           </Button>
-        </>
-      ) : null}
-    </div>
+        ) : null}
+        {canEdit ? (
+          <>
+            <Button asChild size="sm" variant="ghost">
+              <Link href={`${base}?edit=${entry.id}`}>
+                <Pencil className={icon} aria-hidden />
+                {tc('edit')}
+              </Link>
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={pending}
+              onClick={async () => {
+                if (!(await confirm(t('deleteConfirm', { concept: entry.concept })))) return;
+                run('deleteEntry', {}, t('deleted'), () => router.push(base));
+              }}
+            >
+              <Trash2 className={icon} aria-hidden />
+              {tc('delete')}
+            </Button>
+          </>
+        ) : null}
+      </div>
+    </>
   );
 }
 

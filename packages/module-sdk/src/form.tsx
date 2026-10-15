@@ -1,8 +1,9 @@
 'use client';
 
-import { DatePicker, DateTimePicker } from '@hubium/ui';
+import { Button, DatePicker, DateTimePicker } from '@hubium/ui';
+import { Dialog, DialogContent, DialogFooter } from '@hubium/ui/dialog';
 import { useLocale, useTimeZone, useTranslations } from 'next-intl';
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, type ReactNode, useCallback, useContext, useRef, useState } from 'react';
 import { fromZonedValue, toZonedValue } from './zoned.ts';
 
 export { fromZonedValue, toZonedValue } from './zoned.ts';
@@ -306,4 +307,41 @@ export async function uploadResumable(
   opts.onProgress?.(1);
   remember(null);
   return id;
+}
+
+/**
+ * Asking before an action, in the site's dialog rather than the browser's: `confirm(text)`
+ * resolves to whether the person confirmed. The component renders `dialog` once.
+ */
+export function useConfirm(): [(text: ReactNode) => Promise<boolean>, ReactNode] {
+  const tc = useTranslations('common');
+  const [text, setText] = useState<ReactNode>(null);
+  const answer = useRef<((ok: boolean) => void) | null>(null);
+  const confirm = useCallback(
+    (question: ReactNode) =>
+      new Promise<boolean>((resolve) => {
+        answer.current?.(false);
+        answer.current = resolve;
+        setText(question);
+      }),
+    [],
+  );
+  const close = (ok: boolean) => {
+    answer.current?.(ok);
+    answer.current = null;
+    setText(null);
+  };
+  const dialog = (
+    <Dialog open={text !== null} onOpenChange={(open) => !open && close(false)}>
+      <DialogContent title={tc('confirm')} description={text} closeLabel={tc('close')}>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => close(false)}>
+            {tc('cancel')}
+          </Button>
+          <Button onClick={() => close(true)}>{tc('confirm')}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+  return [confirm, dialog];
 }

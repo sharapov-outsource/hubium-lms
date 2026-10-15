@@ -26,7 +26,18 @@ export default async function CategoriesPage({
   const t = await getTranslations('categories');
   const flat = flattenTree(await getCategoryTree(db, { includeHidden: true }));
   const editing = flat.find((c) => c.id === sp.edit);
-  const options = flat.map((c) => ({ id: c.id, name: c.name, depth: c.depth }));
+  // a category cannot move into itself or below itself: those are left out of its parents
+  const below = new Set<string>();
+  if (editing) {
+    const at = flat.indexOf(editing);
+    for (const c of flat.slice(at + 1)) {
+      if (c.depth <= editing.depth) break;
+      below.add(c.id);
+    }
+  }
+  const options = flat
+    .filter((c) => c.id !== editing?.id && !below.has(c.id))
+    .map((c) => ({ id: c.id, name: c.name, depth: c.depth }));
   return (
     <>
       <PageHeader title={t('title')} />
@@ -45,7 +56,7 @@ export default async function CategoriesPage({
                   >
                     <div className="min-w-0">
                       <span className="font-medium">{c.name}</span>{' '}
-                      {!c.visible ? <Badge variant="warning">{t('visible')}: ✗</Badge> : null}
+                      {!c.visible ? <Badge variant="warning">{t('hidden')}</Badge> : null}
                       <span className="ml-2 text-xs text-muted-foreground">
                         {t('courses')}: {c.courseCount}
                       </span>
@@ -64,7 +75,7 @@ export default async function CategoriesPage({
           <CardContent>
             <CategoryForm
               key={editing?.id ?? 'new'}
-              options={options.filter((o) => o.id !== editing?.id)}
+              options={options}
               values={
                 editing
                   ? {

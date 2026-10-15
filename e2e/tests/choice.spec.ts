@@ -57,8 +57,8 @@ test('learners answer a choice with limited places; the teacher sees who chose w
     expect(await csv.text()).toMatch(/student1.*Чат-бот/);
     await expectAccessible(page);
     await page.getByRole('checkbox', { name: /Чат-бот/ }).check();
-    page.once('dialog', (d) => void d.accept());
     await page.getByRole('button', { name: /Удалить ответы \(1\)/ }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Подтвердить' }).click();
     await expect(page.getByText('Ответы удалены').first()).toBeVisible();
     await expect(page.getByText('Ответил 1 человек')).toBeVisible();
   } finally {

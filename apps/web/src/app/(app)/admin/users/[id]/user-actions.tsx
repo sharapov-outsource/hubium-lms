@@ -33,11 +33,16 @@ export function SiteRoleToggles({
               defaultChecked={r.assigned}
               disabled={pending}
               onChange={(e) => {
-                const assigned = e.currentTarget.checked;
+                const box = e.currentTarget;
+                const assigned = box.checked;
                 start(async () => {
                   const res = await assignSystemRoleAction(userId, r.id, assigned);
                   if (res.ok) toast.success(t('saved'));
-                  else toast.error(res.message);
+                  else {
+                    // refused: the box shows what is stored again
+                    box.checked = !assigned;
+                    toast.error(res.message);
+                  }
                 });
               }}
             />

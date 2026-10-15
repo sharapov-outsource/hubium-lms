@@ -1682,7 +1682,8 @@
     "courses": "Courses",
     "edit": "Edit category",
     "deleteConfirm": "Delete category “{name}”?",
-    "empty": "No categories yet"
+    "empty": "No categories yet",
+    "hidden": "Hidden from the catalog"
   },
   "adminCourses": {
     "purge": "Delete for good",

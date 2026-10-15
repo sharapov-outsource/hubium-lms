@@ -1,6 +1,6 @@
 'use client';
 
-import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
+import { callModuleAction, useConfirm, useFailureText } from '@hubium/module-sdk/form';
 import { Button, Checkbox, Field, Input, Select, Textarea } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { ArrowDown, ArrowUp, Pencil, Trash2 } from 'lucide-react';
@@ -353,121 +353,129 @@ export function ItemEditor({
   items: Item[];
   numbers: Record<string, number>;
 }) {
+  const [confirm, confirmDialog] = useConfirm();
   const t = useTranslations('mod.feedback');
   const tc = useTranslations('common');
   const { pending, run } = useRun(activityId);
   const [editing, setEditing] = useState<string | null>(null);
   return (
-    <div className="grid gap-4">
-      {items.length ? (
-        <ol className="grid gap-2">
-          {items.map((i, n) => {
-            const name =
-              i.type === 'pagebreak'
-                ? t('types.pagebreak')
-                : `${numbers[i.id] ? `${numbers[i.id]}. ` : ''}${i.label}`;
-            return (
-              <li key={i.id} className="rounded-lg border border-border p-3">
-                {editing === i.id ? (
-                  <ItemForm activityId={activityId} item={i} onDone={() => setEditing(null)} />
-                ) : (
-                  <div className="flex flex-wrap items-start gap-2">
-                    <div className="grid min-w-0 flex-1 gap-1">
-                      <span className="text-xs text-muted-foreground">
-                        {t(`types.${i.type}`)}
-                        {i.required ? ` · ${t('required')}` : ''}
-                      </span>
-                      {i.type === 'pagebreak' ? (
-                        <hr className="border-dashed" />
-                      ) : (
-                        <span className="whitespace-pre-line break-words text-sm">{name}</span>
-                      )}
-                      {i.type === 'choice' ? (
+    <>
+      {confirmDialog}
+      <div className="grid gap-4">
+        {items.length ? (
+          <ol className="grid gap-2">
+            {items.map((i, n) => {
+              const name =
+                i.type === 'pagebreak'
+                  ? t('types.pagebreak')
+                  : `${numbers[i.id] ? `${numbers[i.id]}. ` : ''}${i.label}`;
+              return (
+                <li key={i.id} className="rounded-lg border border-border p-3">
+                  {editing === i.id ? (
+                    <ItemForm activityId={activityId} item={i} onDone={() => setEditing(null)} />
+                  ) : (
+                    <div className="flex flex-wrap items-start gap-2">
+                      <div className="grid min-w-0 flex-1 gap-1">
                         <span className="text-xs text-muted-foreground">
-                          {i.choices.join(' · ')}
+                          {t(`types.${i.type}`)}
+                          {i.required ? ` · ${t('required')}` : ''}
                         </span>
-                      ) : null}
-                    </div>
-                    <span className="flex gap-1">
-                      {i.type === 'pagebreak' ? null : (
+                        {i.type === 'pagebreak' ? (
+                          <hr className="border-dashed" />
+                        ) : (
+                          <span className="whitespace-pre-line break-words text-sm">{name}</span>
+                        )}
+                        {i.type === 'choice' ? (
+                          <span className="text-xs text-muted-foreground">
+                            {i.choices.join(' · ')}
+                          </span>
+                        ) : null}
+                      </div>
+                      <span className="flex gap-1">
+                        {i.type === 'pagebreak' ? null : (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`${t('editItem')}: ${name}`}
+                            onClick={() => setEditing(i.id)}
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
-                          aria-label={`${t('editItem')}: ${name}`}
-                          onClick={() => setEditing(i.id)}
+                          aria-label={`${t('moveUp')}: ${name}`}
+                          disabled={pending || n === 0}
+                          onClick={() => run('moveItem', { id: i.id, direction: 'up' })}
                         >
-                          <Pencil className="size-4" />
+                          <ArrowUp className="size-4" />
                         </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`${t('moveUp')}: ${name}`}
-                        disabled={pending || n === 0}
-                        onClick={() => run('moveItem', { id: i.id, direction: 'up' })}
-                      >
-                        <ArrowUp className="size-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`${t('moveDown')}: ${name}`}
-                        disabled={pending || n === items.length - 1}
-                        onClick={() => run('moveItem', { id: i.id, direction: 'down' })}
-                      >
-                        <ArrowDown className="size-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`${tc('delete')}: ${name}`}
-                        disabled={pending}
-                        onClick={() => {
-                          if (window.confirm(t('deleteItemConfirm')))
-                            run('deleteItem', { id: i.id });
-                        }}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </span>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ol>
-      ) : (
-        <p className="text-sm text-muted-foreground">{t('noItems')}</p>
-      )}
-      <section
-        aria-labelledby="fb-new"
-        className="grid gap-3 rounded-lg border border-dashed border-border p-4"
-      >
-        <h3 id="fb-new" className="font-medium">
-          {t('newItem')}
-        </h3>
-        <ItemForm activityId={activityId} />
-      </section>
-    </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`${t('moveDown')}: ${name}`}
+                          disabled={pending || n === items.length - 1}
+                          onClick={() => run('moveItem', { id: i.id, direction: 'down' })}
+                        >
+                          <ArrowDown className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`${tc('delete')}: ${name}`}
+                          disabled={pending}
+                          onClick={async () => {
+                            if (await confirm(t('deleteItemConfirm')))
+                              run('deleteItem', { id: i.id });
+                          }}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </span>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
+          <p className="text-sm text-muted-foreground">{t('noItems')}</p>
+        )}
+        <section
+          aria-labelledby="fb-new"
+          className="grid gap-3 rounded-lg border border-dashed border-border p-4"
+        >
+          <h3 id="fb-new" className="font-medium">
+            {t('newItem')}
+          </h3>
+          <ItemForm activityId={activityId} />
+        </section>
+      </div>
+    </>
   );
 }
 
 export function DeleteResponse({ activityId, id }: { activityId: string; id: string }) {
+  const [confirm, confirmDialog] = useConfirm();
   const t = useTranslations('mod.feedback');
   const tc = useTranslations('common');
   const { pending, run } = useRun(activityId);
   return (
-    <Button
-      size="sm"
-      variant="ghost"
-      disabled={pending}
-      onClick={() => {
-        if (window.confirm(t('deleteResponseConfirm')))
-          run('deleteResponse', { id }, { ok: t('responseDeleted') });
-      }}
-    >
-      <Trash2 className="size-4" aria-hidden />
-      {tc('delete')}
-    </Button>
+    <>
+      {confirmDialog}
+      <Button
+        size="sm"
+        variant="ghost"
+        disabled={pending}
+        onClick={async () => {
+          if (await confirm(t('deleteResponseConfirm')))
+            run('deleteResponse', { id }, { ok: t('responseDeleted') });
+        }}
+      >
+        <Trash2 className="size-4" aria-hidden />
+        {tc('delete')}
+      </Button>
+    </>
   );
 }

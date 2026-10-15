@@ -1,7 +1,7 @@
 'use client';
 
 import { EditorField } from '@hubium/editor/field';
-import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
+import { callModuleAction, useConfirm, useFailureText } from '@hubium/module-sdk/form';
 import { Button, Checkbox, Field, Input } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import {
@@ -121,6 +121,7 @@ export function ChapterTools({
   first: boolean;
   last: boolean;
 }) {
+  const [confirm, confirmDialog] = useConfirm();
   const failed = useFailureText();
   const t = useTranslations('mod.book');
   const tc = useTranslations('common');
@@ -135,71 +136,74 @@ export function ChapterTools({
     });
   const icon = 'size-4';
   return (
-    <div role="toolbar" aria-label={t('chapterTools')} className="flex flex-wrap gap-1">
-      <Button asChild size="sm" variant="outline">
-        <Link href={`${base}?chapter=${chapter.id}&edit=1`}>
-          <Pencil className={icon} aria-hidden />
-          {t('editChapter')}
-        </Link>
-      </Button>
-      <Button asChild size="sm" variant="outline">
-        <Link href={`${base}?add=1&after=${chapter.id}`}>
-          <Plus className={icon} aria-hidden />
-          {t('addChapter')}
-        </Link>
-      </Button>
-      <Button asChild size="sm" variant="outline">
-        <Link href={`${base}?add=1&after=${chapter.id}&sub=1`}>
-          <ListPlus className={icon} aria-hidden />
-          {t('addSubchapter')}
-        </Link>
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        disabled={pending}
-        onClick={() => run('setChapterHidden', { hidden: !chapter.hidden })}
-      >
-        {chapter.hidden ? (
-          <Eye className={icon} aria-hidden />
-        ) : (
-          <EyeOff className={icon} aria-hidden />
-        )}
-        {chapter.hidden ? t('show') : t('hide')}
-      </Button>
-      <Button
-        size="icon"
-        variant="ghost"
-        aria-label={t('moveUp')}
-        disabled={pending || first}
-        onClick={() => run('moveChapter', { direction: 'up' })}
-      >
-        <ArrowUp className={icon} />
-      </Button>
-      <Button
-        size="icon"
-        variant="ghost"
-        aria-label={t('moveDown')}
-        disabled={pending || last}
-        onClick={() => run('moveChapter', { direction: 'down' })}
-      >
-        <ArrowDown className={icon} />
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        disabled={pending}
-        onClick={() => {
-          if (!window.confirm(t('deleteConfirm', { title: chapter.title }))) return;
-          run('deleteChapter', {}, () => {
-            toast.success(t('deleted'));
-            router.push(base);
-          });
-        }}
-      >
-        <Trash2 className={icon} aria-hidden />
-        {tc('delete')}
-      </Button>
-    </div>
+    <>
+      {confirmDialog}
+      <div role="toolbar" aria-label={t('chapterTools')} className="flex flex-wrap gap-1">
+        <Button asChild size="sm" variant="outline">
+          <Link href={`${base}?chapter=${chapter.id}&edit=1`}>
+            <Pencil className={icon} aria-hidden />
+            {t('editChapter')}
+          </Link>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <Link href={`${base}?add=1&after=${chapter.id}`}>
+            <Plus className={icon} aria-hidden />
+            {t('addChapter')}
+          </Link>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <Link href={`${base}?add=1&after=${chapter.id}&sub=1`}>
+            <ListPlus className={icon} aria-hidden />
+            {t('addSubchapter')}
+          </Link>
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={pending}
+          onClick={() => run('setChapterHidden', { hidden: !chapter.hidden })}
+        >
+          {chapter.hidden ? (
+            <Eye className={icon} aria-hidden />
+          ) : (
+            <EyeOff className={icon} aria-hidden />
+          )}
+          {chapter.hidden ? t('show') : t('hide')}
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={t('moveUp')}
+          disabled={pending || first}
+          onClick={() => run('moveChapter', { direction: 'up' })}
+        >
+          <ArrowUp className={icon} />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={t('moveDown')}
+          disabled={pending || last}
+          onClick={() => run('moveChapter', { direction: 'down' })}
+        >
+          <ArrowDown className={icon} />
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={pending}
+          onClick={async () => {
+            if (!(await confirm(t('deleteConfirm', { title: chapter.title })))) return;
+            run('deleteChapter', {}, () => {
+              toast.success(t('deleted'));
+              router.push(base);
+            });
+          }}
+        >
+          <Trash2 className={icon} aria-hidden />
+          {tc('delete')}
+        </Button>
+      </div>
+    </>
   );
 }

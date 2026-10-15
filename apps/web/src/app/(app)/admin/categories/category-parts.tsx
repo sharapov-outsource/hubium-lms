@@ -1,5 +1,6 @@
 'use client';
 
+import { useConfirm } from '@hubium/module-sdk/form';
 import { Button, Checkbox, Select, Textarea } from '@hubium/ui';
 import {
   DropdownMenu,
@@ -86,41 +87,47 @@ export function CategoryRowActions({ id, name }: { id: string; name: string }) {
   const tp = useTranslations('permissions');
   const router = useRouter();
   const [pending, start] = useTransition();
-  const run = (cmd: 'up' | 'down' | 'delete') =>
+  const [confirm, confirmDialog] = useConfirm();
+  const run = async (cmd: 'up' | 'down' | 'delete') => {
+    if (cmd === 'delete' && !(await confirm(tca('deleteConfirm', { name })))) return;
     start(async () => {
-      if (cmd === 'delete' && !window.confirm(tca('deleteConfirm', { name }))) return;
       const r = await categoryCommandAction(id, cmd);
       if (!r.ok) toast.error(r.message);
       router.refresh();
     });
+  };
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={`${tc('actions')}: ${name}`}
-          disabled={pending}
-        >
-          <MoreVertical />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <Link href={`/admin/categories?edit=${id}`}>{tc('edit')}</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={`/course/new?category=${id}`}>{tco('new')}</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={`/admin/categories/${id}/permissions`}>{tp('open')}</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => run('up')}>{tco('moveUp')}</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => run('down')}>{tco('moveDown')}</DropdownMenuItem>
-        <DropdownMenuItem className="text-destructive" onSelect={() => run('delete')}>
-          {tc('delete')}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      {confirmDialog}
+      {/* not modal: the confirmation dialog it opens takes the focus and the page after it */}
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`${tc('actions')}: ${name}`}
+            disabled={pending}
+          >
+            <MoreVertical />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={`/admin/categories?edit=${id}`}>{tc('edit')}</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href={`/course/new?category=${id}`}>{tco('new')}</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href={`/admin/categories/${id}/permissions`}>{tp('open')}</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => void run('up')}>{tco('moveUp')}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => void run('down')}>{tco('moveDown')}</DropdownMenuItem>
+          <DropdownMenuItem className="text-destructive" onSelect={() => void run('delete')}>
+            {tc('delete')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
   );
 }

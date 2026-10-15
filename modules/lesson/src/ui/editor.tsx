@@ -1,7 +1,7 @@
 'use client';
 
 import { EditorField } from '@hubium/editor/field';
-import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
+import { callModuleAction, useConfirm, useFailureText } from '@hubium/module-sdk/form';
 import { Button, Checkbox, Field, Input, Select, Textarea } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { ArrowDown, ArrowUp, Pencil, Plus, Trash2, X } from 'lucide-react';
@@ -446,6 +446,7 @@ export function PageTools({
   first: boolean;
   last: boolean;
 }) {
+  const [confirm, confirmDialog] = useConfirm();
   const failed = useFailureText();
   const t = useTranslations('mod.lesson');
   const tc = useTranslations('common');
@@ -459,43 +460,50 @@ export function PageTools({
       router.refresh();
     });
   return (
-    <div role="toolbar" aria-label={t('edit.tools', { title: page.title })} className="flex gap-1">
-      <Button asChild size="icon" variant="ghost" aria-label={tc('edit')}>
-        <Link href={`${base}?tab=edit&page=${page.id}`}>
-          <Pencil className="size-4" />
-        </Link>
-      </Button>
-      <Button
-        size="icon"
-        variant="ghost"
-        aria-label={t('edit.moveUp')}
-        disabled={pending || first}
-        onClick={() => run('movePage', { direction: 'up' })}
+    <>
+      {confirmDialog}
+      <div
+        role="toolbar"
+        aria-label={t('edit.tools', { title: page.title })}
+        className="flex gap-1"
       >
-        <ArrowUp className="size-4" />
-      </Button>
-      <Button
-        size="icon"
-        variant="ghost"
-        aria-label={t('edit.moveDown')}
-        disabled={pending || last}
-        onClick={() => run('movePage', { direction: 'down' })}
-      >
-        <ArrowDown className="size-4" />
-      </Button>
-      <Button
-        size="icon"
-        variant="ghost"
-        aria-label={tc('delete')}
-        disabled={pending}
-        onClick={() => {
-          if (window.confirm(t('edit.deleteConfirm', { title: page.title })))
-            run('deletePage', {}, t('edit.deleted'));
-        }}
-      >
-        <Trash2 className="size-4" />
-      </Button>
-    </div>
+        <Button asChild size="icon" variant="ghost" aria-label={tc('edit')}>
+          <Link href={`${base}?tab=edit&page=${page.id}`}>
+            <Pencil className="size-4" />
+          </Link>
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={t('edit.moveUp')}
+          disabled={pending || first}
+          onClick={() => run('movePage', { direction: 'up' })}
+        >
+          <ArrowUp className="size-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={t('edit.moveDown')}
+          disabled={pending || last}
+          onClick={() => run('movePage', { direction: 'down' })}
+        >
+          <ArrowDown className="size-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={tc('delete')}
+          disabled={pending}
+          onClick={async () => {
+            if (await confirm(t('edit.deleteConfirm', { title: page.title })))
+              run('deletePage', {}, t('edit.deleted'));
+          }}
+        >
+          <Trash2 className="size-4" />
+        </Button>
+      </div>
+    </>
   );
 }
 
@@ -564,27 +572,31 @@ export function DeleteAttempt({
   activityId: string;
   attemptId: string;
 }) {
+  const [confirm, confirmDialog] = useConfirm();
   const failed = useFailureText();
   const t = useTranslations('mod.lesson');
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
-    <Button
-      size="sm"
-      variant="ghost"
-      disabled={pending}
-      onClick={() => {
-        if (!window.confirm(t('reports.deleteConfirm'))) return;
-        start(async () => {
-          const r = await callModuleAction(activityId, 'deleteAttempt', { attemptId });
-          if (!r.ok) return void toast.error(failed(r));
-          toast.success(t('reports.deleted'));
-          router.refresh();
-        });
-      }}
-    >
-      <Trash2 aria-hidden />
-      {t('reports.delete')}
-    </Button>
+    <>
+      {confirmDialog}
+      <Button
+        size="sm"
+        variant="ghost"
+        disabled={pending}
+        onClick={async () => {
+          if (!(await confirm(t('reports.deleteConfirm')))) return;
+          start(async () => {
+            const r = await callModuleAction(activityId, 'deleteAttempt', { attemptId });
+            if (!r.ok) return void toast.error(failed(r));
+            toast.success(t('reports.deleted'));
+            router.refresh();
+          });
+        }}
+      >
+        <Trash2 aria-hidden />
+        {t('reports.delete')}
+      </Button>
+    </>
   );
 }

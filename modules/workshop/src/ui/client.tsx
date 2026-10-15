@@ -2,7 +2,7 @@
 
 import { RichText } from '@hubium/editor/client';
 import { EditorField } from '@hubium/editor/field';
-import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
+import { callModuleAction, useConfirm, useFailureText } from '@hubium/module-sdk/form';
 import { Button, Checkbox, Field, Input, Select, Textarea } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { Plus, Trash2, X } from 'lucide-react';
@@ -46,26 +46,30 @@ export function PhaseSwitch({
   phase: Phase;
   phases: Phase[];
 }) {
+  const [confirm, confirmDialog] = useConfirm();
   const t = useTranslations('mod.workshop');
   const { pending, run } = useRun(activityId);
   return (
-    <div className="flex flex-wrap gap-1">
-      {phases.map((p) => (
-        <Button
-          key={p}
-          size="sm"
-          variant={p === phase ? 'secondary' : 'ghost'}
-          aria-current={p === phase ? 'step' : undefined}
-          disabled={pending || p === phase}
-          onClick={() => {
-            if (window.confirm(t('switchConfirm', { phase: t(`phases.${p}`) })))
-              run('switchPhase', { phase: p }, { ok: t('switched') });
-          }}
-        >
-          {t(`phases.${p}`)}
-        </Button>
-      ))}
-    </div>
+    <>
+      {confirmDialog}
+      <div className="flex flex-wrap gap-1">
+        {phases.map((p) => (
+          <Button
+            key={p}
+            size="sm"
+            variant={p === phase ? 'secondary' : 'ghost'}
+            aria-current={p === phase ? 'step' : undefined}
+            disabled={pending || p === phase}
+            onClick={async () => {
+              if (await confirm(t('switchConfirm', { phase: t(`phases.${p}`) })))
+                run('switchPhase', { phase: p }, { ok: t('switched') });
+            }}
+          >
+            {t(`phases.${p}`)}
+          </Button>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -612,63 +616,67 @@ export function AllocationRow({
   reviewers: { assessmentId: string; name: string; assessed: boolean }[];
   candidates: { id: string; name: string }[];
 }) {
+  const [confirm, confirmDialog] = useConfirm();
   const t = useTranslations('mod.workshop');
   const { pending, run } = useRun(activityId);
   const [pick, setPick] = useState('');
   return (
-    <div className="grid gap-2">
-      <ul className="flex flex-wrap gap-1 text-sm">
-        {reviewers.map((r) => (
-          <li
-            key={r.assessmentId}
-            className="flex items-center gap-1 rounded-full border border-border py-0.5 pl-2.5 pr-1"
-          >
-            {r.name}
-            {r.assessed ? ' ✓' : ''}
-            <Button
-              size="icon"
-              variant="ghost"
-              className="size-6"
-              aria-label={t('allocation.remove', { name: r.name })}
-              disabled={pending}
-              onClick={() => {
-                if (!r.assessed || window.confirm(t('allocation.removeAssessed')))
-                  run('deallocate', { assessmentId: r.assessmentId });
-              }}
+    <>
+      {confirmDialog}
+      <div className="grid gap-2">
+        <ul className="flex flex-wrap gap-1 text-sm">
+          {reviewers.map((r) => (
+            <li
+              key={r.assessmentId}
+              className="flex items-center gap-1 rounded-full border border-border py-0.5 pl-2.5 pr-1"
             >
-              <X className="size-3.5" />
+              {r.name}
+              {r.assessed ? ' ✓' : ''}
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-6"
+                aria-label={t('allocation.remove', { name: r.name })}
+                disabled={pending}
+                onClick={async () => {
+                  if (!r.assessed || (await confirm(t('allocation.removeAssessed'))))
+                    run('deallocate', { assessmentId: r.assessmentId });
+                }}
+              >
+                <X className="size-3.5" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+        {candidates.length ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Select
+              aria-label={t('allocation.reviewer')}
+              className="w-56"
+              value={pick}
+              onChange={(e) => setPick(e.target.value)}
+            >
+              <option value="">{t('allocation.choose')}</option>
+              {candidates.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pending || !pick}
+              onClick={() =>
+                run('allocate', { submissionId, reviewerId: pick }, { done: () => setPick('') })
+              }
+            >
+              {t('allocation.add')}
             </Button>
-          </li>
-        ))}
-      </ul>
-      {candidates.length ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            aria-label={t('allocation.reviewer')}
-            className="w-56"
-            value={pick}
-            onChange={(e) => setPick(e.target.value)}
-          >
-            <option value="">{t('allocation.choose')}</option>
-            {candidates.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={pending || !pick}
-            onClick={() =>
-              run('allocate', { submissionId, reviewerId: pick }, { done: () => setPick('') })
-            }
-          >
-            {t('allocation.add')}
-          </Button>
-        </div>
-      ) : null}
-    </div>
+          </div>
+        ) : null}
+      </div>
+    </>
   );
 }
 

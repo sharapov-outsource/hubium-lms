@@ -3,6 +3,7 @@
 import {
   callModuleAction,
   LocalDateTimeInput,
+  useConfirm,
   useFailureText,
   useZonedValue,
 } from '@hubium/module-sdk/form';
@@ -576,11 +577,12 @@ export function RegradePanel({
   names: Record<string, string>;
   gradeMax: number;
 }) {
+  const [confirm, confirmDialog] = useConfirm();
   const t = useTranslations('mod.quiz');
   const { pending, run } = useRun(activityId);
   const [report, setReport] = useState<{ dry: boolean; data: RegradeReport } | null>(null);
-  const go = (dryRun: boolean) => {
-    if (!dryRun && !window.confirm(t('regrade.confirm'))) return;
+  const go = async (dryRun: boolean) => {
+    if (!dryRun && !(await confirm(t('regrade.confirm')))) return;
     run<RegradeReport>('regrade', { dryRun }, (data) => {
       setReport({ dry: dryRun, data });
       if (!dryRun) toast.success(t('regrade.done'));
@@ -592,46 +594,49 @@ export function RegradePanel({
     (x) => x.before !== x.after || x.maxBefore !== x.maxAfter,
   );
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('regrade.title')}</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-3">
-        <p className="text-sm text-muted-foreground">{t('regrade.hint')}</p>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" disabled={pending} onClick={() => go(true)}>
-            {t('regrade.dryRun')}
-          </Button>
-          <Button variant="outline" disabled={pending} onClick={() => go(false)}>
-            {t('regrade.run')}
-          </Button>
-        </div>
-        {report ? (
-          <div className="grid gap-2 text-sm" aria-live="polite">
-            <p className="font-medium">
-              {t(report.dry ? 'regrade.wouldChange' : 'regrade.changed', {
-                n: changed?.length ?? 0,
-                total: report.data.attempts.length,
-              })}
-            </p>
-            {changed?.length ? (
-              <ul className="grid gap-1">
-                {changed.map((x) => (
-                  <li key={x.attemptId} className="tabular-nums">
-                    {names[x.userId] ?? '—'} · {t('attempt', { n: x.attemptNumber })}:{' '}
-                    {points(x.before, x.maxBefore)} → {points(x.after, x.maxAfter)} / {gradeMax}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {report.data.skipped.length ? (
-              <p className="text-muted-foreground">
-                {t('regrade.skipped', { names: report.data.skipped.join(', ') })}
-              </p>
-            ) : null}
+    <>
+      {confirmDialog}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('regrade.title')}</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          <p className="text-sm text-muted-foreground">{t('regrade.hint')}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" disabled={pending} onClick={() => go(true)}>
+              {t('regrade.dryRun')}
+            </Button>
+            <Button variant="outline" disabled={pending} onClick={() => go(false)}>
+              {t('regrade.run')}
+            </Button>
           </div>
-        ) : null}
-      </CardContent>
-    </Card>
+          {report ? (
+            <div className="grid gap-2 text-sm" aria-live="polite">
+              <p className="font-medium">
+                {t(report.dry ? 'regrade.wouldChange' : 'regrade.changed', {
+                  n: changed?.length ?? 0,
+                  total: report.data.attempts.length,
+                })}
+              </p>
+              {changed?.length ? (
+                <ul className="grid gap-1">
+                  {changed.map((x) => (
+                    <li key={x.attemptId} className="tabular-nums">
+                      {names[x.userId] ?? '—'} · {t('attempt', { n: x.attemptNumber })}:{' '}
+                      {points(x.before, x.maxBefore)} → {points(x.after, x.maxAfter)} / {gradeMax}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {report.data.skipped.length ? (
+                <p className="text-muted-foreground">
+                  {t('regrade.skipped', { names: report.data.skipped.join(', ') })}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+    </>
   );
 }

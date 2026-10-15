@@ -7,8 +7,8 @@ const stamp = `${Date.now().toString(36).slice(-5)}${Math.random().toString(36).
 
 async function switchPhase(page: Page, url: string, phase: string) {
   await page.goto(url);
-  page.once('dialog', (d) => void d.accept());
   await page.getByRole('button', { name: phase, exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Подтвердить' }).click();
   await expect(page.getByText('Этап изменён').first()).toBeVisible();
 }
 

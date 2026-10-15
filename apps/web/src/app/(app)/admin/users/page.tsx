@@ -1,5 +1,6 @@
 import { listUsers, roleName } from '@hubium/core';
 import {
+  Alert,
   Badge,
   Button,
   EmptyState,
@@ -29,7 +30,7 @@ export async function generateMetadata() {
 export default async function UsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; status?: string; deleted?: string }>;
 }) {
   const { ctx } = await requireCapability('user:update');
   const sp = await searchParams;
@@ -79,6 +80,11 @@ export default async function UsersPage({
           ) : null
         }
       />
+      {sp.deleted ? (
+        <Alert variant="success" className="mb-4">
+          {t('user.deleted')}
+        </Alert>
+      ) : null}
       <search className="mb-4 block">
         <form className="flex max-w-xl flex-wrap gap-2">
           <label htmlFor="q" className="sr-only">

@@ -1,6 +1,7 @@
 'use client';
 
 import type { CourseField } from '@hubium/core/courses/course-fields';
+import { useConfirm } from '@hubium/module-sdk/form';
 import { Button, Checkbox, Select, Textarea } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react';
@@ -109,21 +110,24 @@ export function CourseFieldCommands({
   const tco = useTranslations('course');
   const router = useRouter();
   const [pending, start] = useTransition();
-  const run = (cmd: 'up' | 'down' | 'delete') =>
+  const [confirm, confirmDialog] = useConfirm();
+  const run = async (cmd: 'up' | 'down' | 'delete') => {
+    if (cmd === 'delete' && !(await confirm(t('deleteConfirm', { name })))) return;
     start(async () => {
-      if (cmd === 'delete' && !window.confirm(t('deleteConfirm', { name }))) return;
       const r = await courseFieldCommandAction(id, cmd);
       if (!r.ok) toast.error(r.message);
       router.refresh();
     });
+  };
   return (
     <span className="flex gap-1">
+      {confirmDialog}
       <Button
         variant="ghost"
         size="icon"
         aria-label={`${tco('moveUp')}: ${name}`}
         disabled={pending || first}
-        onClick={() => run('up')}
+        onClick={() => void run('up')}
       >
         <ArrowUp />
       </Button>
@@ -132,7 +136,7 @@ export function CourseFieldCommands({
         size="icon"
         aria-label={`${tco('moveDown')}: ${name}`}
         disabled={pending || last}
-        onClick={() => run('down')}
+        onClick={() => void run('down')}
       >
         <ArrowDown />
       </Button>
@@ -141,7 +145,7 @@ export function CourseFieldCommands({
         size="icon"
         aria-label={`${tc('delete')}: ${name}`}
         disabled={pending}
-        onClick={() => run('delete')}
+        onClick={() => void run('delete')}
       >
         <Trash2 />
       </Button>
