@@ -313,7 +313,8 @@
       "unlocked": "Account sbloccato",
       "anyStatus": "Qualsiasi stato",
       "adminBadge": "amministratore",
-      "uploadSheet": "File CSV, XLSX o ODS"
+      "uploadSheet": "File CSV, XLSX o ODS",
+      "adminReadOnly": "Questo è un amministratore del sito: solo un amministratore del sito può modificarne, bloccarne o eliminarne l’account."
     },
     "role": {
       "new": "Nuovo ruolo",

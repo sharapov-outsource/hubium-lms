@@ -62,6 +62,8 @@ export default async function EditUserPage({
     where: { userId: id, contextId: SYSTEM_CONTEXT_ID },
   });
   const canAssign = await ctx.perm.can('role:assign');
+  // a site admin's account is changed by site admins only (the core refuses everyone else)
+  const readOnly = user.isSiteAdmin && !ctx.perm.isSiteAdmin;
   const [relations, settings] = await Promise.all([userRelations(ctx, id), getAllSettings(db)]);
   return (
     <>
@@ -89,25 +91,29 @@ export default async function EditUserPage({
             <CardTitle>{t('user.edit')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <UserForm
-              action={updateUserAction}
-              mode="edit"
-              canSetAdmin={ctx.perm.isSiteAdmin}
-              languages={await enabledLanguages(db)}
-              timezones={timezoneOptions(locale)}
-              passwordRules={passwordPolicy(await getAllSettings(db))}
-              profileFields={await profileFieldViews(locale)}
-              values={{
-                id: user.id,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                email: user.emailPlaceholder ? '' : user.email,
-                locale: user.locale,
-                timezone: user.timezone,
-                isSiteAdmin: user.isSiteAdmin,
-                customFields: user.customFields as Record<string, string | boolean>,
-              }}
-            />
+            {readOnly ? (
+              <Alert>{t('user.adminReadOnly')}</Alert>
+            ) : (
+              <UserForm
+                action={updateUserAction}
+                mode="edit"
+                canSetAdmin={ctx.perm.isSiteAdmin}
+                languages={await enabledLanguages(db)}
+                timezones={timezoneOptions(locale)}
+                passwordRules={passwordPolicy(await getAllSettings(db))}
+                profileFields={await profileFieldViews(locale)}
+                values={{
+                  id: user.id,
+                  firstName: user.firstName,
+                  lastName: user.lastName,
+                  email: user.emailPlaceholder ? '' : user.email,
+                  locale: user.locale,
+                  timezone: user.timezone,
+                  isSiteAdmin: user.isSiteAdmin,
+                  customFields: user.customFields as Record<string, string | boolean>,
+                }}
+              />
+            )}
           </CardContent>
         </Card>
         <div className="grid content-start gap-6">
@@ -164,7 +170,7 @@ export default async function EditUserPage({
               })}
             />
           ) : null}
-          {user.id !== ctx.perm.userId ? (
+          {user.id !== ctx.perm.userId && !readOnly ? (
             <DangerZone
               userId={user.id}
               name={user.name}

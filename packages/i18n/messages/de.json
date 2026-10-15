@@ -313,7 +313,8 @@
       "unlocked": "Konto entsperrt",
       "anyStatus": "Jeder Status",
       "adminBadge": "Administrator",
-      "uploadSheet": "CSV-, XLSX- oder ODS-Datei"
+      "uploadSheet": "CSV-, XLSX- oder ODS-Datei",
+      "adminReadOnly": "Dies ist ein Website-Administrator: Nur ein Website-Administrator kann sein Konto ändern, sperren oder löschen."
     },
     "role": {
       "new": "Neue Rolle",

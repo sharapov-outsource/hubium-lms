@@ -314,7 +314,8 @@
       "unlocked": "Account unlocked",
       "anyStatus": "Any status",
       "adminBadge": "administrator",
-      "uploadSheet": "CSV, XLSX or ODS file"
+      "uploadSheet": "CSV, XLSX or ODS file",
+      "adminReadOnly": "This is a site administrator: only a site administrator can change their account, block or delete it."
     },
     "role": {
       "new": "New role",

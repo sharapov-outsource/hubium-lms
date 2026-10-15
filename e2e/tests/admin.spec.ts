@@ -168,6 +168,14 @@ test('manager sees users admin but not site settings', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   const res = await page.goto('/admin/settings/general');
   expect(res?.status()).toBe(403);
+  // a site administrator's card is for reading: the forms the core would refuse are not there
+  const [admin] = await sql<{ id: string }>(
+    `SELECT id FROM "User" WHERE "isSiteAdmin" AND "deletedAt" IS NULL LIMIT 1`,
+  );
+  await page.goto(`/admin/users/${admin!.id}`);
+  await expect(page.getByText(/^Это администратор сайта:/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Сохранить' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Заблокировать' })).toHaveCount(0);
 });
 
 test('mobile layout shows bottom navigation', async ({ page }) => {
