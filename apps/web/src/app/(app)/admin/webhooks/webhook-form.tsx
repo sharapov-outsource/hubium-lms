@@ -7,21 +7,7 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { ActionForm, FormField, SubmitButton, useFieldError } from '@/components/action-form';
 import { createWebhookAction, updateWebhookAction } from '@/server/actions/webhooks';
-
-/** Event types by topic, in the order the form lists them. */
-export const EVENT_GROUPS = {
-  users: ['user.created', 'user.updated', 'user.suspended', 'user.unsuspended', 'user.deleted'],
-  courses: ['course.created', 'course.updated', 'course.deleted'],
-  learning: [
-    'enrolment.created',
-    'enrolment.deleted',
-    'grade.updated',
-    'activity.completed',
-    'course.completed',
-    'submission.submitted',
-    'quiz.attempt.finished',
-  ],
-} as const;
+import { EVENT_GROUPS } from './event-groups';
 
 /** The signing secret, shown once after it is made. */
 export function SecretNotice({ secret }: { secret: string }) {
