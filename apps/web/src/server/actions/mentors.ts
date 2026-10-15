@@ -15,7 +15,8 @@ import { getContext } from '../session';
 
 // Administration: linking mentors and parents to the users they follow.
 
-export async function searchRelationUsersAction(q: string) {
+/** People to pick in administration (a mentor, a category's role holder), by name or email. */
+export async function searchUsersAction(q: string) {
   return runAction(async () => {
     if (q.trim().length < 2) return [];
     const { items } = await listUsers(await getContext(), { q: q.trim(), pageSize: 10 });

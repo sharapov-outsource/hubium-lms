@@ -931,7 +931,8 @@
       "usersHeader": "Die Kopfzeile muss enthalten: firstname, lastname und email oder username",
       "emailOrUsername": "E-Mail oder Benutzername ist erforderlich",
       "statusValue": "Status ist active oder suspended",
-      "passwordForNew": "Ein neuer Benutzer braucht ein Passwort"
+      "passwordForNew": "Ein neuer Benutzer braucht ein Passwort",
+      "roleNotForCategory": "Diese Rolle kann nicht in einer Kategorie vergeben werden"
     },
     "ai": {
       "apiKeyRequired": "Ein API-Schlüssel ist erforderlich",
@@ -2580,7 +2581,14 @@
     "notSet": "nicht gesetzt",
     "hint": "„Verhindern“ entzieht das Recht hier, weiter unten kann es aber wieder erlaubt werden. „Untersagen“ gilt überall darunter und hat Vorrang vor jeder Erlaubnis.",
     "readOnly": "Sie können diese Einstellungen ansehen, aber nicht ändern: Rechteänderungen sind für Sie nicht erlaubt.",
-    "open": "Rechte"
+    "open": "Rechte",
+    "categoryRoles": "Rollen in dieser Kategorie",
+    "categoryRolesHint": "Eine hier vergebene Rolle gilt für die Kategorien und Kurse darin, zum Beispiel für den Manager einer Fakultät oder ihre Kursersteller/innen.",
+    "nobody": "Niemand",
+    "addPerson": "Person hinzufügen",
+    "searchPerson": "Name oder E-Mail",
+    "removeHolder": "Rolle „{role}“ von {name} entfernen",
+    "giveRole": "{name} die Rolle geben"
   },
   "profileFields": {
     "title": "Profilfelder",

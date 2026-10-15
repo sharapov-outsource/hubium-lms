@@ -10,7 +10,7 @@ import { useEffect, useState, useTransition } from 'react';
 import {
   addUserRelationAction,
   removeUserRelationAction,
-  searchRelationUsersAction,
+  searchUsersAction,
 } from '@/server/actions/mentors';
 
 /** The admin user card's mentors and mentees, with a search to add a mentor or parent. */
@@ -36,7 +36,7 @@ export function UserRelations({
       return;
     }
     const h = setTimeout(async () => {
-      const r = await searchRelationUsersAction(q);
+      const r = await searchUsersAction(q);
       if (r.ok) setFound(r.data.filter((u) => u.id !== userId));
     }, 250);
     return () => clearTimeout(h);

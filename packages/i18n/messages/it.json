@@ -931,7 +931,8 @@
       "usersHeader": "L’intestazione deve contenere: firstname, lastname e email o username",
       "emailOrUsername": "Serve l’email o il nome utente",
       "statusValue": "Lo stato è active o suspended",
-      "passwordForNew": "Un nuovo utente ha bisogno di una password"
+      "passwordForNew": "Un nuovo utente ha bisogno di una password",
+      "roleNotForCategory": "Questo ruolo non può essere assegnato in una categoria"
     },
     "ai": {
       "apiKeyRequired": "È richiesta una chiave API",
@@ -2580,7 +2581,14 @@
     "notSet": "non impostato",
     "hint": "«Impedisci» rimuove il permesso a questo livello, ma più in basso può essere di nuovo consentito. «Proibisci» vale a tutti i livelli inferiori e prevale su qualsiasi consenso.",
     "readOnly": "È possibile visualizzare ma non modificare: non si dispone del permesso di modificare i privilegi.",
-    "open": "Permessi"
+    "open": "Permessi",
+    "categoryRoles": "Ruoli in questa categoria",
+    "categoryRolesHint": "Un ruolo assegnato qui vale per le categorie e i corsi al suo interno, ad esempio il manager di una facoltà o i suoi creatori di corsi.",
+    "nobody": "Nessuno",
+    "addPerson": "Aggiungi una persona",
+    "searchPerson": "Nome o email",
+    "removeHolder": "Togli il ruolo «{role}» a {name}",
+    "giveRole": "Assegna il ruolo a {name}"
   },
   "profileFields": {
     "title": "Campi del profilo",

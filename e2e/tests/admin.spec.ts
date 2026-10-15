@@ -343,3 +343,39 @@ test('groups created automatically from the course students', async ({ page }) =
     await sql(`DELETE FROM "Grouping" WHERE "courseId" = $1 AND name LIKE 'AUTO-%'`, [course!.id]);
   }
 });
+
+test('a role is given in a category from its permissions page', async ({ page }) => {
+  const [cat] = await sql<{ id: string }>(`SELECT id FROM "Category" ORDER BY "createdAt" LIMIT 1`);
+  const [teacher] = await sql<{ id: string; email: string; name: string }>(
+    `SELECT id, email, name FROM "User" WHERE username = 'teacher'`,
+  );
+  const cleanup = () =>
+    sql(
+      `DELETE FROM "RoleAssignment" WHERE "contextId" = $1 AND "userId" = $2 AND component = 'MANUAL'`,
+      [cat!.id, teacher!.id],
+    );
+  await cleanup();
+  try {
+    await login(page, ADMIN.login, ADMIN.password);
+    await page.goto(`/admin/categories/${cat!.id}/permissions`);
+    await expect(page.getByRole('heading', { name: 'Роли в этой категории' })).toBeVisible();
+    await expectAccessible(page);
+    // the overrides below have their own role list: the block of role holders is used
+    const block = page
+      .locator('div')
+      .filter({ has: page.getByRole('heading', { name: 'Роли в этой категории' }) })
+      .filter({ has: page.getByLabel('Добавить человека') })
+      .last();
+    await chooseOption(block.getByLabel('Роль', { exact: true }), { label: 'Создатель курсов' });
+    await block.getByLabel('Добавить человека').fill(teacher!.email);
+    await block.getByRole('button', { name: `Назначить роль: ${teacher!.name}` }).click();
+    const remove = block.getByRole('button', {
+      name: `Снять роль «Создатель курсов» с пользователя ${teacher!.name}`,
+    });
+    await expect(remove).toBeVisible();
+    await remove.click();
+    await expect(remove).toHaveCount(0);
+  } finally {
+    await cleanup();
+  }
+});

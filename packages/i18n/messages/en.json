@@ -932,7 +932,8 @@
       "usersHeader": "Header must include: firstname, lastname and email or username",
       "emailOrUsername": "Email or username is required",
       "statusValue": "Status is active or suspended",
-      "passwordForNew": "A new user needs a password"
+      "passwordForNew": "A new user needs a password",
+      "roleNotForCategory": "This role cannot be given in a category"
     },
     "ai": {
       "apiKeyRequired": "An API key is required",
@@ -2581,7 +2582,14 @@
     "notSet": "not set",
     "hint": "“Deny” removes the permission here, but it can be allowed again further down. “Prohibit” applies everywhere below and beats any allow.",
     "readOnly": "You can view but not change these: overriding permissions is not allowed for you.",
-    "open": "Permissions"
+    "open": "Permissions",
+    "categoryRoles": "Roles in this category",
+    "categoryRolesHint": "A role given here holds for the categories and courses inside this one, for example a faculty’s manager or its course creators.",
+    "nobody": "Nobody",
+    "addPerson": "Add a person",
+    "searchPerson": "Name or email",
+    "removeHolder": "Take the role “{role}” from {name}",
+    "giveRole": "Give {name} the role"
   },
   "profileFields": {
     "title": "Profile fields",

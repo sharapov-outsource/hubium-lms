@@ -931,7 +931,8 @@
       "usersHeader": "L’en-tête doit contenir : firstname, lastname et email ou username",
       "emailOrUsername": "L’email ou le nom d’utilisateur est requis",
       "statusValue": "Le statut est active ou suspended",
-      "passwordForNew": "Un nouvel utilisateur a besoin d’un mot de passe"
+      "passwordForNew": "Un nouvel utilisateur a besoin d’un mot de passe",
+      "roleNotForCategory": "Ce rôle ne peut pas être attribué dans une catégorie"
     },
     "ai": {
       "apiKeyRequired": "Une clé d’API est requise",
@@ -2580,7 +2581,14 @@
     "notSet": "non défini",
     "hint": "« Empêcher » retire la permission ici, mais elle peut être de nouveau autorisée plus bas. « Interdire » s’applique partout en dessous et l’emporte sur toute autorisation.",
     "readOnly": "Vous pouvez consulter ces permissions mais pas les modifier : vous n’êtes pas autorisé à créer des dérogations.",
-    "open": "Permissions"
+    "open": "Permissions",
+    "categoryRoles": "Rôles dans cette catégorie",
+    "categoryRolesHint": "Un rôle attribué ici vaut pour les catégories et cours qu’elle contient, par exemple le gestionnaire d’une faculté ou ses créateurs de cours.",
+    "nobody": "Personne",
+    "addPerson": "Ajouter une personne",
+    "searchPerson": "Nom ou e-mail",
+    "removeHolder": "Retirer le rôle « {role} » à {name}",
+    "giveRole": "Attribuer le rôle à {name}"
   },
   "profileFields": {
     "title": "Champs de profil",

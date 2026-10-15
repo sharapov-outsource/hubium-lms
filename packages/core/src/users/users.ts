@@ -390,39 +390,99 @@ export const deleteUser = defineOperation({
 
 // ── system-level role assignment (manager, course creator) ─────────────────────
 
+/** Gives or takes a role in a context the role may be given at, logged. */
+async function setContextRole(
+  ctx: MutationContext,
+  opts: {
+    userId: string;
+    roleId: string;
+    contextId: string;
+    level: 'SYSTEM' | 'CATEGORY';
+    assigned: boolean;
+  },
+) {
+  const { userId, roleId, contextId, assigned } = opts;
+  const role = await ctx.tx.role.findUnique({ where: { id: roleId } });
+  if (!role?.assignableLevels.includes(opts.level)) {
+    throw new ValidationError({
+      roleId: [
+        msg(
+          opts.level === 'SYSTEM'
+            ? 'errors.users.roleNotForSite'
+            : 'errors.users.roleNotForCategory',
+        ),
+      ],
+    });
+  }
+  const user = await ctx.tx.user.findUnique({ where: { id: userId } });
+  if (!user || user.deletedAt) throw new NotFoundError('User');
+  // Granting and taking away follow the same rule (e.g. managers may not create managers).
+  await assertCanAssignRole(ctx, contextId, roleId);
+  const key = { userId, roleId, contextId, component: 'MANUAL' as const };
+  if (assigned) {
+    if (!(await ctx.tx.roleAssignment.findFirst({ where: key })))
+      await ctx.tx.roleAssignment.create({ data: key });
+  } else {
+    await ctx.tx.roleAssignment.deleteMany({ where: key });
+  }
+  await logEvent(ctx.tx, {
+    name: assigned ? 'role.assigned' : 'role.unassigned',
+    actorId: ctx.perm.userId,
+    relatedUserId: userId,
+    contextId,
+    data: { roleId },
+    origin: ctx.origin,
+  });
+  return { ok: true };
+}
+
 export const assignSystemRole = defineOperation({
   name: 'user.assignSystemRole',
   input: z.object({ userId: z.string().uuid(), roleId: z.string().uuid(), assigned: z.boolean() }),
   authorize: (ctx) => ctx.perm.require('role:assign'),
-  async handler(ctx, { userId, roleId, assigned }) {
-    const role = await ctx.tx.role.findUnique({ where: { id: roleId } });
-    if (!role?.assignableLevels.includes('SYSTEM')) {
-      throw new ValidationError({ roleId: [msg('errors.users.roleNotForSite')] });
-    }
-    const user = await ctx.tx.user.findUnique({ where: { id: userId } });
-    if (!user || user.deletedAt) throw new NotFoundError('User');
-    // Granting and taking away follow the same rule (e.g. managers may not create managers).
-    await assertCanAssignRole(ctx, SYSTEM_CONTEXT_ID, roleId);
-    const key = { userId, roleId, contextId: SYSTEM_CONTEXT_ID, component: 'MANUAL' as const };
-    if (assigned) {
-      if (!(await ctx.tx.roleAssignment.findFirst({ where: key })))
-        await ctx.tx.roleAssignment.create({ data: key });
-    } else {
-      await ctx.tx.roleAssignment.deleteMany({
-        where: { userId, roleId, contextId: SYSTEM_CONTEXT_ID, component: 'MANUAL' },
-      });
-    }
-    await logEvent(ctx.tx, {
-      name: assigned ? 'role.assigned' : 'role.unassigned',
-      actorId: ctx.perm.userId,
-      relatedUserId: userId,
-      contextId: SYSTEM_CONTEXT_ID,
-      data: { roleId },
-      origin: ctx.origin,
-    });
-    return { ok: true };
+  handler: (ctx, input) =>
+    setContextRole(ctx, { ...input, contextId: SYSTEM_CONTEXT_ID, level: 'SYSTEM' }),
+});
+
+/**
+ * A role given in a category (a faculty's manager or course creators): it holds for the
+ * categories and courses inside it.
+ */
+export const assignCategoryRole = defineOperation({
+  name: 'user.assignCategoryRole',
+  input: z.object({
+    userId: z.string().uuid(),
+    roleId: z.string().uuid(),
+    categoryId: z.string().uuid(),
+    assigned: z.boolean(),
+  }),
+  authorize: (ctx, i) => ctx.perm.require('role:assign', i.categoryId),
+  async handler(ctx, { categoryId, ...input }) {
+    if (!(await ctx.tx.category.findUnique({ where: { id: categoryId }, select: { id: true } })))
+      throw new NotFoundError('Category');
+    return setContextRole(ctx, { ...input, contextId: categoryId, level: 'CATEGORY' });
   },
 });
+
+/** Who holds the roles that may be given in a category, there itself, by role. */
+export async function categoryRoleHolders(ctx: RequestContext, categoryId: string) {
+  await ctx.perm.require('role:review', categoryId);
+  const roles = await ctx.db.role.findMany({
+    where: { assignableLevels: { has: 'CATEGORY' } },
+    orderBy: { sortOrder: 'asc' },
+  });
+  const held = await ctx.db.roleAssignment.findMany({
+    where: { contextId: categoryId, roleId: { in: roles.map((r) => r.id) }, component: 'MANUAL' },
+    select: { roleId: true, user: { select: { id: true, name: true, deletedAt: true } } },
+    orderBy: { user: { lastName: 'asc' } },
+  });
+  return roles.map((role) => ({
+    role,
+    users: held
+      .filter((h) => h.roleId === role.id && !h.user.deletedAt)
+      .map((h) => ({ id: h.user.id, name: h.user.name })),
+  }));
+}
 
 // ── CSV bulk upload ────────────────────────────────────────────────────────────
 

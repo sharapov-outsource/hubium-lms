@@ -1,6 +1,7 @@
 'use server';
 
 import {
+  assignCategoryRole,
   assignSystemRole,
   bulkUploadUsers,
   createRole,
@@ -124,6 +125,24 @@ export async function assignSystemRoleAction(userId: string, roleId: string, ass
   return runAction(async () => {
     const r = await assignSystemRole.run(await getContext(), { userId, roleId, assigned });
     revalidatePath(`/admin/users/${userId}`);
+    return r;
+  });
+}
+
+export async function assignCategoryRoleAction(
+  categoryId: string,
+  userId: string,
+  roleId: string,
+  assigned: boolean,
+) {
+  return runAction(async () => {
+    const r = await assignCategoryRole.run(await getContext(), {
+      categoryId,
+      userId,
+      roleId,
+      assigned,
+    });
+    revalidatePath(`/admin/categories/${categoryId}/permissions`);
     return r;
   });
 }
