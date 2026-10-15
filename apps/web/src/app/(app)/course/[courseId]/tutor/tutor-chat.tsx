@@ -66,6 +66,8 @@ export function TutorChat({
     }
     if (r.code === 'REFUSED') return t('refused');
     if (r.details?.tutorBlocked) return t('blocked', { name: String(r.details.tutorBlocked) });
+    // the server's words, in the person's language, when the question itself is refused
+    if (r.code === 'VALIDATION' && r.message) return r.message;
     return t('failed');
   };
 

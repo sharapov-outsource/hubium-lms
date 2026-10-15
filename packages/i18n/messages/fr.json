@@ -847,7 +847,12 @@
     },
     "questions": {
       "defaultCategory": "La catégorie par défaut ne peut pas être supprimée",
-      "textRequired": "Le texte de la question est requis"
+      "textRequired": "Le texte de la question est requis",
+      "draftNoText": "Texte de la question vide",
+      "draftOptions": "Il faut au moins deux options, dont une correcte",
+      "draftTrueFalse": "La réponse vrai/faux manque",
+      "draftAnswers": "Aucune réponse acceptée",
+      "draftNumber": "La réponse numérique manque"
     },
     "reports": {
       "chooseSource": "Choisissez une source",
@@ -896,7 +901,9 @@
       "typeQuestion": "Saisissez une question",
       "questionTooLong": "La question est trop longue",
       "tutorDuringQuiz": "Le tuteur est indisponible pendant une tentative de test",
-      "onlyAnswersRated": "Seules les réponses peuvent être évaluées"
+      "onlyAnswersRated": "Seules les réponses peuvent être évaluées",
+      "unavailable": "Le service d’IA est indisponible",
+      "tutorRefused": "Le tuteur ne peut pas aider avec cette demande"
     },
     "interchange": {
       "archiveTooLarge": "L’archive est trop volumineuse pour être importée",
@@ -923,6 +930,49 @@
     },
     "webhooks": {
       "chooseEvent": "Choisissez au moins un événement"
+    },
+    "authCodes": {
+      "ACCOUNT_LOCKED": "La connexion est temporairement verrouillée après plusieurs échecs. Réessayez plus tard.",
+      "ACCOUNT_SUSPENDED": "Ce compte est suspendu",
+      "ACCOUNT_TEMPORARILY_LOCKED": "Trop de tentatives. Réessayez plus tard.",
+      "CHANGE_EMAIL_DISABLED": "L’adresse e-mail ne peut pas être modifiée",
+      "CREDENTIAL_ACCOUNT_NOT_FOUND": "Ce compte n’a pas de mot de passe sur ce site",
+      "EMAIL_CAN_NOT_BE_UPDATED": "L’adresse e-mail ne peut pas être modifiée",
+      "EMAIL_NOT_VERIFIED": "L’adresse e-mail n’est pas confirmée",
+      "EMAIL_PASSWORD_SIGN_UP_DISABLED": "L’inscription est fermée sur ce site",
+      "FAILED_TO_CREATE_SESSION": "Impossible de démarrer la session. Réessayez.",
+      "FAILED_TO_CREATE_USER": "Impossible de créer le compte. Réessayez.",
+      "INVALID_BACKUP_CODE": "Code de secours incorrect",
+      "INVALID_CODE": "Code incorrect",
+      "INVALID_EMAIL": "Saisissez une adresse e-mail",
+      "INVALID_EMAIL_OR_PASSWORD": "Identifiant ou mot de passe incorrect",
+      "INVALID_LOGIN": "Identifiant ou mot de passe incorrect",
+      "INVALID_PASSWORD": "Mot de passe incorrect",
+      "INVALID_RECOVERY_PASSPHRASE": "Cette phrase ne correspond pas",
+      "INVALID_TOKEN": "Le lien est invalide ou a expiré",
+      "INVALID_TWO_FACTOR_COOKIE": "Reconnectez-vous",
+      "INVALID_USERNAME_OR_PASSWORD": "Identifiant ou mot de passe incorrect",
+      "LDAP_ACCOUNT_AMBIGUOUS": "L’adresse e-mail et l’identifiant appartiennent à des comptes différents. Contactez un administrateur.",
+      "LDAP_ACCOUNT_NOT_LINKED": "Un compte avec cette adresse ou cet identifiant existe mais n’est pas lié à l’annuaire. Connectez-vous avec votre mot de passe ou contactez un administrateur.",
+      "LDAP_NO_ACCOUNT": "Aucun compte sur ce site ne correspond à ce compte de l’annuaire. Contactez un administrateur.",
+      "LOGGED_IN_AS": "Indisponible tant que vous êtes connecté en tant qu’un autre utilisateur",
+      "LOGIN_AS_ADMIN": "Seuls les administrateurs du site peuvent se connecter en tant qu’administrateur",
+      "LOGIN_AS_NESTED": "Revenez d’abord à votre propre compte",
+      "LOGIN_AS_NOT_ALLOWED": "Vous n’êtes pas autorisé à vous connecter en tant qu’autres utilisateurs",
+      "LOGIN_AS_SELF": "Vous êtes déjà connecté en tant que cet utilisateur",
+      "PASSWORD_TOO_LONG": "Le mot de passe est trop long",
+      "PASSWORD_TOO_SHORT": "Le mot de passe est trop court",
+      "SESSION_EXPIRED": "Reconnectez-vous pour continuer",
+      "SESSION_NOT_FRESH": "Reconnectez-vous pour continuer",
+      "SIGN_IN_METHOD_DISABLED": "Ce mode de connexion est désactivé",
+      "SIGN_IN_REQUIRED": "Connectez-vous d’abord",
+      "SOCIAL_ACCOUNT_ALREADY_LINKED": "Ce compte du fournisseur est déjà lié à un autre compte",
+      "TOKEN_EXPIRED": "Le lien est invalide ou a expiré",
+      "TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE": "Trop de tentatives. Demandez un nouveau code.",
+      "USERNAME_IS_ALREADY_TAKEN": "Cet identifiant est déjà pris",
+      "USER_ALREADY_EXISTS": "Un compte avec cette adresse e-mail existe déjà",
+      "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "Un compte avec cette adresse e-mail existe déjà",
+      "USER_NOT_FOUND": "Utilisateur introuvable"
     }
   },
   "editor": {

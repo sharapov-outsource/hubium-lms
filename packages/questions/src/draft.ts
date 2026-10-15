@@ -35,7 +35,10 @@ export const QuestionDraftList = z.object({ questions: z.array(QuestionDraft) })
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
 
-/** Maps a draft to question fields, or returns an error message when it is unusable. */
+/**
+ * Maps a draft to question fields, or says why it is unusable: the key of a message in the
+ * language packs (errors.questions.draft…).
+ */
 export function draftToQuestion(
   d: QuestionDraft,
 ):
@@ -46,13 +49,12 @@ export function draftToQuestion(
     text: `<p>${esc(d.text.trim())}</p>`,
     generalFeedback: d.explanation.trim() ? `<p>${esc(d.explanation.trim())}</p>` : '',
   };
-  if (!d.text.trim()) return { error: 'Empty question text' };
+  if (!d.text.trim()) return { error: 'errors.questions.draftNoText' };
   switch (d.type) {
     case 'MULTICHOICE': {
       const opts = d.options.filter((o) => o.text.trim());
       const correct = opts.filter((o) => o.correct).length;
-      if (opts.length < 2 || correct === 0)
-        return { error: 'Needs at least two options and a correct one' };
+      if (opts.length < 2 || correct === 0) return { error: 'errors.questions.draftOptions' };
       return {
         ...base,
         type: 'MULTICHOICE',
@@ -73,7 +75,7 @@ export function draftToQuestion(
       };
     }
     case 'TRUEFALSE':
-      if (d.trueFalseAnswer === null) return { error: 'Missing true/false answer' };
+      if (d.trueFalseAnswer === null) return { error: 'errors.questions.draftTrueFalse' };
       return {
         ...base,
         type: 'TRUEFALSE',
@@ -81,7 +83,7 @@ export function draftToQuestion(
       };
     case 'SHORTANSWER': {
       const answers = [...new Set(d.acceptedAnswers.map((a) => a.trim()).filter(Boolean))];
-      if (!answers.length) return { error: 'No accepted answers' };
+      if (!answers.length) return { error: 'errors.questions.draftAnswers' };
       return {
         ...base,
         type: 'SHORTANSWER',
@@ -93,7 +95,7 @@ export function draftToQuestion(
     }
     case 'NUMERICAL':
       if (d.numericAnswer === null || !Number.isFinite(d.numericAnswer))
-        return { error: 'Missing numeric answer' };
+        return { error: 'errors.questions.draftNumber' };
       return {
         ...base,
         type: 'NUMERICAL',

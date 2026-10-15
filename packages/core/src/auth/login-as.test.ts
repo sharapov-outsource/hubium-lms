@@ -32,12 +32,16 @@ describe('log in as', () => {
   it('needs user:loginas, and only an administrator may become another administrator', async () => {
     expect(await loginAsDenial(t.db, ids.manager!, ids.student1!)).toBeNull();
     expect(await loginAsDenial(t.db, ids.admin!, ids.manager!)).toBeNull();
-    expect(await loginAsDenial(t.db, ids.teacher!, ids.student1!)).toMatch(/not allowed/);
-    expect(await loginAsDenial(t.db, ids.manager!, ids.admin!)).toMatch(/administrator/);
-    expect(await loginAsDenial(t.db, ids.manager!, ids.manager!)).toMatch(/already/);
+    expect((await loginAsDenial(t.db, ids.teacher!, ids.student1!))?.code).toBe(
+      'LOGIN_AS_NOT_ALLOWED',
+    );
+    expect((await loginAsDenial(t.db, ids.manager!, ids.admin!))?.code).toBe('LOGIN_AS_ADMIN');
+    expect((await loginAsDenial(t.db, ids.manager!, ids.manager!))?.code).toBe('LOGIN_AS_SELF');
     await t.db.user.update({ where: { id: ids.student2! }, data: { status: 'SUSPENDED' } });
     try {
-      expect(await loginAsDenial(t.db, ids.manager!, ids.student2!)).toMatch(/suspended/);
+      expect((await loginAsDenial(t.db, ids.manager!, ids.student2!))?.code).toBe(
+        'ACCOUNT_SUSPENDED',
+      );
     } finally {
       await t.db.user.update({ where: { id: ids.student2! }, data: { status: 'ACTIVE' } });
     }

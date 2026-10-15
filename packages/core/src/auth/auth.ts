@@ -374,7 +374,10 @@ export function createAuth({
                 })
               : null;
           if (!p?.enabled)
-            throw new APIError('FORBIDDEN', { message: 'This sign-in method is disabled' });
+            throw new APIError('FORBIDDEN', {
+              code: 'SIGN_IN_METHOD_DISABLED',
+              message: 'This sign-in method is disabled',
+            });
           return;
         }
         // The admin plugin is here for its impersonation session only; Hubium manages
@@ -385,6 +388,7 @@ export function createAuth({
           const s = await getSessionFromCtx(c);
           if (impersonatedBy(s?.session))
             throw new APIError('FORBIDDEN', {
+              code: 'LOGGED_IN_AS',
               message: 'Not available while logged in as another user',
             });
           return;
@@ -406,13 +410,19 @@ export function createAuth({
             select: { enabled: true },
           });
           if (!row?.enabled)
-            throw new APIError('FORBIDDEN', { message: 'This sign-in method is disabled' });
+            throw new APIError('FORBIDDEN', {
+              code: 'SIGN_IN_METHOD_DISABLED',
+              message: 'This sign-in method is disabled',
+            });
           return;
         }
         if (!(BUILT_IN_OAUTH as readonly string[]).includes(provider ?? '')) return;
         const settings = await getAllSettings(db);
         if (!settings[`auth.oauth.${provider as BuiltInOAuth}`])
-          throw new APIError('FORBIDDEN', { message: 'This sign-in method is disabled' });
+          throw new APIError('FORBIDDEN', {
+            code: 'SIGN_IN_METHOD_DISABLED',
+            message: 'This sign-in method is disabled',
+          });
       }),
       after: createAuthMiddleware(async (c) => {
         const r = c.context.returned;

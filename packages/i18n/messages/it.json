@@ -847,7 +847,12 @@
     },
     "questions": {
       "defaultCategory": "La categoria predefinita non può essere eliminata",
-      "textRequired": "Il testo della domanda è obbligatorio"
+      "textRequired": "Il testo della domanda è obbligatorio",
+      "draftNoText": "Testo della domanda vuoto",
+      "draftOptions": "Servono almeno due opzioni e una corretta",
+      "draftTrueFalse": "Manca la risposta vero/falso",
+      "draftAnswers": "Nessuna risposta accettata",
+      "draftNumber": "Manca la risposta numerica"
     },
     "reports": {
       "chooseSource": "Scegli una fonte",
@@ -896,7 +901,9 @@
       "typeQuestion": "Scrivi una domanda",
       "questionTooLong": "La domanda è troppo lunga",
       "tutorDuringQuiz": "Il tutor non è disponibile durante un tentativo di quiz",
-      "onlyAnswersRated": "Si possono valutare solo le risposte"
+      "onlyAnswersRated": "Si possono valutare solo le risposte",
+      "unavailable": "Il servizio di IA non è disponibile",
+      "tutorRefused": "Il tutor non può aiutare con questa richiesta"
     },
     "interchange": {
       "archiveTooLarge": "L’archivio è troppo grande da importare",
@@ -923,6 +930,49 @@
     },
     "webhooks": {
       "chooseEvent": "Scegli almeno un evento"
+    },
+    "authCodes": {
+      "ACCOUNT_LOCKED": "L’accesso è temporaneamente bloccato dopo diversi tentativi falliti. Riprova più tardi.",
+      "ACCOUNT_SUSPENDED": "Questo account è sospeso",
+      "ACCOUNT_TEMPORARILY_LOCKED": "Troppi tentativi. Riprova più tardi.",
+      "CHANGE_EMAIL_DISABLED": "L’indirizzo email non può essere modificato",
+      "CREDENTIAL_ACCOUNT_NOT_FOUND": "Questo account non ha una password su questo sito",
+      "EMAIL_CAN_NOT_BE_UPDATED": "L’indirizzo email non può essere modificato",
+      "EMAIL_NOT_VERIFIED": "L’indirizzo email non è confermato",
+      "EMAIL_PASSWORD_SIGN_UP_DISABLED": "La registrazione è chiusa su questo sito",
+      "FAILED_TO_CREATE_SESSION": "Impossibile avviare la sessione. Riprova.",
+      "FAILED_TO_CREATE_USER": "Impossibile creare l’account. Riprova.",
+      "INVALID_BACKUP_CODE": "Codice di backup non valido",
+      "INVALID_CODE": "Codice non valido",
+      "INVALID_EMAIL": "Inserisci un indirizzo email",
+      "INVALID_EMAIL_OR_PASSWORD": "Nome utente o password non validi",
+      "INVALID_LOGIN": "Nome utente o password non validi",
+      "INVALID_PASSWORD": "Password errata",
+      "INVALID_RECOVERY_PASSPHRASE": "La frase non corrisponde",
+      "INVALID_TOKEN": "Il link non è valido o è scaduto",
+      "INVALID_TWO_FACTOR_COOKIE": "Accedi di nuovo",
+      "INVALID_USERNAME_OR_PASSWORD": "Nome utente o password non validi",
+      "LDAP_ACCOUNT_AMBIGUOUS": "L’email e il nome utente appartengono ad account diversi. Contatta un amministratore.",
+      "LDAP_ACCOUNT_NOT_LINKED": "Esiste un account con questa email o questo nome utente ma non è collegato alla directory. Accedi con la password o contatta un amministratore.",
+      "LDAP_NO_ACCOUNT": "Non esiste un account su questo sito per questo account della directory. Contatta un amministratore.",
+      "LOGGED_IN_AS": "Non disponibile mentre sei collegato come un altro utente",
+      "LOGIN_AS_ADMIN": "Solo gli amministratori del sito possono accedere come amministratore",
+      "LOGIN_AS_NESTED": "Torna prima al tuo account",
+      "LOGIN_AS_NOT_ALLOWED": "Non sei autorizzato ad accedere come altri utenti",
+      "LOGIN_AS_SELF": "Hai già effettuato l’accesso come questo utente",
+      "PASSWORD_TOO_LONG": "La password è troppo lunga",
+      "PASSWORD_TOO_SHORT": "La password è troppo corta",
+      "SESSION_EXPIRED": "Accedi di nuovo per continuare",
+      "SESSION_NOT_FRESH": "Accedi di nuovo per continuare",
+      "SIGN_IN_METHOD_DISABLED": "Questo metodo di accesso è disattivato",
+      "SIGN_IN_REQUIRED": "Accedi prima",
+      "SOCIAL_ACCOUNT_ALREADY_LINKED": "Questo account del provider è già collegato a un altro account",
+      "TOKEN_EXPIRED": "Il link non è valido o è scaduto",
+      "TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE": "Troppi tentativi. Richiedi un nuovo codice.",
+      "USERNAME_IS_ALREADY_TAKEN": "Questo nome utente è già in uso",
+      "USER_ALREADY_EXISTS": "Esiste già un account con questa email",
+      "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "Esiste già un account con questa email",
+      "USER_NOT_FOUND": "Utente non trovato"
     }
   },
   "editor": {

@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { OAuthButtons } from '@/components/oauth-buttons';
 import { authClient } from '@/lib/auth-client';
+import { useAuthErrorText } from '@/lib/auth-error';
 import { type PasswordRules, passwordHint } from '@/lib/password-hint';
 
 export function RegisterForm({
@@ -21,6 +22,7 @@ export function RegisterForm({
   const t = useTranslations('auth');
   const tc = useTranslations('common');
   const locale = useLocale();
+  const authError = useAuthErrorText();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -52,7 +54,7 @@ export function RegisterForm({
     } as Parameters<typeof authClient.signUp.email>[0]);
     setPending(false);
     if (res.error) {
-      setFormError(res.error.message ?? t('invalidCredentials'));
+      setFormError(authError(res.error, t('invalidCredentials')));
       return;
     }
     // signed in at once when the site does not require email verification

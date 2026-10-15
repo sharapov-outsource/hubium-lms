@@ -41,7 +41,7 @@ test('admin logs in as a student and returns', async ({ page }) => {
   const emailForm = page.locator('form').filter({ has: page.locator('input[name=email]') });
   await emailForm.locator('input[name=email]').fill(`changed${stamp}@example.com`);
   await emailForm.getByRole('button').click();
-  await expect(page.getByText('Недостаточно прав для этого действия')).toBeVisible();
+  await expect(page.getByText('Недоступно, пока вы вошли под другим пользователем')).toBeVisible();
 
   await page.getByRole('button', { name: 'Вернуться в свою учётную запись' }).click();
   await page.waitForURL(new RegExp(`/admin/users/${student!.id}`));

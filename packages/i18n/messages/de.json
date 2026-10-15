@@ -847,7 +847,12 @@
     },
     "questions": {
       "defaultCategory": "Die Standardkategorie kann nicht gelöscht werden",
-      "textRequired": "Der Fragetext ist erforderlich"
+      "textRequired": "Der Fragetext ist erforderlich",
+      "draftNoText": "Leerer Fragetext",
+      "draftOptions": "Mindestens zwei Optionen und eine richtige sind nötig",
+      "draftTrueFalse": "Die Wahr/Falsch-Antwort fehlt",
+      "draftAnswers": "Keine akzeptierten Antworten",
+      "draftNumber": "Die numerische Antwort fehlt"
     },
     "reports": {
       "chooseSource": "Wählen Sie eine Quelle",
@@ -896,7 +901,9 @@
       "typeQuestion": "Geben Sie eine Frage ein",
       "questionTooLong": "Die Frage ist zu lang",
       "tutorDuringQuiz": "Der Tutor ist während eines Testversuchs nicht verfügbar",
-      "onlyAnswersRated": "Nur Antworten können bewertet werden"
+      "onlyAnswersRated": "Nur Antworten können bewertet werden",
+      "unavailable": "Der KI-Dienst ist nicht verfügbar",
+      "tutorRefused": "Der Tutor kann bei dieser Anfrage nicht helfen"
     },
     "interchange": {
       "archiveTooLarge": "Das Archiv ist zu groß für den Import",
@@ -923,6 +930,49 @@
     },
     "webhooks": {
       "chooseEvent": "Wählen Sie mindestens ein Ereignis"
+    },
+    "authCodes": {
+      "ACCOUNT_LOCKED": "Die Anmeldung ist nach mehreren Fehlversuchen vorübergehend gesperrt. Versuchen Sie es später erneut.",
+      "ACCOUNT_SUSPENDED": "Dieses Konto ist gesperrt",
+      "ACCOUNT_TEMPORARILY_LOCKED": "Zu viele Versuche. Versuchen Sie es später erneut.",
+      "CHANGE_EMAIL_DISABLED": "Die E-Mail-Adresse kann nicht geändert werden",
+      "CREDENTIAL_ACCOUNT_NOT_FOUND": "Dieses Konto hat auf dieser Website kein Passwort",
+      "EMAIL_CAN_NOT_BE_UPDATED": "Die E-Mail-Adresse kann nicht geändert werden",
+      "EMAIL_NOT_VERIFIED": "Die E-Mail-Adresse ist nicht bestätigt",
+      "EMAIL_PASSWORD_SIGN_UP_DISABLED": "Die Registrierung ist auf dieser Website geschlossen",
+      "FAILED_TO_CREATE_SESSION": "Die Sitzung konnte nicht gestartet werden. Versuchen Sie es erneut.",
+      "FAILED_TO_CREATE_USER": "Das Konto konnte nicht erstellt werden. Versuchen Sie es erneut.",
+      "INVALID_BACKUP_CODE": "Ungültiger Sicherungscode",
+      "INVALID_CODE": "Ungültiger Code",
+      "INVALID_EMAIL": "Geben Sie eine E-Mail-Adresse ein",
+      "INVALID_EMAIL_OR_PASSWORD": "Anmeldename oder Passwort ist falsch",
+      "INVALID_LOGIN": "Anmeldename oder Passwort ist falsch",
+      "INVALID_PASSWORD": "Falsches Passwort",
+      "INVALID_RECOVERY_PASSPHRASE": "Dieser Satz passt nicht",
+      "INVALID_TOKEN": "Der Link ist ungültig oder abgelaufen",
+      "INVALID_TWO_FACTOR_COOKIE": "Melden Sie sich erneut an",
+      "INVALID_USERNAME_OR_PASSWORD": "Anmeldename oder Passwort ist falsch",
+      "LDAP_ACCOUNT_AMBIGUOUS": "E-Mail-Adresse und Benutzername gehören zu verschiedenen Konten. Wenden Sie sich an einen Administrator.",
+      "LDAP_ACCOUNT_NOT_LINKED": "Ein Konto mit dieser E-Mail-Adresse oder diesem Benutzernamen existiert, ist aber nicht mit dem Verzeichnis verknüpft. Melden Sie sich mit Ihrem Passwort an oder wenden Sie sich an einen Administrator.",
+      "LDAP_NO_ACCOUNT": "Für dieses Verzeichniskonto gibt es kein Konto auf dieser Website. Wenden Sie sich an einen Administrator.",
+      "LOGGED_IN_AS": "Nicht verfügbar, solange Sie als anderer Benutzer angemeldet sind",
+      "LOGIN_AS_ADMIN": "Nur Website-Administratoren können sich als Administrator anmelden",
+      "LOGIN_AS_NESTED": "Kehren Sie zuerst zu Ihrem eigenen Konto zurück",
+      "LOGIN_AS_NOT_ALLOWED": "Sie dürfen sich nicht als andere Benutzer anmelden",
+      "LOGIN_AS_SELF": "Sie sind bereits als dieser Benutzer angemeldet",
+      "PASSWORD_TOO_LONG": "Das Passwort ist zu lang",
+      "PASSWORD_TOO_SHORT": "Das Passwort ist zu kurz",
+      "SESSION_EXPIRED": "Melden Sie sich erneut an, um fortzufahren",
+      "SESSION_NOT_FRESH": "Melden Sie sich erneut an, um fortzufahren",
+      "SIGN_IN_METHOD_DISABLED": "Diese Anmeldemethode ist deaktiviert",
+      "SIGN_IN_REQUIRED": "Melden Sie sich zuerst an",
+      "SOCIAL_ACCOUNT_ALREADY_LINKED": "Dieses Anbieterkonto ist bereits mit einem anderen Konto verknüpft",
+      "TOKEN_EXPIRED": "Der Link ist ungültig oder abgelaufen",
+      "TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE": "Zu viele Versuche. Fordern Sie einen neuen Code an.",
+      "USERNAME_IS_ALREADY_TAKEN": "Dieser Benutzername ist vergeben",
+      "USER_ALREADY_EXISTS": "Ein Konto mit dieser E-Mail-Adresse existiert bereits",
+      "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "Ein Konto mit dieser E-Mail-Adresse existiert bereits",
+      "USER_NOT_FOUND": "Benutzer nicht gefunden"
     }
   },
   "editor": {

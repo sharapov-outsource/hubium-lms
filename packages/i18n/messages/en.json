@@ -848,7 +848,12 @@
     },
     "questions": {
       "defaultCategory": "The default category cannot be deleted",
-      "textRequired": "Question text is required"
+      "textRequired": "Question text is required",
+      "draftNoText": "Empty question text",
+      "draftOptions": "Needs at least two options and a correct one",
+      "draftTrueFalse": "Missing true/false answer",
+      "draftAnswers": "No accepted answers",
+      "draftNumber": "Missing numeric answer"
     },
     "reports": {
       "chooseSource": "Choose a source",
@@ -897,7 +902,9 @@
       "typeQuestion": "Type a question",
       "questionTooLong": "The question is too long",
       "tutorDuringQuiz": "The tutor is unavailable during a quiz attempt",
-      "onlyAnswersRated": "Only answers can be rated"
+      "onlyAnswersRated": "Only answers can be rated",
+      "unavailable": "The AI service is unavailable",
+      "tutorRefused": "The tutor cannot help with this request"
     },
     "interchange": {
       "archiveTooLarge": "The archive is too large to import",
@@ -924,6 +931,49 @@
     },
     "webhooks": {
       "chooseEvent": "Choose at least one event"
+    },
+    "authCodes": {
+      "ACCOUNT_LOCKED": "Sign-in is temporarily locked after several failed attempts. Try again later.",
+      "ACCOUNT_SUSPENDED": "This account is suspended",
+      "ACCOUNT_TEMPORARILY_LOCKED": "Too many attempts. Try again later.",
+      "CHANGE_EMAIL_DISABLED": "The email address cannot be changed",
+      "CREDENTIAL_ACCOUNT_NOT_FOUND": "This account has no password on this site",
+      "EMAIL_CAN_NOT_BE_UPDATED": "The email address cannot be changed",
+      "EMAIL_NOT_VERIFIED": "The email address is not confirmed",
+      "EMAIL_PASSWORD_SIGN_UP_DISABLED": "Registration is closed on this site",
+      "FAILED_TO_CREATE_SESSION": "Could not start the session. Try again.",
+      "FAILED_TO_CREATE_USER": "Could not create the account. Try again.",
+      "INVALID_BACKUP_CODE": "Invalid backup code",
+      "INVALID_CODE": "Invalid code",
+      "INVALID_EMAIL": "Enter an email address",
+      "INVALID_EMAIL_OR_PASSWORD": "Invalid login or password",
+      "INVALID_LOGIN": "Invalid login or password",
+      "INVALID_PASSWORD": "Wrong password",
+      "INVALID_RECOVERY_PASSPHRASE": "That phrase did not match",
+      "INVALID_TOKEN": "The link is invalid or expired",
+      "INVALID_TWO_FACTOR_COOKIE": "Sign in again",
+      "INVALID_USERNAME_OR_PASSWORD": "Invalid login or password",
+      "LDAP_ACCOUNT_AMBIGUOUS": "The email and the username belong to different accounts. Contact an administrator.",
+      "LDAP_ACCOUNT_NOT_LINKED": "An account with this email or username exists but is not linked to the directory. Sign in with your password or contact an administrator.",
+      "LDAP_NO_ACCOUNT": "There is no account on this site for this directory account. Contact an administrator.",
+      "LOGGED_IN_AS": "Not available while logged in as another user",
+      "LOGIN_AS_ADMIN": "Only site administrators can log in as an administrator",
+      "LOGIN_AS_NESTED": "Return to your own account first",
+      "LOGIN_AS_NOT_ALLOWED": "You are not allowed to log in as other users",
+      "LOGIN_AS_SELF": "You are already signed in as this user",
+      "PASSWORD_TOO_LONG": "The password is too long",
+      "PASSWORD_TOO_SHORT": "The password is too short",
+      "SESSION_EXPIRED": "Sign in again to continue",
+      "SESSION_NOT_FRESH": "Sign in again to continue",
+      "SIGN_IN_METHOD_DISABLED": "This sign-in method is turned off",
+      "SIGN_IN_REQUIRED": "Sign in first",
+      "SOCIAL_ACCOUNT_ALREADY_LINKED": "This provider account is already linked to another account",
+      "TOKEN_EXPIRED": "The link is invalid or expired",
+      "TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE": "Too many attempts. Request a new code.",
+      "USERNAME_IS_ALREADY_TAKEN": "This username is taken",
+      "USER_ALREADY_EXISTS": "An account with this email already exists",
+      "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "An account with this email already exists",
+      "USER_NOT_FOUND": "User not found"
     }
   },
   "editor": {

@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   try {
     first = await events.next();
   } catch (e) {
-    const err = toActionError(e);
+    const err = toActionError(e, ctx.locale);
     // details tell the UI which notice to show (consent, quiz lock, limit kind)
     const details = e instanceof AppError ? e.details : undefined;
     return Response.json({ ...err, details }, { status: STATUS[err.code] ?? 500 });
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
         if (!first.done) send(first.value);
         for await (const ev of events) send(ev);
       } catch (e) {
-        const err = toActionError(e);
+        const err = toActionError(e, ctx.locale);
         send({ type: 'error', code: err.code, message: err.message });
       } finally {
         controller.close();

@@ -18,22 +18,23 @@ export async function loginAsDenial(
   db: Db,
   actorId: string,
   targetId: string,
-): Promise<string | null> {
-  if (actorId === targetId) return 'You are already signed in as this user';
+): Promise<{ code: string; message: string } | null> {
+  const no = (code: string, message: string) => ({ code, message });
+  if (actorId === targetId) return no('LOGIN_AS_SELF', 'You are already signed in as this user');
   const select = { id: true, isSiteAdmin: true, status: true } as const;
   const [actor, target] = await Promise.all([
     db.user.findUnique({ where: { id: actorId }, select }),
     db.user.findUnique({ where: { id: targetId }, select }),
   ]);
-  if (actor?.status !== 'ACTIVE') return 'Sign in required';
-  if (!target || target.status === 'DELETED') return 'User not found';
-  if (target.status !== 'ACTIVE') return 'This account is suspended';
+  if (actor?.status !== 'ACTIVE') return no('SIGN_IN_REQUIRED', 'Sign in required');
+  if (!target || target.status === 'DELETED') return no('USER_NOT_FOUND', 'User not found');
+  if (target.status !== 'ACTIVE') return no('ACCOUNT_SUSPENDED', 'This account is suspended');
   // As in Moodle, only a site administrator may become another administrator.
   if (target.isSiteAdmin && !actor.isSiteAdmin)
-    return 'Only site administrators can log in as an administrator';
+    return no('LOGIN_AS_ADMIN', 'Only site administrators can log in as an administrator');
   const perm = new Permissions(db, await loadUserAccess(db, actor));
   if (!(await perm.can('user:loginas', SYSTEM_CONTEXT_ID)))
-    return 'You are not allowed to log in as other users';
+    return no('LOGIN_AS_NOT_ALLOWED', 'You are not allowed to log in as other users');
   return null;
 }
 
@@ -55,11 +56,15 @@ export function loginAs(db: Db) {
         async (ctx) => {
           const current = ctx.context.session;
           if (impersonatedBy(current.session))
-            throw new APIError('BAD_REQUEST', { message: 'Return to your own account first' });
+            throw new APIError('BAD_REQUEST', {
+              code: 'LOGIN_AS_NESTED',
+              message: 'Return to your own account first',
+            });
           const denial = await loginAsDenial(db, current.user.id, ctx.body.userId);
-          if (denial) throw new APIError('FORBIDDEN', { message: denial });
+          if (denial) throw new APIError('FORBIDDEN', denial);
           const target = await ctx.context.internalAdapter.findUserById(ctx.body.userId);
-          if (!target) throw new APIError('NOT_FOUND', { message: 'User not found' });
+          if (!target)
+            throw new APIError('NOT_FOUND', { code: 'USER_NOT_FOUND', message: 'User not found' });
           const session = await ctx.context.internalAdapter.createSession(
             target.id,
             true,
@@ -70,7 +75,10 @@ export function loginAs(db: Db) {
             true,
           );
           if (!session)
-            throw new APIError('INTERNAL_SERVER_ERROR', { message: 'Could not start the session' });
+            throw new APIError('INTERNAL_SERVER_ERROR', {
+              code: 'FAILED_TO_CREATE_SESSION',
+              message: 'Could not start the session',
+            });
           const cookies = ctx.context.authCookies;
           deleteSessionCookie(ctx);
           const dontRemember = await ctx.getSignedCookie(

@@ -87,9 +87,10 @@ export async function getTutorConversation(ctx: RequestContext, id: string) {
   return c;
 }
 
-const errorEvent = (e: unknown): TutorEvent => {
-  if (e instanceof AppError) return { type: 'error', code: e.code, message: e.message };
-  return { type: 'error', code: 'INTERNAL', message: 'The AI service is unavailable' };
+/** A failure after the answer started, in the person's language. */
+const errorEvent = (e: unknown, locale: string): TutorEvent => {
+  if (e instanceof AppError) return { type: 'error', code: e.code, message: e.in(locale).message };
+  return { type: 'error', code: 'INTERNAL', message: msg('errors.ai.unavailable').in(locale) };
 };
 
 /**
@@ -232,13 +233,13 @@ export async function* askTutor(
         error: e instanceof Error ? e.message : String(e),
       });
       yield refused
-        ? { type: 'error', code: 'REFUSED', message: 'The tutor cannot help with this request' }
-        : errorEvent(e);
+        ? { type: 'error', code: 'REFUSED', message: msg('errors.ai.tutorRefused').in(ctx.locale) }
+        : errorEvent(e, ctx.locale);
       return;
     }
     const row = await record({ usage, status: 'OK' });
     const cited = citations.filter((c) => answer.includes(`[${c.index}]`));
-    const msg = await ctx.db.tutorMessage.create({
+    const answerRow = await ctx.db.tutorMessage.create({
       data: {
         conversationId: conv.id,
         role: 'ASSISTANT',
@@ -251,7 +252,7 @@ export async function* askTutor(
       where: { id: conv.id },
       data: { updatedAt: new Date() },
     });
-    yield { type: 'done', messageId: msg.id, citations: cited };
+    yield { type: 'done', messageId: answerRow.id, citations: cited };
   }
 }
 

@@ -204,7 +204,10 @@ export function recoveryPassphrase(db: Db, appUrl: string) {
             ? await ctx.context.internalAdapter.createSession(userId, false)
             : null;
           if (!user || !session)
-            throw new APIError('INTERNAL_SERVER_ERROR', { message: 'Could not start the session' });
+            throw new APIError('INTERNAL_SERVER_ERROR', {
+              code: 'FAILED_TO_CREATE_SESSION',
+              message: 'Could not start the session',
+            });
           await setSessionCookie(ctx, { session, user });
           expireCookie(ctx, cookie);
 
