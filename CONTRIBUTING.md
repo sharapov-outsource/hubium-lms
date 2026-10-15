@@ -27,7 +27,7 @@ Thanks for helping! A few rules keep the codebase healthy.
 - The worker never imports UI code.
 - Every user-visible string goes into every pack in `packages/i18n/messages/` (ru, en, fr, de, it); module strings into `modules/<module>/messages/`. A test checks that each pack is complete and its placeholders match English. See [docs/i18n.md](docs/i18n.md).
 - Permission checks go through `ctx.perm.can()/require()` with code-defined capabilities.
-- Database changes: edit `packages/db/prisma/schema/*.prisma`, then `pnpm db:migrate:dev --name <change>`.
+- Database changes: edit `packages/db/prisma/schema/*.prisma`, then `pnpm db:migrate:dev --name <change>`. The script names the migration after the last one (some are named for a later date) and keeps the indexes Prisma cannot express, which are listed in `packages/db/scripts/raw-indexes.mjs`; add a hand-made index there when a migration creates one. With `--create-only` it creates the migration to edit first, even an empty one for a change of data only, and `pnpm db:migrate` applies it. `pnpm --filter @hubium/db migrate:diff` fails on drift between the schema and the migrated database, and on a missing hand-made index.
 
 ## Dependencies
 
