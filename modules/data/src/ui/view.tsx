@@ -108,7 +108,9 @@ async function EntriesTab({
     s.ratingAggregate === 'none' ? null : scaleItems(ctx.db, course.id, s.ratingScaleId),
   ]);
   const when = (d: Date) => format.dateTime(d, { dateStyle: 'medium', timeStyle: 'short' });
-  const day = (v: string) => format.dateTime(new Date(`${v}T12:00:00Z`), { dateStyle: 'long' });
+  // a date without a time: the same date in every time zone
+  const day = (v: string) =>
+    format.dateTime(new Date(`${v}T00:00:00Z`), { dateStyle: 'long', timeZone: 'UTC' });
   const template = one
     ? s.singleTemplate || defaultTemplate(r.fields, 'single')
     : s.listTemplate || defaultTemplate(r.fields, 'list');
