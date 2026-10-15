@@ -626,6 +626,7 @@
     "applyFilters": "Apply"
   },
   "course": {
+    "copyName": "{name} (copy)",
     "new": "New course",
     "settings": "Course settings",
     "fullName": "Full name",

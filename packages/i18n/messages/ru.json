@@ -626,6 +626,7 @@
     "applyFilters": "Применить"
   },
   "course": {
+    "copyName": "{name} (копия)",
     "new": "Новый курс",
     "settings": "Настройки курса",
     "fullName": "Полное название",

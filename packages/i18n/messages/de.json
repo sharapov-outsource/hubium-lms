@@ -625,6 +625,7 @@
     "applyFilters": "Anwenden"
   },
   "course": {
+    "copyName": "{name} (Kopie)",
     "new": "Neuer Kurs",
     "settings": "Kurseinstellungen",
     "fullName": "Vollständiger Kursname",

@@ -23,7 +23,6 @@ import { assignSystemRole } from '../users/users.ts';
 import {
   createActivity,
   deleteActivity,
-  duplicateActivity,
   getActivityAccess,
   getCourseOutline,
   moveActivity,
@@ -241,7 +240,14 @@ describe('courses domain', () => {
       orderBy: { rank: 'asc' },
     });
     expect(order.map((a) => a.name)).toEqual(['Упражнения', 'Введение', 'Скрытая ссылка']);
-    const dup = await duplicateActivity.run(ctx, { id: p.id });
+    const dup = await createActivity.run(ctx, {
+      courseId: ids.course!,
+      sectionId: ids.s1!,
+      moduleKey: 'page',
+      name: 'Введение (копия)',
+      visibility: 'HIDDEN',
+      settings: { content: '<p>Hello</p>' },
+    });
     expect((await t.db.activity.findUniqueOrThrow({ where: { id: dup.id } })).visibility).toBe(
       'HIDDEN',
     );

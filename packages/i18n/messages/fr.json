@@ -625,6 +625,7 @@
     "applyFilters": "Appliquer"
   },
   "course": {
+    "copyName": "{name} (copie)",
     "new": "Nouveau cours",
     "settings": "Paramètres du cours",
     "fullName": "Nom complet",

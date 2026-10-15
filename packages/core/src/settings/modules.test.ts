@@ -4,7 +4,6 @@ import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { listUserEvents } from '../calendar/calendar.ts';
 import {
   createActivity,
-  duplicateActivity,
   getActivityAccess,
   getCourseOutline,
   importActivity,
@@ -115,9 +114,6 @@ describe('turning activity types off', () => {
         settings: {},
       };
       await expect(createActivity.run(teacher1, input)).rejects.toBeInstanceOf(ForbiddenError);
-      await expect(duplicateActivity.run(teacher1, { id: forumId })).rejects.toBeInstanceOf(
-        ForbiddenError,
-      );
       await expect(
         updateActivity.run(teacher1, { id: forumId, name: 'Renamed', settings: {} }),
       ).rejects.toBeInstanceOf(ForbiddenError);

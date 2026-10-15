@@ -18,7 +18,6 @@ import {
   deleteGroup,
   deleteGrouping,
   deleteSection,
-  duplicateActivity,
   enrolUsers,
   importCohorts,
   importCourseGroups,
@@ -61,9 +60,11 @@ import {
   ValidationError,
 } from '@hubium/core';
 import { checkFile, storeFile } from '@hubium/core/files/files';
+import { duplicateActivity } from '@hubium/interchange';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { safePath } from '@/lib/safe-path';
 import { formToObject, runAction } from '../action';
 import { courseFieldViews } from '../course-fields';
@@ -394,9 +395,11 @@ export async function activityCommandAction(
       case 'stealth':
         await setActivityVisibility.run(ctx, { id, visibility: 'STEALTH' });
         break;
-      case 'duplicate':
-        await duplicateActivity.run(ctx, { id });
+      case 'duplicate': {
+        const t = await getTranslations('course');
+        await duplicateActivity(ctx, id, (name) => t('copyName', { name }));
         break;
+      }
       case 'delete':
         await deleteActivity.run(ctx, { id });
         break;

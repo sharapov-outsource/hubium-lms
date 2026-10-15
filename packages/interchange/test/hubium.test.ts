@@ -38,6 +38,7 @@ import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
   addMissingSections,
+  duplicateActivity,
   duplicateCourse,
   exportCourse,
   importActivities,
@@ -704,6 +705,96 @@ describe('.hubium backup and restore', () => {
       status: 'FAILED',
       error: expect.stringMatching(/no source file/),
     });
+  });
+
+  it('duplicates an activity with what its module keeps, in its own course', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const src = await courseFixture(t.db, 'DUPACT');
+    const teacher = await ctxFor(t.db, src.users.teacher!);
+    const pic = await storeFile(t.db, {
+      contextId: src.courseId,
+      component: 'course',
+      area: 'editor',
+      name: 'fig.png',
+      mimeType: 'image/png',
+      data: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 7, 7]),
+    });
+    const { id: book } = await src.addActivity(
+      'book',
+      'Учебник',
+      { numbering: 'bullets' },
+      { idNumber: 'BOOK1' },
+    );
+    await runModuleAction(teacher, book, 'addChapter', {
+      title: 'Глава',
+      content: `<p><img src="${fileUrl(pic)}" alt="f"></p>`,
+    });
+    const { id: after } = await src.addActivity('page', 'Следом', { content: '<p>x</p>' });
+    const copyName = (n: string) => `${n} (копия)`;
+
+    const { id } = await duplicateActivity(teacher, book, copyName);
+    const copy = await t.db.activity.findUniqueOrThrow({
+      where: { id },
+      include: { bookChapters: true },
+    });
+    expect(copy).toMatchObject({
+      name: 'Учебник (копия)',
+      visibility: 'HIDDEN',
+      idNumber: null,
+      settings: expect.objectContaining({ numbering: 'bullets' }),
+    });
+    // the module's own data comes along, the course's picture is the same file
+    expect(copy.bookChapters.map((c) => c.title)).toEqual(['Глава']);
+    expect(copy.bookChapters[0]!.content).toContain(pic.id);
+    expect(await t.db.file.count({ where: { contextId: src.courseId, name: 'fig.png' } })).toBe(1);
+    // right after the original
+    const order = await t.db.activity.findMany({
+      where: { courseId: src.courseId, deletedAt: null },
+      orderBy: { rank: 'asc' },
+      select: { id: true },
+    });
+    expect(order.map((a) => a.id)).toEqual([book, id, after]);
+    // a second copy makes no clash on the course's files
+    await duplicateActivity(teacher, book, copyName);
+
+    // an assignment's copy has its settings, its grade item, not the learners' work
+    const { id: essay } = await src.addActivity('assign', 'Эссе', { gradeMax: 20 });
+    const sub = await t.db.assignSubmission.create({
+      data: { activityId: essay, userId: src.users.student1!, status: 'SUBMITTED' },
+    });
+    await storeFile(t.db, {
+      contextId: essay,
+      component: 'mod.assign',
+      area: 'submission',
+      itemId: sub.id,
+      name: 'work.txt',
+      mimeType: 'text/plain',
+      data: Buffer.from('чужая работа'),
+    });
+    const { id: essayCopy } = await duplicateActivity(teacher, essay, copyName);
+    expect(await t.db.file.count({ where: { contextId: essayCopy } })).toBe(0);
+    expect(await t.db.gradeItem.findFirst({ where: { activityId: essayCopy } })).toMatchObject({
+      gradeMax: expect.anything(),
+    });
+    expect(await t.db.assignSubmission.count({ where: { activityId: essayCopy } })).toBe(0);
+    // learners do not copy
+    await expect(
+      duplicateActivity(await ctxFor(t.db, src.users.student1!), book, copyName),
+    ).rejects.toThrow();
+
+    // a quiz's copy uses the course's questions, not a second bank
+    const questions = await t.db.question.count({
+      where: { category: { contextId: f.courseId } },
+    });
+    const { id: quizCopy } = await duplicateActivity(admin, quizId, copyName);
+    const slots = (id: string) =>
+      t.db.quizSlot.findMany({ where: { activityId: id }, orderBy: { slot: 'asc' } });
+    expect((await slots(quizCopy)).map((x) => x.questionId)).toEqual(
+      (await slots(quizId)).map((x) => x.questionId),
+    );
+    expect(await t.db.question.count({ where: { category: { contextId: f.courseId } } })).toBe(
+      questions,
+    );
   });
 
   it('carries subsections in their places among the activities; an import flattens them', async () => {

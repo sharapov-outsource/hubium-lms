@@ -1,5 +1,7 @@
+import { createHash } from 'node:crypto';
 import {
   addSection,
+  assertModuleEnabled,
   type BadgeCriteriaT,
   type BadgeRuleT,
   buildModuleCtx,
@@ -23,6 +25,7 @@ import {
   toActivityRef,
   ValidationError,
 } from '@hubium/core';
+import { purgeActivityRecord } from '@hubium/core/courses/recyclebin';
 import { storeFile } from '@hubium/core/files/files';
 import { getStorage } from '@hubium/core/files/storage';
 import { type Db, type Prisma, uuidv7 } from '@hubium/db';
@@ -287,6 +290,14 @@ export async function exportCourse(
   } = {},
 ): Promise<Uint8Array> {
   await ctx.perm.require('backup:create', courseId);
+  return buildArchive(ctx, courseId, opts);
+}
+
+async function buildArchive(
+  ctx: RequestContext,
+  courseId: string,
+  opts: { activityIds?: string[] },
+): Promise<Uint8Array> {
   const db = ctx.db;
   const course = await db.course.findUniqueOrThrow({ where: { id: courseId } });
   const allSections = await db.courseSection.findMany({
@@ -545,6 +556,8 @@ export interface RestoreReport {
   courseId: string;
   sections: number;
   activities: number;
+  /** The activities made, in the archive's order. */
+  activityIds: string[];
   questions: number;
   files: number;
   warnings: string[];
@@ -681,6 +694,31 @@ export const ImportActivitiesInput = z.object({
   activityIds: z.array(z.string().uuid()).max(1000),
 });
 
+/**
+ * Copies an activity in its own course, as an import of it would: its module's own data
+ * (chapters, questions, entries, packages) through the module's backup, its files without
+ * learners' work, its grade items and calendar events. The copy comes right after it,
+ * hidden, with no ID number.
+ */
+export async function duplicateActivity(
+  ctx: RequestContext,
+  activityId: string,
+  name: (original: string) => string,
+): Promise<{ id: string }> {
+  const a = await ctx.db.activity.findUnique({ where: { id: activityId } });
+  if (!a || a.deletedAt) throw new NotFoundError('Activity');
+  await ctx.perm.require('course:manageactivities', a.courseId);
+  await assertModuleEnabled(ctx.db, a.moduleKey);
+  const b = readBackup(await buildArchive(ctx, a.courseId, { activityIds: [a.id] }));
+  const r = await restoreInto(ctx, b, a.courseId, {
+    fresh: false,
+    duplicate: { name: name(a.name), after: { sectionId: a.sectionId, rank: a.rank } },
+  });
+  const id = r.activityIds[0];
+  if (!id) throw new ValidationError({ id: [r.warnings[0] ?? 'The activity could not be copied'] });
+  return { id };
+}
+
 export async function importActivities(
   ctx: RequestContext,
   raw: z.input<typeof ImportActivitiesInput>,
@@ -700,6 +738,8 @@ export async function importActivities(
 interface RestoreScope {
   /** A course made for this restore: its settings, groups and gradebook come along. */
   fresh: boolean;
+  /** Copying an activity in its own course: placed after it, hidden, under this name. */
+  duplicate?: { name: string; after: { sectionId: string; rank: string } };
 }
 
 type Backup = ReturnType<typeof readBackup>;
@@ -720,6 +760,9 @@ async function restoreInto(
   });
   const activities = b.course.activities;
   map.set(src.id, courseId);
+  // Into the very course the archive comes from (a duplicate): its sections, groups,
+  // question bank and gradebook are those already there, named by the same ids.
+  const same = !scope.fresh && src.id === courseId;
   // what an import into an existing course made, removed again if it fails
   const made = { activities: [] as string[], categories: [] as string[] };
   try {
@@ -763,6 +806,9 @@ async function restoreInto(
       });
     }
 
+    if (same)
+      for (const x of [...b.course.sections, ...b.course.groups, ...b.course.groupings])
+        map.set(x.id, x.id);
     if (scope.fresh)
       for (const g of b.course.groups) {
         const id = uuidv7();
@@ -774,6 +820,7 @@ async function restoreInto(
     // gradebook setup first: activities refer to course scales in their settings
     const gb = b.course.gradebook;
     const { root: gradeRoot } = await ensureCourseGradebook(db, courseId);
+    if (gb && same) for (const c of gb.categories) map.set(c.id, c.id);
     if (gb) {
       for (const sc of gb.scales) {
         const same = scope.fresh
@@ -851,7 +898,9 @@ async function restoreInto(
       }
 
     // question bank: parents first (an import brings it only for quizzes)
-    const withBank = scope.fresh || activities.some((a) => a.moduleKey === 'quiz');
+    const withBank = scope.fresh || (!same && activities.some((a) => a.moduleKey === 'quiz'));
+    if (same)
+      for (const x of [...b.course.questionCategories, ...b.course.questions]) map.set(x.id, x.id);
     const pending = withBank ? [...b.course.questionCategories] : [];
     while (pending.length) {
       const i = pending.findIndex((c) => !c.parentId || map.has(c.parentId));
@@ -947,10 +996,11 @@ async function restoreInto(
           courseId,
           sectionId,
           moduleKey: a.moduleKey,
-          name: a.name,
+          name: scope.duplicate?.name ?? a.name,
           intro: rewriteIds(a.intro, map),
           showIntro: a.showIntro,
-          visibility: a.visibility,
+          // a copy waits hidden until it is looked over
+          visibility: scope.duplicate ? 'HIDDEN' : a.visibility,
           completionMode: a.completionMode,
           completionRules: a.completionRules,
           completionExpectedAt: a.completionExpectedAt,
@@ -961,6 +1011,19 @@ async function restoreInto(
         map.set(a.id, id);
         made.activities.push(id);
         created.push({ row: a, id });
+        if (scope.duplicate) {
+          // right after the activity it copies
+          const { after } = scope.duplicate;
+          const next = await db.activity.findFirst({
+            where: { sectionId: after.sectionId, rank: { gt: after.rank }, id: { not: id } },
+            orderBy: { rank: 'asc' },
+            select: { rank: true },
+          });
+          await db.activity.update({
+            where: { id },
+            data: { sectionId: after.sectionId, rank: rankBetween(after.rank, next?.rank ?? null) },
+          });
+        }
       } catch (e) {
         warnings.push(
           `"${a.name}" could not be restored: ${e instanceof Error ? e.message : String(e)}`,
@@ -1040,13 +1103,27 @@ async function restoreInto(
       const contextId = map.get(f.contextId);
       const data = b.blob(f.blobId);
       if (!contextId || !data) continue;
-      const nf = await storeFile(db, {
+      const address = {
         contextId,
         component: f.component,
         area: f.area,
         itemId: map.get(f.itemId) ?? f.itemId,
         path: f.path,
         name: f.name,
+      };
+      // A file already at the address (the course's own picture, imported a second time):
+      // the same content is that file; other content goes to a folder of its own.
+      const there = await db.file.findFirst({ where: address, include: { blob: true } });
+      if (there) {
+        const sha = createHash('sha256').update(data).digest('hex');
+        if (there.blob.sha256 === sha) {
+          map.set(f.id, there.id);
+          continue;
+        }
+        address.path = `${f.path}${uuidv7().slice(-12)}/`;
+      }
+      const nf = await storeFile(db, {
+        ...address,
         mimeType: f.mimeType,
         data: Buffer.from(data),
         uploadedById: ctx.perm.userId ?? null,
@@ -1204,7 +1281,8 @@ async function restoreInto(
               ? common
               : {
                   ...common,
-                  categoryId: gradeRoot.id,
+                  // a copy in its own course stays in its category, an import goes to the top
+                  categoryId: same ? common.categoryId : gradeRoot.id,
                   idNumber: await freeIdNumber(db, courseId, it.idNumber, activityId),
                 },
           });
@@ -1234,6 +1312,7 @@ async function restoreInto(
       courseId,
       sections: scope.fresh ? top.length : newSections.length - before,
       activities: created.length,
+      activityIds: created.map((c) => c.id),
       questions: withBank ? b.course.questions.length : 0,
       files: fileCount,
       warnings: [...warnings, ...disabledTypesWarning(await disabledTypesIn(db, courseId))],
@@ -1241,8 +1320,11 @@ async function restoreInto(
   } catch (e) {
     // a fresh course is discarded by the caller; an import takes back what it added
     if (!scope.fresh) {
-      if (made.activities.length)
-        await db.activity.deleteMany({ where: { id: { in: made.activities } } }).catch(() => {});
+      // as deleting them for good does: the modules' clean-up, contexts, calendar events
+      for (const id of made.activities) {
+        const a = await db.activity.findUnique({ where: { id } });
+        if (a) await db.$transaction((tx) => purgeActivityRecord(ctx, tx, a)).catch(() => {});
+      }
       if (made.categories.length)
         await db.questionCategory
           .deleteMany({ where: { id: { in: made.categories } } })

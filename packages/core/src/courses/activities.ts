@@ -464,44 +464,6 @@ export const purgeActivity = defineOperation({
   },
 });
 
-export const duplicateActivity = defineOperation({
-  name: 'activity.duplicate',
-  input: z.object({ id: z.string().uuid() }),
-  authorize: (ctx, i) => authorizeActivity(ctx, i.id, { enabledType: true }),
-  async handler(ctx, { id }) {
-    const a = await ctx.tx.activity.findUniqueOrThrow({ where: { id } });
-    const items = await sectionItems(ctx.tx, a.sectionId, { withDeleted: true });
-    const next = items[items.findIndex((x) => x.id === id) + 1];
-    const newId = uuidv7();
-    await createContext(ctx.tx, newId, 'ACTIVITY', a.courseId);
-    const copy = await ctx.tx.activity.create({
-      data: {
-        ...a,
-        id: newId,
-        name: `${a.name} (copy)`,
-        rank: rankBetween(a.rank, next?.rank ?? null),
-        visibility: 'HIDDEN',
-        availability: a.availability ?? Prisma.DbNull,
-        completionRules: a.completionRules ?? {},
-        settings: a.settings ?? {},
-        createdById: ctx.perm.userId,
-        createdAt: ctx.now,
-        updatedAt: ctx.now,
-        version: 1,
-      },
-    });
-    const files = await ctx.tx.file.findMany({ where: { contextId: a.id } });
-    for (const f of files) {
-      await ctx.tx.file.create({
-        data: { ...f, id: uuidv7(), contextId: newId, createdAt: ctx.now, updatedAt: ctx.now },
-      });
-    }
-    const m = requireModule(copy.moduleKey);
-    await m.lifecycle?.onCreate?.(buildModuleCtx(ctx, ctx.tx), toActivityRef(copy));
-    return { id: newId };
-  },
-});
-
 // ── course outline for viewers ────────────────────────────────────────────────
 
 export interface OutlineActivity {
