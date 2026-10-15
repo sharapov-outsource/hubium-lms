@@ -11,15 +11,35 @@ export async function ltiOrigins(): Promise<string[]> {
     cache = { at: Date.now(), origins: [] };
     return cache.origins;
   }
-  const tools = await db.ltiTool
-    .findMany({ where: { enabled: true }, select: { oidcLoginUrl: true, targetLinkUri: true } })
-    .catch(() => []);
+  // every address a tool's frame goes to: login, launch, redirect and deep linking, and
+  // the content activities picked by deep linking
+  const [tools, picked] = await Promise.all([
+    db.ltiTool
+      .findMany({
+        where: { enabled: true },
+        select: {
+          oidcLoginUrl: true,
+          targetLinkUri: true,
+          redirectUris: true,
+          deepLinkingUrl: true,
+        },
+      })
+      .catch(() => []),
+    db.activity
+      .findMany({ where: { moduleKey: 'lti', deletedAt: null }, select: { settings: true } })
+      .catch(() => []),
+  ]);
   const origins = new Set<string>();
+  const add = (u: unknown) => {
+    if (typeof u !== 'string' || !u) return;
+    try {
+      const url = new URL(u);
+      if (url.protocol === 'https:' || url.protocol === 'http:') origins.add(url.origin);
+    } catch {}
+  };
   for (const t of tools)
-    for (const u of [t.oidcLoginUrl, t.targetLinkUri])
-      try {
-        origins.add(new URL(u).origin);
-      } catch {}
+    for (const u of [t.oidcLoginUrl, t.targetLinkUri, t.deepLinkingUrl, ...t.redirectUris]) add(u);
+  for (const a of picked) add((a.settings as { contentUrl?: unknown } | null)?.contentUrl);
   cache = { at: Date.now(), origins: [...origins] };
   return cache.origins;
 }

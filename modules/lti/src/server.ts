@@ -162,21 +162,34 @@ async function loadLti(db: Db, activityId: string) {
   return tool ? { act, settings: s.data, tool } : null;
 }
 
-/** LIS roles of a user in the course: instructor-like roles by role short name. */
-async function lisRoles(db: Db, userId: string, courseId: string): Promise<string[]> {
-  const [user, assignments] = await Promise.all([
-    db.user.findUnique({ where: { id: userId }, select: { isSiteAdmin: true } }),
-    db.roleAssignment.findMany({
-      where: { userId, contextId: courseId },
-      include: { role: { select: { shortName: true } } },
+/**
+ * LIS roles of people in the activity: Instructor for those who grade there (grade:edit),
+ * whatever their role is called, Learner for the rest; Administrator added for site
+ * administrators. Worked out for everyone at once.
+ */
+async function lisRolesOf(
+  ctx: ModuleCtx,
+  activityId: string,
+  userIds: string[],
+): Promise<Map<string, string[]>> {
+  const [graders, admins] = await Promise.all([
+    ctx.perm.usersWithCap('grade:edit', activityId),
+    ctx.db.user.findMany({
+      where: { id: { in: userIds }, isSiteAdmin: true },
+      select: { id: true },
     }),
   ]);
-  const short = assignments.map((a) => a.role.shortName);
-  const roles: string[] = short.some((s) => ['manager', 'editingteacher', 'teacher'].includes(s))
-    ? [LTI.roles.instructor]
-    : [LTI.roles.learner];
-  if (user?.isSiteAdmin) roles.push(LTI.roles.admin);
-  return roles;
+  const teaching = new Set(graders);
+  const admin = new Set(admins.map((u) => u.id));
+  return new Map(
+    userIds.map((id) => [
+      id,
+      [
+        teaching.has(id) ? LTI.roles.instructor : LTI.roles.learner,
+        ...(admin.has(id) ? [LTI.roles.admin] : []),
+      ],
+    ]),
+  );
 }
 
 const lineItemsUrl = (activityId: string) => endpoint(`ags/${activityId}/lineitems`);
@@ -240,7 +253,7 @@ async function idTokenClaims(ctx: ModuleCtx, hint: NonNullable<ReturnType<typeof
         locale: true,
       },
     }),
-    lisRoles(ctx.db, hint.u, act.courseId),
+    lisRolesOf(ctx, act.id, [hint.u]).then((m) => m.get(hint.u)!),
     // Tools show the platform name to users: the site's, not the engine's.
     ctx.db.siteSetting
       .findUnique({ where: { key: 'site.name' } })
@@ -626,17 +639,20 @@ async function handleNrps(ctx: ModuleCtx, req: Request, activityId: string) {
     },
     distinct: ['userId'],
   });
-  const members = await Promise.all(
-    enrolments.map(async (e) => ({
-      status: 'Active',
-      user_id: e.user.id,
-      roles: await lisRoles(ctx.db, e.user.id, course.id),
-      ...(found.tool.sendName
-        ? { name: e.user.name, given_name: e.user.firstName, family_name: e.user.lastName }
-        : {}),
-      ...(found.tool.sendEmail && !e.user.emailPlaceholder ? { email: e.user.email } : {}),
-    })),
+  const roles = await lisRolesOf(
+    ctx,
+    activityId,
+    enrolments.map((e) => e.user.id),
   );
+  const members = enrolments.map((e) => ({
+    status: 'Active',
+    user_id: e.user.id,
+    roles: roles.get(e.user.id)!,
+    ...(found.tool.sendName
+      ? { name: e.user.name, given_name: e.user.firstName, family_name: e.user.lastName }
+      : {}),
+    ...(found.tool.sendEmail && !e.user.emailPlaceholder ? { email: e.user.email } : {}),
+  }));
   return json(
     {
       id: endpoint(`nrps/${activityId}/memberships`),

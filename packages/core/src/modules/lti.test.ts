@@ -3,7 +3,9 @@ import { createLocalJWKSet, exportSPKI, generateKeyPair, type JWK, jwtVerify, Si
 import { beforeAll, describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
+import { invalidatePermissionCaches } from '../access/permissions.ts';
 import { updateActivity } from '../courses/activities.ts';
+import { enrolUsers } from '../enrol/enrol.ts';
 import { buildModuleCtx } from './module-ctx.ts';
 import { getModule } from './registry.ts';
 
@@ -280,6 +282,27 @@ describe('mod-lti (LTI 1.3 platform)', () => {
   });
 
   it('NRPS lists course members with LIS roles', async () => {
+    // a teaching role of the site's own, named as it likes, that grades
+    const tutor = await t.db.role.create({
+      data: {
+        shortName: 'tutor',
+        name: { ru: 'Тьютор', en: 'Tutor' },
+        archetype: 'NONE',
+        assignableLevels: ['COURSE'],
+        capabilities: {
+          create: [
+            { capability: 'grade:edit', permission: 'ALLOW' },
+            { capability: 'mod.lti:launch', permission: 'ALLOW' },
+          ],
+        },
+      },
+    });
+    invalidatePermissionCaches('roles');
+    await enrolUsers.run(await ctxFor(t.db, 'admin@test.local'), {
+      courseId: f.courseId,
+      userIds: [f.users.manager!],
+      roleId: tutor.id,
+    });
     const { access_token } = (await (await serviceToken(LTI.scopes.nrps)).json()) as {
       access_token: string;
     };
@@ -292,6 +315,9 @@ describe('mod-lti (LTI 1.3 platform)', () => {
     ]);
     expect(body.members.find((m) => m.user_id === f.users.student2)?.roles).toEqual([
       LTI.roles.learner,
+    ]);
+    expect(body.members.find((m) => m.user_id === f.users.manager)?.roles).toEqual([
+      LTI.roles.instructor,
     ]);
   });
 
