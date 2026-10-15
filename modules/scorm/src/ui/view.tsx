@@ -16,7 +16,13 @@ import {
 import { ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { getFormatter, getTranslations } from 'next-intl/server';
-import { currentAttempt, isCompleted, type ScormSettingsT, scorePercent } from '../server.ts';
+import {
+  currentAttempt,
+  isCompleted,
+  reportAttempts,
+  type ScormSettingsT,
+  scorePercent,
+} from '../server.ts';
 import { NewAttemptButton, PackageUploader, ScormWatcher } from './client.tsx';
 
 type Props = ViewProps<ScormSettingsT>;
@@ -197,14 +203,7 @@ async function Report({
   format: Awaited<ReturnType<typeof getFormatter>>;
   t: Awaited<ReturnType<typeof getTranslations<'mod.scorm'>>>;
 }) {
-  const attempts = await ctx.db.scormAttempt.findMany({
-    where: { activityId: a.id },
-    include: {
-      user: { select: { name: true } },
-      tracks: { include: { sco: { select: { title: true } } } },
-    },
-    orderBy: [{ userId: 'asc' }, { attemptNumber: 'asc' }],
-  });
+  const attempts = await reportAttempts(ctx, a);
   return (
     <section aria-labelledby="scorm-report" className="grid gap-3">
       <h2 id="scorm-report" className="text-lg font-semibold">

@@ -181,6 +181,26 @@ export async function extractPackage(ctx: ModuleCtx, packageId: string): Promise
 
 // ── attempts, tracking, grades ───────────────────────────────────────────────
 
+/**
+ * The attempts the report shows: those of learners, who may launch the package but not see
+ * the report. A teacher's launch is a look at the package; it is kept for them, not shown.
+ */
+export async function reportAttempts(ctx: ModuleCtx, a: { id: string }) {
+  const [launch, staff] = await Promise.all([
+    ctx.perm.usersWithCap('mod.scorm:launch', a.id),
+    ctx.perm.usersWithCap('mod.scorm:viewreports', a.id),
+  ]);
+  const learners = launch.filter((u) => !staff.includes(u));
+  return ctx.db.scormAttempt.findMany({
+    where: { activityId: a.id, userId: { in: learners } },
+    include: {
+      user: { select: { name: true } },
+      tracks: { include: { sco: { select: { title: true } } } },
+    },
+    orderBy: [{ userId: 'asc' }, { attemptNumber: 'asc' }],
+  });
+}
+
 export async function currentAttempt(db: Db, activityId: string, userId: string, create = true) {
   const last = await db.scormAttempt.findFirst({
     where: { activityId, userId },

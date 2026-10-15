@@ -1,5 +1,5 @@
 import { scormFixture } from '@hubium/mod-scorm/fixtures';
-import { extractPackage } from '@hubium/mod-scorm/server';
+import { currentAttempt, extractPackage, reportAttempts } from '@hubium/mod-scorm/server';
 import { strToU8, zipSync } from 'fflate';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
@@ -336,6 +336,14 @@ describe('mod-scorm', () => {
     await extractPackage(buildModuleCtx(await ctxFor(t.db, 'system')), again);
     const files = await t.db.file.findMany({ where: { contextId: scormId, area: 'package' } });
     expect(files).toHaveLength(1);
+  });
+
+  it("reports learners' attempts, not a teacher's look at the package", async () => {
+    await currentAttempt(t.db, scormId, f.users.teacher!);
+    const teacher = buildModuleCtx(await ctxFor(t.db, f.users.teacher!));
+    const users = (await reportAttempts(teacher, { id: scormId })).map((x) => x.userId);
+    expect(users).toContain(f.users.student1);
+    expect(users).not.toContain(f.users.teacher);
   });
 
   it('a learner without the launch capability gets no attempt', async () => {
