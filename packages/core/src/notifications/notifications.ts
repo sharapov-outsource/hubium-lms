@@ -38,6 +38,8 @@ const coreTypes = new Map<string, NotificationTypeDef>([
   ['calendar.reminder', { email: 'OFF' }],
   ['badge.awarded', { email: 'IMMEDIATE' }],
   ['certificate.issued', { email: 'IMMEDIATE' }],
+  ['competency.plan', { email: 'IMMEDIATE' }],
+  ['competency.comment', { email: 'IMMEDIATE' }],
 ]);
 
 export function registerNotificationType(type: string, def: NotificationTypeDef): void {

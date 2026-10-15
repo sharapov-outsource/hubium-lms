@@ -1,4 +1,10 @@
-import { displayCalculations, saveCourseField } from '@hubium/core';
+import {
+  displayCalculations,
+  saveCompetency,
+  saveCourseField,
+  saveFramework,
+  saveScale,
+} from '@hubium/core';
 import { ctxFor, useTestDb } from '@hubium/core/testing';
 import { courseFixture } from '@hubium/core/testing/course-fixture';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -19,6 +25,19 @@ describe('.mbz import', () => {
       ['about', 'textarea', []],
     ] as const)
       await saveCourseField.run(admin, { shortName, name: { ru: shortName }, type, choices });
+    // a framework the backup's course links to (one of its two competencies)
+    const scale = await saveScale.run(admin, { name: 'PY', items: ['Нет', 'Да'] });
+    const fw = await saveFramework.run(admin, {
+      shortName: 'Python',
+      idNumber: 'PYFW',
+      scaleId: scale.id,
+      scaleConfig: { default: 2, proficient: [2] },
+    });
+    await saveCompetency.run(admin, {
+      frameworkId: fw.id,
+      shortName: 'Синтаксис',
+      idNumber: 'PY.1',
+    });
     report = await importMbz(admin, await readMbz(await mbzFixture()), {
       categoryId: course.categoryId,
     });
@@ -275,6 +294,27 @@ describe('.mbz import', () => {
       ['Подробности', true, true],
     ]);
     expect(chapters[0]!.content).toMatch(/\/files\/[0-9a-f-]{36}\/fig\.png/);
+  });
+
+  it("links the site's competencies to the course and its activities", async () => {
+    const links = await t.db.courseCompetency.findMany({
+      where: { courseId: report.courseId },
+      include: { competency: true },
+    });
+    expect(links.map((l) => [l.competency.idNumber, l.ruleOutcome])).toEqual([
+      ['PY.1', 'EVIDENCE'],
+    ]);
+    const page = await t.db.activity.findFirstOrThrow({
+      where: { courseId: report.courseId, name: 'Введение' },
+      include: { competencies: { include: { competency: true } } },
+    });
+    expect(page.competencies.map((c) => [c.competency.idNumber, c.ruleOutcome])).toEqual([
+      ['PY.1', 'COMPLETE'],
+    ]);
+    expect(
+      await t.db.courseCompetencySettings.findUnique({ where: { courseId: report.courseId } }),
+    ).toMatchObject({ pushRatings: false });
+    expect(report.warnings.join('\n')).toContain('PYFW/PY.404');
   });
 
   it('maps settings, embedded files and resources', async () => {

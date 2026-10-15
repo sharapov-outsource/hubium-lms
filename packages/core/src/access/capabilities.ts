@@ -183,6 +183,21 @@ export const coreCapabilities = {
   'certificate:manage': { level: 'COURSE', archetypes: [M, ET] },
   'certificate:issue': { level: 'COURSE', archetypes: [M, ET, T] },
   'certificate:viewissues': { level: 'COURSE', archetypes: [M, ET, T], risk: ['personal'] },
+  // competencies and learning plans (Moodle's core_competency): frameworks and plan
+  // templates by managers, course links by editing teachers, ratings by teachers; people
+  // keep their own draft plans and evidence of prior learning, and ask for reviews
+  'competency:manage': { level: 'SYSTEM', archetypes: [M] },
+  'competency:view': { level: 'SYSTEM', archetypes: [M, U] },
+  'competency:coursemanage': { level: 'COURSE', archetypes: [M, ET] },
+  'competency:rate': { level: 'COURSE', archetypes: [M, ET, T] },
+  'competency:viewratings': { level: 'COURSE', archetypes: [M, ET, T], risk: ['personal'] },
+  'competency:templatemanage': { level: 'SYSTEM', archetypes: [M] },
+  'competency:planmanage': { level: 'SYSTEM', archetypes: [M], risk: ['personal'] },
+  'competency:planview': { level: 'SYSTEM', archetypes: [M], risk: ['personal'] },
+  'competency:planmanageown': { level: 'SYSTEM', archetypes: [U] },
+  'competency:review': { level: 'SYSTEM', archetypes: [M], risk: ['personal'] },
+  'competency:requestreview': { level: 'SYSTEM', archetypes: [U] },
+  'competency:evidencemanageown': { level: 'SYSTEM', archetypes: [U] },
   'mod.lti:manage': { level: 'COURSE', archetypes: [M, ET], risk: ['config'] },
 } as const satisfies Record<string, CapabilityDef>;
 

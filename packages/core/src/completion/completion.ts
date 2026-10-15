@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { Permissions } from '../access/permissions.ts';
 import { checkCourseBadges } from '../badges/badges.ts';
 import { checkCourseCertificates } from '../certificates/certificates.ts';
+import { onActivityCompleted, onCourseCompleted } from '../competencies/ratings.ts';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
@@ -57,6 +58,8 @@ export async function recomputeCourseProgress(
   // badges earned by completing activities or the course, and the course's certificates
   await checkCourseBadges(tx, courseId, userId);
   if (completedAt) await checkCourseCertificates(tx, courseId, userId);
+  // competencies the course completes, once
+  if (completedAt && !existing?.completedAt) await onCourseCompleted(tx, courseId, userId);
   return percent;
 }
 
@@ -82,13 +85,16 @@ async function writeState(
     },
     update: { state, completedAt: state === 'INCOMPLETE' ? null : new Date(), ...extra },
   });
-  if (state !== 'INCOMPLETE' && (before?.state ?? 'INCOMPLETE') === 'INCOMPLETE')
+  if (state !== 'INCOMPLETE' && (before?.state ?? 'INCOMPLETE') === 'INCOMPLETE') {
     await emitWebhook(tx, 'activity.completed', {
       userId,
       activityId,
       actorId: extra.overriddenById ?? null,
       extra: { state },
     });
+    // competencies the activity completes, once (a failed one does not count)
+    if (state !== 'COMPLETE_FAIL') await onActivityCompleted(tx, activityId, userId);
+  }
 }
 
 /** Evaluates automatic completion rules (view + module rules) and stores the result. */

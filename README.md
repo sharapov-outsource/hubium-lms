@@ -40,6 +40,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 - Course reports: participation and an event log.
 - Badges (Open Badges 2.0) of the site and of courses: earned by completing the course, activities or other courses, by a course grade, by cohort membership or awarded by hand by chosen roles; each award can be verified at public addresses, downloaded with the assertion baked into its image, and revoked with a reason.
 - Course certificates as PDF: a background with fields placed by coordinates (name, course, completion date, grade, verification code and address, free text), issued on course completion or by hand, downloaded by the learner, checked by anyone at `/verify` by the code printed on them, revoked with a reason, and listed in an issue report with CSV export.
+- Competencies and learning plans as in Moodle: frameworks (a tree with level terms, scales, parent rules and cross-references, imported and exported as Moodle's CSV), competencies of courses and activities completed with them or rated by teachers, a course breakdown, plan templates for people and cohorts, learners' own plans reviewed and approved, review requests, evidence of prior learning and comments.
 - Mentors and parents (optional): an administrator links them to learners, and they follow the learners' courses, progress, grades and deadlines without acting for them.
 
 ### Activities

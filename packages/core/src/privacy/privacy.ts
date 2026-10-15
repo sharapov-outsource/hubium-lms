@@ -196,6 +196,53 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
       revokedReason: true,
     },
   });
+  const [competencies, competencyRatings, learningPlans, priorLearning] = await Promise.all([
+    db.userCompetency.findMany({
+      where: { userId },
+      select: {
+        competency: { select: { idNumber: true, shortName: true } },
+        status: true,
+        grade: true,
+        proficiency: true,
+        evidence: {
+          select: {
+            action: true,
+            description: true,
+            descriptionData: true,
+            grade: true,
+            note: true,
+            url: true,
+            createdAt: true,
+          },
+        },
+        comments: { where: { authorId: userId }, select: { text: true, createdAt: true } },
+      },
+    }),
+    db.userCompetencyCourse.findMany({
+      where: { userId },
+      select: {
+        courseId: true,
+        competency: { select: { idNumber: true } },
+        grade: true,
+        proficiency: true,
+      },
+    }),
+    db.learningPlan.findMany({
+      where: { userId },
+      select: {
+        name: true,
+        description: true,
+        status: true,
+        dueDate: true,
+        createdAt: true,
+        archived: { select: { competencyId: true, grade: true, proficiency: true } },
+      },
+    }),
+    db.userEvidence.findMany({
+      where: { userId },
+      select: { name: true, description: true, url: true, createdAt: true },
+    }),
+  ]);
   return JSON.parse(
     JSON.stringify({
       exportedAt: ctx.now.toISOString(),
@@ -208,6 +255,10 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
       calendarSubscriptions,
       badges,
       certificates,
+      competencies,
+      competencyRatings,
+      learningPlans,
+      priorLearning,
       messages,
       notifications,
       notificationPreferences: preferences,
@@ -251,6 +302,13 @@ export async function erasePersonalData(
   await tx.badgeMark.deleteMany({ where: { userId } });
   // certificates carry the name, and their codes show it to anyone
   await tx.certificateIssue.deleteMany({ where: { userId } });
+  // ratings, plans and evidence of prior learning are about the person; their comments
+  // on others' plans stay without a name
+  await tx.userCompetency.deleteMany({ where: { userId } });
+  await tx.userCompetencyCourse.deleteMany({ where: { userId } });
+  await tx.learningPlan.deleteMany({ where: { userId } });
+  await tx.userEvidence.deleteMany({ where: { userId } });
+  await tx.competencyComment.updateMany({ where: { authorId: userId }, data: { authorId: null } });
   // Webhook deliveries carry the person's name and email until they are pruned.
   await tx.$executeRaw`DELETE FROM "WebhookDelivery" WHERE payload -> 'user' ->> 'id' = ${userId}`;
   await tx.message.updateMany({

@@ -1,4 +1,5 @@
 import {
+  addCourseCompetencies,
   addSection,
   compareRank,
   createActivity,
@@ -12,14 +13,18 @@ import {
   runModuleAction,
   saveBadge,
   saveCertificate,
+  saveCompetency,
   saveCourseField,
+  saveFramework,
   saveGradeCategory,
   saveLetters,
   saveScale,
+  setActivityCompetency,
   setBadgeImage,
   setBadgeStatus,
   setCertificateBackground,
   setCertificateStatus,
+  setCourseCompetency,
   setGradeCalculation,
   updateGradeItem,
   updateSection,
@@ -380,6 +385,52 @@ describe('.hubium backup and restore', () => {
     expect([bg.contextId, bg.component, bg.itemId]).toEqual([r.courseId, 'certificate', copy.id]);
     expect(await t.db.certificateIssue.count({ where: { certificateId: copy.id } })).toBe(0);
     await t.db.certificate.delete({ where: { id } });
+  });
+
+  it("carries the course's and activities' competencies by their ID numbers", async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const scale = await saveScale.run(admin, { name: 'Да/нет', items: ['Нет', 'Да'] });
+    const fw = await saveFramework.run(admin, {
+      shortName: 'Бэкап',
+      idNumber: 'BKP',
+      scaleId: scale.id,
+      scaleConfig: { default: 2, proficient: [2] },
+    });
+    const c = await saveCompetency.run(admin, {
+      frameworkId: fw.id,
+      shortName: 'K',
+      idNumber: 'K1',
+    });
+    await addCourseCompetencies.run(admin, { courseId: f.courseId, competencyIds: [c.id] });
+    await setCourseCompetency.run(admin, {
+      courseId: f.courseId,
+      competencyId: c.id,
+      ruleOutcome: 'COMPLETE',
+    });
+    await setActivityCompetency.run(admin, {
+      activityId: pageId,
+      competencyId: c.id,
+      ruleOutcome: 'EVIDENCE',
+    });
+    const course = await t.db.course.findUniqueOrThrow({ where: { id: f.courseId } });
+    const r = await restoreCourse(admin, await exportCourse(admin, f.courseId), {
+      categoryId: course.categoryId,
+    });
+    expect(
+      await t.db.courseCompetency.findMany({
+        where: { courseId: r.courseId },
+        select: { competencyId: true, ruleOutcome: true },
+      }),
+    ).toEqual([{ competencyId: c.id, ruleOutcome: 'COMPLETE' }]);
+    const page = await t.db.activity.findFirstOrThrow({
+      where: { courseId: r.courseId, name: 'Введение' },
+      include: { competencies: true },
+    });
+    expect(page.competencies.map((x) => [x.competencyId, x.ruleOutcome])).toEqual([
+      [c.id, 'EVIDENCE'],
+    ]);
+    await t.db.courseCompetency.deleteMany({ where: { competencyId: c.id } });
+    await t.db.activityCompetency.deleteMany({ where: { competencyId: c.id } });
   });
 
   it('duplicates a course with a new name', async () => {

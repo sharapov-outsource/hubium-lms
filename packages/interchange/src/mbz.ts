@@ -44,7 +44,7 @@ import {
   gunzipLimited,
   unzipLimited,
 } from './archive.ts';
-import { addMissingSections, discardCourse } from './hubium.ts';
+import { addMissingSections, discardCourse, restoreCompetencies } from './hubium.ts';
 import {
   answerFormat,
   datasetFromOptions,
@@ -2090,6 +2090,7 @@ export async function importMbz(
       }
     }
     await importGradebook();
+    warnings.push(...(await importCompetencies()));
 
     return {
       courseId,
@@ -2101,6 +2102,47 @@ export async function importMbz(
       files: fileCount,
       warnings: [...warnings, ...disabledTypesWarning(await disabledTypesIn(db, courseId))],
     };
+
+    /**
+     * The course's and activities' competencies, linked where this site has frameworks
+     * and competencies with the same ID numbers (Moodle's outcome numbers: 0 none,
+     * 1 evidence, 2 complete, 3 recommend).
+     */
+    async function importCompetencies() {
+      const outcome = (v: unknown) =>
+        (['NONE', 'EVIDENCE', 'COMPLETE', 'RECOMMEND'] as const)[num(v)] ?? 'NONE';
+      const linksOf = (doc: Node | undefined) =>
+        arr(((doc?.competencies ?? {}) as Node).competency as Node | Node[]).map((c) => ({
+          framework: txt(c.frameworkidnumber),
+          idNumber: txt(c.idnumber),
+          ruleOutcome: outcome(c.ruleoutcome),
+        }));
+      const course = xml(archive, 'course/competencies.xml')?.course_competencies as
+        | Node
+        | undefined;
+      const map = new Map<string, string>();
+      const activities = createdActivities.flatMap(({ dir, id }) => {
+        map.set(dir, id);
+        const doc = xml(archive, `${dir}/competencies.xml`)?.course_module_competencies as
+          | Node
+          | undefined;
+        return linksOf(doc).map((l) => ({ ...l, activityId: dir }));
+      });
+      const links = linksOf(course).filter((l) => l.framework && l.idNumber);
+      if (!links.length && !activities.length) return [];
+      const settings = (course?.settings ?? {}) as Node;
+      return restoreCompetencies(
+        db,
+        {
+          pushRatings: txt(settings.pushratingstouserplans) !== '0',
+          course: links,
+          activities: activities.filter((l) => l.framework && l.idNumber),
+        },
+        courseId,
+        map,
+        true,
+      );
+    }
 
     /**
      * The gradebook: the category tree, manual items, ID numbers, letters and formulas,

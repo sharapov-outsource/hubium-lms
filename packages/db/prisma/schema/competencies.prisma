@@ -1,0 +1,353 @@
+// Competencies and learning plans, as Moodle's: frameworks of competencies rated on a
+// scale, linked to courses and activities, rated by teachers and by completion rules,
+// gathered into learning plans (from templates, for people or cohorts), with evidence.
+
+/// What happens to a competency when something linked to it is completed (an activity,
+/// a course, or every/enough child competencies).
+enum CompetencyOutcome {
+  NONE
+  /// Evidence is logged.
+  EVIDENCE
+  /// Evidence is logged and the competency is sent for review.
+  RECOMMEND
+  /// The competency is marked complete (rated with the scale's default value).
+  COMPLETE
+}
+
+/// How a parent competency follows its children.
+enum CompetencyRuleType {
+  /// All children are proficient.
+  ALL
+  /// Proficient children add up to enough points (and the required ones are among them).
+  POINTS
+}
+
+enum UserCompetencyStatus {
+  IDLE
+  WAITING_FOR_REVIEW
+  IN_REVIEW
+}
+
+enum LearningPlanStatus {
+  DRAFT
+  WAITING_FOR_REVIEW
+  IN_REVIEW
+  ACTIVE
+  COMPLETE
+}
+
+enum CompetencyEvidenceAction {
+  /// Something happened; the rating does not change.
+  LOG
+  /// Completed: rated with the scale's default value unless rated already.
+  COMPLETE
+  /// Rated by a person (or the rating removed).
+  OVERRIDE
+}
+
+model CompetencyFramework {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  shortName   String
+  /// Unique on the site: what imports and backups find the framework by.
+  idNumber    String   @unique
+  description String   @default("")
+  /// The site scale ratings use.
+  scaleId     String   @db.Uuid
+  /// { default: value, proficient: [values] } in the scale's values (1 = its first item).
+  scaleConfig Json
+  /// The term each level of the tree goes by (competency, skill, outcome…), top first.
+  taxonomies  String[]
+  visible     Boolean  @default(true)
+  createdById String?  @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  scale        Scale        @relation(fields: [scaleId], references: [id], onDelete: Restrict)
+  competencies Competency[]
+}
+
+model Competency {
+  id          String              @id @default(uuid(7)) @db.Uuid
+  frameworkId String              @db.Uuid
+  parentId    String?             @db.Uuid
+  /// "/<root id>/…/<parent id>/": the ancestors, for subtree queries.
+  path        String
+  sortOrder   Int                 @default(0)
+  shortName   String
+  idNumber    String
+  description String              @default("")
+  /// A scale of its own, with its configuration as the framework's; null: the framework's.
+  scaleId     String?             @db.Uuid
+  scaleConfig Json?
+  ruleType    CompetencyRuleType?
+  ruleOutcome CompetencyOutcome   @default(NONE)
+  /// POINTS: { points, children: [{ id, points, required }] }.
+  ruleConfig  Json?
+  createdAt   DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime            @updatedAt @db.Timestamptz(3)
+
+  framework CompetencyFramework @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  parent    Competency?         @relation("CompetencyTree", fields: [parentId], references: [id], onDelete: NoAction)
+  children  Competency[]        @relation("CompetencyTree")
+  scale     Scale?              @relation(fields: [scaleId], references: [id], onDelete: Restrict)
+  related   RelatedCompetency[] @relation("RelatedFrom")
+  relatedTo RelatedCompetency[] @relation("RelatedTo")
+
+  courses       CourseCompetency[]
+  activities    ActivityCompetency[]
+  userRatings   UserCompetency[]
+  courseRatings UserCompetencyCourse[]
+  planRatings   UserCompetencyPlan[]
+  templates     LearningPlanTemplateCompetency[]
+  plans         LearningPlanCompetency[]
+  userEvidence  UserEvidenceCompetency[]
+
+  @@unique([frameworkId, idNumber])
+  @@index([parentId])
+  @@index([frameworkId, path])
+}
+
+/// Cross-referenced competencies; each pair is stored both ways.
+model RelatedCompetency {
+  competencyId String @db.Uuid
+  relatedId    String @db.Uuid
+
+  competency Competency @relation("RelatedFrom", fields: [competencyId], references: [id], onDelete: Cascade)
+  related    Competency @relation("RelatedTo", fields: [relatedId], references: [id], onDelete: Cascade)
+
+  @@id([competencyId, relatedId])
+}
+
+model CourseCompetency {
+  id           String            @id @default(uuid(7)) @db.Uuid
+  courseId     String            @db.Uuid
+  competencyId String            @db.Uuid
+  sortOrder    Int               @default(0)
+  /// When a learner completes the course.
+  ruleOutcome  CompetencyOutcome @default(NONE)
+
+  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  competency Competency @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, competencyId])
+  @@index([competencyId])
+}
+
+model CourseCompetencySettings {
+  courseId    String  @id @db.Uuid
+  /// Ratings in the course also rate the learner's competency (and so their plans).
+  pushRatings Boolean @default(true)
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+model ActivityCompetency {
+  id           String            @id @default(uuid(7)) @db.Uuid
+  activityId   String            @db.Uuid
+  competencyId String            @db.Uuid
+  sortOrder    Int               @default(0)
+  /// When a learner completes the activity.
+  ruleOutcome  CompetencyOutcome @default(NONE)
+
+  activity   Activity   @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  competency Competency @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, competencyId])
+  @@index([competencyId])
+}
+
+/// A learner's rating of a competency, wherever it came from.
+model UserCompetency {
+  id           String               @id @default(uuid(7)) @db.Uuid
+  userId       String               @db.Uuid
+  competencyId String               @db.Uuid
+  status       UserCompetencyStatus @default(IDLE)
+  reviewerId   String?              @db.Uuid
+  /// A value of the competency's scale (1 = its first item); null: not rated.
+  grade        Int?
+  proficiency  Boolean?
+  createdAt    DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime             @updatedAt @db.Timestamptz(3)
+
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  competency Competency           @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+  evidence   CompetencyEvidence[]
+  comments   CompetencyComment[]
+
+  @@unique([userId, competencyId])
+  @@index([competencyId])
+}
+
+/// A learner's rating of a competency in one course.
+model UserCompetencyCourse {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  userId       String   @db.Uuid
+  courseId     String   @db.Uuid
+  competencyId String   @db.Uuid
+  grade        Int?
+  proficiency  Boolean?
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  competency Competency @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId, competencyId])
+  @@index([courseId])
+}
+
+/// The ratings of a completed plan, as they were when it was completed.
+model UserCompetencyPlan {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  userId       String   @db.Uuid
+  competencyId String   @db.Uuid
+  planId       String   @db.Uuid
+  grade        Int?
+  proficiency  Boolean?
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  competency Competency   @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+  plan       LearningPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, competencyId])
+}
+
+/// What happened to a learner's competency: logged, completed or rated, where and by whom.
+model CompetencyEvidence {
+  id               String                   @id @default(uuid(7)) @db.Uuid
+  userCompetencyId String                   @db.Uuid
+  action           CompetencyEvidenceAction
+  /// Where: a course or activity context, or the site.
+  contextId        String                   @db.Uuid
+  /// An i18n key under "competencies.evidence." with its values.
+  description      String
+  descriptionData  Json?
+  grade            Int?
+  note             String?
+  url              String?
+  actorId          String?                  @db.Uuid
+  createdAt        DateTime                 @default(now()) @db.Timestamptz(3)
+
+  userCompetency UserCompetency @relation(fields: [userCompetencyId], references: [id], onDelete: Cascade)
+
+  @@index([userCompetencyId, createdAt])
+}
+
+model CompetencyComment {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  userCompetencyId String?  @db.Uuid
+  planId           String?  @db.Uuid
+  authorId         String?  @db.Uuid
+  text             String
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+
+  userCompetency UserCompetency? @relation(fields: [userCompetencyId], references: [id], onDelete: Cascade)
+  plan           LearningPlan?   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  author         User?           @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([userCompetencyId])
+  @@index([planId])
+}
+
+model LearningPlanTemplate {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  name        String
+  description String    @default("")
+  dueDate     DateTime? @db.Timestamptz(3)
+  visible     Boolean   @default(true)
+  createdById String?   @db.Uuid
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  competencies LearningPlanTemplateCompetency[]
+  cohorts      LearningPlanTemplateCohort[]
+  plans        LearningPlan[]
+}
+
+model LearningPlanTemplateCompetency {
+  templateId   String @db.Uuid
+  competencyId String @db.Uuid
+  sortOrder    Int    @default(0)
+
+  template   LearningPlanTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  competency Competency           @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+
+  @@id([templateId, competencyId])
+}
+
+/// Members of these cohorts get a plan from the template (hourly).
+model LearningPlanTemplateCohort {
+  templateId String @db.Uuid
+  cohortId   String @db.Uuid
+
+  template LearningPlanTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  cohort   Cohort               @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+
+  @@id([templateId, cohortId])
+}
+
+model LearningPlan {
+  id             String             @id @default(uuid(7)) @db.Uuid
+  userId         String             @db.Uuid
+  /// Its competencies are the template's while it is linked.
+  templateId     String?            @db.Uuid
+  /// The template it was made from, once unlinked.
+  origTemplateId String?            @db.Uuid
+  name           String
+  description    String             @default("")
+  dueDate        DateTime?          @db.Timestamptz(3)
+  status         LearningPlanStatus @default(DRAFT)
+  reviewerId     String?            @db.Uuid
+  createdById    String?            @db.Uuid
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime           @updatedAt @db.Timestamptz(3)
+
+  user         User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template     LearningPlanTemplate?    @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  competencies LearningPlanCompetency[]
+  archived     UserCompetencyPlan[]
+  comments     CompetencyComment[]
+
+  @@unique([userId, templateId])
+  @@index([templateId])
+}
+
+model LearningPlanCompetency {
+  planId       String @db.Uuid
+  competencyId String @db.Uuid
+  sortOrder    Int    @default(0)
+
+  plan       LearningPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  competency Competency   @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+
+  @@id([planId, competencyId])
+}
+
+/// Evidence of prior learning a person adds themselves: a link and files, tied to competencies.
+model UserEvidence {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  userId      String   @db.Uuid
+  name        String
+  description String   @default("")
+  url         String   @default("")
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  user         User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  competencies UserEvidenceCompetency[]
+
+  @@index([userId])
+}
+
+model UserEvidenceCompetency {
+  userEvidenceId String @db.Uuid
+  competencyId   String @db.Uuid
+
+  userEvidence UserEvidence @relation(fields: [userEvidenceId], references: [id], onDelete: Cascade)
+  competency   Competency   @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+
+  @@id([userEvidenceId, competencyId])
+}

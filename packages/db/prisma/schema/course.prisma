@@ -73,8 +73,8 @@ model Course {
   createdAt          DateTime                 @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime                 @updatedAt @db.Timestamptz(3)
 
-  category              Category               @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  context               Context                @relation("CourseContext", fields: [id], references: [id], onDelete: Cascade)
+  category              Category                  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  context               Context                   @relation("CourseContext", fields: [id], references: [id], onDelete: Cascade)
   sections              CourseSection[]
   activities            Activity[]
   enrolmentMethods      EnrolmentMethod[]
@@ -87,6 +87,9 @@ model Course {
   calendarSubscriptions CalendarSubscription[]
   badges                Badge[]
   certificates          Certificate[]
+  competencies          CourseCompetency[]
+  competencySettings    CourseCompetencySettings?
+  competencyRatings     UserCompetencyCourse[]
   gradeCategories       GradeCategory[]
   gradeItems            GradeItem[]
   notifications         Notification[]
@@ -168,6 +171,7 @@ model Activity {
   gradingDefinitions  GradingDefinition[]
   forumGrades         ForumGrade[]
   quizSlots           QuizSlot[]
+  competencies        ActivityCompetency[]
   quizAttempts        QuizAttempt[]
   quizOverrides       QuizOverride[]
   forumDiscussions    ForumDiscussion[]

@@ -105,6 +105,15 @@ export default async function CourseLayout({
               })) > 0),
         },
         {
+          key: 'competencies',
+          href: `${base}/competencies`,
+          label: t('tabs.competencies'),
+          show:
+            !access.isGuest &&
+            ((await ctx.perm.can('competency:coursemanage', courseId)) ||
+              (await db.courseCompetency.count({ where: { courseId } })) > 0),
+        },
+        {
           key: 'certificates',
           href: `${base}/certificates`,
           label: t('tabs.certificates'),

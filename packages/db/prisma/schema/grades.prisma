@@ -39,8 +39,10 @@ model Scale {
   items     String[]
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 
-  course     Course?     @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  gradeItems GradeItem[]
+  course               Course?               @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  gradeItems           GradeItem[]
+  competencyFrameworks CompetencyFramework[]
+  competencies         Competency[]
 
   @@index([courseId])
 }

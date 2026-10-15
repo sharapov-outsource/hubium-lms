@@ -25,7 +25,7 @@ import {
 } from '@hubium/core';
 import { storeFile } from '@hubium/core/files/files';
 import { getStorage } from '@hubium/core/files/storage';
-import { type Prisma, uuidv7 } from '@hubium/db';
+import { type Db, type Prisma, uuidv7 } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { isLocale } from '@hubium/i18n';
 import { parseSettings } from '@hubium/module-sdk';
@@ -172,6 +172,26 @@ const CourseJson = z.object({
       }),
     )
     .default([]),
+  /**
+   * The course's competencies and those of its activities, named by framework and
+   * competency ID numbers (they link up on a site that has them); absent in older archives.
+   */
+  competencies: z
+    .object({
+      pushRatings: z.boolean().default(true),
+      course: z.array(
+        z.object({ framework: z.string(), idNumber: z.string(), ruleOutcome: z.string() }),
+      ),
+      activities: z.array(
+        z.object({
+          activityId: z.string(),
+          framework: z.string(),
+          idNumber: z.string(),
+          ruleOutcome: z.string(),
+        }),
+      ),
+    })
+    .optional(),
   /** Course certificates, without their issues; absent in older archives. */
   certificates: z
     .array(
@@ -412,6 +432,12 @@ export async function exportCourse(
           expiresAfterDays: x.expiresAfterDays,
           expiresAt: x.expiresAt?.toISOString() ?? null,
         })),
+    competencies: await exportCompetencies(
+      db,
+      courseId,
+      activities.map((a) => a.id),
+      !opts.activityIds,
+    ),
     certificates: opts.activityIds
       ? []
       : (await db.certificate.findMany({ where: { courseId } })).map((x) => ({
@@ -942,6 +968,12 @@ async function restoreInto(
       }
     }
 
+    // competencies, where the site has them
+    if (b.course.competencies)
+      warnings.push(
+        ...(await restoreCompetencies(db, b.course.competencies, courseId, map, scope.fresh)),
+      );
+
     // course badges, as drafts to look over: their rules keep what they still point to
     const roles = new Set((await db.role.findMany({ select: { id: true } })).map((r) => r.id));
     const badges: { id: string; imageFileId: string | null }[] = [];
@@ -1272,4 +1304,124 @@ export async function duplicateCourse(
     fullName: target.fullName,
     shortName: target.shortName,
   });
+}
+
+// ── competencies ─────────────────────────────────────────────────────────────
+
+const OUTCOMES = ['NONE', 'EVIDENCE', 'RECOMMEND', 'COMPLETE'] as const;
+type Outcome = (typeof OUTCOMES)[number];
+const outcomeOf = (v: string): Outcome =>
+  (OUTCOMES as readonly string[]).includes(v) ? (v as Outcome) : 'NONE';
+
+async function exportCompetencies(
+  db: Db,
+  courseId: string,
+  activityIds: string[],
+  withCourse: boolean,
+) {
+  const [settings, course, acts] = await Promise.all([
+    db.courseCompetencySettings.findUnique({ where: { courseId } }),
+    withCourse
+      ? db.courseCompetency.findMany({
+          where: { courseId },
+          orderBy: { sortOrder: 'asc' },
+          include: { competency: { include: { framework: { select: { idNumber: true } } } } },
+        })
+      : [],
+    db.activityCompetency.findMany({
+      where: { activityId: { in: activityIds } },
+      orderBy: { sortOrder: 'asc' },
+      include: { competency: { include: { framework: { select: { idNumber: true } } } } },
+    }),
+  ]);
+  return {
+    pushRatings: settings?.pushRatings ?? true,
+    course: course.map((l) => ({
+      framework: l.competency.framework.idNumber,
+      idNumber: l.competency.idNumber,
+      ruleOutcome: l.ruleOutcome,
+    })),
+    activities: acts.map((l) => ({
+      activityId: l.activityId,
+      framework: l.competency.framework.idNumber,
+      idNumber: l.competency.idNumber,
+      ruleOutcome: l.ruleOutcome,
+    })),
+  };
+}
+
+/**
+ * Links the restored course and activities to the site's competencies with the same
+ * framework and competency ID numbers; what the site does not have is reported.
+ */
+export async function restoreCompetencies(
+  db: Prisma.TransactionClient | Db,
+  c: {
+    pushRatings: boolean;
+    course: { framework: string; idNumber: string; ruleOutcome: string }[];
+    activities: { activityId: string; framework: string; idNumber: string; ruleOutcome: string }[];
+  },
+  courseId: string,
+  map: Map<string, string>,
+  fresh: boolean,
+): Promise<string[]> {
+  const cache = new Map<string, string | null>();
+  const find = async (framework: string, idNumber: string) => {
+    const key = `${framework}\u0000${idNumber}`;
+    if (!cache.has(key)) {
+      const found = await db.competency.findFirst({
+        where: { idNumber, framework: { idNumber: framework } },
+        select: { id: true },
+      });
+      cache.set(key, found?.id ?? null);
+    }
+    return cache.get(key)!;
+  };
+  const missing = new Set<string>();
+  const linkCourse = async (competencyId: string, ruleOutcome: Outcome | null) => {
+    const last = await db.courseCompetency.aggregate({
+      where: { courseId },
+      _max: { sortOrder: true },
+    });
+    await db.courseCompetency.upsert({
+      where: { courseId_competencyId: { courseId, competencyId } },
+      create: {
+        courseId,
+        competencyId,
+        sortOrder: (last._max.sortOrder ?? -1) + 1,
+        ruleOutcome: ruleOutcome ?? 'NONE',
+      },
+      update: ruleOutcome ? { ruleOutcome } : {},
+    });
+  };
+  if (fresh)
+    await db.courseCompetencySettings.upsert({
+      where: { courseId },
+      create: { courseId, pushRatings: c.pushRatings },
+      update: { pushRatings: c.pushRatings },
+    });
+  for (const l of c.course) {
+    const id = await find(l.framework, l.idNumber);
+    if (!id) missing.add(`${l.framework}/${l.idNumber}`);
+    else await linkCourse(id, outcomeOf(l.ruleOutcome));
+  }
+  for (const l of c.activities) {
+    const activityId = map.get(l.activityId);
+    if (!activityId) continue;
+    const id = await find(l.framework, l.idNumber);
+    if (!id) {
+      missing.add(`${l.framework}/${l.idNumber}`);
+      continue;
+    }
+    // an activity's competency is one of its course's
+    await linkCourse(id, null);
+    await db.activityCompetency.upsert({
+      where: { activityId_competencyId: { activityId, competencyId: id } },
+      create: { activityId, competencyId: id, ruleOutcome: outcomeOf(l.ruleOutcome) },
+      update: { ruleOutcome: outcomeOf(l.ruleOutcome) },
+    });
+  }
+  return missing.size
+    ? [`Competencies this site does not have were left out: ${[...missing].join(', ')}`]
+    : [];
 }

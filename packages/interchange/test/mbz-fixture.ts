@@ -73,6 +73,9 @@ export async function mbzFixture(): Promise<Buffer> {
     // Moodle 4.5: the subsection's own section, after the course's sections
     'sections/section_3/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="3"><number>2</number><name>Практикум</name><summary>&lt;p&gt;Задачи&lt;/p&gt;</summary><sequence>29</sequence><visible>1</visible><component>mod_subsection</component><itemid>28</itemid></section>`,
 
+    // competencies, linked where the site has the same framework and ID numbers
+    'course/competencies.xml': `<?xml version="1.0" encoding="UTF-8"?><course_competencies><settings id="1"><pushratingstouserplans>0</pushratingstouserplans></settings><competencies><competency><id>5</id><idnumber>PY.1</idnumber><ruleoutcome>1</ruleoutcome><sortorder>0</sortorder><frameworkid>3</frameworkid><frameworkidnumber>PYFW</frameworkidnumber></competency><competency><id>6</id><idnumber>PY.404</idnumber><ruleoutcome>0</ruleoutcome><sortorder>1</sortorder><frameworkid>3</frameworkid><frameworkidnumber>PYFW</frameworkidnumber></competency></competencies></course_competencies>`,
+    'activities/page_11/competencies.xml': `<?xml version="1.0" encoding="UTF-8"?><course_module_competencies><competencies><competency><idnumber>PY.1</idnumber><ruleoutcome>2</ruleoutcome><sortorder>0</sortorder><frameworkidnumber>PYFW</frameworkidnumber><overridegrade>0</overridegrade></competency></competencies></course_module_competencies>`,
     'activities/page_11/module.xml': moduleXml(11, 'page', 1),
     'activities/page_11/page.xml': wrap(
       11,

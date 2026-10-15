@@ -21,6 +21,8 @@ export const CORE_SCHEDULE = {
   'calendar.subscriptions': '25 * * * *',
   // badges earned by grades and cohorts, which completion events do not cover
   'badges.review': '35 * * * *',
+  // members of the cohorts linked to learning plan templates get their plans
+  'competency.plans.sync': '50 * * * *',
   'enrol.expire': '5 * * * *',
   'notifications.prune': '41 4 * * *',
   'webhooks.prune': '29 4 * * *',

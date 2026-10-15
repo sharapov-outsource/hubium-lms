@@ -26,6 +26,7 @@ import { BADGES_REVIEW_JOB, reviewAllBadges, reviewBadge } from '@hubium/core/ba
 import { sendCalendarReminders } from '@hubium/core/calendar/calendar';
 import { syncDueSubscriptions } from '@hubium/core/calendar/subscriptions';
 import { CERTIFICATES_REVIEW_JOB, reviewCertificate } from '@hubium/core/certificates/certificates';
+import { syncTemplateCohorts } from '@hubium/core/competencies/plans';
 import { garbageCollectBlobs } from '@hubium/core/files/files';
 import { cleanupUploads } from '@hubium/core/files/uploads';
 import { deliverMail } from '@hubium/core/mail/mail';
@@ -130,6 +131,13 @@ export const coreHandlers: JobHandlerDef[] = [
     name: CERTIFICATES_REVIEW_JOB,
     async handler(data: { certificateId: string }, { db }) {
       return { issued: await reviewCertificate(db, data.certificateId) };
+    },
+  },
+  {
+    name: 'competency.plans.sync',
+    cron: CORE_SCHEDULE['competency.plans.sync'],
+    async handler(_data: never, { db }) {
+      return { created: await syncTemplateCohorts(db) };
     },
   },
   {

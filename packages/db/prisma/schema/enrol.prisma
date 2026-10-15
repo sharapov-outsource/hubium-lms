@@ -133,6 +133,7 @@ model Cohort {
 
   members          CohortMember[]
   enrolmentMethods EnrolmentMethod[]
+  planTemplates    LearningPlanTemplateCohort[]
 }
 
 model CohortMember {

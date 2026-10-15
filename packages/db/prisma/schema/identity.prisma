@@ -85,6 +85,12 @@ model User {
   badgeAwards           BadgeAward[]
   badgeMarks            BadgeMark[]
   certificateIssues     CertificateIssue[]
+  competencies          UserCompetency[]
+  competencyRatings     UserCompetencyCourse[]
+  competencyPlanRatings UserCompetencyPlan[]
+  competencyComments    CompetencyComment[]
+  learningPlans         LearningPlan[]
+  userEvidence          UserEvidence[]
   calendarFeedToken     CalendarFeedToken?
   grades                Grade[]
   assignSubmissions     AssignSubmission[]

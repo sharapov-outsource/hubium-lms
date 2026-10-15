@@ -57,10 +57,13 @@ export const saveScale = defineOperation({
     if (input.id) {
       const s = await ctx.tx.scale.findUniqueOrThrow({
         where: { id: input.id },
-        include: { _count: { select: { gradeItems: true } } },
+        include: {
+          _count: { select: { gradeItems: true, competencyFrameworks: true, competencies: true } },
+        },
       });
+      const used = s._count.gradeItems + s._count.competencyFrameworks + s._count.competencies > 0;
       // Stored grades are positions in the list: a scale in use keeps its length.
-      if (s._count.gradeItems && s.items.length !== input.items.length)
+      if (used && s.items.length !== input.items.length)
         throw new ConflictError('A scale in use cannot gain or lose grades; rename them instead');
       await ctx.tx.scale.update({
         where: { id: s.id },
@@ -94,6 +97,11 @@ export const deleteScale = defineOperation({
   async handler(ctx, { id }) {
     if (await ctx.tx.gradeItem.count({ where: { scaleId: id } }))
       throw new ConflictError('The scale is used by grade items');
+    if (
+      (await ctx.tx.competencyFramework.count({ where: { scaleId: id } })) +
+      (await ctx.tx.competency.count({ where: { scaleId: id } }))
+    )
+      throw new ConflictError('The scale is used by competencies');
     await ctx.tx.scale.delete({ where: { id } });
     return { id };
   },

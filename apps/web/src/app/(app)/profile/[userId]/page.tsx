@@ -1,4 +1,9 @@
-import { listProfileFields, profileFieldLabel, userBadges } from '@hubium/core';
+import {
+  canViewUserCompetencies,
+  listProfileFields,
+  profileFieldLabel,
+  userBadges,
+} from '@hubium/core';
 import { Avatar, Button, Card, CardContent } from '@hubium/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -68,6 +73,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ userId
             </Button>
           ) : null}
           {!isMe && user.status === 'ACTIVE' ? <MessageUserButton userId={user.id} /> : null}
+          {!isMe && (await canViewUserCompetencies(ctx, user.id)) ? (
+            <Button asChild variant="secondary">
+              <Link href={`/plans?user=${user.id}`}>{t('competencies.plansTitle')}</Link>
+            </Button>
+          ) : null}
           {canAdmin && !isMe ? (
             <Button asChild variant="secondary">
               <Link href={`/admin/users/${user.id}`}>{t('common.edit')}</Link>
