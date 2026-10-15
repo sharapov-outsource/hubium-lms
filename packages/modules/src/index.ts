@@ -2,6 +2,7 @@ import { assignModules } from '@hubium/mod-assign/server';
 import { bookModules } from '@hubium/mod-book/server';
 import { choiceModules } from '@hubium/mod-choice/server';
 import { contentModules } from '@hubium/mod-content/server';
+import { feedbackModules } from '@hubium/mod-feedback/server';
 import { forumModules } from '@hubium/mod-forum/server';
 import { livesessionModules } from '@hubium/mod-livesession/server';
 import { ltiModules } from '@hubium/mod-lti/server';
@@ -17,6 +18,7 @@ export const serverModules = [
   ...contentModules,
   ...bookModules,
   ...choiceModules,
+  ...feedbackModules,
   ...assignModules,
   ...quizModules,
   ...forumModules,

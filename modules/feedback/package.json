@@ -1,0 +1,38 @@
+{
+  "name": "@hubium/mod-feedback",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "author": "Alexander S. <alexander@sharapov.biz>",
+  "type": "module",
+  "exports": {
+    "./server": "./src/server.ts",
+    "./ui": "./src/ui/index.tsx",
+    "./messages/*": "./messages/*"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hubium/db": "workspace:*",
+    "@hubium/editor": "workspace:*",
+    "@hubium/module-sdk": "workspace:*",
+    "@hubium/ui": "workspace:*",
+    "lucide-react": "1.55.0",
+    "next-intl": "4.14.9",
+    "zod": "4.6.7"
+  },
+  "peerDependencies": {
+    "react": "^19"
+  },
+  "devDependencies": {
+    "@hubium/tooling": "workspace:*",
+    "@types/node": "^24",
+    "@types/react": "19.3.0",
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "typescript": "~7.0.2",
+    "vitest": "5.0.4"
+  }
+}

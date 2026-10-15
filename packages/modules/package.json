@@ -17,6 +17,7 @@
     "@hubium/mod-book": "workspace:*",
     "@hubium/mod-choice": "workspace:*",
     "@hubium/mod-content": "workspace:*",
+    "@hubium/mod-feedback": "workspace:*",
     "@hubium/mod-forum": "workspace:*",
     "@hubium/mod-livesession": "workspace:*",
     "@hubium/mod-lti": "workspace:*",

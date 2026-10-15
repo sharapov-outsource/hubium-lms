@@ -1495,6 +1495,100 @@ export async function importMbz(
             });
             break;
           }
+          case 'feedback': {
+            const date = (v: unknown) =>
+              num(v) > 0 ? new Date(num(v) * 1000).toISOString() : null;
+            const plain = (html: string) =>
+              html
+                .replace(/<br\s*\/?>|<\/p>/gi, '\n')
+                .replace(/<[^>]*>/g, '')
+                .replace(/&nbsp;/g, ' ')
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+            const { id } = await create({
+              ...base,
+              moduleKey: 'feedback',
+              settings: {
+                // 1 is anonymous in Moodle, 2 with names
+                anonymous: txt(data.anonymous) !== '2',
+                multipleSubmit: txt(data.multiple_submit) === '1',
+                showAnalysis: txt(data.publish_stats) === '1',
+                notifyTeachers: txt(data.email_notification) === '1',
+                autoNumbering: txt(data.autonumbering) !== '0',
+                opensAt: date(data.timeopen),
+                closesAt: date(data.timeclose),
+                thankYou: plain(txt(data.page_after_submit)).slice(0, 2000),
+              },
+            });
+            const items = arr(((data.items ?? {}) as Node).item as Node | Node[]).sort(
+              (x, y) => num(x.position) - num(y.position),
+            );
+            let n = 0;
+            const skipped = new Set<string>();
+            for (const it of items) {
+              const typ = txt(it.typ);
+              const label = plain(txt(it.name)).slice(0, 5000);
+              const presentation = txt(it.presentation);
+              let row: { type: string; label: string; options: object } | null = null;
+              if (typ === 'label') row = { type: 'info', label: plain(presentation), options: {} };
+              else if (typ === 'pagebreak') row = { type: 'pagebreak', label: '', options: {} };
+              else if (typ === 'textfield') row = { type: 'text', label, options: {} };
+              else if (typ === 'textarea') row = { type: 'textarea', label, options: {} };
+              else if (typ === 'numeric') {
+                const [min, max] = presentation
+                  .split('|')
+                  .map((v) => (v.trim() === '' ? null : Number(v)));
+                row = {
+                  type: 'number',
+                  label,
+                  options: {
+                    min: Number.isFinite(min) ? min : null,
+                    max: Number.isFinite(max) ? max : null,
+                  },
+                };
+              } else if (typ === 'multichoice' || typ === 'multichoicerated') {
+                // "r>>>>>one|two" (r radio, c checkboxes, d drop-down); rated options are "1####one"
+                const [kind, list = ''] = presentation.split('>>>>>');
+                const choices = list
+                  .split('<<<<<')[0]!
+                  .split('|')
+                  .map((c) => plain(c.includes('####') ? c.split('####')[1]! : c))
+                  .filter(Boolean)
+                  .slice(0, 100);
+                if (choices.length >= 2)
+                  row = {
+                    type: 'choice',
+                    label,
+                    options: {
+                      choices,
+                      multiple: kind === 'c',
+                      display: kind === 'd' ? 'dropdown' : 'radio',
+                    },
+                  };
+              }
+              if (!row || (row.type !== 'pagebreak' && !row.label)) {
+                skipped.add(typ);
+                continue;
+              }
+              await db.feedbackItem.create({
+                data: {
+                  activityId: id,
+                  sortOrder: n++,
+                  ...row,
+                  required:
+                    row.type !== 'info' && row.type !== 'pagebreak' && txt(it.required) === '1',
+                },
+              });
+            }
+            if (skipped.size)
+              warnings.push(
+                `"${name}": questions of type ${[...skipped].join(', ')} were left out`,
+              );
+            break;
+          }
           default:
             await placeholder('this activity type is not supported');
             continue;

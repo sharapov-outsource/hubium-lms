@@ -505,6 +505,49 @@ describe('.hubium backup and restore', () => {
     expect(copy.bookChapters[0]!.content).not.toContain(pic.id);
   });
 
+  it('carries the questions of a feedback, without its responses', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const src = await courseFixture(t.db, 'FBBK');
+    const { id } = await src.addActivity('feedback', 'Отзыв', { anonymous: false });
+    const teacher = await ctxFor(t.db, src.users.teacher!);
+    const q = (await runModuleAction(teacher, id, 'addItem', {
+      type: 'choice',
+      label: 'Формат',
+      choices: ['Очно', 'Онлайн'],
+      required: true,
+    })) as { id: string };
+    await runModuleAction(teacher, id, 'addItem', { type: 'pagebreak' });
+    await runModuleAction(teacher, id, 'addItem', {
+      type: 'number',
+      label: 'Оценка',
+      min: 1,
+      max: 5,
+    });
+    await runModuleAction(await ctxFor(t.db, src.users.student1!), id, 'submit', {
+      answers: { [q.id]: 'Очно' },
+    });
+    const course = await t.db.course.findUniqueOrThrow({ where: { id: src.courseId } });
+    const r = await restoreCourse(admin, await exportCourse(admin, src.courseId), {
+      categoryId: course.categoryId,
+    });
+    const copy = await t.db.activity.findFirstOrThrow({
+      where: { courseId: r.courseId, moduleKey: 'feedback' },
+      include: { feedbackItems: { orderBy: { sortOrder: 'asc' } }, feedbackResponses: true },
+    });
+    expect(copy.settings).toMatchObject({ anonymous: false });
+    expect(copy.feedbackItems.map((i) => [i.type, i.label, i.required, i.options])).toEqual([
+      [
+        'choice',
+        'Формат',
+        true,
+        { choices: ['Очно', 'Онлайн'], multiple: false, display: 'radio' },
+      ],
+      ['pagebreak', '', false, {}],
+      ['number', 'Оценка', false, { min: 1, max: 5 }],
+    ]);
+    expect(copy.feedbackResponses).toEqual([]);
+  });
+
   it('rejects foreign archives', async () => {
     const admin = await ctxFor(t.db, 'admin@test.local');
     const course = await t.db.course.findUniqueOrThrow({ where: { id: f.courseId } });

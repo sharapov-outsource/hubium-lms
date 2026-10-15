@@ -28,12 +28,15 @@ describe('.mbz import', () => {
     expect(report).toMatchObject({
       moodleRelease: '4.5 (Build: 20241007)',
       sections: 2,
-      activities: 9,
+      activities: 10,
       questions: 6,
     });
     expect(report.warnings.join('\n')).toContain('Формула');
     expect(report.warnings.join('\n')).toContain('Новости');
     expect(report.warnings.join('\n')).toContain('"Вики" (wiki)');
+    expect(report.warnings.join('\n')).toContain(
+      '"Отзыв": questions of type captcha were left out',
+    );
   });
 
   it('recreates the course, sections and activities in order', async () => {
@@ -66,6 +69,28 @@ describe('.mbz import', () => {
       'label:Вики',
       'book:Учебник',
       'choice:Тема проекта',
+      'feedback:Отзыв',
+    ]);
+    const feedback = acts.find((a) => a.moduleKey === 'feedback')!;
+    expect(feedback.settings).toMatchObject({
+      anonymous: false,
+      showAnalysis: true,
+      thankYou: 'Спасибо!',
+    });
+    const items = await t.db.feedbackItem.findMany({
+      where: { activityId: feedback.id },
+      orderBy: { sortOrder: 'asc' },
+    });
+    expect(items.map((i) => [i.type, i.label, i.required, i.options])).toEqual([
+      [
+        'choice',
+        'Как вам курс?',
+        true,
+        { choices: ['Отлично', 'Хорошо', 'Плохо'], multiple: false, display: 'radio' },
+      ],
+      ['pagebreak', '', false, {}],
+      ['number', 'Оценка', false, { min: 1, max: 10 }],
+      ['textarea', 'Что улучшить?', false, {}],
     ]);
     const choice = acts.find((a) => a.moduleKey === 'choice')!;
     expect(choice.settings).toMatchObject({

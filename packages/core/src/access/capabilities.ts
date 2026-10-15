@@ -123,6 +123,11 @@ export const coreCapabilities = {
   'mod.choice:choose': { level: 'ACTIVITY', archetypes: [S], excludeAdmin: true },
   'mod.choice:readresponses': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.choice:deleteresponses': { level: 'ACTIVITY', archetypes: [M, ET] },
+  // feedback
+  'mod.feedback:complete': { level: 'ACTIVITY', archetypes: [S], excludeAdmin: true },
+  'mod.feedback:edititems': { level: 'ACTIVITY', archetypes: [M, ET], risk: ['xss'] },
+  'mod.feedback:viewreports': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  'mod.feedback:deleteresponses': { level: 'ACTIVITY', archetypes: [M, ET] },
   // video / live
   'mod.video:viewprogress': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.livesession:join': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },

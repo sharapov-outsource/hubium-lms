@@ -5,7 +5,7 @@ import tar from 'tar-stream';
 // A small Moodle 4.5 course backup (.mbz) with the structure Moodle writes: sections,
 // a page with an embedded image, a quiz using question bank entries and a random slot,
 // an assignment (teams, marking workflow, blind marking, a rubric, a group's dates), a
-// URL, a file resource, Q&A (rated) and news forums, a book with an image in a chapter, a choice and
+// URL, a file resource, Q&A (rated) and news forums, a book with an image in a chapter, a choice, a feedback and
 // an unsupported wiki; groups and a
 // grouping, a scale, and a gradebook with a category, a manual item and a formula.
 
@@ -46,6 +46,7 @@ export async function mbzFixture(): Promise<Buffer> {
       ${activity(18, 'wiki', 'Вики', 2)}
       ${activity(19, 'book', 'Учебник', 2)}
       ${activity(20, 'choice', 'Тема проекта', 2)}
+      ${activity(21, 'feedback', 'Отзыв', 2)}
     </activities>
     <sections>
       <section><sectionid>1</sectionid><title>0</title><directory>sections/section_1</directory></section>
@@ -56,7 +57,7 @@ export async function mbzFixture(): Promise<Buffer> {
 </information></moodle_backup>`,
     'course/course.xml': `<?xml version="1.0" encoding="UTF-8"?><course id="2" contextid="20"><shortname>MOODLE-PY</shortname><fullname>Python из Moodle</fullname><summary>&lt;p&gt;Курс &lt;img src="@@PLUGINFILE@@/logo.png"&gt;&lt;/p&gt;</summary><format>topics</format><startdate>1735689600</startdate><enddate>0</enddate><customfields><customfield id="1"><shortname>Level</shortname><type>select</type><value>2</value><valueformat>0</valueformat></customfield><customfield id="2"><shortname>starts</shortname><type>date</type><value>1767214800</value><valueformat>0</valueformat></customfield><customfield id="3"><shortname>about</shortname><type>textarea</type><value>&lt;p&gt;Для &lt;b&gt;всех&lt;/b&gt;&lt;/p&gt;</value><valueformat>1</valueformat></customfield><customfield id="4"><shortname>elsewhere</shortname><type>text</type><value>x</value><valueformat>0</valueformat></customfield></customfields></course>`,
     'sections/section_1/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="1"><number>0</number><name>$@NULL@$</name><summary></summary><sequence>11,14</sequence><visible>1</visible></section>`,
-    'sections/section_2/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="2"><number>1</number><name>Тема 1</name><summary>&lt;p&gt;Первая тема&lt;/p&gt;</summary><sequence>12,13,15,16,17,18,19,20</sequence><visible>1</visible></section>`,
+    'sections/section_2/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="2"><number>1</number><name>Тема 1</name><summary>&lt;p&gt;Первая тема&lt;/p&gt;</summary><sequence>12,13,15,16,17,18,19,20,21</sequence><visible>1</visible></section>`,
 
     'activities/page_11/module.xml': moduleXml(11, 'page', 1),
     'activities/page_11/page.xml': wrap(
@@ -158,6 +159,19 @@ export async function mbzFixture(): Promise<Buffer> {
       40,
       '<name>Тема проекта</name><intro></intro><publish>1</publish><showresults>2</showresults><display>0</display><allowupdate>1</allowupdate><allowmultiple>0</allowmultiple><showunanswered>0</showunanswered><limitanswers>1</limitanswers><timeopen>0</timeopen><timeclose>1767225600</timeclose><showpreview>0</showpreview>' +
         '<options><option id="1"><text>Чат-бот</text><maxanswers>3</maxanswers></option><option id="2"><text>Игра</text><maxanswers>0</maxanswers></option></options>',
+    ),
+    'activities/feedback_21/module.xml': moduleXml(21, 'feedback', 2),
+    'activities/feedback_21/feedback.xml': wrap(
+      21,
+      'feedback',
+      41,
+      '<name>Отзыв</name><intro></intro><anonymous>2</anonymous><email_notification>0</email_notification><multiple_submit>0</multiple_submit><autonumbering>1</autonumbering><page_after_submit>&lt;p&gt;Спасибо!&lt;/p&gt;</page_after_submit><publish_stats>1</publish_stats><timeopen>0</timeopen><timeclose>0</timeclose><items>' +
+        '<item id="1"><name>Как вам курс?</name><label>q1</label><presentation>r&gt;&gt;&gt;&gt;&gt;Отлично|Хорошо|Плохо</presentation><typ>multichoice</typ><position>1</position><required>1</required></item>' +
+        '<item id="2"><name></name><presentation></presentation><typ>pagebreak</typ><position>2</position><required>0</required></item>' +
+        '<item id="3"><name>Оценка</name><presentation>1|10</presentation><typ>numeric</typ><position>3</position><required>0</required></item>' +
+        '<item id="4"><name>Что улучшить?</name><presentation>30|5</presentation><typ>textarea</typ><position>4</position><required>0</required></item>' +
+        '<item id="5"><name>Код</name><presentation></presentation><typ>captcha</typ><position>5</position><required>1</required></item>' +
+        '</items>',
     ),
     'activities/wiki_18/module.xml': moduleXml(18, 'wiki', 2),
     'activities/wiki_18/wiki.xml': wrap(

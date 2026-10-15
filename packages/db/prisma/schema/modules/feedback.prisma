@@ -1,0 +1,35 @@
+// mod-feedback: a survey of the teacher's own questions.
+
+model FeedbackItem {
+  id         String  @id @default(uuid(7)) @db.Uuid
+  activityId String  @db.Uuid
+  sortOrder  Int
+  /// info | text | textarea | choice | number | pagebreak
+  type       String
+  /// The question (or the text of an info item).
+  label      String  @default("")
+  required   Boolean @default(false)
+  /// choice: { choices, multiple, display }; number: { min, max }
+  options    Json    @default("{}")
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([activityId, sortOrder])
+}
+
+model FeedbackResponse {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  activityId String   @db.Uuid
+  userId     String   @db.Uuid
+  /// Given anonymously: nobody sees whose it is.
+  anonymous  Boolean
+  /// { [itemId]: text, a number, or the chosen options' texts }
+  answers    Json
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([activityId, createdAt])
+  @@index([userId])
+}

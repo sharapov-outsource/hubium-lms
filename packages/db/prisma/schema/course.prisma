@@ -167,6 +167,8 @@ model Activity {
   videoProgress      VideoProgress[]
   bookChapters       BookChapter[]
   choiceAnswers      ChoiceAnswer[]
+  feedbackItems      FeedbackItem[]
+  feedbackResponses  FeedbackResponse[]
   liveMeeting        LiveMeeting?
   liveAttendance     LiveAttendance[]
   liveRecordings     LiveRecording[]
