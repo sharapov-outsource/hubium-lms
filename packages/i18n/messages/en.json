@@ -615,6 +615,8 @@
     "enrolKey": "Enrolment key",
     "enrolled": "You are enrolled",
     "selfDisabled": "Self-enrolment is closed. Please contact the teacher.",
+    "guestNotice": "You are viewing this course as a guest.",
+    "guestCanEnrol": "You are viewing this course as a guest. Enrol to do its activities and get grades.",
     "signInToEnrol": "Sign in to enrol",
     "guest": "Guest access",
     "teachers": "Teachers",

@@ -2,12 +2,11 @@ import { getCourseAccess } from '@hubium/core';
 import { RichText } from '@hubium/editor/client';
 import { Alert, Card, CardContent } from '@hubium/ui';
 import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
-import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { courseGradient, courseImageUrl } from '@/components/course-card';
-import { selfEnrolAction } from '@/server/actions/courses';
 import { courseFieldDisplay } from '@/server/course-fields';
 import { db } from '@/server/db';
 import { getContext } from '@/server/session';
+import { openSelfEnrolment, SelfEnrolForm } from './self-enrol';
 
 export async function CourseLanding({ courseId }: { courseId: string }) {
   const ctx = await getContext();
@@ -20,7 +19,7 @@ export async function CourseLanding({ courseId }: { courseId: string }) {
   ]);
   const fields = await courseFieldDisplay(course.customFields, locale);
   const [self, teachers] = await Promise.all([
-    db.enrolmentMethod.findFirst({ where: { courseId, type: 'SELF', enabled: true } }),
+    openSelfEnrolment(courseId),
     db.user.findMany({
       where: {
         roleAssignments: { some: { contextId: courseId, role: { shortName: 'editingteacher' } } },
@@ -30,10 +29,6 @@ export async function CourseLanding({ courseId }: { courseId: string }) {
       take: 5,
     }),
   ]);
-  const open =
-    self &&
-    (!self.startsAt || self.startsAt <= new Date()) &&
-    (!self.endsAt || self.endsAt > new Date());
   const img = courseImageUrl(course.imageFileId);
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
@@ -82,14 +77,8 @@ export async function CourseLanding({ courseId }: { courseId: string }) {
       </Card>
       <Card>
         <CardContent className="grid gap-4 pt-5">
-          {open ? (
-            <ActionForm action={selfEnrolAction} className="grid gap-3">
-              <input type="hidden" name="courseId" value={courseId} />
-              {self.key ? (
-                <FormField name="key" label={t('enrolKey')} autoComplete="off" required />
-              ) : null}
-              <SubmitButton size="lg">{t('enrol')}</SubmitButton>
-            </ActionForm>
+          {self ? (
+            <SelfEnrolForm courseId={courseId} needsKey={!!self.key} />
           ) : (
             <Alert variant="warning">{t('selfDisabled')}</Alert>
           )}

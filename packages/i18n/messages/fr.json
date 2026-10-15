@@ -614,6 +614,8 @@
     "enrolKey": "Clé d’inscription",
     "enrolled": "Vous êtes inscrit",
     "selfDisabled": "L’auto-inscription est fermée. Veuillez contacter l’enseignant.",
+    "guestNotice": "Vous consultez ce cours en tant qu’invité.",
+    "guestCanEnrol": "Vous consultez ce cours en tant qu’invité. Inscrivez-vous pour faire ses activités et recevoir des notes.",
     "signInToEnrol": "Connectez-vous pour vous inscrire",
     "guest": "Accès invité",
     "teachers": "Enseignants",

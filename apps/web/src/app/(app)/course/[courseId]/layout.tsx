@@ -14,6 +14,7 @@ import { db } from '@/server/db';
 import { courseName, sectionTitle } from '@/server/page-title';
 import { getContext, getSwitchedRole, requireUser } from '@/server/session';
 import { CourseTabs } from './course-tabs';
+import { GuestNotice } from './self-enrol';
 import { ViewAsMenu } from './view-as';
 
 export async function generateMetadata({ params }: { params: Promise<{ courseId: string }> }) {
@@ -167,6 +168,7 @@ export default async function CourseLayout({
           <ViewAsMenu courseId={courseId} roles={[]} active label={t('stopViewAs')} />
         </Alert>
       ) : null}
+      {access.isGuest && access.canView && !viewingAs ? <GuestNotice courseId={courseId} /> : null}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <nav aria-label="breadcrumb" className="mb-1 text-xs text-muted-foreground">

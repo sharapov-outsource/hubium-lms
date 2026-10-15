@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { newCourse, openSelfEnrolment } from './courses';
 import { deleteCourse, sql } from './db';
 import {
   ADMIN,
@@ -6,6 +7,7 @@ import {
   DEMO_PASSWORD,
   expectAccessible,
   login,
+  logout,
   pickDateTime,
 } from './helpers';
 
@@ -358,5 +360,34 @@ test('custom course fields are filled in and filter the catalog', async ({ page 
   } finally {
     if (courseId) await deleteCourse(courseId);
     await sql(`DELETE FROM "CourseField" WHERE "shortName" = $1`, [short]);
+  }
+});
+
+test('a guest sees the course and enrols from the notice over it', async ({ page }) => {
+  let courseId: string | undefined;
+  try {
+    await login(page, ADMIN.login, ADMIN.password);
+    courseId = await newCourse(page, `Гости ${stamp}`, `GUEST-${stamp}`);
+    await openSelfEnrolment(page, courseId);
+    await sql(`UPDATE "Course" SET "guestAccess" = true WHERE id = $1`, [courseId]);
+
+    await logout(page);
+    await login(page, 'student3', DEMO_PASSWORD);
+    await page.goto(`/course/${courseId}`);
+    // the course itself, not its description page, with the enrolment over it
+    await expect(page.getByRole('heading', { name: `Гости ${stamp}` })).toBeVisible();
+    const notice = page.getByText(/^Вы просматриваете курс как гость\. Запишитесь/);
+    await expect(notice).toBeVisible();
+    await expectAccessible(page);
+    await page.getByRole('button', { name: 'Записаться' }).click();
+    await expect(notice).toHaveCount(0);
+    const [enrolled] = await sql<{ n: number }>(
+      `SELECT count(*)::int AS n FROM "Enrolment" e JOIN "User" u ON u.id = e."userId"
+        WHERE e."courseId" = $1 AND u.username = 'student3'`,
+      [courseId],
+    );
+    expect(enrolled!.n).toBe(1);
+  } finally {
+    if (courseId) await deleteCourse(courseId);
   }
 });

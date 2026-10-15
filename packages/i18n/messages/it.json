@@ -614,6 +614,8 @@
     "enrolKey": "Chiave d’iscrizione",
     "enrolled": "Iscrizione effettuata",
     "selfDisabled": "L’iscrizione spontanea è chiusa. Contattare il docente.",
+    "guestNotice": "Stai visualizzando questo corso come ospite.",
+    "guestCanEnrol": "Stai visualizzando questo corso come ospite. Iscriviti per svolgere le attività e ricevere valutazioni.",
     "signInToEnrol": "Accedi per l’iscrizione",
     "guest": "Accesso ospite",
     "teachers": "Docenti",

@@ -614,6 +614,8 @@
     "enrolKey": "Einschreibeschlüssel",
     "enrolled": "Sie sind eingeschrieben",
     "selfDisabled": "Die Selbsteinschreibung ist geschlossen. Bitte wenden Sie sich an die Trainer/innen.",
+    "guestNotice": "Sie sehen diesen Kurs als Gast.",
+    "guestCanEnrol": "Sie sehen diesen Kurs als Gast. Schreiben Sie sich ein, um die Aktivitäten zu bearbeiten und Bewertungen zu erhalten.",
     "signInToEnrol": "Zum Einschreiben anmelden",
     "guest": "Gastzugang",
     "teachers": "Trainer/innen",
