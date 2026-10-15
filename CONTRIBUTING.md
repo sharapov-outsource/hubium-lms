@@ -10,7 +10,7 @@ Thanks for helping! A few rules keep the codebase healthy.
    ```bash
    pnpm lint && pnpm typecheck && pnpm test && pnpm depcruise && pnpm licenses:check
    ```
-4. For UI changes, run the e2e suite against a running app (`pnpm --filter @hubium/e2e e2e`) and check light/dark themes, ru/en and a 375 px viewport.
+4. For UI changes, run the e2e suite against a running app (`pnpm --filter @hubium/e2e e2e`) and check light/dark themes, ru/en and a 375 px viewport. The scenarios change the database of the app they test (users, settings): to keep the development database as it is, run the app on a database of its own (`createdb hubium_e2e`, `DATABASE_URL=…/hubium_e2e pnpm db:migrate && pnpm db:seed --profile demo`, the app started with that `DATABASE_URL`) and the suite with `E2E_DATABASE_URL` set to it.
 5. For changes to `docker/`, `deploy/`, `install-hubium.sh`, file uploads or the video pipeline, run the production stack check (CI runs it after installing with `install-hubium.sh` in Docker and natively). It needs ffmpeg and Google Chrome:
    ```bash
    SEED_PROFILE=demo SEED_ADMIN_PASSWORD='Admin12345!' APP_SECRET=$(openssl rand -base64 32) \

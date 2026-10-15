@@ -71,14 +71,26 @@ test.describe
       await expect(pb.getByText('Иван Петров печатает…')).toBeVisible();
       await pa.getByRole('textbox', { name: 'Напишите сообщение…' }).fill('');
 
-      // latency: from the send click to the message on the other screen
+      // latency: from sending to the message on the other screen, timed by the pages
+      // themselves rather than by Playwright's polling
       const text = `Пинг ${Date.now()}`;
       await pa.getByRole('textbox', { name: 'Напишите сообщение…' }).fill(text);
-      const started = Date.now();
+      await pb.evaluate((t) => {
+        (window as unknown as { seen: Promise<number> }).seen = new Promise((done) => {
+          const check = () => document.body.innerText.includes(t) && done(Date.now());
+          new MutationObserver(check).observe(document.body, {
+            subtree: true,
+            childList: true,
+            characterData: true,
+          });
+          check();
+        });
+      }, text);
+      const started = await pa.evaluate(() => Date.now());
       await pa.getByRole('textbox', { name: 'Напишите сообщение…' }).press('Enter');
       await expect(thread(pb).getByText(text)).toBeVisible({ timeout: 5000 });
-      const latency = Date.now() - started;
-      expect(latency).toBeLessThan(1000);
+      const seen = await pb.evaluate(() => (window as unknown as { seen: Promise<number> }).seen);
+      expect(seen - started).toBeLessThan(1000);
 
       // reply comes back live as well
       await pb.getByRole('textbox', { name: 'Напишите сообщение…' }).fill('Получил!');

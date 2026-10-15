@@ -3,6 +3,9 @@ import { defineConfig, devices } from '@playwright/test';
 import { config as loadEnv } from 'dotenv';
 
 loadEnv({ path: path.resolve(import.meta.dirname, '../.env'), quiet: true });
+// The scenarios read and change the database of the app they test: with E2E_DATABASE_URL
+// that app runs on a database of its own rather than the development one (CONTRIBUTING.md).
+if (process.env.E2E_DATABASE_URL) process.env.DATABASE_URL = process.env.E2E_DATABASE_URL;
 
 // Playwright's own Chromium (`pnpm --filter @hubium/e2e exec playwright install chromium`)
 // unless PW_CHROMIUM_PATH points at another build.

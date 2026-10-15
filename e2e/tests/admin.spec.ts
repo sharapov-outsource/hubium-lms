@@ -155,18 +155,21 @@ test('role matrix change applies and permission checker explains it', async ({ p
 });
 
 test('branding: low-contrast colour is adjusted and applied', async ({ page }) => {
-  await login(page, ADMIN.login, ADMIN.password);
-  await page.goto('/admin/settings/branding');
-  await page.locator('#accent').fill('#facc15');
-  await expect(page.getByText(/скорректирован|adjusted/)).toBeVisible();
-  await page.getByRole('button', { name: /Сохранить|Save/ }).click();
-  await page.waitForLoadState('networkidle');
-  await page.reload();
-  const css = await page.locator('#hubium-brand').innerHTML();
-  const light = css.slice(0, css.indexOf('.dark'));
-  expect(light).toContain('--accent:#');
-  expect(light).not.toContain('--accent:#facc15');
-  await setSetting('branding.accent', '#4f46e5');
+  try {
+    await login(page, ADMIN.login, ADMIN.password);
+    await page.goto('/admin/settings/branding');
+    await page.locator('#accent').fill('#facc15');
+    await expect(page.getByText(/скорректирован|adjusted/)).toBeVisible();
+    await page.getByRole('button', { name: /Сохранить|Save/ }).click();
+    await page.waitForLoadState('networkidle');
+    await page.reload();
+    const css = await page.locator('#hubium-brand').innerHTML();
+    const light = css.slice(0, css.indexOf('.dark'));
+    expect(light).toContain('--accent:#');
+    expect(light).not.toContain('--accent:#facc15');
+  } finally {
+    await setSetting('branding.accent', '#4f46e5');
+  }
 });
 
 test('manager sees users admin but not site settings', async ({ page }) => {

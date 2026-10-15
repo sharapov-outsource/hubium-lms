@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import { setSetting, sql } from './db';
 import { ADMIN, DEMO_PASSWORD, expectAccessible, login } from './helpers';
 import { firstLink, waitForMail } from './mail';
@@ -7,6 +7,15 @@ import { totp } from './totp';
 const stamp = Date.now();
 
 test('self-registration sends a verification email that signs the user in', async ({ page }) => {
+  try {
+    await register(page);
+  } finally {
+    // off again, as a site starts: later scenarios expect no sign-up link
+    await setSetting('registration.enabled', false);
+  }
+});
+
+async function register(page: Page) {
   // Enable registration through the admin UI.
   await login(page, ADMIN.login, ADMIN.password);
   await page.goto('/admin/settings/registration');
@@ -30,7 +39,7 @@ test('self-registration sends a verification email that signs the user in', asyn
   await page.goto(firstLink(mail.Text));
   await page.waitForURL(/\/dashboard/);
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Регина');
-});
+}
 
 test('password reset via email', async ({ page }) => {
   const after = new Date(Date.now() - 1000);
