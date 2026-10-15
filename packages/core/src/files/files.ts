@@ -165,7 +165,10 @@ async function storeBlob(
   });
 }
 
-export async function storeFile(db: Tx, input: StoreFileInput): Promise<File> {
+type FileCheck = Pick<StoreFileInput, 'name' | 'mimeType' | 'data' | 'maxBytes' | 'allowedTypes'>;
+
+/** The size and type checks of an upload: a ValidationError when it does not pass. */
+function checkLimits(input: FileCheck) {
   const name = sanitizeFilename(input.name);
   if (input.maxBytes && input.data.length > input.maxBytes) {
     throw new ValidationError({
@@ -177,6 +180,22 @@ export async function storeFile(db: Tx, input: StoreFileInput): Promise<File> {
     throw new ValidationError({ file: [`File type ${mimeType} is not allowed`] });
   }
   const sha256 = createHash('sha256').update(input.data).digest('hex');
+  return { name, mimeType, sha256, size: input.data.length };
+}
+
+/**
+ * Everything storeFile checks of an upload (size, type, malware), done before what the file
+ * belongs to is made: a course with its cover, an activity with its files. The content is
+ * stored too, so storeFile afterwards finds it scanned; were the rest to fail, the unused
+ * content goes with the next garbage collection.
+ */
+export async function checkFile(db: Tx, input: FileCheck): Promise<void> {
+  const meta = checkLimits(input);
+  await storeBlob(db, { data: input.data }, meta);
+}
+
+export async function storeFile(db: Tx, input: StoreFileInput): Promise<File> {
+  const { name, mimeType, sha256 } = checkLimits(input);
   const blob = await storeBlob(
     db,
     { data: input.data },

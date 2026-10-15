@@ -57,8 +57,12 @@ export async function requireUser(): Promise<CurrentUser> {
   return user;
 }
 
-/** Request context for core services, built once per request. */
-export const getContext = cache(async (): Promise<RequestContext> => {
+/**
+ * A request context built now, with the permissions the person has now: for the step after
+ * an operation that gave them a role (the author of a new course), which the context of the
+ * request, built before it, does not know.
+ */
+export async function freshContext(): Promise<RequestContext> {
   const user = await getCurrentUser();
   const h = await headers();
   const ip = clientIp(h.get('x-forwarded-for'));
@@ -91,7 +95,10 @@ export const getContext = cache(async (): Promise<RequestContext> => {
     ip,
     origin: 'WEB',
   };
-});
+}
+
+/** Request context for core services, built once per request. */
+export const getContext = cache(freshContext);
 
 export const VIEW_AS_COOKIE = 'hubium-viewas';
 

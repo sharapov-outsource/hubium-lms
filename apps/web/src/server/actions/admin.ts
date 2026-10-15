@@ -329,8 +329,9 @@ export async function saveBrandingAction(fd: FormData) {
     const accent = String(fd.get('accent') ?? '');
     const values: Record<string, unknown> = { 'branding.accent': accent };
     const logo = fd.get('logo');
+    let file: { id: string } | null = null;
     if (logo instanceof File && logo.size > 0) {
-      const file = await storeFile(db, {
+      file = await storeFile(db, {
         contextId: BRANDING_CONTEXT,
         component: 'site',
         area: 'branding',
@@ -343,8 +344,25 @@ export async function saveBrandingAction(fd: FormData) {
       });
       values['branding.logoFileId'] = file.id;
     }
-    if (fd.get('removeLogo') === 'on') values['branding.logoFileId'] = null;
-    await setSettings(db, values, ctx.perm.userId);
+    const remove = fd.get('removeLogo') === 'on';
+    if (remove) values['branding.logoFileId'] = null;
+    try {
+      await setSettings(db, values, ctx.perm.userId);
+    } catch (e) {
+      // settings refused: the logo uploaded with them is not kept either
+      if (file) await db.file.delete({ where: { id: file.id } });
+      throw e;
+    }
+    // the logo replaced or removed goes; its content with the next garbage collection
+    if (file || remove)
+      await db.file.deleteMany({
+        where: {
+          contextId: BRANDING_CONTEXT,
+          component: 'site',
+          area: 'branding',
+          ...(file ? { id: { not: file.id } } : {}),
+        },
+      });
     revalidatePath('/', 'layout');
     const p = generateAccentPalette(accent);
     return {

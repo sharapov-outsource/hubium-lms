@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import {
   canReadFile,
+  checkFile,
   copyFiles,
   garbageCollectBlobs,
   isInlineSafe,
@@ -157,6 +158,28 @@ describe('file service', () => {
         allowedTypes: /^image\//,
       }),
     ).rejects.toMatchObject({ fieldErrors: { file: [expect.stringMatching(/not allowed/)] } });
+  });
+
+  it('checks an upload before what it belongs to is made, and stores it once', async () => {
+    await expect(
+      checkFile(t.db, { name: 'big.png', data: Buffer.alloc(2048), maxBytes: 1024 }),
+    ).rejects.toMatchObject({ fieldErrors: { file: [expect.stringMatching(/larger/)] } });
+    await expect(
+      checkFile(t.db, { name: 'a.txt', data: Buffer.from('hi'), allowedTypes: /^image\// }),
+    ).rejects.toMatchObject({ fieldErrors: { file: [expect.stringMatching(/not allowed/)] } });
+    const data = Buffer.concat([PNG, Buffer.from('checked first')]);
+    await checkFile(t.db, { name: 'cover.png', data, allowedTypes: /^image\// });
+    const blobs = await t.db.fileBlob.count();
+    const f = await storeFile(t.db, {
+      contextId: SYSTEM_CONTEXT_ID,
+      component: 'site',
+      area: 'checked',
+      name: 'cover.png',
+      data,
+    });
+    // the content checked is the content stored: no second copy
+    expect(await t.db.fileBlob.count()).toBe(blobs);
+    expect(f.mimeType).toBe('image/png');
   });
 
   it('replace swaps the file at the same address', async () => {

@@ -39,7 +39,7 @@ import {
   unlinkPlan,
   ValidationError,
 } from '@hubium/core';
-import { storeFile } from '@hubium/core/files/files';
+import { checkFile, storeFile } from '@hubium/core/files/files';
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { createTranslator } from '@hubium/i18n/packs';
 import { revalidatePath } from 'next/cache';
@@ -524,6 +524,16 @@ export async function saveUserEvidenceAction(fd: FormData) {
     const files = fd.getAll('files').filter((f): f is File => f instanceof File && f.size > 0);
     if (files.some((f) => f.size > EVIDENCE_MAX_BYTES))
       throw new ValidationError({ files: ['A file is larger than 20 MB'] });
+    // checked (malware too) before the evidence is saved, or a refused file would leave it
+    // saved without its files, and the next try would save it twice
+    const uploads = await Promise.all(
+      files.map(async (f) => ({
+        name: f.name,
+        mimeType: f.type,
+        data: Buffer.from(await f.arrayBuffer()),
+      })),
+    );
+    for (const u of uploads) await checkFile(db, u);
     const r = await saveUserEvidence.run(ctx, {
       id: v.id || undefined,
       userId: v.userId || undefined,
@@ -531,15 +541,13 @@ export async function saveUserEvidenceAction(fd: FormData) {
       description: v.description ?? '',
       url: v.url ?? '',
     });
-    for (const f of files)
+    for (const u of uploads)
       await storeFile(db, {
         contextId: SYSTEM_CONTEXT_ID,
         component: USER_EVIDENCE_COMPONENT,
         area: 'userevidence',
         itemId: r.id,
-        name: f.name,
-        mimeType: f.type,
-        data: Buffer.from(await f.arrayBuffer()),
+        ...u,
         uploadedById: ctx.perm.userId ?? null,
       });
     for (const competencyId of ids(v.competencyIds))

@@ -31,6 +31,7 @@ import {
   overrideCompletion,
   profileValuesFromForm,
   purgeActivity,
+  type RequestContext,
   removeEnrolmentMethod,
   resetCourse,
   resolveLogins,
@@ -58,7 +59,7 @@ import {
   updateSelfEnrolment,
   ValidationError,
 } from '@hubium/core';
-import { storeFile } from '@hubium/core/files/files';
+import { checkFile, storeFile } from '@hubium/core/files/files';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -66,7 +67,7 @@ import { safePath } from '@/lib/safe-path';
 import { formToObject, runAction } from '../action';
 import { courseFieldViews } from '../course-fields';
 import { db } from '../db';
-import { getContext, VIEW_AS_COOKIE } from '../session';
+import { freshContext, getContext, VIEW_AS_COOKIE } from '../session';
 
 const bool = (v: FormDataEntryValue | null) => v === 'on' || v === 'true' || v === '1';
 
@@ -91,20 +92,45 @@ function courseFormValues(fd: FormData) {
   };
 }
 
-async function saveCourseImage(courseId: string, fd: FormData) {
+const COVER = { maxBytes: 5 * 1024 * 1024, allowedTypes: /^image\/(png|jpeg|webp|gif)$/ };
+
+/** Checks a file of the form, its refusal shown at the form's own input. */
+async function checkFormFile(field: string, file: Parameters<typeof checkFile>[1]) {
+  try {
+    await checkFile(db, file);
+  } catch (e) {
+    if (e instanceof ValidationError)
+      throw new ValidationError({ [field]: Object.values(e.fieldErrors ?? {}).flat() });
+    throw e;
+  }
+}
+
+/** The cover from the form, checked (size, type, malware) before the course is saved. */
+async function courseImage(fd: FormData) {
   const image = fd.get('image');
-  if (!(image instanceof File) || image.size === 0) return;
-  const ctx = await getContext();
+  if (!(image instanceof File) || image.size === 0) return null;
+  const file = {
+    name: image.name,
+    mimeType: image.type,
+    data: Buffer.from(await image.arrayBuffer()),
+  };
+  await checkFormFile('image', { ...file, ...COVER });
+  return file;
+}
+
+async function saveCourseImage(
+  ctx: RequestContext,
+  courseId: string,
+  image: Awaited<ReturnType<typeof courseImage>>,
+) {
+  if (!image) return;
   const f = await storeFile(db, {
     contextId: courseId,
     component: 'course',
     area: 'image',
-    name: image.name,
-    mimeType: image.type,
-    data: Buffer.from(await image.arrayBuffer()),
+    ...image,
+    ...COVER,
     uploadedById: ctx.perm.userId,
-    maxBytes: 5 * 1024 * 1024,
-    allowedTypes: /^image\/(png|jpeg|webp|gif)$/,
     replace: true,
   });
   await setCourseImage(ctx, courseId, f.id);
@@ -121,11 +147,13 @@ async function customFieldValues(fd: FormData, contextId: string) {
 export async function createCourseAction(fd: FormData) {
   const res = await runAction(async () => {
     const values = courseFormValues(fd);
+    const image = await courseImage(fd);
     const r = await createCourse.run(await getContext(), {
       ...values,
       customFields: await customFieldValues(fd, values.categoryId ?? ''),
     });
-    await saveCourseImage(r.id, fd);
+    // the author's role in the new course is not in the request's permissions yet
+    await saveCourseImage(await freshContext(), r.id, image);
     return r;
   });
   if (res.ok) redirect(`/course/${res.data.id}?edit=1`);
@@ -135,12 +163,13 @@ export async function createCourseAction(fd: FormData) {
 export async function updateCourseAction(fd: FormData) {
   return runAction(async () => {
     const id = String(fd.get('id'));
+    const image = await courseImage(fd);
     const r = await updateCourse.run(await getContext(), {
       id,
       ...courseFormValues(fd),
       customFields: await customFieldValues(fd, id),
     });
-    await saveCourseImage(id, fd);
+    await saveCourseImage(await getContext(), id, image);
     if (bool(fd.get('removeImage'))) await setCourseImage(await getContext(), id, null);
     revalidatePath(`/course/${id}`, 'layout');
     return r;
@@ -245,6 +274,21 @@ function collectCompletionRules(fd: FormData) {
   return { view: bool(fd.get('completionView')), module };
 }
 
+const ACTIVITY_FILE_BYTES = 200 * 1024 * 1024;
+
+/** The form's files, checked (size, type, malware) before the activity is saved: a file the
+ *  check refuses leaves no activity without it behind, to be made twice on the next try. */
+async function checkActivityFiles(fd: FormData) {
+  for (const [k, v] of fd.entries())
+    if (k.startsWith('files.') && k !== 'files.remove' && v instanceof File && v.size > 0)
+      await checkFormFile(k, {
+        name: v.name,
+        mimeType: v.type,
+        data: Buffer.from(await v.arrayBuffer()),
+        maxBytes: ACTIVITY_FILE_BYTES,
+      });
+}
+
 async function saveActivityFiles(activityId: string, fd: FormData) {
   const ctx = await getContext();
   const mctx = buildModuleCtx(ctx);
@@ -257,7 +301,7 @@ async function saveActivityFiles(activityId: string, fd: FormData) {
       activityId,
       area,
       { name: v.name, mimeType: v.type, data: Buffer.from(await v.arrayBuffer()) },
-      { maxBytes: 200 * 1024 * 1024 },
+      { maxBytes: ACTIVITY_FILE_BYTES },
     );
   }
   if (remove.length) {
@@ -294,6 +338,7 @@ export async function createActivityAction(fd: FormData) {
   const v = formToObject(fd);
   const res = await runAction(async () => {
     const ctx = await getContext();
+    await checkActivityFiles(fd);
     const r = await createActivity.run(ctx, {
       courseId: v.courseId,
       sectionId: v.sectionId,
@@ -310,6 +355,7 @@ export async function createActivityAction(fd: FormData) {
 export async function updateActivityAction(fd: FormData) {
   const v = formToObject(fd);
   const res = await runAction(async () => {
+    await checkActivityFiles(fd);
     const r = await updateActivity.run(await getContext(), { id: v.id, ...activityValues(fd) });
     await saveActivityFiles(r.id, fd);
     return r;

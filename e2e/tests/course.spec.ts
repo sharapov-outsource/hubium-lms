@@ -53,9 +53,32 @@ test.describe
       await page.locator('#f-fullName').fill(`E2E курс ${stamp}`);
       await page.locator('#f-shortName').fill(shortName);
       await page.locator('#f-sections').fill('2');
+      // a cover over 5 MB is refused before any course is made
+      const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
+      await page.locator('#f-image').setInputFiles({
+        name: 'big.png',
+        mimeType: 'image/png',
+        buffer: Buffer.concat([png, Buffer.alloc(6 * 1024 * 1024)]),
+      });
+      await page.getByRole('button', { name: /Создать|Create/ }).click();
+      await expect(page.getByText(/File is larger than/).first()).toBeVisible();
+      expect(await sql(`SELECT 1 FROM "Course" WHERE "shortName" = $1`, [shortName])).toHaveLength(
+        0,
+      );
+      // with a cover that fits, the author (a course creator) gets the course and its cover
+      await page.locator('#f-image').setInputFiles({
+        name: 'cover.png',
+        mimeType: 'image/png',
+        buffer: Buffer.concat([png, Buffer.from('cover')]),
+      });
       await page.getByRole('button', { name: /Создать|Create/ }).click();
       await page.waitForURL(/\/course\/[0-9a-f-]{36}\?edit=1/);
       courseUrl = new URL(page.url()).pathname;
+      const [made] = await sql<{ imageFileId: string | null }>(
+        `SELECT "imageFileId" FROM "Course" WHERE "shortName" = $1`,
+        [shortName],
+      );
+      expect(made?.imageFileId).toBeTruthy();
       await expectAccessible(page);
 
       // add a page to section 1
