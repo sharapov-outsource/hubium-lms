@@ -73,35 +73,39 @@ export default async function SecuritySettings({
           <CardTitle>{t('changePassword')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <ActionForm
-            action={changePasswordAction}
-            success={t('passwordChanged')}
-            resetOnSuccess
-            className="grid max-w-sm gap-4"
-          >
-            <FormField
-              name="currentPassword"
-              type="password"
-              label={ta('currentPassword')}
-              autoComplete="current-password"
-            />
-            <FormField
-              name="newPassword"
-              type="password"
-              label={ta('newPassword')}
-              hint={passwordHint(ta, passwordPolicy(settings))}
-              autoComplete="new-password"
-            />
-            <FormField
-              name="newPassword2"
-              type="password"
-              label={ta('repeatPassword')}
-              autoComplete="new-password"
-            />
-            <div>
-              <SubmitButton>{tc('save')}</SubmitButton>
-            </div>
-          </ActionForm>
+          {hasPassword ? (
+            <ActionForm
+              action={changePasswordAction}
+              success={t('passwordChanged')}
+              resetOnSuccess
+              className="grid max-w-sm gap-4"
+            >
+              <FormField
+                name="currentPassword"
+                type="password"
+                label={ta('currentPassword')}
+                autoComplete="current-password"
+              />
+              <FormField
+                name="newPassword"
+                type="password"
+                label={ta('newPassword')}
+                hint={passwordHint(ta, passwordPolicy(settings))}
+                autoComplete="new-password"
+              />
+              <FormField
+                name="newPassword2"
+                type="password"
+                label={ta('repeatPassword')}
+                autoComplete="new-password"
+              />
+              <div>
+                <SubmitButton>{tc('save')}</SubmitButton>
+              </div>
+            </ActionForm>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t('noLocalPassword')}</p>
+          )}
         </CardContent>
       </Card>
       <Card>

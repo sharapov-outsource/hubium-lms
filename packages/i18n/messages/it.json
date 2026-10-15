@@ -248,7 +248,8 @@
       "phrase2": "Ripeti la frase",
       "add": "Aggiungi frase",
       "added": "Frase aggiunta"
-    }
+    },
+    "noLocalPassword": "Accedi tramite single sign-on, un account esterno o la directory della tua organizzazione, quindi non hai una password su questo sito: cambiala dove accedi."
   },
   "admin": {
     "title": "Amministrazione",

@@ -248,7 +248,8 @@
       "phrase2": "Satz wiederholen",
       "add": "Satz hinzufügen",
       "added": "Satz hinzugefügt"
-    }
+    },
+    "noLocalPassword": "Sie melden sich über Single Sign-on, ein externes Konto oder das Verzeichnis Ihrer Organisation an und haben daher kein Passwort auf dieser Website: Ändern Sie es dort, wo Sie sich anmelden."
   },
   "admin": {
     "title": "Website-Administration",

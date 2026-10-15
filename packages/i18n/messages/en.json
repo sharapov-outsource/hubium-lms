@@ -249,7 +249,8 @@
       "phrase2": "Repeat the phrase",
       "add": "Add phrase",
       "added": "Phrase added"
-    }
+    },
+    "noLocalPassword": "You sign in through single sign-on, an external account or your organisation’s directory, so you have no password on this site: change it where you sign in."
   },
   "admin": {
     "title": "Administration",

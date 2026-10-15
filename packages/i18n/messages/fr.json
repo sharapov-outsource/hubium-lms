@@ -248,7 +248,8 @@
       "phrase2": "Répétez la phrase",
       "add": "Ajouter la phrase",
       "added": "Phrase ajoutée"
-    }
+    },
+    "noLocalPassword": "Vous vous connectez par authentification unique, un compte externe ou l’annuaire de votre organisation : vous n’avez donc pas de mot de passe sur ce site, modifiez-le là où vous vous connectez."
   },
   "admin": {
     "title": "Administration",
