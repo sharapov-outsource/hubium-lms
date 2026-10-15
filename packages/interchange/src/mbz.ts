@@ -44,7 +44,13 @@ import {
   gunzipLimited,
   unzipLimited,
 } from './archive.ts';
-import { addMissingSections, discardCourse, freeShortName, restoreCompetencies } from './hubium.ts';
+import {
+  addMissingSections,
+  discardCourse,
+  freeShortName,
+  type NewCourseTarget,
+  restoreCompetencies,
+} from './hubium.ts';
 import {
   answerFormat,
   datasetFromOptions,
@@ -1044,7 +1050,7 @@ const combinedFeedback = (o: Node) => ({
 export async function importMbz(
   ctx: RequestContext,
   archive: Archive,
-  target: { categoryId: string; fullName?: string; shortName?: string },
+  target: NewCourseTarget,
 ): Promise<MbzReport> {
   const warnings: string[] = [];
   const t = createTranslator(ctx.locale);
@@ -1108,9 +1114,14 @@ export async function importMbz(
     sections: Math.min(52, Math.max(0, topSections.length - 1)),
     startDate: date(courseXml.startdate) ?? undefined,
     endDate: date(courseXml.enddate) ?? undefined,
+    // hidden until the import is complete
+    visible: false,
   });
   try {
-    return await fillCourse(courseId);
+    await target.onCreated?.(courseId);
+    const report = await fillCourse(courseId);
+    await ctx.db.course.update({ where: { id: courseId }, data: { visible: true } });
+    return report;
   } catch (e) {
     // a failed import leaves no half-built course behind
     await discardCourse(ctx, courseId);

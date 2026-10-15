@@ -126,9 +126,14 @@ test.describe
       test.setTimeout(180_000);
       await login(page, ADMIN.login, ADMIN.password);
       await page.goto(`${courseUrl}/settings`);
+      await page.getByRole('button', { name: 'Создать резервную копию' }).click();
+      await expect(page.getByText('Резервная копия готова')).toBeVisible({ timeout: 120_000 });
       const [download] = await Promise.all([
         page.waitForEvent('download'),
-        page.getByRole('link', { name: 'Скачать резервную копию' }).click(),
+        page
+          .getByRole('link', { name: /\.hubium$/ })
+          .first()
+          .click(),
       ]);
       const file = info.outputPath(download.suggestedFilename());
       await download.saveAs(file);

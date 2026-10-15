@@ -5,6 +5,7 @@ import {
   getCourseAccess,
   resolveFeature,
 } from '@hubium/core';
+import { BACKUPS_KEPT, courseBackups } from '@hubium/interchange';
 import { Button, Card, CardContent } from '@hubium/ui';
 import Link from 'next/link';
 import { forbidden } from 'next/navigation';
@@ -43,6 +44,20 @@ export default async function CourseSettingsPage({
   const canReset = await ctx.perm.can('course:reset', courseId);
   const canImport = await ctx.perm.can('restore:course', courseId);
   const restoreCats = canBackup ? await categoriesWhereCan(ctx, 'restore:course') : [];
+  const backups = canBackup ? await courseBackups(ctx, courseId) : [];
+  // a backup this user started that is still being made: the card follows it
+  const running =
+    canBackup && ctx.actor.kind === 'user'
+      ? await ctx.db.backgroundTask.findFirst({
+          where: {
+            type: 'BACKUP',
+            contextId: courseId,
+            createdById: ctx.actor.userId,
+            status: { in: ['QUEUED', 'RUNNING'] },
+          },
+          select: { id: true },
+        })
+      : null;
   const dupCats = restoreCats.filter((x) => cats.some((y) => y.id === x.id));
   // AI features enabled site-wide can be switched off per course.
   const siteAi: (typeof AI_FEATURES)[number][] = [];
@@ -97,6 +112,9 @@ export default async function CourseSettingsPage({
           categoryId={c.categoryId}
           categories={dupCats.map((x) => ({ id: x.id, name: x.name, depth: x.depth }))}
           canDuplicate={dupCats.length > 0}
+          backups={backups}
+          kept={BACKUPS_KEPT}
+          runningTaskId={running?.id ?? null}
         />
       ) : null}
       {canImport ? (

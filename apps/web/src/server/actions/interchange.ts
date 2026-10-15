@@ -2,9 +2,11 @@
 
 import { ForbiddenError, NotFoundError, ValidationError } from '@hubium/core';
 import {
+  deleteBackup,
   duplicateCourse,
   importActivities,
   type RestoreReport,
+  startBackup,
   startImport,
 } from '@hubium/interchange';
 import { revalidatePath } from 'next/cache';
@@ -54,6 +56,28 @@ export async function startImportAction(input: {
     await ctx.perm.require(cap, input.categoryId);
     return { taskId: await startImport(ctx.db, ctx.actor.userId, input) };
   });
+}
+
+/** Starts a backup of the course in the background (see backupStatusAction). */
+export async function startBackupAction(courseId: string) {
+  return runAction(async () => ({ taskId: await startBackup(await getContext(), courseId) }));
+}
+
+export async function backupStatusAction(taskId: string) {
+  return runAction(async () => {
+    const ctx = await getContext();
+    if (ctx.actor.kind !== 'user') throw new ForbiddenError();
+    const task = await ctx.db.backgroundTask.findFirst({
+      where: { id: taskId, type: 'BACKUP', createdById: ctx.actor.userId },
+      select: { status: true, progress: true, error: true },
+    });
+    if (!task) throw new NotFoundError();
+    return task;
+  });
+}
+
+export async function deleteBackupAction(fileId: string) {
+  return runAction(async () => deleteBackup(await getContext(), fileId));
 }
 
 export async function importStatusAction(taskId: string) {

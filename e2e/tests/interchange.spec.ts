@@ -2,8 +2,9 @@ import { expect, test } from '@playwright/test';
 import { deleteCourse, sql } from './db';
 import { ADMIN, expectAccessible, login } from './helpers';
 
-// The admin downloads a course backup, restores it through the import page (the worker
-// does the restore), duplicates the course, and round-trips the bank via Moodle XML.
+// The admin backs a course up (the worker writes the archive), downloads it, restores it
+// through the import page (the worker does the restore), duplicates the course, and
+// round-trips the bank via Moodle XML.
 
 // Courses created here are removed again, so the demo data does not grow with every run.
 const created: string[] = [];
@@ -17,13 +18,23 @@ test('course backup, restore, duplicate and Moodle XML', async ({ page }, info) 
   await login(page, ADMIN.login, ADMIN.password);
   await page.goto(`/course/${c!.id}/settings`);
   await expect(page.getByRole('heading', { name: 'Резервная копия и копирование' })).toBeVisible();
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByRole('link', { name: 'Скачать резервную копию' }).click(),
-  ]);
-  expect(download.suggestedFilename()).toMatch(/^DEMO-PY-\d{8}\.hubium$/);
+  const before = await page.getByRole('link', { name: /^DEMO-PY-.*\.hubium$/ }).count();
+  await page.getByRole('button', { name: 'Создать резервную копию' }).click();
+  await expect(page.getByText('Резервная копия готова')).toBeVisible({ timeout: 60_000 });
+  // the newest backup comes first in the course's list
+  const link = page.getByRole('link', { name: /^DEMO-PY-\d{8}-\d{4}\.hubium$/ }).first();
+  await expect(page.getByRole('link', { name: /^DEMO-PY-.*\.hubium$/ })).toHaveCount(
+    Math.min(3, before + 1),
+  );
+  const [download] = await Promise.all([page.waitForEvent('download'), link.click()]);
+  expect(download.suggestedFilename()).toMatch(/^DEMO-PY-\d{8}-\d{4}\.hubium$/);
   const file = info.outputPath(download.suggestedFilename());
   await download.saveAs(file);
+  // it is deleted from the list again
+  const name = download.suggestedFilename();
+  await page.getByRole('button', { name: `Удалить ${name}` }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Подтвердить' }).click();
+  await expect(page.getByRole('link', { name })).toHaveCount(0);
 
   await page.goto('/course/import');
   await expect(page.getByRole('heading', { name: 'Импорт курса' })).toBeVisible();

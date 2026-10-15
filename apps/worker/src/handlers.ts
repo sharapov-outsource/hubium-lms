@@ -42,7 +42,13 @@ import {
 } from '@hubium/core/notifications/notifications';
 import { runDueSchedules } from '@hubium/core/reports/reports';
 import type { Db } from '@hubium/db';
-import { IMPORT_JOB, runImportTask } from '@hubium/interchange';
+import {
+  BACKUP_JOB,
+  failLostTasks,
+  IMPORT_JOB,
+  runBackupTask,
+  runImportTask,
+} from '@hubium/interchange';
 
 export interface JobHandlerDef {
   name: string;
@@ -212,6 +218,19 @@ export const coreHandlers: JobHandlerDef[] = [
     async handler(data: { taskId: string }, { db }) {
       const report = await runImportTask(db, data.taskId);
       return { ok: report !== null };
+    },
+  },
+  {
+    name: BACKUP_JOB,
+    async handler(data: { taskId: string }, { db }) {
+      return { fileId: await runBackupTask(db, data.taskId) };
+    },
+  },
+  {
+    name: 'interchange.lost',
+    cron: CORE_SCHEDULE['interchange.lost'],
+    async handler(_data: never, { db }) {
+      return failLostTasks(db);
     },
   },
   {

@@ -299,10 +299,12 @@ export async function writeCourseArchive(
   ctx: RequestContext,
   courseId: string,
   path: string,
+  /** Told after each file how many bytes of the files' content are in. */
+  progress?: (done: number, total: number) => Promise<unknown>,
 ): Promise<void> {
   await ctx.perm.require('backup:create', courseId);
   const parts = await collectBackup(ctx, courseId, {});
-  await pipeline(Readable.from(archiveChunks(parts)), createWriteStream(path));
+  await pipeline(Readable.from(archiveChunks(parts, progress)), createWriteStream(path));
 }
 
 /** Content that is compressed already (pictures, media, archives, PDF, office files). */
@@ -317,9 +319,14 @@ const compressed = (mime: string) =>
  * goes in, so a course takes little memory whatever its size. Content that is compressed
  * already goes in as it is; compressing it again would cost time and gain nothing.
  */
-async function* archiveChunks(parts: BackupParts): AsyncGenerator<Uint8Array> {
-  if (parts.blobs.reduce((n, b) => n + b.size, 0) > MAX_BACKUP_BYTES)
+async function* archiveChunks(
+  parts: BackupParts,
+  progress?: (done: number, total: number) => Promise<unknown>,
+): AsyncGenerator<Uint8Array> {
+  const total = parts.blobs.reduce((n, b) => n + b.size, 0);
+  if (total > MAX_BACKUP_BYTES)
     throw new ValidationError({ course: ['The course is too large to back up'] });
+  let done = 0;
   const out: Uint8Array[] = [];
   const state: { error?: Error } = {};
   const zip = new Zip((err, chunk) => {
@@ -353,6 +360,8 @@ async function* archiveChunks(parts: BackupParts): AsyncGenerator<Uint8Array> {
     }
     entry.push(new Uint8Array(0), true);
     yield* settled();
+    done += b.size;
+    await progress?.(done, total);
   }
   zip.end();
   yield* settled();

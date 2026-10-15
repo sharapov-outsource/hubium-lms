@@ -31,6 +31,8 @@ export const CORE_SCHEDULE = {
   'files.gc': '17 3 * * *',
   // courses and activities kept in the recycle bin long enough
   'recyclebin.purge': '7 3 * * *',
+  // course imports and backups whose worker stopped for good
+  'interchange.lost': '53 * * * *',
   'auth.ldapSync': '47 2 * * *',
   'auth.sessions.cleanup': '23 * * * *',
 } as const;

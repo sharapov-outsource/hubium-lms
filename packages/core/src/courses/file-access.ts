@@ -9,6 +9,10 @@ import { getCourseAccess } from './courses.ts';
 // Course cover images appear in the public catalog.
 registerFileArea('course', 'image', async () => true);
 
+// A course's backups (made in the background, see @hubium/interchange): those who may back
+// the course up.
+registerFileArea('backup', 'course', (ctx, file) => ctx.perm.can('backup:create', file.contextId));
+
 // Images embedded in course/activity rich text: anyone who can view the course.
 registerFileArea('course', 'editor', async (ctx, file) => {
   const course = await ctx.db.course.findUnique({

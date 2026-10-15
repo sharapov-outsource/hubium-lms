@@ -79,7 +79,12 @@ describe('.mbz import', () => {
 
   it('recreates the course, sections and activities in order', async () => {
     const course = await t.db.course.findUniqueOrThrow({ where: { id: report.courseId } });
-    expect(course).toMatchObject({ fullName: 'Python из Moodle', shortName: 'MOODLE-PY' });
+    // hidden while it was being made, shown once complete
+    expect(course).toMatchObject({
+      fullName: 'Python из Moodle',
+      shortName: 'MOODLE-PY',
+      visible: true,
+    });
     // custom fields this site has: the menu option by number, the day, the text of the HTML
     expect(course.customFields).toEqual({
       level: 'Средний',
