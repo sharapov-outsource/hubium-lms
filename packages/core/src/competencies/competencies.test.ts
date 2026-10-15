@@ -317,6 +317,23 @@ describe('competencies', () => {
     await planStep.run(admin, { id: own.id, step: 'reopen' });
     expect((await planDetail(student, own.id)).competencies[0]!.grade).toBe(1);
 
+    // a template's plan, completed: what the template has later is not what the plan had
+    const theirs = (await userPlans(admin, ids.student2!)).plans.find(
+      (p) => p.templateId === tpl.id,
+    )!;
+    await planStep.run(admin, { id: theirs.id, step: 'complete' });
+    const relink = async (competencyId: string, linked: boolean) =>
+      setTemplateCompetency.run(admin, { templateId: tpl.id, competencyId, linked });
+    await relink(ids.a2!, false);
+    await relink(ids.b!, true);
+    const kept = await planDetail(admin, theirs.id);
+    expect(kept.competencies.map((c) => c.competency.id)).toEqual([ids.a1, ids.a2]);
+    expect(
+      (await userPlans(admin, ids.student2!)).plans.find((p) => p.id === theirs.id),
+    ).toMatchObject({ total: 2 });
+    await relink(ids.b!, false);
+    await relink(ids.a2!, true);
+
     // a template's plan on its own: it keeps the competencies
     await unlinkPlan.run(admin, { id: fromTemplate.id });
     await setTemplateCompetency.run(admin, {

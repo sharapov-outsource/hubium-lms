@@ -406,17 +406,27 @@ export const unlinkPlan = defineOperation({
   },
 });
 
-/** The competencies of a plan, in order: its template's while linked, its own otherwise. */
-export async function planCompetencyIds(db: Tx, p: Pick<LearningPlan, 'id' | 'templateId'>) {
-  const rows = p.templateId
-    ? await db.learningPlanTemplateCompetency.findMany({
-        where: { templateId: p.templateId },
-        orderBy: { sortOrder: 'asc' },
-      })
-    : await db.learningPlanCompetency.findMany({
-        where: { planId: p.id },
-        orderBy: { sortOrder: 'asc' },
-      });
+/** The competencies of a plan, in order: once completed, those it kept (it no longer follows
+ *  its template); its template's while linked, its own otherwise. */
+export async function planCompetencyIds(
+  db: Tx,
+  p: Pick<LearningPlan, 'id' | 'templateId' | 'status'>,
+) {
+  const rows =
+    p.status === 'COMPLETE'
+      ? await db.userCompetencyPlan.findMany({
+          where: { planId: p.id },
+          orderBy: { sortOrder: 'asc' },
+        })
+      : p.templateId
+        ? await db.learningPlanTemplateCompetency.findMany({
+            where: { templateId: p.templateId },
+            orderBy: { sortOrder: 'asc' },
+          })
+        : await db.learningPlanCompetency.findMany({
+            where: { planId: p.id },
+            orderBy: { sortOrder: 'asc' },
+          });
   return rows.map((r) => r.competencyId);
 }
 
