@@ -11,6 +11,9 @@ model GlossaryEntry {
   categories    String[]
   /// Learners' entries wait for a teacher when the glossary asks for approval.
   approved      Boolean  @default(true)
+  /// Written by someone who managed the glossary at the time: course material that a
+  /// reset keeps and a backup carries, even after the author has left the course.
+  byStaff       Boolean  @default(false)
   /// Linked wherever the course's texts use the concept (with the glossary's linking on).
   autoLink      Boolean  @default(false)
   caseSensitive Boolean  @default(false)

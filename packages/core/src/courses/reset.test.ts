@@ -24,6 +24,27 @@ describe('shiftIsoDates', () => {
 describe('course reset', () => {
   const t = useTestDb();
 
+  it("keeps a glossary's teacher entries after the teacher has left the course", async () => {
+    const f = await courseFixture(t.db, 'RESETGL');
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const { id } = await f.addActivity('glossary', 'Термины', {});
+    await runModuleAction(await ctxFor(t.db, f.users.teacher!), id, 'addEntry', {
+      concept: 'Энтропия',
+      definition: '<p>Мера беспорядка</p>',
+    });
+    await runModuleAction(await ctxFor(t.db, f.users.student1!), id, 'addEntry', {
+      concept: 'Ион',
+    });
+    // last term's teacher: the enrolment has ended
+    await t.db.enrolment.updateMany({
+      where: { userId: f.users.teacher!, method: { courseId: f.courseId } },
+      data: { status: 'SUSPENDED' },
+    });
+    await resetCourse.run(admin, { courseId: f.courseId, activityData: ['glossary'] });
+    const left = await t.db.glossaryEntry.findMany({ where: { activityId: id } });
+    expect(left.map((e) => e.concept)).toEqual(['Энтропия']);
+  });
+
   it('clears the chosen learners data and moves the term', async () => {
     const f = await courseFixture(t.db, 'RESET1');
     const admin = await ctxFor(t.db, 'admin@test.local');

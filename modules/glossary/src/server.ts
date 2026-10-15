@@ -300,15 +300,6 @@ async function checkDuplicate(ctx: ModuleCtx, a: Glossary, concept: string, exce
   if (same) throw new ModuleError('CONFLICT', 'This concept is in the glossary already');
 }
 
-/** Who writes the glossary's content: its teachers and the site's administrators. */
-async function staffIds(ctx: ModuleCtx, a: ActivityRef): Promise<string[]> {
-  const [staff, admins] = await Promise.all([
-    ctx.perm.usersWithCap('mod.glossary:manageentries', a.id),
-    ctx.db.user.findMany({ where: { isSiteAdmin: true }, select: { id: true } }),
-  ]);
-  return [...staff, ...admins.map((u) => u.id)];
-}
-
 /** Rewrites ids an import mapped (files in definitions). */
 function rewriteIds(text: string, map: (old: string) => string | undefined) {
   return text.replace(
@@ -387,7 +378,7 @@ export const glossary = defineModule<GlossarySettingsT>({
     async userData(ctx, a) {
       await ctx.db.glossaryRating.deleteMany({ where: { entry: { activityId: a.id } } });
       await ctx.db.glossaryEntry.deleteMany({
-        where: { activityId: a.id, authorId: { not: null, notIn: await staffIds(ctx, a) } },
+        where: { activityId: a.id, byStaff: false, authorId: { not: null } },
       });
     },
   },
@@ -419,7 +410,7 @@ export const glossary = defineModule<GlossarySettingsT>({
           where: {
             activityId: a.id,
             approved: true,
-            OR: [{ authorId: null }, { authorId: { in: await staffIds(ctx, a) } }],
+            OR: [{ authorId: null }, { byStaff: true }],
           },
           orderBy: { concept: 'asc' },
           select: {
@@ -440,6 +431,7 @@ export const glossary = defineModule<GlossarySettingsT>({
       await ctx.db.glossaryEntry.createMany({
         data: parsed.data.entries.map((e) => ({
           activityId: a.id,
+          byStaff: true,
           ...e,
           definition: sanitizeRichText(rewriteIds(e.definition, map)),
         })),
@@ -515,6 +507,8 @@ export const glossary = defineModule<GlossarySettingsT>({
             ...input,
             definition: sanitizeRichText(input.definition),
             approved: manage || !a.settings.approvalRequired,
+            // course material rather than a learner's work, whoever teaches later
+            byStaff: manage,
           },
         });
         await ctx.completion.recompute(a.id, me);
