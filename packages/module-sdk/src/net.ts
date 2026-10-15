@@ -1,5 +1,8 @@
+import { lookup as dnsLookup, type LookupAddress, type LookupOptions } from 'node:dns';
 import { lookup } from 'node:dns/promises';
+import { Agent as HttpsAgent } from 'node:https';
 import { BlockList, isIP } from 'node:net';
+import { Agent } from 'undici';
 
 // SSRF guard for server-side requests to admin- or user-supplied URLs (LTI JWKS, AI
 // endpoints, webhooks). Hosts resolving to loopback, private, link-local or otherwise
@@ -138,8 +141,64 @@ export async function assertPublicUrl(url: string | URL): Promise<URL> {
 }
 
 /**
- * fetch() that checks the target and every redirect hop. Redirects are followed manually
- * (at most 5) so a public URL cannot bounce the request to an internal one.
+ * dns.lookup for outgoing connections that refuses internal addresses as the connection is
+ * made. Checking the URL first is not enough: a name can answer a public address then and an
+ * internal one a moment later (DNS rebinding, TTL 0).
+ */
+export function publicLookup(
+  hostname: string,
+  options: LookupOptions,
+  callback: (
+    err: NodeJS.ErrnoException | null,
+    address: string | LookupAddress[],
+    family?: number,
+  ) => void,
+): void {
+  dnsLookup(hostname, { ...options, all: true }, (err, addresses) => {
+    if (err) return callback(err, []);
+    const list = addresses as LookupAddress[];
+    const host = hostname.replace(/^\[|\]$/g, '').toLowerCase();
+    if (!list.length || (!allowHosts().has(host) && list.some((a) => isInternalAddress(a.address))))
+      return callback(
+        new UnsafeUrlError(
+          `${host} resolves to an internal address; add it to SSRF_ALLOW_HOSTS to allow it`,
+        ) as NodeJS.ErrnoException,
+        [],
+      );
+    if (options.all) callback(null, list);
+    else callback(null, list[0]!.address, list[0]!.family);
+  });
+}
+
+let agent: Agent | undefined;
+/** The dispatcher of outgoing requests: connections reach public addresses only. */
+export function publicAgent(): Agent {
+  agent ??= new Agent({ connect: { lookup: publicLookup as never } });
+  return agent;
+}
+
+let httpsAgent: HttpsAgent | undefined;
+/** For node:https clients (web push): connections reach public addresses only. */
+export function publicHttpsAgent(): HttpsAgent {
+  httpsAgent ??= new HttpsAgent({ lookup: publicLookup as never, keepAlive: true });
+  return httpsAgent;
+}
+
+/** fetch() whose connections reach public addresses only, whatever the name says by then. */
+export async function publicFetch(url: string | URL, init: RequestInit = {}): Promise<Response> {
+  try {
+    return await fetch(url, { ...init, dispatcher: publicAgent() } as unknown as RequestInit);
+  } catch (e) {
+    // fetch reports "fetch failed": say why when it was the guard
+    const cause = (e as { cause?: unknown }).cause;
+    throw cause instanceof UnsafeUrlError ? cause : e;
+  }
+}
+
+/**
+ * fetch() that checks the target and every redirect hop, and the address of every
+ * connection (publicFetch). Redirects are followed manually (at most 5) so a public URL
+ * cannot bounce the request to an internal one.
  */
 export async function safeFetch(
   input: string | URL | Request,
@@ -152,7 +211,7 @@ export async function safeFetch(
   const headers = new Headers(init.headers ?? req?.headers);
   for (let hop = 0; hop <= 5; hop++) {
     await assertPublicUrl(url);
-    const res = await fetch(url, { ...init, method, body, headers, redirect: 'manual' });
+    const res = await publicFetch(url, { ...init, method, body, headers, redirect: 'manual' });
     const loc = res.headers.get('location');
     if (res.status < 300 || res.status >= 400 || !loc) return res;
     const next = new URL(loc, url);

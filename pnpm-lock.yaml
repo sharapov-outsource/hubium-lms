@@ -1762,6 +1762,9 @@ importers:
       next-intl:
         specifier: 4.14.9
         version: 4.14.9(@swc/helpers@0.5.23)(@types/react@19.3.0)(next@16.4.0(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@24.19.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
+      undici:
+        specifier: 6.29.0
+        version: 6.29.0
       yauzl:
         specifier: 3.4.0
         version: 3.4.0

@@ -263,7 +263,8 @@ export async function syncSubscription(db: Db, id: string, now = new Date()) {
       headers: { accept: 'text/calendar, */*;q=0.5' },
       signal: AbortSignal.timeout(CALENDAR_FEED_LIMITS.timeoutMs),
     });
-    if (!res.ok) throw new Error(`The address answered ${res.status}`);
+    // not the status: anyone may subscribe, and statuses would probe other servers
+    if (!res.ok) throw new Error('The address gave no calendar');
     const text = await readLimited(res, CALENDAR_FEED_LIMITS.maxBytes);
     const r = await db.$transaction((tx) => applyFeed(tx, sub, text, now), { timeout: 60_000 });
     await db.calendarSubscription.update({

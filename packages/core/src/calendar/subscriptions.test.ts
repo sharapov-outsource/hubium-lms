@@ -129,13 +129,14 @@ describe('calendar imports and subscriptions', () => {
     feed.body = ics([ev('l1', soon(1), 'Лекция 1 (ауд. 5)'), ev('l3', soon(4), 'Лекция 3')]);
     await syncSubscription(t.db, id);
     expect(await titles()).toEqual(['Лекция 1 (ауд. 5)', 'Лекция 3']);
-    // a failing feed keeps the events and says why
+    // a failing feed keeps the events and says so, without the server's status: anyone may
+    // subscribe, and statuses would make the subscription a probe of other servers
     feed = { status: 500, body: '' };
     await expect(syncSubscription(t.db, id)).rejects.toMatchObject({
-      fieldErrors: { url: ['The address answered 500'] },
+      fieldErrors: { url: ['The address gave no calendar'] },
     });
     expect(await t.db.calendarSubscription.findUniqueOrThrow({ where: { id } })).toMatchObject({
-      lastError: 'The address answered 500',
+      lastError: 'The address gave no calendar',
     });
     expect(await titles()).toHaveLength(2);
     // refreshed by the schedule only when its interval has passed

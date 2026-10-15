@@ -1,6 +1,6 @@
 import type { Db } from '@hubium/db';
 import { log } from '@hubium/log';
-import { assertPublicUrl } from '@hubium/module-sdk/net';
+import { assertPublicUrl, publicHttpsAgent } from '@hubium/module-sdk/net';
 import webpush from 'web-push';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
@@ -104,7 +104,8 @@ export async function sendPushNotifications(
             TTL: 24 * 3600,
             urgency: 'normal',
             timeout: 10_000,
-            ...(opts.agent ? { agent: opts.agent } : {}),
+            // connections reach public addresses only, whatever the name says when connecting
+            agent: opts.agent ?? publicHttpsAgent(),
           },
         );
         sent++;

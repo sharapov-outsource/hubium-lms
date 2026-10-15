@@ -1,7 +1,12 @@
 import { createHmac, randomBytes } from 'node:crypto';
 import type { Db, Prisma, Webhook } from '@hubium/db';
 import { log } from '@hubium/log';
-import { assertPublicUrl, checkUrlShape, UnsafeUrlError } from '@hubium/module-sdk/net';
+import {
+  assertPublicUrl,
+  checkUrlShape,
+  publicFetch,
+  UnsafeUrlError,
+} from '@hubium/module-sdk/net';
 import { z } from 'zod';
 import { publishInvalidation } from '../cache-bus.ts';
 import type { RequestContext } from '../context.ts';
@@ -25,6 +30,22 @@ export const WEBHOOK_FAILURE_LIMIT = 50;
 export const WEBHOOK_RETENTION_DAYS = 30;
 const TIMEOUT_MS = 10_000;
 const BODY_KEPT = 2_000;
+
+/** The start of an answer: the receiver may send any amount, only this much is read. */
+async function firstBytes(res: Response, max: number): Promise<string> {
+  if (!res.body) return '';
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  while (size < max) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    size += value.length;
+  }
+  await reader.cancel().catch(() => {});
+  return Buffer.concat(chunks).subarray(0, max).toString('utf8');
+}
 
 const seal = (s: string) => encryptSecret(s, getEnv().APP_SECRET);
 const unseal = (s: string) => decryptSecret(s, getEnv().APP_SECRET);
@@ -281,7 +302,8 @@ export async function deliverWebhook(db: Db, deliveryId: string) {
   let refused = false;
   try {
     await assertPublicUrl(w.url);
-    const res = await fetch(w.url, {
+    // connections reach public addresses only, whatever the name says when connecting
+    const res = await publicFetch(w.url, {
       method: 'POST',
       // A redirect would carry the signed event elsewhere: it counts as a failure.
       redirect: 'manual',
@@ -296,7 +318,7 @@ export async function deliverWebhook(db: Db, deliveryId: string) {
       body,
     });
     status = res.status;
-    answer = (await res.text().catch(() => '')).slice(0, BODY_KEPT);
+    answer = await firstBytes(res, BODY_KEPT).catch(() => '');
   } catch (e) {
     refused = e instanceof UnsafeUrlError;
     answer =

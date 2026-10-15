@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { safeEqual } from './crypto.ts';
 import {
   assertPublicUrl,
@@ -12,8 +12,35 @@ import {
   UnsafeUrlError,
 } from './net.ts';
 
+// DNS rebinding: the name answers a public address when the URL is checked and an internal
+// one when the connection is made
+const rebinding = vi.hoisted(() => ({ on: false }));
+vi.mock('node:dns/promises', async (original) => {
+  const dns = await original<typeof import('node:dns/promises')>();
+  return {
+    ...dns,
+    lookup: ((host: string, opts: never) =>
+      rebinding.on && host === 'rebind.test'
+        ? Promise.resolve([{ address: '93.184.216.34', family: 4 }])
+        : dns.lookup(host, opts)) as typeof dns.lookup,
+  };
+});
+vi.mock('node:dns', async (original) => {
+  const dns = await original<typeof import('node:dns')>();
+  return {
+    ...dns,
+    lookup: ((host: string, opts: unknown, cb: (...a: unknown[]) => void) => {
+      if (!(rebinding.on && host === 'rebind.test'))
+        return (dns.lookup as (...a: unknown[]) => void)(host, opts, cb);
+      const all = (opts as { all?: boolean } | undefined)?.all;
+      return all ? cb(null, [{ address: '127.0.0.1', family: 4 }]) : cb(null, '127.0.0.1', 4);
+    }) as typeof dns.lookup,
+  };
+});
+
 afterEach(() => {
   delete process.env.SSRF_ALLOW_HOSTS;
+  rebinding.on = false;
 });
 
 describe('SSRF guard', () => {
@@ -103,6 +130,21 @@ describe('SSRF guard', () => {
         headers: { authorization: 'Bearer secret' },
       });
       expect(seen.at(-1)).toEqual({ url: '/landed', method: 'GET', auth: undefined });
+    } finally {
+      server.close();
+    }
+  });
+});
+
+describe('SSRF guard at connection time', () => {
+  it('refuses an internal address the name gives only when connecting', async () => {
+    const server = createServer((_req, res) => res.end('internal'));
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    const port = (server.address() as AddressInfo).port;
+    rebinding.on = true;
+    try {
+      await expect(assertPublicUrl(`http://rebind.test:${port}/`)).resolves.toBeTruthy();
+      await expect(safeFetch(`http://rebind.test:${port}/`)).rejects.toThrow(/internal/);
     } finally {
       server.close();
     }
