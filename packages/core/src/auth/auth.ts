@@ -463,6 +463,17 @@ export function createAuth({
             };
           },
         },
+        update: {
+          // someone created without an email who confirmed one of their own (change email)
+          // has a real address now: letters go to it and it shows again
+          async after(user) {
+            if (user.email.endsWith('@users.invalid')) return;
+            await db.user.updateMany({
+              where: { id: user.id, emailPlaceholder: true },
+              data: { emailPlaceholder: false },
+            });
+          },
+        },
       },
       session: {
         create: {

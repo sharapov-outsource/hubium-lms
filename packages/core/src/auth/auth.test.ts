@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { useTestDb } from '../../test/helpers.ts';
+import { capturedJobs, useTestDb } from '../../test/helpers.ts';
 import { withClientIp } from '../client-ip.ts';
 import { setSettings } from '../settings/settings.ts';
 import { createAuth } from './auth.ts';
@@ -122,6 +122,37 @@ describe('auth', () => {
     expect((await attempt('203.0.113.20')).status).toBe(429);
     // someone else at the same school is not held back by them
     expect((await attempt('203.0.113.21')).status).toBe(401);
+  });
+
+  it('a person created without an email who adds and confirms one gets letters again', async () => {
+    const student = await t.db.user.findFirstOrThrow({ where: { username: 'student3' } });
+    await t.db.user.update({
+      where: { id: student.id },
+      // as an administrator creates someone without an email
+      data: { email: `${student.id}@users.invalid`, emailPlaceholder: true },
+    });
+    const signIn = await auth.api.signInUsername({
+      body: { username: 'student3', password: 'Demo12345!' },
+      returnHeaders: true,
+    });
+    const headers = new Headers({
+      cookie: signIn.headers
+        .getSetCookie()
+        .map((l) => l.split(';')[0])
+        .join('; '),
+    });
+    await auth.api.changeEmail({ body: { newEmail: 'ivan@example.org' }, headers });
+    const letter = capturedJobs.findLast(
+      (j) => j.name === 'email.send' && (j.data as { to: string }).to === 'ivan@example.org',
+    );
+    const token = /token=([^&\s"]+)/.exec((letter!.data as { text: string }).text)![1]!;
+    await auth.api.verifyEmail({ query: { token } });
+    const after = await t.db.user.findUniqueOrThrow({ where: { id: student.id } });
+    expect([after.email, after.emailVerified, after.emailPlaceholder]).toEqual([
+      'ivan@example.org',
+      true,
+      false,
+    ]);
   });
 
   it('follows the "require email verification" setting', async () => {
