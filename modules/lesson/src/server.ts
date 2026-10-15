@@ -297,7 +297,17 @@ async function moveTo(ctx: ModuleCtx, a: Lesson, at: AttemptRow, target: string)
   return landed;
 }
 
-/** The user's open attempt (ended first if its time ran out). */
+/**
+ * When an attempt ends by itself: its time limit, or the lesson's close date if sooner (a
+ * teacher's try goes on after it).
+ */
+function attemptEnds(a: Lesson, at: Pick<AttemptRow, 'dueAt' | 'preview'>): Date | null {
+  const closes = !at.preview && a.settings.closesAt ? new Date(a.settings.closesAt) : null;
+  if (!at.dueAt) return closes;
+  return closes && closes < at.dueAt ? closes : at.dueAt;
+}
+
+/** The user's open attempt (ended first if its time ran out or the lesson has closed). */
 export async function openAttempt(
   ctx: ModuleCtx,
   a: Lesson,
@@ -307,8 +317,9 @@ export async function openAttempt(
     where: { activityId: a.id, userId, finishedAt: null },
     orderBy: { startedAt: 'desc' },
   });
-  if (at?.dueAt && at.dueAt < ctx.now) {
-    await finishAttempt(ctx, a, at);
+  const ends = at && attemptEnds(a, at);
+  if (at && ends && ends < ctx.now) {
+    await finishAttempt(ctx, a, { ...at, dueAt: ends });
     return null;
   }
   return at;
@@ -813,7 +824,8 @@ export const lesson = defineModule<LessonSettingsT>({
             number: (last?.number ?? 0) + 1,
             preview: input.preview,
             startedAt: ctx.now,
-            dueAt: timeDue,
+            // ends with the lesson's close date too, also when the learner has gone away
+            dueAt: attemptEnds(a, { dueAt: timeDue, preview: input.preview }),
           },
         });
         await moveTo(ctx, a, at, pages[0]!.id);

@@ -242,6 +242,37 @@ describe('mod-lesson', () => {
     expect(await gradeOf(id, f.users.student1!)).toBe(10);
   });
 
+  it('an open attempt ends when the lesson closes', async () => {
+    const closesAt = new Date(Date.now() + 3_600_000).toISOString();
+    const { id, s1, add } = await setup('LSN5', { closesAt });
+    const intro = await add('content', {
+      title: 'Введение',
+      answers: [{ text: 'Дальше', jump: 'next' }],
+    });
+    await add('content', { title: 'Итог', answers: [{ text: 'Конец', jump: 'end' }] }, intro);
+    const { attemptId } = (await runModuleAction(s1, id, 'start', {})) as { attemptId: string };
+    const attempt = () => t.db.lessonAttempt.findUniqueOrThrow({ where: { id: attemptId } });
+    // without a time limit it ends with the lesson, also for the sweep
+    expect((await attempt()).dueAt?.toISOString()).toBe(closesAt);
+    // the teacher closes the lesson earlier, while the learner is in it
+    const row = await t.db.activity.findUniqueOrThrow({ where: { id } });
+    const closed = new Date(Date.now() - 60_000);
+    await t.db.activity.update({
+      where: { id },
+      data: { settings: { ...(row.settings as object), closesAt: closed.toISOString() } },
+    });
+    const introRow = await t.db.lessonPage.findUniqueOrThrow({ where: { id: intro } });
+    await expect(
+      runModuleAction(s1, id, 'choose', {
+        pageId: intro,
+        answerId: (introRow.answers as { id: string }[])[0]!.id,
+      }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+    // looking at the lesson ends it, at the close date
+    expect((await state(s1, id)).current).toBeNull();
+    expect((await attempt()).finishedAt?.getTime()).toBe(closed.getTime());
+  });
+
   it('a backup carries the pages with their jumps', async () => {
     const { id, add } = await setup('LSN3', {});
     const a = await add('content', { title: 'A', answers: [{ text: 'В конец', jump: 'end' }] });
