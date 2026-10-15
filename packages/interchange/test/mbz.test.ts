@@ -28,7 +28,7 @@ describe('.mbz import', () => {
     expect(report).toMatchObject({
       moodleRelease: '4.5 (Build: 20241007)',
       sections: 2,
-      activities: 7,
+      activities: 8,
       questions: 6,
     });
     expect(report.warnings.join('\n')).toContain('Формула');
@@ -64,7 +64,20 @@ describe('.mbz import', () => {
       'file:Методичка',
       'forum:Вопросы',
       'label:Вики',
+      'book:Учебник',
     ]);
+    // the book's chapters in page order, with the chapter's picture stored in the course
+    const book = acts.find((a) => a.moduleKey === 'book')!;
+    expect(book.settings).toMatchObject({ numbering: 'indented', customTitles: false });
+    const chapters = await t.db.bookChapter.findMany({
+      where: { activityId: book.id },
+      orderBy: { sortOrder: 'asc' },
+    });
+    expect(chapters.map((c) => [c.title, c.subchapter, c.hidden])).toEqual([
+      ['Глава 1', false, false],
+      ['Подробности', true, true],
+    ]);
+    expect(chapters[0]!.content).toMatch(/\/files\/[0-9a-f-]{36}\/fig\.png/);
   });
 
   it('maps settings, embedded files and resources', async () => {

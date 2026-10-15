@@ -5,7 +5,8 @@ import tar from 'tar-stream';
 // A small Moodle 4.5 course backup (.mbz) with the structure Moodle writes: sections,
 // a page with an embedded image, a quiz using question bank entries and a random slot,
 // an assignment (teams, marking workflow, blind marking, a rubric, a group's dates), a
-// URL, a file resource, Q&A (rated) and news forums and an unsupported wiki; groups and a
+// URL, a file resource, Q&A (rated) and news forums, a book with an image in a chapter and
+// an unsupported wiki; groups and a
 // grouping, a scale, and a gradebook with a category, a manual item and a formula.
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
@@ -43,6 +44,7 @@ export async function mbzFixture(): Promise<Buffer> {
       ${activity(16, 'forum', 'Вопросы', 2)}
       ${activity(17, 'forum', 'Новости', 2)}
       ${activity(18, 'wiki', 'Вики', 2)}
+      ${activity(19, 'book', 'Учебник', 2)}
     </activities>
     <sections>
       <section><sectionid>1</sectionid><title>0</title><directory>sections/section_1</directory></section>
@@ -53,7 +55,7 @@ export async function mbzFixture(): Promise<Buffer> {
 </information></moodle_backup>`,
     'course/course.xml': `<?xml version="1.0" encoding="UTF-8"?><course id="2" contextid="20"><shortname>MOODLE-PY</shortname><fullname>Python из Moodle</fullname><summary>&lt;p&gt;Курс &lt;img src="@@PLUGINFILE@@/logo.png"&gt;&lt;/p&gt;</summary><format>topics</format><startdate>1735689600</startdate><enddate>0</enddate><customfields><customfield id="1"><shortname>Level</shortname><type>select</type><value>2</value><valueformat>0</valueformat></customfield><customfield id="2"><shortname>starts</shortname><type>date</type><value>1767214800</value><valueformat>0</valueformat></customfield><customfield id="3"><shortname>about</shortname><type>textarea</type><value>&lt;p&gt;Для &lt;b&gt;всех&lt;/b&gt;&lt;/p&gt;</value><valueformat>1</valueformat></customfield><customfield id="4"><shortname>elsewhere</shortname><type>text</type><value>x</value><valueformat>0</valueformat></customfield></customfields></course>`,
     'sections/section_1/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="1"><number>0</number><name>$@NULL@$</name><summary></summary><sequence>11,14</sequence><visible>1</visible></section>`,
-    'sections/section_2/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="2"><number>1</number><name>Тема 1</name><summary>&lt;p&gt;Первая тема&lt;/p&gt;</summary><sequence>12,13,15,16,17,18</sequence><visible>1</visible></section>`,
+    'sections/section_2/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="2"><number>1</number><name>Тема 1</name><summary>&lt;p&gt;Первая тема&lt;/p&gt;</summary><sequence>12,13,15,16,17,18,19</sequence><visible>1</visible></section>`,
 
     'activities/page_11/module.xml': moduleXml(11, 'page', 1),
     'activities/page_11/page.xml': wrap(
@@ -137,6 +139,16 @@ export async function mbzFixture(): Promise<Buffer> {
       'forum',
       37,
       '<type>news</type><name>Новости</name><intro></intro>',
+    ),
+    'activities/book_19/module.xml': moduleXml(19, 'book', 2),
+    'activities/book_19/book.xml': wrap(
+      19,
+      'book',
+      39,
+      '<name>Учебник</name><intro></intro><numbering>3</numbering><navstyle>1</navstyle><customtitles>0</customtitles><chapters>' +
+        '<chapter id="8"><pagenum>2</pagenum><subchapter>1</subchapter><title>Подробности</title><content>&lt;p&gt;Скрытая&lt;/p&gt;</content><contentformat>1</contentformat><hidden>1</hidden></chapter>' +
+        '<chapter id="7"><pagenum>1</pagenum><subchapter>0</subchapter><title>Глава 1</title><content><![CDATA[<p>Схема <img src="@@PLUGINFILE@@/fig.png" alt="f"></p>]]></content><contentformat>1</contentformat><hidden>0</hidden></chapter>' +
+        '</chapters>',
     ),
     'activities/wiki_18/module.xml': moduleXml(18, 'wiki', 2),
     'activities/wiki_18/wiki.xml': wrap(
@@ -224,6 +236,7 @@ export async function mbzFixture(): Promise<Buffer> {
     ctx: number;
     component: string;
     area: string;
+    item?: number;
     name: string;
     mime: string;
     data: Buffer;
@@ -245,6 +258,15 @@ export async function mbzFixture(): Promise<Buffer> {
       data: PNG,
     },
     {
+      ctx: 39,
+      component: 'mod_book',
+      area: 'chapter',
+      item: 7,
+      name: 'fig.png',
+      mime: 'image/png',
+      data: Buffer.concat([PNG, Buffer.from([7])]),
+    },
+    {
       ctx: 35,
       component: 'mod_resource',
       area: 'content',
@@ -256,7 +278,7 @@ export async function mbzFixture(): Promise<Buffer> {
   files['files.xml'] = `<?xml version="1.0" encoding="UTF-8"?><files>${blobs
     .map(
       (b, i) =>
-        `<file id="${i + 1}"><contenthash>${hash(b.data)}</contenthash><contextid>${b.ctx}</contextid><component>${b.component}</component><filearea>${b.area}</filearea><itemid>0</itemid><filepath>/</filepath><filename>${b.name}</filename><mimetype>${b.mime}</mimetype></file>`,
+        `<file id="${i + 1}"><contenthash>${hash(b.data)}</contenthash><contextid>${b.ctx}</contextid><component>${b.component}</component><filearea>${b.area}</filearea><itemid>${b.item ?? 0}</itemid><filepath>/</filepath><filename>${b.name}</filename><mimetype>${b.mime}</mimetype></file>`,
     )
     .join(
       '',

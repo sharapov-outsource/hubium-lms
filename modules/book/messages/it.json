@@ -1,0 +1,38 @@
+{
+  "book": {
+    "name": "Libro",
+    "description": "Materiale di più pagine: capitoli e sottocapitoli con un indice",
+    "numbering": "Numerazione dei capitoli",
+    "numberingOptions": {
+      "numbers": "Numeri",
+      "bullets": "Elenco puntato per i sottocapitoli",
+      "indented": "Rientri senza numeri",
+      "none": "Nessuna"
+    },
+    "customTitles": "Titoli personalizzati: il titolo del capitolo non compare sopra il testo",
+    "toc": "Indice",
+    "chapterNav": "Navigazione tra i capitoli",
+    "prev": "Capitolo precedente",
+    "next": "Capitolo successivo",
+    "print": "Stampa",
+    "printBook": "Stampa il libro",
+    "backToBook": "Torna al libro",
+    "addChapter": "Aggiungi un capitolo",
+    "addSubchapter": "Aggiungi un sottocapitolo",
+    "editChapter": "Modifica il capitolo",
+    "chapterTitle": "Titolo del capitolo",
+    "content": "Testo",
+    "subchapter": "Sottocapitolo",
+    "chapterTools": "Azioni sul capitolo",
+    "hide": "Nascondi",
+    "show": "Mostra",
+    "hidden": "Nascosto",
+    "moveUp": "Sposta su",
+    "moveDown": "Sposta giù",
+    "deleteConfirm": "Eliminare il capitolo «{title}»? I suoi sottocapitoli verranno eliminati insieme.",
+    "deleted": "Capitolo eliminato",
+    "saved": "Capitolo salvato",
+    "empty": "Il libro non ha ancora capitoli.",
+    "emptyEditor": "Il libro non ha ancora capitoli. Aggiungi il primo."
+  }
+}

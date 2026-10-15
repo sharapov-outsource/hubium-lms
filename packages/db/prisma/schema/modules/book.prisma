@@ -1,0 +1,19 @@
+// mod-book: a resource of several pages, in chapters and subchapters.
+
+model BookChapter {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  activityId String   @db.Uuid
+  /// Place in the book; a subchapter belongs to the chapter before it.
+  sortOrder  Int
+  subchapter Boolean  @default(false)
+  title      String
+  content    String   @default("")
+  /// Hiding a chapter hides its subchapters too.
+  hidden     Boolean  @default(false)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([activityId, sortOrder])
+}

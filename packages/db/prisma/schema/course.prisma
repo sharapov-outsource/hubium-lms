@@ -165,6 +165,7 @@ model Activity {
   forumSubscriptions ForumSubscription[]
   videoAsset         VideoAsset?
   videoProgress      VideoProgress[]
+  bookChapters       BookChapter[]
   liveMeeting        LiveMeeting?
   liveAttendance     LiveAttendance[]
   liveRecordings     LiveRecording[]

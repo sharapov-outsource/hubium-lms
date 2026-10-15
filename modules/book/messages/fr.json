@@ -1,0 +1,38 @@
+{
+  "book": {
+    "name": "Livre",
+    "description": "Contenu de plusieurs pages : chapitres et sous-chapitres avec une table des matières",
+    "numbering": "Numérotation des chapitres",
+    "numberingOptions": {
+      "numbers": "Numéros",
+      "bullets": "Puces pour les sous-chapitres",
+      "indented": "Retraits sans numéros",
+      "none": "Aucune"
+    },
+    "customTitles": "Titres personnalisés : le titre du chapitre n’est pas affiché au-dessus du texte",
+    "toc": "Table des matières",
+    "chapterNav": "Navigation entre chapitres",
+    "prev": "Chapitre précédent",
+    "next": "Chapitre suivant",
+    "print": "Imprimer",
+    "printBook": "Imprimer le livre",
+    "backToBook": "Retour au livre",
+    "addChapter": "Ajouter un chapitre",
+    "addSubchapter": "Ajouter un sous-chapitre",
+    "editChapter": "Modifier le chapitre",
+    "chapterTitle": "Titre du chapitre",
+    "content": "Texte",
+    "subchapter": "Sous-chapitre",
+    "chapterTools": "Actions sur le chapitre",
+    "hide": "Masquer",
+    "show": "Afficher",
+    "hidden": "Masqué",
+    "moveUp": "Monter",
+    "moveDown": "Descendre",
+    "deleteConfirm": "Supprimer le chapitre « {title} » ? Ses sous-chapitres seront supprimés avec lui.",
+    "deleted": "Chapitre supprimé",
+    "saved": "Chapitre enregistré",
+    "empty": "Le livre n’a pas encore de chapitres.",
+    "emptyEditor": "Le livre n’a pas encore de chapitres. Ajoutez le premier."
+  }
+}

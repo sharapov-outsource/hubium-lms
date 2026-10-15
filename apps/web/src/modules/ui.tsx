@@ -1,4 +1,5 @@
 import { assignUI } from '@hubium/mod-assign/ui';
+import { bookUI } from '@hubium/mod-book/ui';
 import { contentModuleUIs } from '@hubium/mod-content/ui';
 import { forumUI } from '@hubium/mod-forum/ui';
 import { livesessionUI } from '@hubium/mod-livesession/ui';
@@ -11,6 +12,7 @@ import type { ActivityModuleUI } from '@hubium/module-sdk/ui';
 const uis = new Map<string, ActivityModuleUI<never>>();
 for (const ui of [
   ...contentModuleUIs,
+  bookUI,
   assignUI,
   quizUI,
   forumUI,

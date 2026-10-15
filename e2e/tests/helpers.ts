@@ -58,3 +58,26 @@ export async function pickDateTime(page: Page, id: string, when: Date) {
   await page.locator(`#${id}-time`).fill(`${pad(when.getHours())}:${pad(when.getMinutes())}`);
   await page.locator(`#${id}-time`).blur();
 }
+
+/** Fails (softly) when the page at `path` scrolls sideways; names the widest offender. */
+export async function expectNoSideScroll(page: Page, path: string) {
+  await page.goto(path);
+  await page.waitForLoadState('networkidle');
+  const overflow = await page.evaluate(() => {
+    const vw = document.documentElement.clientWidth;
+    if (document.documentElement.scrollWidth <= vw + 1) return null;
+    // the widest offender outside scroll containers, to make the failure readable
+    const scrolls = (el: Element | null): boolean => {
+      for (let e = el?.parentElement; e; e = e.parentElement) {
+        const o = getComputedStyle(e).overflowX;
+        if (o === 'auto' || o === 'scroll' || o === 'hidden') return true;
+      }
+      return false;
+    };
+    const bad = [...document.querySelectorAll('main *')].find(
+      (el) => el.getBoundingClientRect().right > vw + 1 && !scrolls(el),
+    );
+    return `${document.documentElement.scrollWidth}px > ${vw}px: <${bad?.tagName.toLowerCase()} class="${bad?.className}">${bad?.textContent?.trim().slice(0, 40)}`;
+  });
+  expect.soft(overflow, path).toBeNull();
+}

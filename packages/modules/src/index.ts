@@ -1,4 +1,5 @@
 import { assignModules } from '@hubium/mod-assign/server';
+import { bookModules } from '@hubium/mod-book/server';
 import { contentModules } from '@hubium/mod-content/server';
 import { forumModules } from '@hubium/mod-forum/server';
 import { livesessionModules } from '@hubium/mod-livesession/server';
@@ -13,6 +14,7 @@ import { videoModules } from '@hubium/mod-video/server';
 // Which of them users get is decided at run time in Administration → Modules.
 export const serverModules = [
   ...contentModules,
+  ...bookModules,
   ...assignModules,
   ...quizModules,
   ...forumModules,

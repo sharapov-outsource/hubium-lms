@@ -1,0 +1,38 @@
+{
+  "book": {
+    "name": "Buch",
+    "description": "Material aus mehreren Seiten: Kapitel und Unterkapitel mit Inhaltsverzeichnis",
+    "numbering": "Kapitelnummerierung",
+    "numberingOptions": {
+      "numbers": "Nummern",
+      "bullets": "Aufzählungszeichen für Unterkapitel",
+      "indented": "Eingerückt, ohne Nummern",
+      "none": "Keine"
+    },
+    "customTitles": "Eigene Überschriften: Der Kapiteltitel wird nicht über dem Text angezeigt",
+    "toc": "Inhaltsverzeichnis",
+    "chapterNav": "Kapitelnavigation",
+    "prev": "Vorheriges Kapitel",
+    "next": "Nächstes Kapitel",
+    "print": "Drucken",
+    "printBook": "Buch drucken",
+    "backToBook": "Zurück zum Buch",
+    "addChapter": "Kapitel hinzufügen",
+    "addSubchapter": "Unterkapitel hinzufügen",
+    "editChapter": "Kapitel bearbeiten",
+    "chapterTitle": "Kapiteltitel",
+    "content": "Text",
+    "subchapter": "Unterkapitel",
+    "chapterTools": "Kapitelaktionen",
+    "hide": "Verbergen",
+    "show": "Anzeigen",
+    "hidden": "Verborgen",
+    "moveUp": "Nach oben",
+    "moveDown": "Nach unten",
+    "deleteConfirm": "Kapitel „{title}“ löschen? Seine Unterkapitel werden mit gelöscht.",
+    "deleted": "Kapitel gelöscht",
+    "saved": "Kapitel gespeichert",
+    "empty": "Das Buch hat noch keine Kapitel.",
+    "emptyEditor": "Das Buch hat noch keine Kapitel. Fügen Sie das erste hinzu."
+  }
+}

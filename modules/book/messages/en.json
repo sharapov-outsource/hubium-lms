@@ -1,0 +1,38 @@
+{
+  "book": {
+    "name": "Book",
+    "description": "Material of several pages: chapters and subchapters with a table of contents",
+    "numbering": "Chapter numbering",
+    "numberingOptions": {
+      "numbers": "Numbers",
+      "bullets": "Bullets for subchapters",
+      "indented": "Indented, no numbers",
+      "none": "None"
+    },
+    "customTitles": "Custom titles: the chapter title is not shown above its text",
+    "toc": "Table of contents",
+    "chapterNav": "Chapter navigation",
+    "prev": "Previous chapter",
+    "next": "Next chapter",
+    "print": "Print",
+    "printBook": "Print the book",
+    "backToBook": "Back to the book",
+    "addChapter": "Add a chapter",
+    "addSubchapter": "Add a subchapter",
+    "editChapter": "Edit the chapter",
+    "chapterTitle": "Chapter title",
+    "content": "Text",
+    "subchapter": "Subchapter",
+    "chapterTools": "Chapter actions",
+    "hide": "Hide",
+    "show": "Show",
+    "hidden": "Hidden",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "deleteConfirm": "Delete the chapter “{title}”? Its subchapters go with it.",
+    "deleted": "Chapter deleted",
+    "saved": "Chapter saved",
+    "empty": "The book has no chapters yet.",
+    "emptyEditor": "The book has no chapters yet. Add the first one."
+  }
+}

@@ -1437,6 +1437,33 @@ export async function importMbz(
           case 'lti':
             await placeholder('external tools must be registered and mapped by an administrator');
             continue;
+          case 'book': {
+            const numbering =
+              (['none', 'numbers', 'bullets', 'indented'] as const)[num(data.numbering, 1)] ??
+              'numbers';
+            const { id } = await create({
+              ...base,
+              moduleKey: 'book',
+              settings: { numbering, customTitles: txt(data.customtitles) === '1' },
+            });
+            const chapters = arr(((data.chapters ?? {}) as Node).chapter as Node | Node[]).sort(
+              (x, y) => num(x.pagenum) - num(y.pagenum),
+            );
+            for (const [i, c] of chapters.entries()) {
+              const urls = await storeArea(contextid, 'mod_book', 'chapter', String(c['@_id']));
+              await db.bookChapter.create({
+                data: {
+                  activityId: id,
+                  sortOrder: i,
+                  subchapter: i > 0 && txt(c.subchapter) === '1',
+                  title: (txt(c.title) || '—').slice(0, 255),
+                  content: rewrite(txt(c.content), urls),
+                  hidden: txt(c.hidden) === '1',
+                },
+              });
+            }
+            break;
+          }
           default:
             await placeholder('this activity type is not supported');
             continue;

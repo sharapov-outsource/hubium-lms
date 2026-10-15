@@ -463,6 +463,48 @@ describe('.hubium backup and restore', () => {
     ).rejects.toThrow();
   });
 
+  it('carries a book with its chapters and their pictures', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const src = await courseFixture(t.db, 'BOOKBK');
+    const pic = await storeFile(t.db, {
+      contextId: src.courseId,
+      component: 'course',
+      area: 'editor',
+      name: 'fig.png',
+      mimeType: 'image/png',
+      data: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 9, 9]),
+    });
+    const { id } = await src.addActivity('book', 'Учебник', { numbering: 'bullets' });
+    const teacher = await ctxFor(t.db, src.users.teacher!);
+    const first = (await runModuleAction(teacher, id, 'addChapter', {
+      title: 'Глава',
+      content: `<p><img src="${fileUrl(pic)}" alt="f"></p>`,
+    })) as { id: string };
+    await runModuleAction(teacher, id, 'addChapter', {
+      title: 'Подглава',
+      subchapter: true,
+      afterId: first.id,
+    });
+    const course = await t.db.course.findUniqueOrThrow({ where: { id: src.courseId } });
+    const r = await restoreCourse(admin, await exportCourse(admin, src.courseId), {
+      categoryId: course.categoryId,
+    });
+    const copy = await t.db.activity.findFirstOrThrow({
+      where: { courseId: r.courseId, moduleKey: 'book' },
+      include: { bookChapters: { orderBy: { sortOrder: 'asc' } } },
+    });
+    expect(copy.settings).toMatchObject({ numbering: 'bullets' });
+    expect(copy.bookChapters.map((c) => [c.title, c.subchapter])).toEqual([
+      ['Глава', false],
+      ['Подглава', true],
+    ]);
+    const newPic = await t.db.file.findFirstOrThrow({
+      where: { contextId: r.courseId, name: 'fig.png' },
+    });
+    expect(copy.bookChapters[0]!.content).toContain(newPic.id);
+    expect(copy.bookChapters[0]!.content).not.toContain(pic.id);
+  });
+
   it('rejects foreign archives', async () => {
     const admin = await ctxFor(t.db, 'admin@test.local');
     const course = await t.db.course.findUniqueOrThrow({ where: { id: f.courseId } });

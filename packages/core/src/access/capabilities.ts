@@ -116,6 +116,9 @@ export const coreCapabilities = {
   'mod.forum:viewallratings': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   /** Grading students' part in the whole forum. */
   'mod.forum:grade': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  // book
+  'mod.book:edit': { level: 'ACTIVITY', archetypes: [M, ET], risk: ['xss'] },
+  'mod.book:viewhiddenchapters': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   // video / live
   'mod.video:viewprogress': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.livesession:join': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },
