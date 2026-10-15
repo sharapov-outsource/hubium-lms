@@ -80,18 +80,51 @@ export function checkDefinition(raw: unknown, custom: CustomFieldNames): ReportD
   return d;
 }
 
+const CUSTOM_KEY = /^(user|course)\.custom\.(.+)$/;
+
+/**
+ * A saved definition as the site's custom fields now are: columns, conditions and filters
+ * on custom fields deleted since are left out (a renamed field's reports were rewritten),
+ * the sort stays with its column, and a report left without columns gets its source's
+ * default ones. It still opens, shows what it can and saves without them.
+ */
+export function storedDefinition(raw: unknown, custom: CustomFieldNames): ReportDefinitionT {
+  const d = ReportDefinition.parse(raw);
+  const gone = (key: string) => {
+    const m = CUSTOM_KEY.exec(key);
+    return !!m && !custom[m[1] as keyof CustomFieldNames].includes(m[2]!);
+  };
+  const columns = d.columns.filter((c) => !gone(c.field));
+  const sorted = d.sort ? columns.indexOf(d.columns[d.sort.column]!) : -1;
+  return checkDefinition(
+    {
+      source: d.source,
+      columns: columns.length
+        ? columns
+        : (SOURCES[d.source]?.defaultColumns.map((field) => ({ field })) ?? []),
+      conditions: d.conditions.filter((c) => !gone(c.field)),
+      filters: d.filters.filter((k) => !gone(k)),
+      sort: d.sort && sorted >= 0 ? { ...d.sort, column: sorted } : null,
+    },
+    custom,
+  );
+}
+
 const raw = (s: string) => Prisma.raw(s);
 
 /** A field's SQL: custom fields take their short name as a parameter. */
 function expr(f: FieldDef): Prisma.Sql {
-  const custom = /^(user|course)\.custom\.(.+)$/.exec(f.key);
+  const custom = CUSTOM_KEY.exec(f.key);
   return custom ? Prisma.sql`(${raw(f.sql)}${custom[2]!})` : Prisma.sql`(${raw(f.sql)})`;
 }
 
-/** The type of a column's values once aggregated. */
+/** What a «list» column puts between the values it lists. */
+export const LIST_SEPARATOR = ', ';
+
+/** The type of a column's values once aggregated (a list of an enum's values stays an enum). */
 export function columnType(f: FieldDef, aggregate?: string): FieldType {
   if (!aggregate) return f.type;
-  if (aggregate === 'list') return 'text';
+  if (aggregate === 'list') return f.type === 'enum' ? 'enum' : 'text';
   if (aggregate === 'min' || aggregate === 'max') return f.type;
   return 'number';
 }
@@ -105,7 +138,7 @@ function aggregateSql(aggregate: string | undefined, e: Prisma.Sql): Prisma.Sql 
     case 'countTrue':
       return Prisma.sql`COUNT(*) FILTER (WHERE ${e})`;
     case 'list':
-      return Prisma.sql`STRING_AGG(DISTINCT ${e}::text, ', ')`;
+      return Prisma.sql`STRING_AGG(DISTINCT ${e}::text, ${LIST_SEPARATOR}::text)`;
     case 'sum':
       return Prisma.sql`SUM(${e})`;
     case 'avg':

@@ -5,6 +5,7 @@ import { NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { type Localized, localizedText, pickLocalized } from '../lib/localized.ts';
 import { defineOperation } from '../operation.ts';
+import { renameReportField } from '../reports/custom-fields.ts';
 import {
   coerceFieldValue,
   FORM_PREFIX,
@@ -176,12 +177,14 @@ export const saveCourseField = defineOperation({
     if (id) {
       const prev = await ctx.tx.courseField.findUnique({ where: { id } });
       if (!prev) throw new NotFoundError('Course field');
-      // Values are stored under the short name: renaming carries them over.
-      if (prev.shortName !== input.shortName)
+      // Values and reports name the field by its short name: renaming carries them over.
+      if (prev.shortName !== input.shortName) {
         await ctx.tx.$executeRaw`
           UPDATE "Course" SET "customFields" = ("customFields" - ${prev.shortName}::text)
             || jsonb_build_object(${input.shortName}::text, "customFields" -> ${prev.shortName}::text)
           WHERE "customFields" ? ${prev.shortName}::text`;
+        await renameReportField(ctx.tx, 'course', prev.shortName, input.shortName);
+      }
       await ctx.tx.courseField.update({ where: { id }, data });
     } else {
       const last = await ctx.tx.courseField.aggregate({ _max: { sortOrder: true } });

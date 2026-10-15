@@ -6,6 +6,7 @@ import { NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { type Localized, localizedText, pickLocalized } from '../lib/localized.ts';
 import { defineOperation } from '../operation.ts';
+import { renameReportField } from '../reports/custom-fields.ts';
 
 // Custom profile fields defined by administrators. Values live in User.customFields as
 // { [shortName]: string | boolean }: text, a date (YYYY-MM-DD), a menu choice or a checkbox.
@@ -203,12 +204,14 @@ export const saveProfileField = defineOperation({
     if (id) {
       const prev = await ctx.tx.userProfileField.findUnique({ where: { id } });
       if (!prev) throw new NotFoundError('Profile field');
-      // Values are stored under the short name: renaming carries them over.
-      if (prev.shortName !== input.shortName)
+      // Values and reports name the field by its short name: renaming carries them over.
+      if (prev.shortName !== input.shortName) {
         await ctx.tx.$executeRaw`
           UPDATE "User" SET "customFields" = ("customFields" - ${prev.shortName}::text)
             || jsonb_build_object(${input.shortName}::text, "customFields" -> ${prev.shortName}::text)
           WHERE "customFields" ? ${prev.shortName}::text`;
+        await renameReportField(ctx.tx, 'user', prev.shortName, input.shortName);
+      }
       await ctx.tx.userProfileField.update({ where: { id }, data });
     } else {
       const last = await ctx.tx.userProfileField.aggregate({ _max: { sortOrder: true } });

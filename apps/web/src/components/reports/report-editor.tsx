@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { ActionForm, FormField, SubmitButton, useFieldError } from '@/components/action-form';
 import { saveReportAction } from '@/server/actions/reports';
+import { moveColumn, type ReportSort } from './columns';
 
 type FieldType = 'text' | 'number' | 'date' | 'boolean' | 'enum';
 
@@ -123,7 +124,7 @@ export function ReportEditor({
     columns: Column[];
     conditions: Condition[];
     filters: string[];
-    sort: { column: number; desc: boolean } | null;
+    sort: ReportSort | null;
   };
   fields: EditorField[];
 }) {
@@ -137,12 +138,10 @@ export function ReportEditor({
   const [filters, setFilters] = useState<string[]>(report.filters);
   const [sort, setSort] = useState(report.sort);
   const byKey = new Map(fields.map((f) => [f.key, f]));
-  const move = <T,>(list: T[], i: number, d: -1 | 1) => {
-    const j = i + d;
-    if (j < 0 || j >= list.length) return list;
-    const next = [...list];
-    [next[i], next[j]] = [next[j]!, next[i]!];
-    return next;
+  const move = (i: number, d: -1 | 1) => {
+    const next = moveColumn(columns, sort, i, d);
+    setColumns(next.columns);
+    setSort(next.sort);
   };
   const fieldOptions = fields.map((f) => (
     <option key={f.key} value={f.key}>
@@ -233,7 +232,7 @@ export function ReportEditor({
                   size="sm"
                   variant="ghost"
                   aria-label={t('moveUpN', { n })}
-                  onClick={() => setColumns(move(columns, i, -1))}
+                  onClick={() => move(i, -1)}
                 >
                   ↑
                 </Button>
@@ -242,7 +241,7 @@ export function ReportEditor({
                   size="sm"
                   variant="ghost"
                   aria-label={t('moveDownN', { n })}
-                  onClick={() => setColumns(move(columns, i, 1))}
+                  onClick={() => move(i, 1)}
                 >
                   ↓
                 </Button>

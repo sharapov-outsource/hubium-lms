@@ -1,17 +1,22 @@
+import { createTranslator } from '@hubium/i18n/packs';
 import { describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, sentMail, useTestDb } from '../../test/helpers.ts';
 import { toggleManualCompletion } from '../completion/completion.ts';
+import { deleteCourseField, saveCourseField } from '../courses/course-fields.ts';
 import { ForbiddenError } from '../errors.ts';
 import { readSheet } from '../lib/sheets.ts';
-import { saveProfileField } from '../users/profile-fields.ts';
+import { deleteProfileField, saveProfileField } from '../users/profile-fields.ts';
 import { deleteUser } from '../users/users.ts';
 import { reportFieldsOf } from './engine.ts';
 import {
+  type AudiencesT,
   customFieldNames,
   exportReport,
+  formatCell,
   listReports,
   nextRunAt,
+  reportForEdit,
   runDueSchedules,
   saveReport,
   saveSchedule,
@@ -211,6 +216,175 @@ describe('custom reports', () => {
     expect((await t.db.reportSchedule.findUniqueOrThrow({ where: { id: s.id } })).userIds).toEqual(
       [],
     );
+  });
+
+  it('keeps a report working when a custom field it uses is deleted', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const manager = await t.db.user.findFirstOrThrow({ where: { username: 'manager' } });
+    const { id: campus } = await saveProfileField.run(admin, {
+      shortName: 'campus',
+      name: { ru: 'Кампус' },
+      type: 'text',
+    });
+    await saveCourseField.run(admin, { shortName: 'level', name: { ru: 'Уровень' }, type: 'text' });
+    const { id } = await saveReport.run(admin, {
+      name: 'С полями',
+      source: 'participants',
+      columns: [
+        { field: 'user.fullName' },
+        { field: 'user.custom.campus' },
+        { field: 'course.custom.level' },
+      ],
+      conditions: [{ field: 'user.custom.campus', op: 'empty' }],
+      filters: ['user.custom.campus', 'user.fullName'],
+      sort: { column: 2, desc: true },
+    });
+    const { id: only } = await saveReport.run(admin, {
+      name: 'Только кампус',
+      source: 'users',
+      columns: [{ field: 'user.custom.campus' }],
+    });
+    const s = await saveSchedule.run(admin, {
+      reportId: id,
+      name: 'Каждый день',
+      frequency: 'DAILY',
+      userIds: [manager.id],
+      skipEmpty: false,
+    });
+
+    await deleteProfileField.run(admin, { id: campus });
+
+    const v = await viewReport(admin, id, {});
+    expect(v.columns.map((c) => c.key)).toEqual(['user.fullName', 'course.custom.level']);
+    expect(v.definition.conditions).toEqual([]);
+    expect(v.filters.map((f) => f.key)).toEqual(['user.fullName']);
+    // still sorted by the course field, which is now the second column
+    expect(v.definition.sort).toEqual({ column: 1, desc: true });
+    const edit = await reportForEdit(admin, id);
+    expect(edit.definition.columns.map((c) => c.field)).toEqual([
+      'user.fullName',
+      'course.custom.level',
+    ]);
+    // a report left without columns shows its source's default ones
+    expect((await viewReport(admin, only, {})).columns.map((c) => c.key)).toEqual([
+      ...SOURCES.users!.defaultColumns,
+    ]);
+    // its audience can still be saved, and its schedule still sends
+    await saveReport.run(admin, { id, name: 'С полями', audiences: { all: true } });
+    sentMail.length = 0;
+    expect(await sendSchedule(t.db, s.id)).toBe(1);
+  });
+
+  it('follows custom fields that are renamed', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const { id: room } = await saveProfileField.run(admin, {
+      shortName: 'room',
+      name: { ru: 'Аудитория' },
+      type: 'text',
+    });
+    const { id: stream } = await saveCourseField.run(admin, {
+      shortName: 'stream',
+      name: { ru: 'Поток' },
+      type: 'text',
+    });
+    const { id } = await saveReport.run(admin, {
+      name: 'По потокам',
+      source: 'participants',
+      columns: [
+        { field: 'course.custom.stream' },
+        { field: 'user.custom.room' },
+        { field: 'user.fullName', aggregate: 'count' },
+      ],
+      conditions: [{ field: 'user.custom.room', op: 'empty' }],
+      filters: ['course.custom.stream'],
+      sort: { column: 1, desc: false },
+    });
+
+    await saveProfileField.run(admin, {
+      id: room,
+      shortName: 'classroom',
+      name: { ru: 'Аудитория' },
+      type: 'text',
+    });
+    await saveCourseField.run(admin, {
+      id: stream,
+      shortName: 'flow',
+      name: { ru: 'Поток' },
+      type: 'text',
+    });
+
+    const v = await viewReport(admin, id, {});
+    expect(v.definition.columns).toEqual([
+      { field: 'course.custom.flow' },
+      { field: 'user.custom.classroom' },
+      { field: 'user.fullName', aggregate: 'count' },
+    ]);
+    expect(v.definition.conditions).toEqual([{ field: 'user.custom.classroom', op: 'empty' }]);
+    expect(v.definition.filters).toEqual(['course.custom.flow']);
+    expect(v.definition.sort).toEqual({ column: 1, desc: false });
+
+    // a deleted course field goes the same way as a profile field
+    await deleteCourseField.run(admin, { id: stream });
+    expect((await viewReport(admin, id, {})).definition.columns.map((c) => c.field)).toEqual([
+      'user.custom.classroom',
+      'user.fullName',
+    ]);
+  });
+
+  it('names the values of an enum field listed in a column', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const parent = await t.db.user.findFirstOrThrow({ where: { username: 'parent' } });
+    await t.db.user.update({ where: { id: parent.id }, data: { status: 'SUSPENDED' } });
+    try {
+      const { id } = await saveReport.run(admin, {
+        name: 'Статусы',
+        source: 'users',
+        columns: [{ field: 'user.status', aggregate: 'list' }],
+      });
+      const en = createTranslator('en');
+      const listed = `${en('customReports.values.user.status.ACTIVE')}, ${en('customReports.values.user.status.SUSPENDED')}`;
+      // on the page
+      const v = await viewReport(admin, id, {});
+      const c = v.columns[0]!;
+      expect(formatCell(v.rows[0]![0] ?? null, c.type, c.key, 'en', v.tz, en)).toBe(listed);
+      // in downloads and emailed files
+      const csv = (await exportReport(admin, id, 'csv')).data.toString('utf8');
+      expect(csv).toContain(listed);
+      expect(csv).not.toContain('SUSPENDED');
+      const xlsx = readSheet(new Uint8Array((await exportReport(admin, id, 'xlsx')).data));
+      expect(xlsx[1]).toEqual([listed]);
+    } finally {
+      await t.db.user.update({ where: { id: parent.id }, data: { status: parent.status } });
+    }
+  });
+
+  it('keeps implicit roles out of audiences', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const student3 = await t.db.user.findFirstOrThrow({ where: { username: 'student3' } });
+    const role = (shortName: string) =>
+      t.db.role.findFirstOrThrow({ where: { shortName }, select: { id: true } });
+    const [user, guest, student] = await Promise.all([
+      role('user'),
+      role('guest'),
+      role('student'),
+    ]);
+    // "Authenticated user" is never assigned, so it would let nobody in
+    const { id } = await saveReport.run(admin, {
+      name: 'Всем вошедшим?',
+      source: 'users',
+      columns: [{ field: 'user.fullName' }],
+      audiences: { roleIds: [user.id] },
+    });
+    await expect(viewReport(await ctxFor(t.db, student3.id), id, {})).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    await saveReport.run(admin, {
+      id,
+      name: 'Всем вошедшим?',
+      audiences: { roleIds: [user.id, guest.id, student.id] },
+    });
+    const r = await t.db.customReport.findUniqueOrThrow({ where: { id } });
+    expect((r.audiences as AudiencesT).roleIds).toEqual([student.id]);
   });
 
   it('works out the next run in the site time zone', () => {

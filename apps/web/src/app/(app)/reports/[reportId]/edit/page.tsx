@@ -48,7 +48,8 @@ export default async function EditReportPage({
     getTranslations('common'),
     getFormatter(),
     getLocale(),
-    db.role.findMany({ orderBy: { sortOrder: 'asc' } }),
+    // the implicit roles (guest, authenticated user) are never assigned to anyone
+    db.role.findMany({ where: { isProtected: false }, orderBy: { sortOrder: 'asc' } }),
     db.cohort.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
     db.user.findMany({
       where: {
