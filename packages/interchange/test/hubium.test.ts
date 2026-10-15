@@ -37,6 +37,7 @@ import { courseFixture } from '@hubium/core/testing/course-fixture';
 import { createUserRecord } from '@hubium/core/users/users';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { withArchive } from '../src/archive.ts';
 import {
   addMissingSections,
   duplicateActivity,
@@ -200,7 +201,7 @@ describe('.hubium backup and restore', () => {
     const entries = unzipSync(zip);
     const manifest = JSON.parse(strFromU8(entries['manifest.json']!));
     expect(manifest).toMatchObject({ format: 'hubium-course', formatVersion: 1, userData: false });
-    const b = readBackup(zip);
+    const b = await withArchive(zip, readBackup);
     expect(b.course.activities.map((a) => a.name)).toEqual(['Введение', 'Эссе', 'Тест']);
     expect(b.course.questions).toHaveLength(2);
     expect((b.course.activities[2]!.module as { slots: unknown[] }).slots).toHaveLength(2);
@@ -1039,7 +1040,10 @@ describe('.hubium backup and restore', () => {
     await store(workshop.id, 'mod.workshop', 'submission', 'my-essay.txt');
     const data = await src.addActivity('data', 'База', {});
     await store(data.id, 'mod.data', 'content', 'my-entry.txt');
-    const b = readBackup(await exportCourse(await ctxFor(t.db, src.users.teacher!), src.courseId));
+    const b = await withArchive(
+      await exportCourse(await ctxFor(t.db, src.users.teacher!), src.courseId),
+      readBackup,
+    );
     expect(b.files.map((x) => x.name)).not.toContain('my-essay.txt');
     expect(b.files.map((x) => x.name)).not.toContain('my-entry.txt');
   });

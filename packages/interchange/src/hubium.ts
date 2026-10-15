@@ -46,7 +46,7 @@ import {
 } from '@hubium/questions';
 import { strFromU8, strToU8, Zip, ZipDeflate, ZipPassThrough } from 'fflate';
 import { z } from 'zod';
-import { type ArchiveLimits, unzipLimited } from './archive.ts';
+import { type ArchiveFiles, withArchive } from './archive.ts';
 
 // The .hubium course format: a zip with manifest.json, course.json, files.json and
 // files/<blobId>. Restoring maps every id from the source course to a new one, so the
@@ -713,19 +713,14 @@ interface Backup {
   local?: boolean;
 }
 
-/** Reads and validates a .hubium archive. */
-export function readBackup(zip: Uint8Array, limits?: ArchiveLimits): Backup {
-  let entries: Record<string, Uint8Array>;
-  try {
-    entries = unzipLimited(zip, limits);
-  } catch (e) {
-    if (e instanceof ValidationError) throw e;
-    throw new ValidationError({ file: [msg('errors.interchange.notHubium')] });
-  }
-  if (!entries['manifest.json'])
-    throw new ValidationError({ file: [msg('errors.interchange.notHubium')] });
+/** What a file that is no .hubium archive is told. */
+export const notHubium = () => new ValidationError({ file: [msg('errors.interchange.notHubium')] });
+
+/** Reads and validates an unpacked .hubium archive (see openArchive). */
+export function readBackup(entries: ArchiveFiles): Backup {
+  if (!entries.has('manifest.json')) throw notHubium();
   const json = (name: string) => {
-    const e = entries[name];
+    const e = entries.get(name);
     if (!e)
       throw new ValidationError({ file: [msg('errors.interchange.hubiumMissingPart', { name })] });
     return JSON.parse(strFromU8(e)) as unknown;
@@ -737,7 +732,7 @@ export function readBackup(zip: Uint8Array, limits?: ArchiveLimits): Backup {
     manifest: manifest.data,
     course: CourseJson.parse(json('course.json')),
     files: z.array(FileRow).parse(json('files.json')),
-    blob: (id: string) => entries[`files/${id}`],
+    blob: (id: string) => entries.get(`files/${id}`),
   };
 }
 
@@ -771,13 +766,23 @@ export interface NewCourseTarget {
   onCreated?: (courseId: string) => Promise<unknown>;
 }
 
-/** Restores a .hubium archive into a new course in `categoryId`. */
+/**
+ * Restores a .hubium archive (a file on disk, its bytes, or one already unpacked) into a new
+ * course in `categoryId`.
+ */
 export async function restoreCourse(
   ctx: RequestContext,
-  zip: Uint8Array,
+  archive: string | Uint8Array | ArchiveFiles,
   target: NewCourseTarget,
 ): Promise<RestoreReport> {
-  return restoreBackup(ctx, readBackup(zip), target);
+  if (typeof archive === 'string' || archive instanceof Uint8Array)
+    return withArchive(
+      archive,
+      (a) => restoreBackup(ctx, readBackup(a), target),
+      undefined,
+      notHubium,
+    );
+  return restoreBackup(ctx, readBackup(archive), target);
 }
 
 /**

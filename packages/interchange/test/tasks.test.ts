@@ -3,6 +3,7 @@ import { getStorage } from '@hubium/core/files/storage';
 import { capturedJobs, ctxFor, useTestDb } from '@hubium/core/testing';
 import { courseFixture } from '@hubium/core/testing/course-fixture';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { withArchive } from '../src/archive.ts';
 import { exportCourse, readBackup, restoreCourse } from '../src/hubium.ts';
 import {
   BACKUP_JOB,
@@ -67,7 +68,9 @@ describe('course backups and imports in the background', () => {
       where: { id: fileId! },
       include: { blob: true },
     });
-    expect(readBackup(await stored(file.blob.storageKey)).course.course.id).toBe(f.courseId);
+    expect(
+      (await withArchive(await stored(file.blob.storageKey), readBackup)).course.course.id,
+    ).toBe(f.courseId);
     // those who may back the course up download it, learners do not
     const student = await ctxFor(t.db, f.users.student1!);
     expect(await canReadFile(teacher, file)).toBe(true);

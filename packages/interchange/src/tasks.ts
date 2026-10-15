@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -16,7 +16,8 @@ import { consumeUpload } from '@hubium/core/files/uploads';
 import { enqueue } from '@hubium/core/jobs/jobs';
 import type { BackgroundTask, Db, Prisma } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
-import { discardCourse, restoreCourse, writeCourseArchive } from './hubium.ts';
+import { openArchive } from './archive.ts';
+import { discardCourse, notHubium, restoreCourse, writeCourseArchive } from './hubium.ts';
 import { importMbz, readMbz } from './mbz.ts';
 
 // Course imports and backups run as background tasks. An import: the browser uploads the
@@ -126,7 +127,10 @@ export async function runImportTask(db: Db, taskId: string) {
   const input = task.input as { uploadId: string; categoryId: string; kind: 'hubium' | 'mbz' };
   try {
     const ctx = await userCtx(db, task.createdById);
-    const buf = await consumeUpload(db, task.createdById, input.uploadId, (f) => readFile(f.path));
+    // unpacked from the upload to a folder of its own, read a file at a time
+    const archive = await consumeUpload(db, task.createdById, input.uploadId, (f) =>
+      input.kind === 'mbz' ? readMbz(f.path) : openArchive(f.path, undefined, notHubium),
+    );
     await db.backgroundTask.update({ where: { id: taskId }, data: { progress: 20 } });
     // the course is named on the task as soon as it exists: should the worker stop, the
     // course goes with the task (above, or failLostTasks)
@@ -135,10 +139,10 @@ export async function runImportTask(db: Db, taskId: string) {
       onCreated: (courseId: string) =>
         db.backgroundTask.update({ where: { id: taskId }, data: { result: { courseId } } }),
     };
-    const report =
-      input.kind === 'mbz'
-        ? await importMbz(ctx, await readMbz(buf), target)
-        : await restoreCourse(ctx, new Uint8Array(buf), target);
+    const report = await (input.kind === 'mbz'
+      ? importMbz(ctx, archive, target)
+      : restoreCourse(ctx, archive, target)
+    ).finally(() => archive.close());
     await db.backgroundTask.update({
       where: { id: taskId },
       data: {

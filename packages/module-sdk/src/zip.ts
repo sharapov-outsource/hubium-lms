@@ -33,6 +33,12 @@ export function safeEntryPath(name: string): string | null {
   return parts.length ? parts.join('/') : null;
 }
 
+/** A package past a limit of `extractZip`: too many files, too large unpacked, or packed
+ *  suspiciously tightly. */
+export class PackageLimitError extends Error {
+  override name = 'PackageLimitError';
+}
+
 const unsafe = (e: Error) =>
   /invalid relative path|absolute path/i.test(e.message)
     ? new Error(`Unsafe path in the package: ${e.message}`)
@@ -61,7 +67,7 @@ export function extractZip(
         zip.on('entry', (entry: yauzl.Entry) => {
           if (entry.fileName.endsWith('/')) return zip.readEntry();
           if (files.length >= limits.maxEntries)
-            return fail(new Error('Too many files in the package'));
+            return fail(new PackageLimitError('Too many files in the package'));
           const path = safeEntryPath(entry.fileName);
           if (!path) return fail(new Error(`Unsafe path in the package: ${entry.fileName}`));
           // unix mode in the high bits: reject symlinks
@@ -70,12 +76,12 @@ export function extractZip(
             return fail(new Error(`Symbolic link in the package: ${entry.fileName}`));
           total += entry.uncompressedSize;
           if (total > limits.maxTotalBytes)
-            return fail(new Error('The package is too large when unpacked'));
+            return fail(new PackageLimitError('The package is too large when unpacked'));
           if (
             entry.uncompressedSize > 1024 * 1024 &&
             entry.uncompressedSize / Math.max(1, entry.compressedSize) > limits.maxRatio
           ) {
-            return fail(new Error(`Suspicious compression ratio: ${entry.fileName}`));
+            return fail(new PackageLimitError(`Suspicious compression ratio: ${entry.fileName}`));
           }
           zip.openReadStream(entry, (e, stream) => {
             if (e || !stream) return fail(e ?? new Error('Cannot read entry'));

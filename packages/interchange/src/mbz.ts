@@ -1,4 +1,3 @@
-import { Readable } from 'node:stream';
 import {
   addSection,
   buildModuleCtx,
@@ -39,14 +38,7 @@ import {
   toClozeSource,
 } from '@hubium/questions';
 import { XMLParser } from 'fast-xml-parser';
-import tar from 'tar-stream';
-import {
-  ARCHIVE_LIMITS,
-  type ArchiveLimits,
-  archiveTooLarge,
-  gunzipLimited,
-  unzipLimited,
-} from './archive.ts';
+import { ARCHIVE_LIMITS, type ArchiveFiles, type ArchiveLimits, openArchive } from './archive.ts';
 import {
   addMissingSections,
   discardCourse,
@@ -143,62 +135,21 @@ const parser = new XMLParser({
     ].includes(name),
 });
 
-export type Archive = Map<string, Buffer>;
+export type Archive = ArchiveFiles;
 
-/** Reads a .mbz: gzip'ed tar (Moodle ≥ 2.6 default) or zip (older or "zip" setting). */
+/**
+ * Unpacks a .mbz: gzip'ed tar (Moodle ≥ 2.6 default) or zip (older or "zip" setting), a file
+ * on disk or its bytes. The caller closes it once imported.
+ */
 export async function readMbz(
-  buf: Buffer,
+  source: string | Buffer,
   limits: ArchiveLimits = ARCHIVE_LIMITS,
 ): Promise<Archive> {
-  const files =
-    buf[0] === 0x50 && buf[1] === 0x4b
-      ? readZip(buf, limits)
-      : await readTar(
-          buf[0] === 0x1f && buf[1] === 0x8b ? gunzipLimited(buf, limits) : buf,
-          limits,
-        );
-  if (!files.has('moodle_backup.xml'))
+  const files = await openArchive(source, limits);
+  if (!files.has('moodle_backup.xml')) {
+    await files.close();
     throw new ValidationError({ file: [msg('errors.interchange.notMbz')] });
-  return files;
-}
-
-function readZip(buf: Buffer, limits: ArchiveLimits): Archive {
-  let entries: Record<string, Uint8Array>;
-  try {
-    entries = unzipLimited(new Uint8Array(buf), limits);
-  } catch (e) {
-    if (e instanceof ValidationError) throw e;
-    throw new ValidationError({ file: [msg('errors.interchange.archiveDamaged')] });
   }
-  const files: Archive = new Map();
-  for (const [k, v] of Object.entries(entries)) files.set(k.replace(/^\.\//, ''), Buffer.from(v));
-  return files;
-}
-
-// The tar body is never larger than the (size-capped) gunzipped input, so only entries are counted.
-async function readTar(raw: Buffer, limits: ArchiveLimits): Promise<Archive> {
-  const files: Archive = new Map();
-  const extract = tar.extract();
-  let count = 0;
-  await new Promise<void>((resolve, reject) => {
-    extract.on('entry', (header, stream, next) => {
-      if (++count > limits.entries) {
-        extract.destroy();
-        return reject(archiveTooLarge());
-      }
-      const chunks: Buffer[] = [];
-      stream.on('data', (c: unknown) => chunks.push(c as Buffer));
-      stream.on('end', () => {
-        if (header.type === 'file')
-          files.set(header.name.replace(/^\.\//, ''), Buffer.concat(chunks));
-        next();
-      });
-      stream.resume();
-    });
-    extract.on('finish', resolve);
-    extract.on('error', reject);
-    Readable.from([raw]).pipe(extract);
-  });
   return files;
 }
 

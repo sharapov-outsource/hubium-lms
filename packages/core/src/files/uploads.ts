@@ -1,4 +1,4 @@
-import { appendFile, mkdir, rm, stat, truncate } from 'node:fs/promises';
+import { appendFile, mkdir, readdir, rm, stat, truncate } from 'node:fs/promises';
 import path from 'node:path';
 import type { Db, Prisma } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
@@ -18,6 +18,11 @@ const TTL_MS = 24 * 3600_000;
 
 export function uploadTempDir(): string {
   return path.join(fsStorageRoot(), 'tmp', 'uploads');
+}
+
+/** Where archives being imported are unpacked, one folder each (see interchange). */
+export function archiveTempDir(): string {
+  return path.join(fsStorageRoot(), 'tmp', 'archives');
 }
 
 function tempPath(id: string): string {
@@ -187,6 +192,13 @@ export async function cleanupUploads(
     await db.uploadSession.deleteMany({ where: { id: { in: old.map((u) => u.id) } } });
     removed += old.length;
     if (old.length < 500) break;
+  }
+  // unpacked archives a stopped worker left behind (an import takes far less than a day)
+  const archives = await readdir(archiveTempDir()).catch(() => [] as string[]);
+  for (const name of archives) {
+    const dir = path.join(archiveTempDir(), name);
+    const s = await stat(dir).catch(() => null);
+    if (s && now.getTime() - s.mtimeMs > TTL_MS) await rm(dir, { recursive: true, force: true });
   }
   return removed;
 }
