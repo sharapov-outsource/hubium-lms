@@ -81,6 +81,19 @@ export async function hasSiteAdmin(db: Db, email: string): Promise<boolean> {
   return n > 0;
 }
 
+/** Marks a site that has had its demo data (not a setting: settings ignore the key). */
+const DEMO_SEEDED = 'seed.demo';
+
+/** Whether the demo data was put in already, by this seed or by one from before the mark. */
+async function demoSeededBefore(db: Db): Promise<boolean> {
+  if (await db.siteSetting.findUnique({ where: { key: DEMO_SEEDED } })) return true;
+  const [course, accounts] = await Promise.all([
+    db.course.findUnique({ where: { shortName: 'DEMO-PY' }, select: { id: true } }),
+    db.user.count({ where: { email: { in: demoUsers.map((u) => u.email) } } }),
+  ]);
+  return !!course || accounts > 0;
+}
+
 /** Idempotent: safe to run on every deploy. */
 export async function seed(db: Db, opts: SeedOptions) {
   await ensureSystemContext(db);
@@ -107,7 +120,11 @@ export async function seed(db: Db, opts: SeedOptions) {
   }
 
   const users: Record<string, string> = {};
-  if (opts.profile === 'demo') {
+  // Demo data comes once. A site tried out with it and then put to work keeps what its
+  // administrators deleted deleted, the demo accounts with their published password above
+  // all: the seed runs again on every start and upgrade.
+  const demo = opts.profile === 'demo' && !(await demoSeededBefore(db));
+  if (demo) {
     for (const u of demoUsers) {
       const existing = await db.user.findUnique({ where: { email: u.email } });
       const user =
@@ -138,10 +155,16 @@ export async function seed(db: Db, opts: SeedOptions) {
     });
   }
   let demoCourses = false;
-  if (opts.profile === 'demo' && opts.courses !== false) {
+  if (demo && opts.courses !== false) {
     const { seedDemoCourses } = await import('./demo-courses.ts');
     demoCourses = (await seedDemoCourses(db, users)).created;
   }
+  if (demo)
+    await db.siteSetting.upsert({
+      where: { key: DEMO_SEEDED },
+      create: { key: DEMO_SEEDED, value: { at: new Date().toISOString() } },
+      update: {},
+    });
   const embeddings = await seedEmbeddingsFromEnv(db);
   return { adminCreated, demoUsers: Object.keys(users).length, demoCourses, embeddings };
 }
