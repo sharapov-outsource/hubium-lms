@@ -31,6 +31,62 @@ describe('auth', () => {
     }
   });
 
+  it('changes profiles only through Hubium, and sign-up takes only the form fields', async () => {
+    const signIn = await auth.api.signInEmail({
+      body: { email: 'student1@hubium.local', password: 'Demo12345!' },
+      returnHeaders: true,
+    });
+    const headers = new Headers({
+      cookie: signIn.headers
+        .getSetCookie()
+        .map((l) => l.split(';')[0])
+        .join('; '),
+    });
+    const before = await t.db.user.findFirstOrThrow({ where: { email: 'student1@hubium.local' } });
+    // a username of someone in the directory, a broken time zone, an outside avatar
+    await expect(
+      auth.api.updateUser({
+        body: { username: 'teacher', timezone: 'Not/AZone', image: 'https://evil.test/t.png' },
+        headers,
+      } as never),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    const after = await t.db.user.findFirstOrThrow({ where: { id: before.id } });
+    expect([after.username, after.timezone, after.image]).toEqual([
+      before.username,
+      before.timezone,
+      before.image,
+    ]);
+
+    await setSettings(t.db, {
+      'registration.enabled': true,
+      'registration.requireEmailVerification': false,
+    });
+    const signUp = (body: Record<string, unknown>) =>
+      auth.api.signUpEmail({
+        body: { email: 'newbie@example.org', password: 'Secret12345!', name: 'New Bie', ...body },
+      } as never) as unknown as Promise<{ token: string | null }>;
+    try {
+      for (const extra of [
+        { username: 'teacher' },
+        { image: 'https://evil.test/t.png' },
+        { timezone: 'Not/AZone' },
+        { firstName: '' },
+        { lastName: 'x'.repeat(101) },
+        { locale: '<script>' },
+      ])
+        await expect(signUp(extra)).rejects.toMatchObject({ statusCode: 400 });
+      expect(await t.db.user.count({ where: { email: 'newbie@example.org' } })).toBe(0);
+      // what the registration form sends goes through
+      const ok = await signUp({ firstName: 'New', lastName: 'Bie', locale: 'ru' });
+      expect(ok.token).toEqual(expect.any(String));
+    } finally {
+      await setSettings(t.db, {
+        'registration.enabled': false,
+        'registration.requireEmailVerification': true,
+      });
+    }
+  });
+
   it('follows the "require email verification" setting', async () => {
     const signUp = (email: string) =>
       auth.api.signUpEmail({ body: { email, password: 'Secret12345!', name: 'Ann Lee' } });

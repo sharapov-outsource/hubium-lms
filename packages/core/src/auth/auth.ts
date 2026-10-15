@@ -109,6 +109,39 @@ function customOAuthConfig(p: CustomOAuthProvider): GenericOAuthConfig {
 }
 
 const EMAIL_SIGN_IN_PATHS = new Set(['/sign-up/email', '/sign-in/email', '/sign-in/username']);
+
+/** What the registration form sends; anything else (a username, an avatar URL, a time
+ *  zone, a theme) is not the person's to choose at sign-up. */
+const SIGN_UP_FIELDS = new Set([
+  'email',
+  'password',
+  'name',
+  'firstName',
+  'lastName',
+  'locale',
+  'callbackURL',
+  'rememberMe',
+]);
+
+function checkSignUpBody(raw: unknown) {
+  const body = (raw ?? {}) as Record<string, unknown>;
+  const extra = Object.keys(body).filter((k) => !SIGN_UP_FIELDS.has(k));
+  if (extra.length)
+    throw new APIError('BAD_REQUEST', { message: `Unexpected fields: ${extra.join(', ')}` });
+  for (const key of ['name', 'firstName', 'lastName'] as const) {
+    const v = body[key];
+    // as the profile form allows: 100 characters a name, the full name is both of them
+    const max = key === 'name' ? 201 : 100;
+    if (v !== undefined && (typeof v !== 'string' || v.trim() === '' || v.trim().length > max))
+      throw new APIError('BAD_REQUEST', { message: `Invalid ${key}` });
+  }
+  const locale = body.locale;
+  if (
+    locale !== undefined &&
+    (typeof locale !== 'string' || !/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(locale))
+  )
+    throw new APIError('BAD_REQUEST', { message: 'Invalid locale' });
+}
 const PASSWORD_SIGN_IN_PATHS = new Set(['/sign-in/email', '/sign-in/username']);
 
 /** Credentials stay with their owner: not changeable from a "log in as" session. */
@@ -230,6 +263,12 @@ export function createAuth({
     },
     hooks: {
       before: createAuthMiddleware(async (c) => {
+        // Profile fields change only through Hubium's own forms, which check them. Better
+        // Auth's endpoint would let anyone set a username (LDAP sign-in links accounts by
+        // it), any name, an avatar URL that everyone who sees the person loads, or a time
+        // zone that breaks date formatting.
+        if (c.path === '/update-user') throw new APIError('NOT_FOUND');
+        if (c.path === '/sign-up/email') checkSignUpBody(c.body);
         const passwordField = PASSWORD_FIELDS[c.path];
         if (passwordField) {
           const body = (c.body ?? {}) as Record<string, unknown>;
