@@ -23,7 +23,13 @@
         "AUTH_RATE_LIMIT",
         "S3_TEST_ENDPOINT",
         "FFMPEG_PATH",
-        "FFPROBE_PATH"
+        "FFPROBE_PATH",
+        "LDAP_TEST_URL",
+        "OLLAMA_URL",
+        "CLAMAV_URL",
+        "HUBIUM_LIVE_MODEL",
+        "ANTHROPIC_BASE_URL",
+        "CI"
       ],
       "passThroughEnv": ["S3_TEST_ACCESS_KEY", "S3_TEST_SECRET_KEY", "ANTHROPIC_API_KEY"],
       "outputs": []

@@ -15,6 +15,13 @@ import {
 // Against the directory of e2e/ldap (CI starts OpenLDAP and sets LDAP_TEST_URL).
 const URL = process.env.LDAP_TEST_URL;
 
+describe('the LDAP tests', () => {
+  // they need a directory and skip without one: CI has one, and must not skip them quietly
+  it.runIf(!!process.env.CI)('run in CI', () => {
+    expect(URL, 'CI starts OpenLDAP: pass LDAP_TEST_URL to the tests').toBeTruthy();
+  });
+});
+
 describe('escapeFilterValue', () => {
   it('escapes filter syntax (RFC 4515)', () => {
     expect(escapeFilterValue('a*)(uid=*')).toBe('a\\2a\\29\\28uid=\\2a');
