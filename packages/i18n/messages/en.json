@@ -1861,6 +1861,7 @@
     "published": "Published {date} · accepted {n}",
     "markdown": "Markdown is supported",
     "mandatory": "Must be accepted",
+    "mandatoryHint": "Publishing makes a new version. Everyone accepts a mandatory version again at their next sign-in.",
     "publish": "Publish a new version",
     "publishedOk": "New version published",
     "name": "Name",

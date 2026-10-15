@@ -1860,6 +1860,7 @@
     "published": "Publié le {date} · {n, plural, one {# acceptation} other {# acceptations}}",
     "markdown": "Markdown est pris en charge",
     "mandatory": "Acceptation obligatoire",
+    "mandatoryHint": "La publication crée une nouvelle version. Chacun accepte de nouveau une version obligatoire à sa prochaine connexion.",
     "publish": "Publier une nouvelle version",
     "publishedOk": "Nouvelle version publiée",
     "name": "Nom",

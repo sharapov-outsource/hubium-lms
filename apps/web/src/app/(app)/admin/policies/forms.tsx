@@ -50,10 +50,13 @@ export function PolicyForm({
 export function PublishForm({
   policyId,
   content,
+  mandatory,
   languages,
 }: {
   policyId: string;
   content: Record<string, string>;
+  /** Whether the current version must be accepted; a first version must be by default. */
+  mandatory: boolean;
   languages: LanguageOption[];
 }) {
   const t = useTranslations('adminPolicies');
@@ -95,9 +98,10 @@ export function PublishForm({
         );
       })}
       <label htmlFor={`mand-${policyId}`} className="flex items-center gap-2 text-sm">
-        <Checkbox id={`mand-${policyId}`} name="mandatory" defaultChecked />
+        <Checkbox id={`mand-${policyId}`} name="mandatory" defaultChecked={mandatory} />
         {t('mandatory')}
       </label>
+      <p className="text-xs text-muted-foreground">{t('mandatoryHint')}</p>
       <SubmitButton className="w-fit">{t('publish')}</SubmitButton>
     </ActionForm>
   );

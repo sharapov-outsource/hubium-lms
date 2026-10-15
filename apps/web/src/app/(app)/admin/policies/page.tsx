@@ -46,7 +46,12 @@ export default async function AdminPoliciesPage() {
             </CardHeader>
             <CardContent className="grid gap-6">
               <PolicyForm policy={{ id: p.id, key: p.key, name }} languages={languages[i]!} />
-              <PublishForm policyId={p.id} content={content} languages={languages[i]!} />
+              <PublishForm
+                policyId={p.id}
+                content={content}
+                mandatory={p.current?.mandatory ?? true}
+                languages={languages[i]!}
+              />
             </CardContent>
           </Card>
         );

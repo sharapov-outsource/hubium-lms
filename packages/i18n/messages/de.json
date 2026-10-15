@@ -1860,6 +1860,7 @@
     "published": "Veröffentlicht am {date} · akzeptiert: {n}",
     "markdown": "Markdown wird unterstützt",
     "mandatory": "Muss akzeptiert werden",
+    "mandatoryHint": "Das Veröffentlichen erstellt eine neue Version. Eine verpflichtende Version akzeptieren alle bei der nächsten Anmeldung erneut.",
     "publish": "Neue Version veröffentlichen",
     "publishedOk": "Neue Version veröffentlicht",
     "name": "Name",
