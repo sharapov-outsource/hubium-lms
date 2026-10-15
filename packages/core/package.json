@@ -45,6 +45,7 @@
   "devDependencies": {
     "@hubium/mod-assign": "workspace:*",
     "@hubium/mod-book": "workspace:*",
+    "@hubium/mod-choice": "workspace:*",
     "@hubium/mod-content": "workspace:*",
     "@hubium/mod-forum": "workspace:*",
     "@hubium/mod-livesession": "workspace:*",

@@ -119,6 +119,10 @@ export const coreCapabilities = {
   // book
   'mod.book:edit': { level: 'ACTIVITY', archetypes: [M, ET], risk: ['xss'] },
   'mod.book:viewhiddenchapters': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  // choice
+  'mod.choice:choose': { level: 'ACTIVITY', archetypes: [S], excludeAdmin: true },
+  'mod.choice:readresponses': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  'mod.choice:deleteresponses': { level: 'ACTIVITY', archetypes: [M, ET] },
   // video / live
   'mod.video:viewprogress': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.livesession:join': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },

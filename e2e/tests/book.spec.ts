@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { addActivity, newCourse } from './courses';
 import { deleteCourse } from './db';
 import { ADMIN, expectAccessible, expectNoSideScroll, login } from './helpers';
 
@@ -8,24 +9,9 @@ test('a teacher writes a book in chapters and subchapters', async ({ page }) => 
   let courseId = '';
   try {
     await login(page, ADMIN.login, ADMIN.password);
-    await page.goto('/course/new');
-    await page.locator('#f-fullName').fill(`Книга ${stamp}`);
-    await page.locator('#f-shortName').fill(`BOOK-${stamp}`);
-    await page.getByRole('button', { name: 'Создать', exact: true }).click();
-    await page.waitForURL(/\/course\/[0-9a-f-]{36}/);
-    courseId = new URL(page.url()).pathname.split('/')[2]!;
-
-    await page.goto(`/course/${courseId}?edit=1`);
-    await page.getByRole('button', { name: 'Добавить элемент' }).first().click();
-    await page
-      .getByRole('dialog')
-      .getByRole('link', { name: /^Книга/ })
-      .click();
-    await page.waitForURL(/\/a\/new\?module=book/);
-    await page.locator('#f-name').fill('Учебник');
-    await page.getByRole('button', { name: 'Создать', exact: true }).click();
-    await page.waitForURL(/\?edit=1/);
-    await page.getByRole('link', { name: 'Учебник' }).click();
+    courseId = await newCourse(page, `Книга ${stamp}`, `BOOK-${stamp}`);
+    const bookId = await addActivity(page, courseId, /^Книга/, 'Учебник');
+    await page.goto(`/course/${courseId}/a/${bookId}`);
     await expect(page.getByText('В книге пока нет глав. Добавьте первую.')).toBeVisible();
 
     const write = async (title: string, text: string) => {

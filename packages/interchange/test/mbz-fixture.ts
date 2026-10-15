@@ -5,7 +5,7 @@ import tar from 'tar-stream';
 // A small Moodle 4.5 course backup (.mbz) with the structure Moodle writes: sections,
 // a page with an embedded image, a quiz using question bank entries and a random slot,
 // an assignment (teams, marking workflow, blind marking, a rubric, a group's dates), a
-// URL, a file resource, Q&A (rated) and news forums, a book with an image in a chapter and
+// URL, a file resource, Q&A (rated) and news forums, a book with an image in a chapter, a choice and
 // an unsupported wiki; groups and a
 // grouping, a scale, and a gradebook with a category, a manual item and a formula.
 
@@ -45,6 +45,7 @@ export async function mbzFixture(): Promise<Buffer> {
       ${activity(17, 'forum', 'Новости', 2)}
       ${activity(18, 'wiki', 'Вики', 2)}
       ${activity(19, 'book', 'Учебник', 2)}
+      ${activity(20, 'choice', 'Тема проекта', 2)}
     </activities>
     <sections>
       <section><sectionid>1</sectionid><title>0</title><directory>sections/section_1</directory></section>
@@ -55,7 +56,7 @@ export async function mbzFixture(): Promise<Buffer> {
 </information></moodle_backup>`,
     'course/course.xml': `<?xml version="1.0" encoding="UTF-8"?><course id="2" contextid="20"><shortname>MOODLE-PY</shortname><fullname>Python из Moodle</fullname><summary>&lt;p&gt;Курс &lt;img src="@@PLUGINFILE@@/logo.png"&gt;&lt;/p&gt;</summary><format>topics</format><startdate>1735689600</startdate><enddate>0</enddate><customfields><customfield id="1"><shortname>Level</shortname><type>select</type><value>2</value><valueformat>0</valueformat></customfield><customfield id="2"><shortname>starts</shortname><type>date</type><value>1767214800</value><valueformat>0</valueformat></customfield><customfield id="3"><shortname>about</shortname><type>textarea</type><value>&lt;p&gt;Для &lt;b&gt;всех&lt;/b&gt;&lt;/p&gt;</value><valueformat>1</valueformat></customfield><customfield id="4"><shortname>elsewhere</shortname><type>text</type><value>x</value><valueformat>0</valueformat></customfield></customfields></course>`,
     'sections/section_1/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="1"><number>0</number><name>$@NULL@$</name><summary></summary><sequence>11,14</sequence><visible>1</visible></section>`,
-    'sections/section_2/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="2"><number>1</number><name>Тема 1</name><summary>&lt;p&gt;Первая тема&lt;/p&gt;</summary><sequence>12,13,15,16,17,18,19</sequence><visible>1</visible></section>`,
+    'sections/section_2/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="2"><number>1</number><name>Тема 1</name><summary>&lt;p&gt;Первая тема&lt;/p&gt;</summary><sequence>12,13,15,16,17,18,19,20</sequence><visible>1</visible></section>`,
 
     'activities/page_11/module.xml': moduleXml(11, 'page', 1),
     'activities/page_11/page.xml': wrap(
@@ -149,6 +150,14 @@ export async function mbzFixture(): Promise<Buffer> {
         '<chapter id="8"><pagenum>2</pagenum><subchapter>1</subchapter><title>Подробности</title><content>&lt;p&gt;Скрытая&lt;/p&gt;</content><contentformat>1</contentformat><hidden>1</hidden></chapter>' +
         '<chapter id="7"><pagenum>1</pagenum><subchapter>0</subchapter><title>Глава 1</title><content><![CDATA[<p>Схема <img src="@@PLUGINFILE@@/fig.png" alt="f"></p>]]></content><contentformat>1</contentformat><hidden>0</hidden></chapter>' +
         '</chapters>',
+    ),
+    'activities/choice_20/module.xml': moduleXml(20, 'choice', 2),
+    'activities/choice_20/choice.xml': wrap(
+      20,
+      'choice',
+      40,
+      '<name>Тема проекта</name><intro></intro><publish>1</publish><showresults>2</showresults><display>0</display><allowupdate>1</allowupdate><allowmultiple>0</allowmultiple><showunanswered>0</showunanswered><limitanswers>1</limitanswers><timeopen>0</timeopen><timeclose>1767225600</timeclose><showpreview>0</showpreview>' +
+        '<options><option id="1"><text>Чат-бот</text><maxanswers>3</maxanswers></option><option id="2"><text>Игра</text><maxanswers>0</maxanswers></option></options>',
     ),
     'activities/wiki_18/module.xml': moduleXml(18, 'wiki', 2),
     'activities/wiki_18/wiki.xml': wrap(

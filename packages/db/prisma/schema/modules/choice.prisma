@@ -1,0 +1,17 @@
+// mod-choice: a question with options; each answer is a row (several with multiple answers).
+
+model ChoiceAnswer {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  activityId String   @db.Uuid
+  userId     String   @db.Uuid
+  /// Id of an option in the activity's settings.
+  optionId   String
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, userId, optionId])
+  @@index([activityId, optionId])
+  @@index([userId])
+}

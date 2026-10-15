@@ -1464,6 +1464,37 @@ export async function importMbz(
             }
             break;
           }
+          case 'choice': {
+            const options = arr(((data.options ?? {}) as Node).option as Node | Node[])
+              .map((o) => ({ text: txt(o.text).trim().slice(0, 255), limit: num(o.maxanswers) }))
+              .filter((o) => o.text);
+            if (!options.length) {
+              await placeholder('the choice has no options');
+              continue;
+            }
+            const date = (v: unknown) =>
+              num(v) > 0 ? new Date(num(v) * 1000).toISOString() : null;
+            await create({
+              ...base,
+              moduleKey: 'choice',
+              settings: {
+                options,
+                allowMultiple: txt(data.allowmultiple) === '1',
+                allowUpdate: txt(data.allowupdate) === '1',
+                limitAnswers: txt(data.limitanswers) === '1',
+                showResults:
+                  (['never', 'afterAnswer', 'afterClose', 'always'] as const)[
+                    num(data.showresults)
+                  ] ?? 'never',
+                publish: txt(data.publish) === '1' ? 'names' : 'anonymous',
+                showUnanswered: txt(data.showunanswered) === '1',
+                opensAt: date(data.timeopen),
+                closesAt: date(data.timeclose),
+                showPreview: txt(data.showpreview) === '1',
+              },
+            });
+            break;
+          }
           default:
             await placeholder('this activity type is not supported');
             continue;

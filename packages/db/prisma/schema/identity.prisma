@@ -107,6 +107,7 @@ model User {
   forumSubscriptions  ForumSubscription[]
   forumReadStates     ForumReadState[]
   videoProgress       VideoProgress[]
+  choiceAnswers       ChoiceAnswer[]
   liveAttendance      LiveAttendance[]
   scormAttempts       ScormAttempt[]
 

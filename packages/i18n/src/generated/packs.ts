@@ -4,6 +4,7 @@
 import core_de from '../../messages/de.json' with { type: 'json' };
 import assign_de from '../../../../modules/assign/messages/de.json' with { type: 'json' };
 import book_de from '../../../../modules/book/messages/de.json' with { type: 'json' };
+import choice_de from '../../../../modules/choice/messages/de.json' with { type: 'json' };
 import content_de from '../../../../modules/content/messages/de.json' with { type: 'json' };
 import forum_de from '../../../../modules/forum/messages/de.json' with { type: 'json' };
 import livesession_de from '../../../../modules/livesession/messages/de.json' with { type: 'json' };
@@ -14,6 +15,7 @@ import video_de from '../../../../modules/video/messages/de.json' with { type: '
 import core_en from '../../messages/en.json' with { type: 'json' };
 import assign_en from '../../../../modules/assign/messages/en.json' with { type: 'json' };
 import book_en from '../../../../modules/book/messages/en.json' with { type: 'json' };
+import choice_en from '../../../../modules/choice/messages/en.json' with { type: 'json' };
 import content_en from '../../../../modules/content/messages/en.json' with { type: 'json' };
 import forum_en from '../../../../modules/forum/messages/en.json' with { type: 'json' };
 import livesession_en from '../../../../modules/livesession/messages/en.json' with { type: 'json' };
@@ -24,6 +26,7 @@ import video_en from '../../../../modules/video/messages/en.json' with { type: '
 import core_fr from '../../messages/fr.json' with { type: 'json' };
 import assign_fr from '../../../../modules/assign/messages/fr.json' with { type: 'json' };
 import book_fr from '../../../../modules/book/messages/fr.json' with { type: 'json' };
+import choice_fr from '../../../../modules/choice/messages/fr.json' with { type: 'json' };
 import content_fr from '../../../../modules/content/messages/fr.json' with { type: 'json' };
 import forum_fr from '../../../../modules/forum/messages/fr.json' with { type: 'json' };
 import livesession_fr from '../../../../modules/livesession/messages/fr.json' with { type: 'json' };
@@ -34,6 +37,7 @@ import video_fr from '../../../../modules/video/messages/fr.json' with { type: '
 import core_it from '../../messages/it.json' with { type: 'json' };
 import assign_it from '../../../../modules/assign/messages/it.json' with { type: 'json' };
 import book_it from '../../../../modules/book/messages/it.json' with { type: 'json' };
+import choice_it from '../../../../modules/choice/messages/it.json' with { type: 'json' };
 import content_it from '../../../../modules/content/messages/it.json' with { type: 'json' };
 import forum_it from '../../../../modules/forum/messages/it.json' with { type: 'json' };
 import livesession_it from '../../../../modules/livesession/messages/it.json' with { type: 'json' };
@@ -44,6 +48,7 @@ import video_it from '../../../../modules/video/messages/it.json' with { type: '
 import core_ru from '../../messages/ru.json' with { type: 'json' };
 import assign_ru from '../../../../modules/assign/messages/ru.json' with { type: 'json' };
 import book_ru from '../../../../modules/book/messages/ru.json' with { type: 'json' };
+import choice_ru from '../../../../modules/choice/messages/ru.json' with { type: 'json' };
 import content_ru from '../../../../modules/content/messages/ru.json' with { type: 'json' };
 import forum_ru from '../../../../modules/forum/messages/ru.json' with { type: 'json' };
 import livesession_ru from '../../../../modules/livesession/messages/ru.json' with { type: 'json' };
@@ -63,9 +68,9 @@ export const corePacks: Record<string, Record<string, unknown>> = {
 
 /** Module strings by language code, one object per module that has the language. */
 export const modulePacks: Record<string, Record<string, unknown>[]> = {
-  "de": [assign_de, book_de, content_de, forum_de, livesession_de, lti_de, quiz_de, scorm_de, video_de],
-  "en": [assign_en, book_en, content_en, forum_en, livesession_en, lti_en, quiz_en, scorm_en, video_en],
-  "fr": [assign_fr, book_fr, content_fr, forum_fr, livesession_fr, lti_fr, quiz_fr, scorm_fr, video_fr],
-  "it": [assign_it, book_it, content_it, forum_it, livesession_it, lti_it, quiz_it, scorm_it, video_it],
-  "ru": [assign_ru, book_ru, content_ru, forum_ru, livesession_ru, lti_ru, quiz_ru, scorm_ru, video_ru],
+  "de": [assign_de, book_de, choice_de, content_de, forum_de, livesession_de, lti_de, quiz_de, scorm_de, video_de],
+  "en": [assign_en, book_en, choice_en, content_en, forum_en, livesession_en, lti_en, quiz_en, scorm_en, video_en],
+  "fr": [assign_fr, book_fr, choice_fr, content_fr, forum_fr, livesession_fr, lti_fr, quiz_fr, scorm_fr, video_fr],
+  "it": [assign_it, book_it, choice_it, content_it, forum_it, livesession_it, lti_it, quiz_it, scorm_it, video_it],
+  "ru": [assign_ru, book_ru, choice_ru, content_ru, forum_ru, livesession_ru, lti_ru, quiz_ru, scorm_ru, video_ru],
 };

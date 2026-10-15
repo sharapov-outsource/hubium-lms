@@ -28,7 +28,7 @@ describe('.mbz import', () => {
     expect(report).toMatchObject({
       moodleRelease: '4.5 (Build: 20241007)',
       sections: 2,
-      activities: 8,
+      activities: 9,
       questions: 6,
     });
     expect(report.warnings.join('\n')).toContain('Формула');
@@ -65,7 +65,20 @@ describe('.mbz import', () => {
       'forum:Вопросы',
       'label:Вики',
       'book:Учебник',
+      'choice:Тема проекта',
     ]);
+    const choice = acts.find((a) => a.moduleKey === 'choice')!;
+    expect(choice.settings).toMatchObject({
+      options: [
+        { text: 'Чат-бот', limit: 3 },
+        { text: 'Игра', limit: 0 },
+      ],
+      limitAnswers: true,
+      allowUpdate: true,
+      showResults: 'afterClose',
+      publish: 'names',
+      closesAt: '2026-01-01T00:00:00.000Z',
+    });
     // the book's chapters in page order, with the chapter's picture stored in the course
     const book = acts.find((a) => a.moduleKey === 'book')!;
     expect(book.settings).toMatchObject({ numbering: 'indented', customTitles: false });
