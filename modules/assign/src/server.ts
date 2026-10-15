@@ -556,7 +556,17 @@ export const assign = defineModule<AssignSettingsT>({
           { workflowState: 'RELEASED' },
         );
       }
-      if (s.markingWorkflow !== prev.markingWorkflow) await pushAll(ctx, a);
+      // the gradebook figure is the grade less the late penalty: a corrected due date or
+      // penalty, or a new maximum or scale, gives the grades already given again
+      const keys = [
+        'markingWorkflow',
+        'dueAt',
+        'latePenaltyPerDay',
+        'latePenaltyCap',
+        'gradeMax',
+        'scaleId',
+      ] as const;
+      if (keys.some((k) => s[k] !== prev[k])) await pushAll(ctx, a);
     },
   },
   backup: {

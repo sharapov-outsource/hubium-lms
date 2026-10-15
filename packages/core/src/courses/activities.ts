@@ -298,8 +298,10 @@ export const updateActivity = defineOperation({
     });
     const m = requireModule(a.moduleKey);
     const mctx = buildModuleCtx(ctx, ctx.tx);
-    await m.lifecycle?.onUpdate?.(mctx, toActivityRef(a), parseSettings(m, prev.settings));
+    // the gradebook items first (a new maximum, a scale): grades the module works out again
+    // in onUpdate would be cut at the old maximum
     if (m.grading) await mctx.grades.syncItems(a.id);
+    await m.lifecycle?.onUpdate?.(mctx, toActivityRef(a), parseSettings(m, prev.settings));
     await syncCalendar(ctx.tx, a);
     // New completion rules apply to everyone, not just to the next person who acts.
     if (

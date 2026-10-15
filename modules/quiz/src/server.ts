@@ -1147,6 +1147,16 @@ export const quiz = defineModule<QuizSettingsT>({
     // a new "questions per page" lays the questions out again, as Moodle's "repaginate now"
     async onUpdate(ctx, a, prev) {
       if (a.settings.perPage !== prev.perPage) await repaginate(ctx.db, a.id, a.settings.perPage);
+      // the grade is the attempts' share of the maximum, by the grading method: either new
+      // gives everyone a new grade, as Moodle works them out again
+      if (a.settings.gradeMax !== prev.gradeMax || a.settings.gradeMethod !== prev.gradeMethod) {
+        const users = await ctx.db.quizAttempt.findMany({
+          where: { activityId: a.id, preview: false, state: 'FINISHED' },
+          select: { userId: true },
+          distinct: ['userId'],
+        });
+        for (const { userId } of users) await updateQuizGrade(ctx, a, userId);
+      }
     },
   },
   backup: {

@@ -2,6 +2,7 @@ import type { workshopOverview } from '@hubium/mod-workshop/server';
 import { describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
+import { updateActivity } from '../courses/activities.ts';
 import { runModuleAction, runModuleQuery } from './actions.ts';
 
 type Overview = Pick<Awaited<ReturnType<typeof workshopOverview>>, 'phase' | 'toReview' | 'all'> & {
@@ -128,5 +129,13 @@ describe('mod-workshop', () => {
     await expect(
       act(teacher, 'saveForm', { dimensions: [{ description: 'Новое', maxGrade: 5 }] }),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
+    // a new maximum: the gradebook takes it before the grades, which are not cut at the old
+    const ws = await t.db.activity.findUniqueOrThrow({ where: { id } });
+    await updateActivity.run(teacher!, {
+      id,
+      name: ws.name,
+      settings: { ...(ws.settings as object), gradeMax: 200 },
+    });
+    expect(await gradeOf(0, f.users.student2!)).toBe(160);
   });
 });

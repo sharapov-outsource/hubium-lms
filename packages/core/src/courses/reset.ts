@@ -1,4 +1,5 @@
 import { Prisma } from '@hubium/db';
+import { parseSettings } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { logEnrolments, methodName, removeCourseMembership } from '../enrol/enrol.ts';
@@ -214,7 +215,7 @@ export const resetCourse = defineOperation({
       : null;
     if (newStart && course.startDate) {
       const ms = newStart.getTime() - course.startDate.getTime();
-      if (ms) await shiftCourseDates(tx, courseId, ms);
+      if (ms) await shiftCourseDates(ctx, courseId, ms);
       report.shiftedDays = Math.round(ms / 86_400_000);
     } else if (newStart) {
       await tx.course.update({ where: { id: courseId }, data: { startDate: newStart } });
@@ -236,7 +237,12 @@ export const resetCourse = defineOperation({
  * Moves the course, its sections' and activities' dates and access rules, and its events by
  * `ms`; activities in the recycle bin too, so restored they belong to the new term.
  */
-async function shiftCourseDates(tx: Prisma.TransactionClient, courseId: string, ms: number) {
+async function shiftCourseDates(
+  ctx: RequestContext & { tx: Prisma.TransactionClient },
+  courseId: string,
+  ms: number,
+) {
+  const { tx } = ctx;
   const course = await tx.course.findUniqueOrThrow({ where: { id: courseId } });
   const at = (d: Date | null) => (d ? new Date(d.getTime() + ms) : null);
   await tx.course.update({
@@ -261,8 +267,16 @@ async function shiftCourseDates(tx: Prisma.TransactionClient, courseId: string, 
         completionExpectedAt: at(a.completionExpectedAt),
       },
     });
-    // activity events follow the new settings
+    // activity events follow the new settings, and so does what the module works out from
+    // its dates (an assignment's late penalties)
     await syncCalendar(tx, updated);
+    const m = getModule(a.moduleKey);
+    if (m && !a.deletedAt)
+      await m.lifecycle?.onUpdate?.(
+        buildModuleCtx(ctx, tx),
+        toActivityRef(updated),
+        parseSettings(m, a.settings),
+      );
   }
   // a subscription's events keep the dates of their feed
   for (const e of await tx.calendarEvent.findMany({
