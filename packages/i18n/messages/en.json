@@ -2262,7 +2262,9 @@
     "sendName": "Send name",
     "sendEmail": "Send e-mail",
     "enabled": "Enabled",
-    "save": "Save"
+    "save": "Save",
+    "usedBy": "{n, plural, one {Used by # course activity} other {Used by # course activities}}",
+    "deleteUsedConfirm": "Delete the tool “{name}”? {n, plural, one {# course activity uses it and stops} other {# course activities use it and stop}} working. To keep them for later, turn the tool off in its settings instead."
   },
   "adminWebhooks": {
     "title": "Webhooks",

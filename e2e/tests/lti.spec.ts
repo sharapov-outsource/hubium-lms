@@ -56,4 +56,19 @@ test('LTI tool registration and launch initiation', async ({ page }) => {
     'src',
     `/api/mod/lti/launch/${act!.id}`,
   );
+  await logout(page);
+
+  // deleting a tool in use says what stops working, and offers turning it off instead
+  await login(page, ADMIN.login, ADMIN.password);
+  await page.goto('/admin/lti');
+  const card = page
+    .locator('div')
+    .filter({ has: page.getByRole('heading', { name }) })
+    .last();
+  await expect(card.getByText('Используется в 1 элементе курсов')).toBeVisible();
+  await card.getByRole('button', { name: 'Удалить' }).click();
+  await expect(
+    page.getByRole('dialog').getByText(/1 элемент курсов с ним перестанет/),
+  ).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Отмена' }).click();
 });

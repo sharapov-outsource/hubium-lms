@@ -2261,7 +2261,9 @@
     "sendName": "Invia il nome",
     "sendEmail": "Invia l’email",
     "enabled": "Abilitato",
-    "save": "Salva"
+    "save": "Salva",
+    "usedBy": "{n, plural, one {Usato da # attività del corso} other {Usato da # attività del corso}}",
+    "deleteUsedConfirm": "Eliminare lo strumento «{name}»? {n, plural, one {# attività del corso lo usa e smetterà} other {# attività del corso lo usano e smetteranno}} di funzionare. Per conservarle, disattiva invece lo strumento nelle sue impostazioni."
   },
   "adminWebhooks": {
     "title": "Webhook",

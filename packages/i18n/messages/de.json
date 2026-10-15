@@ -2261,7 +2261,9 @@
     "sendName": "Namen übermitteln",
     "sendEmail": "E-Mail übermitteln",
     "enabled": "Aktiviert",
-    "save": "Speichern"
+    "save": "Speichern",
+    "usedBy": "{n, plural, one {In # Kursaktivität verwendet} other {In # Kursaktivitäten verwendet}}",
+    "deleteUsedConfirm": "Das Tool „{name}“ löschen? {n, plural, one {# Kursaktivität nutzt es und funktioniert} other {# Kursaktivitäten nutzen es und funktionieren}} dann nicht mehr. Um sie für später zu behalten, schalten Sie das Tool stattdessen in seinen Einstellungen aus."
   },
   "adminWebhooks": {
     "title": "Webhooks",

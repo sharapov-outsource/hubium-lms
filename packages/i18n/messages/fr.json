@@ -2261,7 +2261,9 @@
     "sendName": "Transmettre le nom",
     "sendEmail": "Transmettre l’adresse e-mail",
     "enabled": "Activé",
-    "save": "Enregistrer"
+    "save": "Enregistrer",
+    "usedBy": "{n, plural, one {Utilisé par # activité de cours} other {Utilisé par # activités de cours}}",
+    "deleteUsedConfirm": "Supprimer l’outil « {name} » ? {n, plural, one {# activité de cours l’utilise et ne fonctionnera} other {# activités de cours l’utilisent et ne fonctionneront}} plus. Pour les garder, désactivez plutôt l’outil dans ses réglages."
   },
   "adminWebhooks": {
     "title": "Webhooks",

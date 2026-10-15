@@ -45,6 +45,14 @@ export default async function LtiToolsPage({
       </div>
     );
   const tools = await db.ltiTool.findMany({ orderBy: { name: 'asc' } });
+  // activities of courses (the recycle bin's too) that launch each tool
+  const uses = new Map(
+    (
+      await db.$queryRaw<{ toolId: string; n: number }[]>`
+        SELECT settings->>'toolId' AS "toolId", count(*)::int AS n
+          FROM "Activity" WHERE "moduleKey" = 'lti' GROUP BY 1`
+    ).map((r) => [r.toolId, r.n]),
+  );
   const editing = sp.edit ? tools.find((x) => x.id === sp.edit) : undefined;
   const platform = platformInfo();
   return (
@@ -78,6 +86,9 @@ export default async function LtiToolsPage({
             <CardTitle>
               {tool.name} {tool.enabled ? null : <Badge variant="warning">{t('disabled')}</Badge>}
             </CardTitle>
+            <span className="text-sm text-muted-foreground">
+              {t('usedBy', { n: uses.get(tool.id) ?? 0 })}
+            </span>
             <div className="flex gap-2">
               <a
                 href={`/admin/lti?edit=${tool.id}`}
@@ -88,7 +99,11 @@ export default async function LtiToolsPage({
               <CommandButton
                 size="sm"
                 variant="ghost"
-                confirm={t('deleteConfirm', { name: tool.name })}
+                confirm={
+                  uses.get(tool.id)
+                    ? t('deleteUsedConfirm', { name: tool.name, n: uses.get(tool.id)! })
+                    : t('deleteConfirm', { name: tool.name })
+                }
                 run={deleteLtiToolAction.bind(null, tool.id)}
               >
                 {t('delete')}
