@@ -7,6 +7,7 @@ import {
   safeFetch,
   ssrfAllowedHosts,
   UnsafeUrlError,
+  urlRefusal,
 } from '@hubium/module-sdk/net';
 import { z } from 'zod';
 import { publishInvalidation } from '../cache-bus.ts';
@@ -115,7 +116,10 @@ async function fetchText(url: string, field: string): Promise<string> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.text();
   } catch (e) {
-    const why = e instanceof UnsafeUrlError ? e.message : `Cannot load ${url}: ${String(e)}`;
+    const why =
+      e instanceof UnsafeUrlError
+        ? e.msg
+        : msg('errors.auth.cannotLoad', { url, error: e instanceof Error ? e.message : String(e) });
     throw new ValidationError({ [field]: [why] });
   }
 }
@@ -175,13 +179,14 @@ async function buildProvider(
     const errors: Record<string, MsgOrText[]> = {};
     for (const f of ['authorizationUrl', 'tokenUrl', 'userInfoUrl', 'clientId'] as const)
       if (!input[f]) errors[f] = [msg('errors.field.required')];
-    if (!input.clientSecret && !same?.clientSecretEnc) errors.clientSecret = ['Required'];
+    if (!input.clientSecret && !same?.clientSecretEnc)
+      errors.clientSecret = [msg('errors.field.required')];
     if (Object.keys(errors).length) throw new ValidationError(errors);
     for (const f of ['authorizationUrl', 'tokenUrl', 'userInfoUrl'] as const) {
       try {
         await assertPublicUrl(input[f]!);
       } catch (e) {
-        throw new ValidationError({ [f]: [e instanceof Error ? e.message : String(e)] });
+        throw new ValidationError({ [f]: [urlRefusal(e)] });
       }
     }
     const oauthConfig = {

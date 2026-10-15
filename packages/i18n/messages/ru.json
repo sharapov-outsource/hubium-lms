@@ -659,7 +659,8 @@
         "symbol": "Добавьте символ, например ! или %"
       },
       "minWords": "{n, plural, one {Не меньше # слова} few {Не меньше # слов} many {Не меньше # слов} other {Не меньше # слова}}",
-      "ldapFilterLogin": "Фильтр должен содержать {login}"
+      "ldapFilterLogin": "Фильтр должен содержать {login}",
+      "cannotLoad": "Не удалось загрузить {url}: {error}"
     },
     "badges": {
       "unknown": "Неизвестное значение: {name}",
@@ -683,7 +684,10 @@
       "notIcs": "Это не файл iCalendar (.ics)",
       "chooseIcsFile": "Выберите файл .ics",
       "icsTooLarge": "Файл больше 5 МБ",
-      "unknownInterval": "Неизвестный интервал"
+      "unknownInterval": "Неизвестный интервал",
+      "noCalendar": "По этому адресу нет календаря",
+      "feedTooLarge": "Календарь больше {mb} МБ",
+      "unreachable": "Адрес недоступен"
     },
     "certificates": {
       "checkField": "Проверьте поле {n}",
@@ -1070,6 +1074,15 @@
       "invalidQuestion": "Недопустимый вопрос",
       "aggregationMean": "способ агрегирования категории оценок {code} недоступен: используется среднее",
       "aggregationWeighted": "способ агрегирования категории оценок {code} недоступен: используется взвешенное среднее"
+    },
+    "url": {
+      "invalid": "Неверный адрес",
+      "scheme": "Допустимы только адреса http(s)",
+      "credentials": "Логин и пароль в адресе недопустимы",
+      "internal": "{host} — внутренний адрес; чтобы разрешить его, добавьте его в SSRF_ALLOW_HOSTS",
+      "resolvesInternal": "{host} указывает на внутренний адрес; чтобы разрешить его, добавьте его в SSRF_ALLOW_HOSTS",
+      "unresolvable": "Не удаётся найти адрес {host}",
+      "redirects": "Слишком много перенаправлений"
     }
   },
   "editor": {

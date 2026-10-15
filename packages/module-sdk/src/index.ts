@@ -490,12 +490,13 @@ export class ModuleError extends Error {
 }
 
 /**
- * What an error says to people in a language: a ModuleError's message (also one a
- * PermanentJobError carries) translated, else the error's own text.
+ * What an error says to people in a language: the message an error carries (a ModuleError's,
+ * an UnsafeUrlError's, also one a PermanentJobError wraps) translated, else its own text.
  */
 export function errorText(e: unknown, locale: string): string {
   const cause = e instanceof PermanentJobError ? e.cause : e;
-  if (cause instanceof ModuleError && cause.msg) return cause.msg.in(locale);
+  const said = (cause as { msg?: unknown } | null | undefined)?.msg;
+  if (isMsg(said)) return said.in(locale);
   return e instanceof Error ? e.message : String(e);
 }
 

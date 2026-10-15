@@ -6,6 +6,7 @@ import {
   checkUrlShape,
   publicFetch,
   UnsafeUrlError,
+  urlRefusal,
 } from '@hubium/module-sdk/net';
 import { z } from 'zod';
 import { publishInvalidation } from '../cache-bus.ts';
@@ -63,7 +64,8 @@ const UrlField = z
     try {
       checkUrlShape(v);
     } catch (e) {
-      c.addIssue({ code: 'custom', message: e instanceof Error ? e.message : String(e) });
+      const why = urlRefusal(e);
+      c.addIssue({ code: 'custom', message: why.key, params: why.values });
     }
   });
 const EventsField = z

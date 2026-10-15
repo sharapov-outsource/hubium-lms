@@ -75,9 +75,7 @@ export async function importCalendarAction(fd: FormData) {
         pollSeconds: Number(v.pollSeconds ?? 86_400),
       });
       // the subscription stays even when the first fetch fails: it says why and retries
-      const r = await syncSubscription(db, id).catch((e: unknown) => {
-        throw e instanceof ValidationError ? e : new ValidationError({ url: [String(e)] });
-      });
+      const r = await syncSubscription(db, id);
       revalidatePath('/calendar');
       return { id, events: r.events };
     }

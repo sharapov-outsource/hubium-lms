@@ -197,6 +197,17 @@ export function userLocale(s: AllSettings, preferred: string | null | undefined)
   return preferred && enabledLocales(s).includes(preferred) ? preferred : siteLocale(s);
 }
 
+/** The language of someone a job works for, outside their requests: theirs, or the site's. */
+export async function localeOfUser(
+  db: Db | Prisma.TransactionClient,
+  userId: string | null | undefined,
+): Promise<Locale> {
+  const user = userId
+    ? await db.user.findUnique({ where: { id: userId }, select: { locale: true } })
+    : null;
+  return userLocale(await getAllSettings(db), user?.locale);
+}
+
 /**
  * The language of a request as the pages choose it without a session (sign-up, password
  * reset): the language cookie, the browser when the site allows it, the site language.

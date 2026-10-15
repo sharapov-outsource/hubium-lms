@@ -155,13 +155,12 @@ export async function runBulkUserAction(
       result.done++;
     } catch (e) {
       const user = await ctx.db.user.findUnique({ where: { id: userId }, select: { name: true } });
+      // an unexpected error is logged and said as one, not in its own words
       const error =
         e instanceof AppError
           ? (Object.values(e.in(ctx.locale).fieldErrors ?? {}).flat()[0] ??
             e.in(ctx.locale).message)
-          : e instanceof Error
-            ? e.message
-            : String(e);
+          : msg('errors.INTERNAL').in(ctx.locale);
       if (!(e instanceof AppError)) logger.error({ err: e, userId }, 'bulk user action failed');
       result.failed.push({ userId, name: user?.name ?? userId, error });
     }

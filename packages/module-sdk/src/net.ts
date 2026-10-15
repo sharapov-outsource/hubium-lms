@@ -3,6 +3,7 @@ import { lookup } from 'node:dns/promises';
 import { Agent as HttpsAgent } from 'node:https';
 import { BlockList, isIP } from 'node:net';
 import { Agent } from 'undici';
+import { type Msg, msg } from './msg.ts';
 
 // SSRF guard for server-side requests to admin- or user-supplied URLs (LTI JWKS, AI
 // endpoints, webhooks). Hosts resolving to loopback, private, link-local or otherwise
@@ -64,11 +65,17 @@ function embeddedIPv4(ip: string): string | null {
   return null;
 }
 
+/** An address server-side requests may not reach; `msg` says why, for people. */
 export class UnsafeUrlError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(readonly msg: Msg) {
+    super(String(msg));
     this.name = 'UnsafeUrlError';
   }
+}
+
+/** Why an address was refused, for people: an UnsafeUrlError's message, else "Invalid URL". */
+export function urlRefusal(e: unknown): Msg {
+  return e instanceof UnsafeUrlError ? e.msg : msg('errors.url.invalid');
 }
 
 /** Hosts SSRF_ALLOW_HOSTS lets server-side requests reach although they are internal. */
@@ -105,11 +112,11 @@ export function checkUrlShape(url: string | URL): URL {
   try {
     u = new URL(url);
   } catch {
-    throw new UnsafeUrlError('Invalid URL');
+    throw new UnsafeUrlError(msg('errors.url.invalid'));
   }
   if (u.protocol !== 'https:' && u.protocol !== 'http:')
-    throw new UnsafeUrlError('Only http(s) URLs are allowed');
-  if (u.username || u.password) throw new UnsafeUrlError('Credentials in URLs are not allowed');
+    throw new UnsafeUrlError(msg('errors.url.scheme'));
+  if (u.username || u.password) throw new UnsafeUrlError(msg('errors.url.credentials'));
   const host = u.hostname.replace(/^\[|\]$/g, '').toLowerCase();
   if (allowHosts().has(host)) return u;
   if (
@@ -117,9 +124,7 @@ export function checkUrlShape(url: string | URL): URL {
     host.endsWith('.localhost') ||
     (isIP(host) && isInternalAddress(host))
   )
-    throw new UnsafeUrlError(
-      `${host} is an internal address; add it to SSRF_ALLOW_HOSTS to allow it`,
-    );
+    throw new UnsafeUrlError(msg('errors.url.internal', { host }));
   return u;
 }
 
@@ -131,12 +136,10 @@ export async function assertPublicUrl(url: string | URL): Promise<URL> {
   const addrs = isIP(host)
     ? [{ address: host }]
     : await lookup(host, { all: true, verbatim: true }).catch(() => {
-        throw new UnsafeUrlError(`Cannot resolve ${host}`);
+        throw new UnsafeUrlError(msg('errors.url.unresolvable', { host }));
       });
   if (!addrs.length || addrs.some((a) => isInternalAddress(a.address)))
-    throw new UnsafeUrlError(
-      `${host} resolves to an internal address; add it to SSRF_ALLOW_HOSTS to allow it`,
-    );
+    throw new UnsafeUrlError(msg('errors.url.resolvesInternal', { host }));
   return u;
 }
 
@@ -161,8 +164,8 @@ export function publicLookup(
     if (!list.length || (!allowHosts().has(host) && list.some((a) => isInternalAddress(a.address))))
       return callback(
         new UnsafeUrlError(
-          `${host} resolves to an internal address; add it to SSRF_ALLOW_HOSTS to allow it`,
-        ) as NodeJS.ErrnoException,
+          msg('errors.url.resolvesInternal', { host }),
+        ) as unknown as NodeJS.ErrnoException,
         [],
       );
     if (options.all) callback(null, list);
@@ -227,7 +230,7 @@ export async function safeFetch(
     }
     url = next;
   }
-  throw new UnsafeUrlError('Too many redirects');
+  throw new UnsafeUrlError(msg('errors.url.redirects'));
 }
 
 // ── address lists ─────────────────────────────────────────────────────────────

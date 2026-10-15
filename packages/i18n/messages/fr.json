@@ -658,7 +658,8 @@
         "symbol": "Ajoutez un symbole comme ! ou %"
       },
       "minWords": "{n, plural, one {Au moins # mot} other {Au moins # mots}}",
-      "ldapFilterLogin": "Le filtre doit contenir {login}"
+      "ldapFilterLogin": "Le filtre doit contenir {login}",
+      "cannotLoad": "Impossible de charger {url} : {error}"
     },
     "badges": {
       "unknown": "Inconnu : {name}",
@@ -682,7 +683,10 @@
       "notIcs": "Ce n’est pas un fichier iCalendar (.ics)",
       "chooseIcsFile": "Choisissez un fichier .ics",
       "icsTooLarge": "Le fichier dépasse 5 Mo",
-      "unknownInterval": "Intervalle inconnu"
+      "unknownInterval": "Intervalle inconnu",
+      "noCalendar": "Cette adresse n’a fourni aucun calendrier",
+      "feedTooLarge": "Le calendrier dépasse {mb} Mo",
+      "unreachable": "L’adresse est injoignable"
     },
     "certificates": {
       "checkField": "Vérifiez le champ {n}",
@@ -1069,6 +1073,15 @@
       "invalidQuestion": "Question invalide",
       "aggregationMean": "l’agrégation {code} de la catégorie de notes n’est pas disponible : la moyenne est utilisée",
       "aggregationWeighted": "l’agrégation {code} de la catégorie de notes n’est pas disponible : la moyenne pondérée est utilisée"
+    },
+    "url": {
+      "invalid": "Adresse invalide",
+      "scheme": "Seules les adresses http(s) sont autorisées",
+      "credentials": "Les identifiants dans les adresses ne sont pas autorisés",
+      "internal": "{host} est une adresse interne ; ajoutez-la à SSRF_ALLOW_HOSTS pour l’autoriser",
+      "resolvesInternal": "{host} pointe vers une adresse interne ; ajoutez-le à SSRF_ALLOW_HOSTS pour l’autoriser",
+      "unresolvable": "Impossible de résoudre {host}",
+      "redirects": "Trop de redirections"
     }
   },
   "editor": {

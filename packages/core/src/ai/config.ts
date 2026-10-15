@@ -9,7 +9,7 @@ import {
 } from '@hubium/ai';
 import type { AiFeature, AiFeatureConfig, AiProvider, Db } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
-import { assertPublicUrl, checkUrlShape, safeFetch } from '@hubium/module-sdk/net';
+import { assertPublicUrl, checkUrlShape, safeFetch, urlRefusal } from '@hubium/module-sdk/net';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { decryptSecret, encryptSecret } from '../crypto.ts';
@@ -67,7 +67,7 @@ function checkEndpoint(field: string, url: string | undefined) {
   try {
     checkUrlShape(url);
   } catch (e) {
-    throw new ValidationError({ [field]: [e instanceof Error ? e.message : String(e)] });
+    throw new ValidationError({ [field]: [urlRefusal(e)] });
   }
 }
 

@@ -1,13 +1,13 @@
 import type { CalendarSubscription, Db, Prisma } from '@hubium/db';
 import { log } from '@hubium/log';
-import { msg } from '@hubium/module-sdk';
-import { checkUrlShape, safeFetch } from '@hubium/module-sdk/net';
+import { type Msg, msg } from '@hubium/module-sdk';
+import { checkUrlShape, safeFetch, UnsafeUrlError } from '@hubium/module-sdk/net';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { zoneOr } from '../lib/zod.ts';
 import { defineOperation } from '../operation.ts';
-import { getAllSettings } from '../settings/settings.ts';
+import { getAllSettings, localeOfUser } from '../settings/settings.ts';
 import { parseIcs } from './ics.ts';
 
 // Calendar imports and subscriptions, as Moodle's "Import or subscribe to calendar": an
@@ -237,6 +237,13 @@ async function applyFeed(tx: Tx, sub: CalendarSubscription, text: string, now: D
   };
 }
 
+/** Why a feed was not read, for people. */
+class FeedProblem extends Error {
+  constructor(readonly msg: Msg) {
+    super(String(msg));
+  }
+}
+
 /** Reads at most `max` bytes of a response body; throws when it is longer. */
 async function readLimited(res: Response, max: number): Promise<string> {
   const reader = res.body?.getReader();
@@ -249,7 +256,9 @@ async function readLimited(res: Response, max: number): Promise<string> {
     size += value.byteLength;
     if (size > max) {
       await reader.cancel();
-      throw new Error(`The feed is larger than ${Math.round(max / 1024 / 1024)} MB`);
+      throw new FeedProblem(
+        msg('errors.calendar.feedTooLarge', { mb: Math.round(max / 1024 / 1024) }),
+      );
     }
     chunks.push(value);
   }
@@ -269,7 +278,7 @@ export async function syncSubscription(db: Db, id: string, now = new Date()) {
       signal: AbortSignal.timeout(CALENDAR_FEED_LIMITS.timeoutMs),
     });
     // not the status: anyone may subscribe, and statuses would probe other servers
-    if (!res.ok) throw new Error('The address gave no calendar');
+    if (!res.ok) throw new FeedProblem(msg('errors.calendar.noCalendar'));
     const text = await readLimited(res, CALENDAR_FEED_LIMITS.maxBytes);
     const r = await db.$transaction((tx) => applyFeed(tx, sub, text, now), { timeout: 60_000 });
     await db.calendarSubscription.update({
@@ -278,17 +287,23 @@ export async function syncSubscription(db: Db, id: string, now = new Date()) {
     });
     return r;
   } catch (e) {
-    const message =
+    // what went wrong, kept for the list of subscriptions in the language of who made it
+    const why =
       e instanceof ValidationError
-        ? 'This is not an iCalendar (.ics) file'
-        : e instanceof Error
-          ? e.message
-          : String(e);
+        ? msg('errors.calendar.notIcs')
+        : e instanceof FeedProblem || e instanceof UnsafeUrlError
+          ? e.msg
+          : msg('errors.calendar.unreachable');
+    if (!(e instanceof ValidationError || e instanceof FeedProblem || e instanceof UnsafeUrlError))
+      logger.warn({ err: e, subscriptionId: id }, 'calendar feed not fetched');
     await db.calendarSubscription.update({
       where: { id },
-      data: { lastSyncAt: now, lastError: message.slice(0, 500) },
+      data: {
+        lastSyncAt: now,
+        lastError: why.in(await localeOfUser(db, sub.createdById)).slice(0, 500),
+      },
     });
-    throw e instanceof ValidationError ? e : new ValidationError({ url: [message] });
+    throw e instanceof ValidationError ? e : new ValidationError({ url: [why] });
   }
 }
 

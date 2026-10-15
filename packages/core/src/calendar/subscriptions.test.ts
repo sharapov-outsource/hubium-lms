@@ -1,9 +1,11 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { msg } from '@hubium/module-sdk';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { ForbiddenError } from '../errors.ts';
+import { localeOfUser } from '../settings/settings.ts';
 import { deleteEvent, listUserEvents } from './calendar.ts';
 import {
   importCalendarFile,
@@ -135,9 +137,11 @@ describe('calendar imports and subscriptions', () => {
     await expect(syncSubscription(t.db, id)).rejects.toMatchObject({
       fieldErrors: { url: ['The address gave no calendar'] },
     });
-    expect(await t.db.calendarSubscription.findUniqueOrThrow({ where: { id } })).toMatchObject({
-      lastError: 'The address gave no calendar',
-    });
+    // kept in the language of whoever subscribed
+    const kept = await t.db.calendarSubscription.findUniqueOrThrow({ where: { id } });
+    expect(kept.lastError).toBe(
+      msg('errors.calendar.noCalendar').in(await localeOfUser(t.db, kept.createdById)),
+    );
     expect(await titles()).toHaveLength(2);
     // refreshed by the schedule only when its interval has passed
     feed = { status: 200, body: ics([ev('l4', soon(5), 'Лекция 4')]) };

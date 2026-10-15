@@ -659,7 +659,8 @@
         "symbol": "Include a symbol such as ! or %"
       },
       "minWords": "{n, plural, one {At least # word} other {At least # words}}",
-      "ldapFilterLogin": "The filter must contain {login}"
+      "ldapFilterLogin": "The filter must contain {login}",
+      "cannotLoad": "Cannot load {url}: {error}"
     },
     "badges": {
       "unknown": "Unknown {name}",
@@ -683,7 +684,10 @@
       "notIcs": "This is not an iCalendar (.ics) file",
       "chooseIcsFile": "Choose an .ics file",
       "icsTooLarge": "The file is larger than 5 MB",
-      "unknownInterval": "Unknown interval"
+      "unknownInterval": "Unknown interval",
+      "noCalendar": "The address gave no calendar",
+      "feedTooLarge": "The feed is larger than {mb} MB",
+      "unreachable": "The address could not be reached"
     },
     "certificates": {
       "checkField": "Check field {n}",
@@ -1070,6 +1074,15 @@
       "invalidQuestion": "Invalid question",
       "aggregationMean": "grade category aggregation {code} is not available: the mean is used",
       "aggregationWeighted": "grade category aggregation {code} is not available: the weighted mean is used"
+    },
+    "url": {
+      "invalid": "Invalid URL",
+      "scheme": "Only http(s) URLs are allowed",
+      "credentials": "Credentials in URLs are not allowed",
+      "internal": "{host} is an internal address; add it to SSRF_ALLOW_HOSTS to allow it",
+      "resolvesInternal": "{host} resolves to an internal address; add it to SSRF_ALLOW_HOSTS to allow it",
+      "unresolvable": "Cannot resolve {host}",
+      "redirects": "Too many redirects"
     }
   },
   "editor": {
