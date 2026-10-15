@@ -107,6 +107,38 @@ export async function bulkUsersAction(selection: unknown, action: unknown) {
   });
 }
 
+/**
+ * Courses or cohorts for the bulk actions on users, found by name (and short name or
+ * ID): the site may have too many to list in the page.
+ */
+export async function bulkTargetsAction(kind: 'course' | 'cohort', q: string) {
+  return runAction(async () => {
+    const ctx = await getContext();
+    await ctx.perm.require('user:update');
+    const s = q.trim().slice(0, 100);
+    const has = (v: string) => ({ contains: v, mode: 'insensitive' as const });
+    if (kind === 'course') {
+      const rows = await db.course.findMany({
+        where: {
+          deletedAt: null,
+          ...(s ? { OR: [{ fullName: has(s) }, { shortName: has(s) }] } : {}),
+        },
+        orderBy: [{ fullName: 'asc' }, { id: 'asc' }],
+        take: 20,
+        select: { id: true, fullName: true, shortName: true },
+      });
+      return rows.map((c) => ({ value: c.id, label: c.fullName, hint: c.shortName }));
+    }
+    const rows = await db.cohort.findMany({
+      where: s ? { OR: [{ name: has(s) }, { idNumber: has(s) }] } : {},
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      take: 20,
+      select: { id: true, name: true, idNumber: true },
+    });
+    return rows.map((c) => ({ value: c.id, label: c.name, hint: c.idNumber ?? undefined }));
+  });
+}
+
 export async function unlockUserAction(id: string) {
   return runAction(async () => {
     const r = await unlockUser.run(await getContext(), { id });

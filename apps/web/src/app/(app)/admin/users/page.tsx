@@ -42,15 +42,10 @@ export default async function UsersPage({
     getLocale(),
   ]);
   const res = await listUsers(ctx, { q: textParam(sp.q), status, page: pageParam(sp.page) });
-  const [canCreate, canDelete, cohorts, courses, roles] = await Promise.all([
+  // courses and cohorts for the bulk actions are searched for there, not listed here
+  const [canCreate, canDelete, roles] = await Promise.all([
     ctx.perm.can('user:create'),
     ctx.perm.can('user:delete'),
-    db.cohort.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
-    db.course.findMany({
-      where: { deletedAt: null },
-      orderBy: { fullName: 'asc' },
-      select: { id: true, fullName: true },
-    }),
     db.role.findMany({
       where: { assignableLevels: { has: 'COURSE' } },
       orderBy: { sortOrder: 'asc' },
@@ -117,8 +112,6 @@ export default async function UsersPage({
           pageIds={res.items.map((u) => u.id)}
           total={res.total}
           filter={{ q: sp.q, status }}
-          cohorts={cohorts}
-          courses={courses.map((c) => ({ id: c.id, name: c.fullName }))}
           roles={roles.map((r) => ({ id: r.id, name: roleName(r, locale) }))}
           canDelete={canDelete}
         >

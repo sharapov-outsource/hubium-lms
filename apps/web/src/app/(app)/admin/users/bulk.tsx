@@ -1,12 +1,28 @@
 'use client';
 
-import { Alert, Button, Checkbox, Select, Textarea } from '@hubium/ui';
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Combobox,
+  type ComboboxOption,
+  Select,
+  Textarea,
+} from '@hubium/ui';
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogTrigger } from '@hubium/ui/dialog';
 import { toast } from '@hubium/ui/theme';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { createContext, type ReactNode, useContext, useMemo, useState, useTransition } from 'react';
-import { bulkUsersAction } from '@/server/actions/admin';
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from 'react';
+import { bulkTargetsAction, bulkUsersAction } from '@/server/actions/admin';
 
 // Selecting people in Administration → Users and acting on them together.
 
@@ -37,8 +53,6 @@ export function BulkUsers({
   pageIds,
   total,
   filter,
-  cohorts,
-  courses,
   roles,
   canDelete,
 }: {
@@ -46,8 +60,6 @@ export function BulkUsers({
   pageIds: string[];
   total: number;
   filter: Filter;
-  cohorts: { id: string; name: string }[];
-  courses: { id: string; name: string }[];
   roles: { id: string; name: string }[];
   canDelete: boolean;
 }) {
@@ -57,8 +69,8 @@ export function BulkUsers({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [everyone, setEveryone] = useState(false);
   const [kind, setKind] = useState<Kind>('suspend');
-  const [cohortId, setCohortId] = useState(cohorts[0]?.id ?? '');
-  const [courseId, setCourseId] = useState(courses[0]?.id ?? '');
+  const [cohortId, setCohortId] = useState('');
+  const [courseId, setCourseId] = useState('');
   const [roleId, setRoleId] = useState(roles[0]?.id ?? '');
   const [body, setBody] = useState('');
   const [result, setResult] = useState<{
@@ -190,17 +202,12 @@ export function BulkUsers({
                 <label htmlFor="bulk-cohort" className="text-sm">
                   {t('cohort')}
                 </label>
-                <Select
+                <TargetPick
                   id="bulk-cohort"
+                  kind="cohort"
                   value={cohortId}
-                  onChange={(e) => setCohortId(e.currentTarget.value)}
-                >
-                  {cohorts.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
+                  onChange={setCohortId}
+                />
               </div>
             ) : null}
             {kind === 'enrol' ? (
@@ -209,18 +216,12 @@ export function BulkUsers({
                   <label htmlFor="bulk-course" className="text-sm">
                     {t('course')}
                   </label>
-                  <Select
+                  <TargetPick
                     id="bulk-course"
+                    kind="course"
                     value={courseId}
-                    searchable
-                    onChange={(e) => setCourseId(e.currentTarget.value)}
-                  >
-                    {courses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </Select>
+                    onChange={setCourseId}
+                  />
                 </div>
                 <div className="grid min-w-40 gap-1">
                   <label htmlFor="bulk-role" className="text-sm">
@@ -301,6 +302,50 @@ export function BulkUsers({
         </Alert>
       ) : null}
     </Ctx.Provider>
+  );
+}
+
+/** A course or cohort, found on the server as the search is typed. */
+function TargetPick({
+  id,
+  kind,
+  value,
+  onChange,
+}: {
+  id: string;
+  kind: 'course' | 'cohort';
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const tc = useTranslations('common');
+  const [q, setQ] = useState('');
+  const [options, setOptions] = useState<ComboboxOption[]>([]);
+  useEffect(() => {
+    // an answer to an earlier search that arrives late is not shown
+    let current = true;
+    const h = setTimeout(
+      async () => {
+        const r = await bulkTargetsAction(kind, q).catch(() => null);
+        if (current && r?.ok) setOptions(r.data);
+      },
+      q ? 250 : 0,
+    );
+    return () => {
+      current = false;
+      clearTimeout(h);
+    };
+  }, [kind, q]);
+  return (
+    <Combobox
+      id={id}
+      options={options}
+      value={value}
+      onChange={onChange}
+      onSearch={setQ}
+      placeholder={tc('select')}
+      searchPlaceholder={tc('searchPlaceholder')}
+      emptyText={tc('nothingFound')}
+    />
   );
 }
 

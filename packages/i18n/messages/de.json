@@ -1711,7 +1711,12 @@
     "idNumber": "ID-Nummer",
     "addMember": "Mitglied hinzufügen",
     "empty": "Noch keine globalen Gruppen",
-    "importTitle": "Aus CSV importieren"
+    "importTitle": "Aus CSV importieren",
+    "membersN": "{count, plural, one {# Mitglied} other {# Mitglieder}}",
+    "openMembers": "Mitglieder",
+    "search": "Globale Gruppe nach Name oder Kennung suchen",
+    "searchMember": "Mitglied nach Name oder E-Mail suchen",
+    "noMembers": "Noch keine Mitglieder"
   },
   "grades": {
     "deleteItemConfirm": "Element „{name}“ mit seinen Bewertungen ({count}) und deren Verlauf löschen?",

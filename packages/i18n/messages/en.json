@@ -1712,7 +1712,12 @@
     "idNumber": "ID number",
     "addMember": "Add member",
     "empty": "No cohorts yet",
-    "importTitle": "Import from CSV"
+    "importTitle": "Import from CSV",
+    "membersN": "{count, plural, one {# member} other {# members}}",
+    "openMembers": "Members",
+    "search": "Find a cohort by name or ID",
+    "searchMember": "Find a member by name or email",
+    "noMembers": "No members yet"
   },
   "grades": {
     "deleteItemConfirm": "Delete the item “{name}” with its grades ({count}) and their history?",

@@ -1711,7 +1711,12 @@
     "idNumber": "Codice identificativo",
     "addMember": "Aggiungi membro",
     "empty": "Ancora nessuna coorte",
-    "importTitle": "Importa da CSV"
+    "importTitle": "Importa da CSV",
+    "membersN": "{count, plural, one {# membro} other {# membri}}",
+    "openMembers": "Membri",
+    "search": "Cerca una coorte per nome o identificativo",
+    "searchMember": "Cerca un membro per nome o email",
+    "noMembers": "Ancora nessun membro"
   },
   "grades": {
     "deleteItemConfirm": "Eliminare l’elemento «{name}» con i suoi voti ({count}) e la loro cronologia?",

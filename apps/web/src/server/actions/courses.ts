@@ -707,7 +707,7 @@ export async function saveCohortAction(fd: FormData) {
 export async function cohortMembersAction(cohortId: string, add: string[], remove: string[]) {
   return runAction(async () => {
     await setCohortMembers.run(await getContext(), { cohortId, add, remove });
-    revalidatePath('/admin/cohorts');
+    revalidatePath('/admin/cohorts', 'layout');
     return null;
   });
 }
@@ -722,7 +722,7 @@ export async function addCohortMemberByLoginAction(fd: FormData) {
     });
     if (!add.length) throw new ValidationError({ login: [msg('errors.common.userNotFound')] });
     await setCohortMembers.run(ctx, { cohortId: v.cohortId, add, remove: [] });
-    revalidatePath('/admin/cohorts');
+    revalidatePath('/admin/cohorts', 'layout');
     return null;
   });
 }
@@ -730,7 +730,7 @@ export async function addCohortMemberByLoginAction(fd: FormData) {
 export async function deleteCohortAction(id: string) {
   return runAction(async () => {
     await deleteCohort.run(await getContext(), { id });
-    revalidatePath('/admin/cohorts');
+    revalidatePath('/admin/cohorts', 'layout');
     return null;
   });
 }

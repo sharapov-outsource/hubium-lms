@@ -236,7 +236,10 @@ test('bulk actions on selected users: suspend, enrol, export, delete', async ({ 
     await page.getByLabel('Выбрать: Анна Массова').check();
     await page.getByLabel('Выбрать: Борис Массов').check();
     await chooseOption(page.locator('#bulk-action'), 'enrol');
-    await chooseOption(page.locator('#bulk-course'), course!.id);
+    // courses are searched for on the server: the site may have too many to list
+    await page.locator('#bulk-course').click();
+    await page.locator('[cmdk-input]').fill('DEMO-PY');
+    await page.getByRole('listbox').locator(`[role="option"][data-value="${course!.id}"]`).click();
     await chooseOption(page.locator('#bulk-role'), { label: 'Студент' });
     await apply();
     await howMany('"Enrolment"', `"userId" = ANY($1) AND "courseId" = $2`, [course!.id]).toBe(2);

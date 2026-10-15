@@ -1711,7 +1711,12 @@
     "idNumber": "Numéro d’identification",
     "addMember": "Ajouter un membre",
     "empty": "Aucune cohorte pour l’instant",
-    "importTitle": "Importer depuis un CSV"
+    "importTitle": "Importer depuis un CSV",
+    "membersN": "{count, plural, one {# membre} other {# membres}}",
+    "openMembers": "Membres",
+    "search": "Rechercher une cohorte par nom ou identifiant",
+    "searchMember": "Rechercher un membre par nom ou e-mail",
+    "noMembers": "Aucun membre pour l’instant"
   },
   "grades": {
     "deleteItemConfirm": "Supprimer l’élément « {name} » avec ses notes ({count}) et leur historique ?",

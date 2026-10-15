@@ -33,6 +33,11 @@ export interface ComboboxProps {
   invalid?: boolean;
   className?: string;
   'aria-describedby'?: string;
+  /**
+   * For lists too long to hand over whole: called as the search changes, and `options`
+   * are then shown as given (the matches the caller found) instead of filtered here.
+   */
+  onSearch?: (search: string) => void;
 }
 
 /** A select with a search box, for long lists (time zones, users, courses). */
@@ -51,16 +56,24 @@ export function Combobox({
   invalid,
   className,
   'aria-describedby': describedBy,
+  onSearch,
 }: ComboboxProps) {
   const controlled = value !== undefined;
   const [inner, setInner] = useState(defaultValue ?? '');
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  // the chosen option keeps its label when a later search brings other options
+  const [picked, setPicked] = useState<ComboboxOption | null>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const field = useRef<HTMLInputElement>(null);
   useFormReset(field, () => setInner(defaultValue ?? ''));
   const current = controlled ? value : inner;
-  const selected = options.find((o) => o.value === current);
+  const selected =
+    options.find((o) => o.value === current) ?? (picked?.value === current ? picked : undefined);
+  const searchFor = (q: string) => {
+    setSearch(q);
+    onSearch?.(q);
+  };
 
   return (
     <div className={cn('relative', className)}>
@@ -68,7 +81,7 @@ export function Combobox({
         open={open}
         onOpenChange={(o) => {
           setOpen(o);
-          setSearch('');
+          searchFor('');
         }}
       >
         <PopoverTrigger asChild>
@@ -95,6 +108,7 @@ export function Combobox({
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-64 p-0">
           <Command
             loop
+            shouldFilter={!onSearch}
             // Substring search in the label; the value, hint and keywords count for less.
             filter={(itemValue, q, keywords = []) =>
               matchScore(q, keywords[0] ?? '', `${itemValue} ${keywords.slice(1).join(' ')}`)
@@ -104,7 +118,7 @@ export function Combobox({
               <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               <Command.Input
                 value={search}
-                onValueChange={setSearch}
+                onValueChange={searchFor}
                 placeholder={searchPlaceholder}
                 aria-label={searchPlaceholder}
                 className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
@@ -121,6 +135,7 @@ export function Combobox({
                   keywords={[o.label, o.hint ?? '', ...(o.keywords ?? [])]}
                   onSelect={() => {
                     if (!controlled) setInner(o.value);
+                    setPicked(o);
                     onChange?.(o.value);
                     setOpen(false);
                   }}
