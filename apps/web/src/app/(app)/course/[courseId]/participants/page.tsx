@@ -16,6 +16,7 @@ import {
 import { forbidden } from 'next/navigation';
 import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
 import { Pagination } from '@/components/pagination';
+import { pageParam, textParam, uuidParam } from '@/lib/url-params';
 import { db } from '@/server/db';
 import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
@@ -40,13 +41,12 @@ export default async function ParticipantsPage({
     getLocale(),
     getFormatter(),
   ]);
-  const uuid = (v?: string) => (v && /^[0-9a-f-]{36}$/.test(v) ? v : undefined);
   const res = await listParticipants(ctx, {
     courseId,
-    q: sp.q,
-    roleId: uuid(sp.role),
-    groupId: uuid(sp.group),
-    page: Number(sp.page) || 1,
+    q: textParam(sp.q),
+    roleId: uuidParam(sp.role),
+    groupId: uuidParam(sp.group),
+    page: pageParam(sp.page),
   });
   const [roles, groups] = await Promise.all([
     db.role.findMany({

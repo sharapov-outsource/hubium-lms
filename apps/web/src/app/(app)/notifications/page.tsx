@@ -3,6 +3,7 @@ import { Avatar, PageHeader } from '@hubium/ui';
 import { LinkTabs } from '@hubium/ui/tabs';
 import Link from 'next/link';
 import { getFormatter, getTranslations } from 'next-intl/server';
+import { uuidParam } from '@/lib/url-params';
 import { db } from '@/server/db';
 import { requireUser } from '@/server/session';
 import { LiveRefresh, MarkAllReadButton, NotificationLink } from './parts';
@@ -23,7 +24,7 @@ export default async function NotificationsPage({
   const [t, format] = await Promise.all([getTranslations('notifications'), getFormatter()]);
   const page = await listNotifications(db, user.id, {
     unreadOnly,
-    before: sp.before,
+    before: uuidParam(sp.before),
     limit: 30,
   });
   const base = unreadOnly ? '/notifications?unread=1' : '/notifications';

@@ -8,11 +8,20 @@ export async function generateMetadata() {
   return { title: (await getTranslations('certificates'))('verifyTitle') };
 }
 
+/** The code as typed: a stray % in it is not an escape. */
+function decoded(code: string): string {
+  try {
+    return decodeURIComponent(code);
+  } catch {
+    return code;
+  }
+}
+
 /** What a certificate with this code says, and whether it still stands. */
 export default async function VerifyCodePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const [found, t, format, settings] = await Promise.all([
-    verifyCertificate(db, decodeURIComponent(code)),
+    verifyCertificate(db, decoded(code)),
     getTranslations('certificates'),
     getFormatter(),
     getAllSettings(db),

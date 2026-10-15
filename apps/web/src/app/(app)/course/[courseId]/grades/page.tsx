@@ -38,6 +38,7 @@ import { forbidden } from 'next/navigation';
 import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
 import { Pagination } from '@/components/pagination';
 import { UserGradeTable } from '@/components/user-grade-table';
+import { dateParam, pageParam, uuidParam } from '@/lib/url-params';
 import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
 import { GradeImport } from './grade-import';
@@ -412,11 +413,11 @@ export default async function GradesPage({
   if (view === 'history') {
     const [h, structure, report, format] = await Promise.all([
       gradeHistory(ctx, courseId, {
-        userId: sp.user || undefined,
-        itemId: sp.item || undefined,
-        from: sp.from || undefined,
-        to: sp.to ? new Date(new Date(sp.to).getTime() + 86_400_000) : undefined,
-        page: sp.page,
+        userId: uuidParam(sp.user),
+        itemId: uuidParam(sp.item),
+        from: dateParam(sp.from),
+        to: dateParam(sp.to) ? new Date(new Date(sp.to!).getTime() + 86_400_000) : undefined,
+        page: pageParam(sp.page),
       }),
       gradebookStructure(ctx.db, courseId),
       graderReport(ctx, courseId),
@@ -539,7 +540,7 @@ export default async function GradesPage({
     );
   }
 
-  const group = sp.group && /^[0-9a-f-]{36}$/.test(sp.group) ? sp.group : undefined;
+  const group = uuidParam(sp.group);
   const [r, groups, tp, tc] = await Promise.all([
     graderReport(ctx, courseId, { groupId: group }),
     listGroupNames(ctx, courseId),

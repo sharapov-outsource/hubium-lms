@@ -12,6 +12,7 @@ import {
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { CommandButton } from '@/components/confirm-button';
 import { Pagination } from '@/components/pagination';
+import { pageParam, textParam } from '@/lib/url-params';
 import { retryTaskRunAction, runTaskNowAction } from '@/server/actions/tasks';
 import { titled } from '@/server/page-title';
 import { getContext, requireCapability } from '@/server/session';
@@ -44,7 +45,7 @@ export default async function TasksPage({
     getTranslations('tasks'),
     getFormatter(),
     taskOverview(ctx),
-    taskLog(ctx, { name: sp.name || undefined, state, page: Number(sp.page) || 1 }),
+    taskLog(ctx, { name: textParam(sp.name, 200), state, page: pageParam(sp.page) }),
   ]);
   const label = (name: string) => {
     const key = `names.${name.replaceAll('.', '_')}`;

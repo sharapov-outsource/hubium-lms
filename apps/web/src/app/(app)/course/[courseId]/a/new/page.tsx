@@ -8,6 +8,7 @@ import {
 import { PageHeader } from '@hubium/ui';
 import { forbidden, notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
+import { uuidParam } from '@/lib/url-params';
 import { getModuleUI } from '@/modules/ui';
 import { createActivityAction } from '@/server/actions/courses';
 import { db } from '@/server/db';
@@ -41,8 +42,11 @@ export default async function NewActivityPage({
   const m = sp.module ? getModule(sp.module) : undefined;
   const ui = sp.module ? getModuleUI(sp.module) : undefined;
   if (!m || !ui || !isModuleEnabled(await getAllSettings(db), m.key)) notFound();
+  const sectionId = uuidParam(sp.section);
   const section = sp.section
-    ? await db.courseSection.findFirst({ where: { id: sp.section, courseId } })
+    ? sectionId
+      ? await db.courseSection.findFirst({ where: { id: sectionId, courseId } })
+      : null
     : await db.courseSection.findFirst({
         where: { courseId, parentId: null },
         orderBy: { rank: 'asc' },

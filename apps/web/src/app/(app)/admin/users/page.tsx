@@ -17,6 +17,7 @@ import { Plus, Upload, Users } from 'lucide-react';
 import Link from 'next/link';
 import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
 import { Pagination } from '@/components/pagination';
+import { pageParam, textParam } from '@/lib/url-params';
 import { db } from '@/server/db';
 import { requireCapability } from '@/server/session';
 import { BulkUsers, RowCheck } from './bulk';
@@ -39,7 +40,7 @@ export default async function UsersPage({
     getFormatter(),
     getLocale(),
   ]);
-  const res = await listUsers(ctx, { q: sp.q, status, page: Number(sp.page) || 1 });
+  const res = await listUsers(ctx, { q: textParam(sp.q), status, page: pageParam(sp.page) });
   const [canCreate, canDelete, cohorts, courses, roles] = await Promise.all([
     ctx.perm.can('user:create'),
     ctx.perm.can('user:delete'),

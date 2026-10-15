@@ -21,6 +21,7 @@ import { notFound } from 'next/navigation';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { CommandButton } from '@/components/confirm-button';
 import { Pagination } from '@/components/pagination';
+import { pageParam } from '@/lib/url-params';
 import {
   deleteWebhookAction,
   pingWebhookAction,
@@ -54,7 +55,7 @@ export default async function WebhookPage({
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   if (!UUID.test(id)) notFound();
   const w = await getWebhook(ctx, id).catch(() => notFound());
-  const page = Math.max(1, Number(sp.page) || 1);
+  const page = pageParam(sp.page);
   const [t, format, log] = await Promise.all([
     getTranslations('adminWebhooks'),
     getFormatter(),

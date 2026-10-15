@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { sql } from './db';
-import { DEMO_PASSWORD, login } from './helpers';
+import { ADMIN, DEMO_PASSWORD, login } from './helpers';
 
 // Security headers, CSP without violations on real pages, and CSRF protection of our
 // cookie-authenticated route handlers.
@@ -63,4 +63,25 @@ test('cross-site POSTs with the session cookie are rejected', async ({ page }) =
     data: { conversationId: '00000000-0000-7000-8000-000000000000' },
   });
   expect(ok.status()).not.toBe(403);
+});
+
+test('addresses with values a page cannot use open it with its defaults', async ({ page }) => {
+  const [course] = await sql<{ id: string }>(
+    `SELECT id FROM "Course" WHERE "shortName" = 'DEMO-PY'`,
+  );
+  await login(page, ADMIN.login, ADMIN.password);
+  const status = async (url: string) => (await page.goto(url))?.status();
+  for (const url of [
+    '/admin/users?page=-1',
+    `/admin/users?q=${'x'.repeat(300)}`,
+    '/admin/tasks?page=0.5',
+    `/catalog?page=abc&category=${'-'.repeat(36)}`,
+    '/notifications?before=x',
+    `/course/${course!.id}/participants?page=-3&role=nope`,
+    `/course/${course!.id}/grades?view=history&user=nope&to=2026-13-45&page=-1`,
+  ])
+    expect(await status(url), url).toBe(200);
+  expect(await status(`/course/${course!.id}/a/new?module=page&section=nope`)).toBe(404);
+  // a stray % in a certificate code is not an escape
+  expect(await status('/verify/ABC%25')).toBe(200);
 });

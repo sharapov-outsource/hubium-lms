@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { courseGradient, courseImageUrl } from '@/components/course-card';
 import { Pagination } from '@/components/pagination';
+import { pageParam, textParam, uuidParam } from '@/lib/url-params';
 import { courseFieldDisplay } from '@/server/course-fields';
 import { db } from '@/server/db';
 import { getContext, requireUser } from '@/server/session';
@@ -34,7 +35,7 @@ export default async function CatalogPage({
     getLocale(),
   ]);
   const ctx = await getContext();
-  const categoryId = sp.category && /^[0-9a-f-]{36}$/.test(sp.category) ? sp.category : undefined;
+  const categoryId = uuidParam(sp.category);
   // visible menu and checkbox course fields filter the catalog (f_<short name>)
   const courseFields = await listCourseFields(db);
   const filterable = courseFields.filter(
@@ -47,7 +48,7 @@ export default async function CatalogPage({
   );
   const [tree, res] = await Promise.all([
     getCategoryTree(db),
-    searchCatalog(ctx, { q: sp.q, categoryId, page: Number(sp.page) || 1, fields }),
+    searchCatalog(ctx, { q: textParam(sp.q), categoryId, page: pageParam(sp.page), fields }),
   ]);
   const flat = flattenTree(tree);
   const shown = await Promise.all(
