@@ -1,7 +1,7 @@
 import { mkdtemp, rm, utimes } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { SYSTEM_CONTEXT_ID } from '@hubium/db';
+import { SYSTEM_CONTEXT_ID, uuidv7 } from '@hubium/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { buildModuleCtx } from '../modules/module-ctx.ts';
@@ -230,6 +230,22 @@ describe('file service', () => {
     expect(await garbageCollectBlobs(t.db, -1000)).toBeGreaterThanOrEqual(1);
     expect(await t.db.fileBlob.findUnique({ where: { id: f.blobId } })).toBeNull();
     expect(await t.db.fileBlob.count()).toBeGreaterThan(0);
+  });
+
+  it('GC goes on past one batch until no unreferenced blob is left', async () => {
+    const old = new Date(Date.now() - 2 * 86_400_000);
+    await t.db.fileBlob.createMany({
+      data: Array.from({ length: 1201 }, (_, i) => ({
+        id: uuidv7(),
+        storageKey: `blobs/gc/orphan-${i}`,
+        size: 1,
+        mimeType: 'text/plain',
+        sha256: `gc-batch-${i}`,
+        createdAt: old,
+      })),
+    });
+    expect(await garbageCollectBlobs(t.db)).toBeGreaterThanOrEqual(1201);
+    expect(await t.db.fileBlob.count({ where: { sha256: { startsWith: 'gc-batch-' } } })).toBe(0);
   });
 
   it('removes stored content no row names, once it is old enough', async () => {

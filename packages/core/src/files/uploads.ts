@@ -169,13 +169,24 @@ export async function consumeUpload<T>(
 }
 
 /** Cron: drops expired sessions and their temp files. */
-export async function cleanupUploads(db: Db, now = new Date()): Promise<number> {
-  const old = await db.uploadSession.findMany({
-    where: { OR: [{ expiresAt: { lt: now } }, { completedAt: { not: null } }] },
-    select: { id: true },
-    take: 500,
-  });
-  for (const u of old) await rm(tempPath(u.id), { force: true });
-  await db.uploadSession.deleteMany({ where: { id: { in: old.map((u) => u.id) } } });
-  return old.length;
+export async function cleanupUploads(
+  db: Db,
+  now = new Date(),
+  budgetMs = 10 * 60_000,
+): Promise<number> {
+  const until = Date.now() + budgetMs;
+  let removed = 0;
+  // 500 at a time until none are left or the time is up
+  while (Date.now() < until) {
+    const old = await db.uploadSession.findMany({
+      where: { OR: [{ expiresAt: { lt: now } }, { completedAt: { not: null } }] },
+      select: { id: true },
+      take: 500,
+    });
+    for (const u of old) await rm(tempPath(u.id), { force: true });
+    await db.uploadSession.deleteMany({ where: { id: { in: old.map((u) => u.id) } } });
+    removed += old.length;
+    if (old.length < 500) break;
+  }
+  return removed;
 }
