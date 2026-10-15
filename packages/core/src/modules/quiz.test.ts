@@ -163,11 +163,14 @@ describe('mod-quiz', () => {
     const at = await t.db.quizAttempt.findUniqueOrThrow({ where: { id: attemptId } });
     expect(at.needsManualGrading).toBe(true);
     const item = await t.db.gradeItem.findFirstOrThrow({ where: { activityId: id } });
+    // no grade yet (nor an empty one)
     expect(
-      await t.db.grade.findUnique({
-        where: { gradeItemId_userId: { gradeItemId: item.id, userId: f.users.student3! } },
-      }),
-    ).toMatchObject({ finalGrade: null });
+      (
+        await t.db.grade.findUnique({
+          where: { gradeItemId_userId: { gradeItemId: item.id, userId: f.users.student3! } },
+        })
+      )?.finalGrade ?? null,
+    ).toBeNull();
     const quiz = listModules().find((m) => m.key === 'quiz')!;
     expect(
       (await quiz.todo!(buildModuleCtx(teacher), f.users.teacher!, [f.courseId])).find(

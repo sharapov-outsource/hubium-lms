@@ -199,6 +199,16 @@ export async function writeGrade(
     gradedById: meta.changedById ?? null,
     gradedAt: new Date(),
   };
+  // No grade yet and none to give (a total with nothing to total): no empty row, history
+  // or grade.updated with a null grade for everyone.
+  if (
+    !existing &&
+    data.rawGrade === null &&
+    data.finalGrade === null &&
+    !data.feedback &&
+    !overridden
+  )
+    return null;
   // Nothing changed (totals are recomputed often): no write, no history, no webhook.
   if (
     existing &&

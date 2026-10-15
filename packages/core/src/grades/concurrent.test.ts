@@ -8,10 +8,10 @@ import {
   writeGrade,
 } from './gradebook.ts';
 
-describe('grades written at the same time', () => {
+describe('course totals', () => {
   const t = useTestDb();
 
-  it('both count in the course total', async () => {
+  it('count both grades written at the same time', async () => {
     const f = await courseFixture(t.db, 'GRRACE');
     const teacher = await ctxFor(t.db, f.users.teacher!);
     const item = async (name: string) =>
@@ -56,5 +56,14 @@ describe('grades written at the same time', () => {
       where: { gradeItemId_userId: { gradeItemId: total.id, userId: s } },
     });
     expect(Number(row.finalGrade)).toBe(100);
+  });
+
+  it('are not written while there is nothing to total', async () => {
+    const f = await courseFixture(t.db, 'GREMPTY');
+    const { total } = await ensureCourseGradebook(t.db, f.courseId);
+    const learners = [f.users.student1!, f.users.student2!, f.users.student3!];
+    await t.db.$transaction((tx) => recomputeCourseTotals(tx, f.courseId, learners));
+    expect(await t.db.grade.count({ where: { gradeItemId: total.id } })).toBe(0);
+    expect(await t.db.gradeHistory.count({ where: { grade: { gradeItemId: total.id } } })).toBe(0);
   });
 });
