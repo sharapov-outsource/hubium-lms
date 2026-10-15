@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { toggleManualCompletion } from '../completion/completion.ts';
-import { ConflictError, ForbiddenError, NotFoundError } from '../errors.ts';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { saveScale } from '../grades/scales.ts';
 import {
   deleteCompetency,
@@ -34,6 +34,7 @@ import {
 } from './plans.ts';
 import {
   addCourseCompetencies,
+  addManualEvidence,
   courseBreakdown,
   learnerInCourse,
   rateInCourse,
@@ -271,6 +272,20 @@ describe('competencies', () => {
       name: 'Курс по безопасности',
       url: 'https://example.org/cert',
     });
+    // a link is a web address: one that runs a script when opened is refused
+    for (const url of ['javascript:alert(1)', 'data:text/html,<script>alert(1)</script>']) {
+      await expect(saveUserEvidence.run(student, { name: 'X', url })).rejects.toBeInstanceOf(
+        ValidationError,
+      );
+      await expect(
+        addManualEvidence.run(admin, {
+          userId: ids.student1!,
+          competencyId: ids.b!,
+          note: 'X',
+          url,
+        }),
+      ).rejects.toBeInstanceOf(ValidationError);
+    }
     await linkUserEvidence.run(student, { id: ev.id, competencyId: ids.b!, linked: true });
     await reviewUserCompetency.run(student, {
       userId: ids.student1!,

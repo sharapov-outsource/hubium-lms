@@ -15,6 +15,7 @@ import { getFormatter, getTranslations } from 'next-intl/server';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { CompetencyPicker } from '@/components/competencies/picker';
 import { CommandButton } from '@/components/confirm-button';
+import { isWebLink } from '@/lib/web-link';
 import {
   deleteUserEvidenceAction,
   saveUserEvidenceAction,
@@ -104,7 +105,7 @@ export default async function EvidencePage({
                     {e.description}
                   </p>
                 ) : null}
-                {e.url ? (
+                {e.url && isWebLink(e.url) ? (
                   <a
                     href={e.url}
                     className="break-all text-sm text-accent hover:underline"

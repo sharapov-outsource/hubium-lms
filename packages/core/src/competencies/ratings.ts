@@ -431,7 +431,7 @@ export const addManualEvidence = defineOperation({
     userId: z.string().uuid(),
     competencyId: z.string().uuid(),
     note: z.string().trim().min(1).max(2000),
-    url: z.union([z.literal(''), z.string().url().max(2000)]).default(''),
+    url: z.union([z.literal(''), z.url({ protocol: /^https?$/ }).max(2000)]).default(''),
   }),
   authorize: (ctx) => ctx.perm.require('competency:review'),
   async handler(ctx, i) {

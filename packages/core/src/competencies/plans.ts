@@ -588,7 +588,7 @@ export const saveUserEvidence = defineOperation({
     userId: z.string().uuid().optional(),
     name: z.string().trim().min(1).max(255),
     description: z.string().max(10_000).default(''),
-    url: z.union([z.literal(''), z.string().url().max(2000)]).default(''),
+    url: z.union([z.literal(''), z.url({ protocol: /^https?$/ }).max(2000)]).default(''),
   }),
   async authorize(ctx, i) {
     const userId = i.id

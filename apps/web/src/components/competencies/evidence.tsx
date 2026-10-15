@@ -1,4 +1,5 @@
 import { getFormatter, getTranslations } from 'next-intl/server';
+import { isWebLink } from '@/lib/web-link';
 
 /** A learner's evidence on a competency: what happened, where, the rating given, by whom. */
 export async function EvidenceList({
@@ -66,7 +67,7 @@ export async function EvidenceList({
               {e.note ? (
                 <p className="mt-1 whitespace-pre-line text-muted-foreground">{e.note}</p>
               ) : null}
-              {e.url ? (
+              {e.url && isWebLink(e.url) ? (
                 <a
                   href={e.url}
                   className="mt-1 block break-all text-accent hover:underline"
