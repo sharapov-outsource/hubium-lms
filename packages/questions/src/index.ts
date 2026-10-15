@@ -26,6 +26,7 @@ export {
   toClozeSource,
 } from './qtypes/cloze.ts';
 export { gradedTypes, questionTypeDefs, typeDef } from './qtypes/index.ts';
+export { normaliseText, wildcardMatch } from './qtypes/text.ts';
 export * from './random.ts';
 export * from './registry.ts';
 export * from './types.ts';

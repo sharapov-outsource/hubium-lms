@@ -5,16 +5,27 @@ export function normaliseText(s: string, caseSensitive: boolean): string {
   return caseSensitive ? t : t.toLocaleLowerCase('ru');
 }
 
-/** Moodle-style wildcard match: "*" matches any sequence. */
+/**
+ * Moodle-style wildcard match: "*" matches any sequence. The parts between the stars are
+ * found in order from the left, which takes linear time whatever the answer; a regular
+ * expression with several ".*" backtracks for ages on a long answer that almost matches.
+ */
 export function wildcardMatch(pattern: string, value: string): boolean {
-  const re = new RegExp(
-    `^${pattern
-      .split('*')
-      .map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-      .join('.*')}$`,
-    'u',
-  );
-  return re.test(value);
+  const parts = pattern.split('*');
+  if (parts.length === 1) return pattern === value;
+  const head = parts[0]!;
+  const tail = parts.at(-1)!;
+  if (value.length < head.length + tail.length) return false;
+  if (!value.startsWith(head) || !value.endsWith(tail)) return false;
+  let from = head.length;
+  const end = value.length - tail.length;
+  for (const part of parts.slice(1, -1)) {
+    if (!part) continue;
+    const at = value.indexOf(part, from);
+    if (at < 0 || at + part.length > end) return false;
+    from = at + part.length;
+  }
+  return true;
 }
 
 export function parseNumber(text: string): number | null {

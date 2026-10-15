@@ -882,6 +882,9 @@ importers:
       '@hubium/module-sdk':
         specifier: workspace:*
         version: link:../../packages/module-sdk
+      '@hubium/questions':
+        specifier: workspace:*
+        version: link:../../packages/questions
       '@hubium/ui':
         specifier: workspace:*
         version: link:../../packages/ui

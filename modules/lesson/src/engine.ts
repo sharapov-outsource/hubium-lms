@@ -2,6 +2,8 @@
 // count as correct, how an answer to each kind of question is checked, and the grade of
 // an attempt. Pure, so the server and the tests share them.
 
+import { wildcardMatch } from '@hubium/questions';
+
 export const pageTypes = [
   'content',
   'multichoice',
@@ -222,11 +224,7 @@ export function matchesPattern(given: string, pattern: string, caseSensitive: bo
     const t = s.trim().replace(/\s+/g, ' ');
     return caseSensitive ? t : t.toLocaleLowerCase();
   };
-  const body = norm(pattern)
-    .split('*')
-    .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
-    .join('.*');
-  return new RegExp(`^${body}$`, 'u').test(norm(given));
+  return wildcardMatch(norm(pattern), norm(given));
 }
 
 /** A number as people write it ("3,5" too); NaN for anything else. */

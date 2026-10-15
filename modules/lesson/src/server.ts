@@ -83,6 +83,8 @@ const uid = (ctx: ModuleCtx) => {
   return ctx.actor.userId;
 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** As the quiz takes short answers: checking them is cheap, an essay alone is long. */
+const SHORT_ANSWER_MAX = 1000;
 
 // ── pages ──
 
@@ -865,6 +867,9 @@ export const lesson = defineModule<LessonSettingsT>({
                 : { text: input.text ?? '' };
         if (page.type === 'essay' && !('text' in r && r.text.trim()))
           throw new Error('Write your answer');
+        // a short answer or a number is short: only an essay is long
+        if (page.type !== 'essay' && 'text' in r && r.text.length > SHORT_ANSWER_MAX)
+          throw new Error('The answer is too long');
         const checked = checkResponse(pages, page, r, s.customScoring);
         const essay = page.type === 'essay';
         await addStep(ctx, at.id, {

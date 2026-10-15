@@ -106,6 +106,15 @@ describe('lesson answers', () => {
     expect(matchesPattern('Кошка', 'кошка', true)).toBe(false);
     expect(matchesPattern('a.b', 'a.b', false)).toBe(true);
     expect(matchesPattern('axb', 'a.b', false)).toBe(false);
+    expect(matchesPattern('клетка и мембрана и ядро', '*клетка*мембрана*ядро*', false)).toBe(true);
+    expect(matchesPattern('ядро, мембрана, клетка', '*клетка*мембрана*ядро*', false)).toBe(false);
+    expect(matchesPattern('ab', 'a*b*', false)).toBe(true);
+    expect(matchesPattern('ab', 'ab*b', false)).toBe(false);
+    // a long answer that almost matches is checked at once, not after ages of backtracking
+    const long = 'клетка мембрана '.repeat(6000);
+    const started = performance.now();
+    expect(matchesPattern(long, '*клетка*мембрана*ядро*', false)).toBe(false);
+    expect(performance.now() - started).toBeLessThan(200);
     expect(readNumber('3,5')).toBe(3.5);
     expect(readNumber('1e3')).toBe(1000);
     expect(readNumber('пять')).toBeNaN();
