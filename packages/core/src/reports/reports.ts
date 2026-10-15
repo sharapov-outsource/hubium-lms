@@ -16,10 +16,12 @@ import {
   buildQuery,
   type CustomFieldNames,
   checkDefinition,
+  LIST_SEPARATOR,
   plainValue,
   type ReportConditionT,
   type ReportDefinitionT,
   reportFieldsOf,
+  storedDefinition,
 } from './engine.ts';
 import { type FieldType, SOURCE_KEYS, SOURCES } from './sources.ts';
 
@@ -81,26 +83,36 @@ export const saveReport = defineOperation({
     const old = i.id ? await loadReport(ctx.tx, i.id) : null;
     const source = old?.source ?? i.source;
     if (!source) throw new ValidationError({ source: ['Choose a source'] });
+    const custom = await customFieldNames(ctx.tx);
     let d: ReportDefinitionT;
     try {
+      const before = old ? storedDefinition(definitionOf(old), custom) : null;
       d = checkDefinition(
         {
           source,
           columns:
             i.columns ??
-            old?.columns ??
+            before?.columns ??
             SOURCES[source]!.defaultColumns.map((field) => ({ field })),
-          conditions: i.conditions ?? old?.conditions ?? [],
-          filters: i.filters ?? old?.filters ?? [],
-          sort: i.sort !== undefined ? i.sort : (old?.sort ?? null),
+          conditions: i.conditions ?? before?.conditions ?? [],
+          filters: i.filters ?? before?.filters ?? [],
+          sort: i.sort !== undefined ? i.sort : (before?.sort ?? null),
         },
-        await customFieldNames(ctx.tx),
+        custom,
       );
     } catch (e) {
       const m = e instanceof z.ZodError ? 'Invalid report' : (e as Error).message;
       throw new ValidationError({ columns: [m] }, m);
     }
     const audiences = Audiences.parse(i.audiences ?? old?.audiences ?? {});
+    // the implicit roles (guest, authenticated user) are never assigned: they let nobody in
+    if (audiences.roleIds.length) {
+      const held = await ctx.tx.role.findMany({
+        where: { id: { in: audiences.roleIds }, isProtected: false },
+        select: { id: true },
+      });
+      audiences.roleIds = audiences.roleIds.filter((id) => held.some((r) => r.id === id));
+    }
     const data = {
       name: i.name,
       columns: d.columns as Prisma.InputJsonValue,
@@ -256,7 +268,7 @@ async function run(
   opts: { filters?: FilterValues; limit?: number; offset?: number; locale: string },
 ) {
   const custom = await customFieldNames(db);
-  const d = checkDefinition(definitionOf(r), custom);
+  const d = storedDefinition(definitionOf(r), custom);
   const tz = (await getAllSettings(db))['site.defaultTimezone'];
   const q = buildQuery(d, custom, {
     tz,
@@ -335,7 +347,12 @@ export function formatCell(
   if (typeof v === 'boolean') return t(v ? 'common.yes' : 'common.no');
   if (typeof v === 'number')
     return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(v);
-  if (type === 'enum') return t(`customReports.values.${key}.${v}`);
+  // one value, or several in a «list» column
+  if (type === 'enum')
+    return String(v)
+      .split(LIST_SEPARATOR)
+      .map((x) => t(`customReports.values.${key}.${x}`))
+      .join(LIST_SEPARATOR);
   return String(v);
 }
 
@@ -574,10 +591,11 @@ export async function reportForEdit(ctx: RequestContext, id: string) {
   if (!r) throw new NotFoundError('Report');
   const custom = await customFieldNames(ctx.db);
   const fields = reportFieldsOf(SOURCES[r.source]!, custom);
-  const names = await labels(ctx.db, definitionOf(r) as ReportDefinitionT, ctx.locale);
+  const definition = storedDefinition(definitionOf(r), custom);
+  const names = await labels(ctx.db, definition, ctx.locale);
   return {
     report: r,
-    definition: checkDefinition(definitionOf(r), custom),
+    definition,
     audiences: Audiences.parse(r.audiences),
     fields: fields.map((f) => ({
       key: f.key,
