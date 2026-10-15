@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { transcodeAsset } from '@hubium/mod-video/server';
+import { recordProgress, transcodeAsset } from '@hubium/mod-video/server';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { capturedJobs, ctxFor, useTestDb } from '../../test/helpers.ts';
@@ -202,5 +202,36 @@ describe.skipIf(!hasFfmpeg)('mod-video: upload, transcode, stream, progress', ()
     const file = await t.db.file.findUniqueOrThrow({ where: { id: cap.fileId } });
     expect(file.mimeType).toBe('text/vtt');
     expect(file.name).toBe('ru.vtt');
+  });
+});
+
+describe('mod-video: embedded video progress', () => {
+  const t = useTestDb();
+
+  it('keeps the length an embedded player once reported: a shorter one cannot fake 100%', async () => {
+    const f = await courseFixture(t.db, 'VIDEMB');
+    const { id } = await f.addActivity('video', 'Лекция', {
+      source: 'embed',
+      embedUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    });
+    const start = new Date();
+    const first = await recordProgress(
+      t.db,
+      id,
+      f.users.student1!,
+      { intervals: [[0, 30]], duration: 600, position: 30 },
+      start,
+    );
+    expect(first.percent).toBe(5);
+    // the same half minute claimed against a ten times shorter video
+    const later = new Date(start.getTime() + 120_000);
+    const faked = await recordProgress(
+      t.db,
+      id,
+      f.users.student1!,
+      { intervals: [[0, 30]], duration: 60, position: 30 },
+      later,
+    );
+    expect(faked.percent).toBe(5);
   });
 });

@@ -264,7 +264,9 @@ export async function recordProgress(
   const prev = await db.videoProgress.findUnique({
     where: { activityId_userId: { activityId, userId } },
   });
-  const duration = input.duration > 0 ? input.duration : (prev?.durationSec ?? 0);
+  // An embedded player reports the length itself: it may only grow (the first report may
+  // come before the player knows it), or a shorter one would turn a minute into 100%.
+  const duration = Math.max(input.duration > 0 ? input.duration : 0, prev?.durationSec ?? 0);
   const elapsed = prev ? Math.max(0, (now.getTime() - prev.updatedAt.getTime()) / 1000) : 0;
   const merged = addWatched(
     (prev?.intervals as Interval[] | undefined) ?? [],
