@@ -28,6 +28,13 @@ test('admin creates a user, assigns a site role, the user signs in', async ({ pa
   await expect(page.getByText(/Пользователь создан|User created/)).toBeVisible();
   await page.getByLabel(/Создатель курсов|Course creator/).check();
   await expect(page.getByText(/Сохранено|Saved/).first()).toBeVisible();
+  // the card offers the person's data, for a request about it
+  const data = await page
+    .getByRole('link', { name: 'Скачать данные пользователя' })
+    .getAttribute('href');
+  expect(JSON.stringify(await (await page.request.get(data!)).json())).toContain(
+    `boris${stamp}@example.com`,
+  );
 
   await page.context().clearCookies();
   await login(page, `boris${stamp}`, 'Password123');

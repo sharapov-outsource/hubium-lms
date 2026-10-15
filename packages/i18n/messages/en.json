@@ -315,7 +315,10 @@
       "anyStatus": "Any status",
       "adminBadge": "administrator",
       "uploadSheet": "CSV, XLSX or ODS file",
-      "adminReadOnly": "This is a site administrator: only a site administrator can change their account, block or delete it."
+      "adminReadOnly": "This is a site administrator: only a site administrator can change their account, block or delete it.",
+      "dataTitle": "Personal data",
+      "dataHint": "A JSON file of everything the site holds about this person, for a request about their data.",
+      "dataExport": "Download their data"
     },
     "role": {
       "new": "New role",

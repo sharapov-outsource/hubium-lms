@@ -161,6 +161,23 @@ export default async function EditUserPage({
               </Link>
             </CardContent>
           </Card>
+          {readOnly ? null : (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('user.dataTitle')}</CardTitle>
+                <CardDescription>{t('user.dataHint')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <a
+                  href={`/admin/users/${user.id}/export`}
+                  download
+                  className="text-sm text-accent hover:underline"
+                >
+                  {t('user.dataExport')}
+                </a>
+              </CardContent>
+            </Card>
+          )}
           {isLocked(user) ? (
             <LockedNotice
               userId={user.id}

@@ -314,7 +314,10 @@
       "anyStatus": "Tous les états",
       "adminBadge": "administrateur",
       "uploadSheet": "Fichier CSV, XLSX ou ODS",
-      "adminReadOnly": "Il s’agit d’un administrateur du site : seul un administrateur du site peut modifier, bloquer ou supprimer son compte."
+      "adminReadOnly": "Il s’agit d’un administrateur du site : seul un administrateur du site peut modifier, bloquer ou supprimer son compte.",
+      "dataTitle": "Données personnelles",
+      "dataHint": "Un fichier JSON de tout ce que le site conserve sur cette personne, pour répondre à une demande concernant ses données.",
+      "dataExport": "Télécharger ses données"
     },
     "role": {
       "new": "Nouveau rôle",

@@ -314,7 +314,10 @@
       "anyStatus": "Jeder Status",
       "adminBadge": "Administrator",
       "uploadSheet": "CSV-, XLSX- oder ODS-Datei",
-      "adminReadOnly": "Dies ist ein Website-Administrator: Nur ein Website-Administrator kann sein Konto ändern, sperren oder löschen."
+      "adminReadOnly": "Dies ist ein Website-Administrator: Nur ein Website-Administrator kann sein Konto ändern, sperren oder löschen.",
+      "dataTitle": "Personenbezogene Daten",
+      "dataHint": "Eine JSON-Datei mit allem, was die Website über diese Person speichert, für eine Anfrage zu ihren Daten.",
+      "dataExport": "Daten herunterladen"
     },
     "role": {
       "new": "Neue Rolle",
