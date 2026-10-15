@@ -4,6 +4,8 @@ import {
   checkBadgeImage,
   deleteBadge,
   markBadge,
+  requireBadgeAward,
+  resolveLogins,
   revokeBadgeAward,
   saveBadge,
   saveBadgeIssuer,
@@ -13,7 +15,6 @@ import {
 } from '@hubium/core';
 import { revalidatePath } from 'next/cache';
 import { formToObject, runAction } from '../action';
-import { db } from '../db';
 import { getContext } from '../session';
 
 const pathOf = (courseId: string | null | undefined) =>
@@ -76,19 +77,17 @@ export async function deleteBadgeAction(courseId: string | null, id: string) {
 export async function markBadgeAction(fd: FormData) {
   return runAction(async () => {
     const v = formToObject(fd);
+    const ctx = await getContext();
     let userId = v.userId ?? '';
     if (!userId && v.login !== undefined) {
-      const login = v.login.trim().toLowerCase();
-      const user = login
-        ? await db.user.findFirst({
-            where: { OR: [{ email: login }, { username: login }], deletedAt: null },
-            select: { id: true },
-          })
-        : null;
-      if (!user) throw new ValidationError({ login: ['User not found'] });
-      userId = user.id;
+      const [id] = await resolveLogins(ctx, v.login, {
+        allowed: () => requireBadgeAward(ctx, v.badgeId ?? ''),
+        field: 'login',
+      });
+      if (!id) throw new ValidationError({ login: ['User not found'] });
+      userId = id;
     }
-    const r = await markBadge.run(await getContext(), { badgeId: v.badgeId ?? '', userId });
+    const r = await markBadge.run(ctx, { badgeId: v.badgeId ?? '', userId });
     revalidatePath(pathOf(v.courseId), 'layout');
     return r;
   });

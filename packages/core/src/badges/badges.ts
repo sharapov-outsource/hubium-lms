@@ -58,6 +58,11 @@ async function requireAward(ctx: RequestContext, courseId: string | null) {
   else await ctx.perm.require('badge:managesite');
 }
 
+/** Refuses unless the caller may award the badge by hand. */
+export async function requireBadgeAward(ctx: RequestContext, badgeId: string) {
+  await requireAward(ctx, (await loadBadge(ctx.db, badgeId)).courseId);
+}
+
 async function loadBadge(db: Tx, id: string) {
   const b = await db.badge.findUnique({ where: { id } });
   if (!b) throw new NotFoundError('Badge');

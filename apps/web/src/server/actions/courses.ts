@@ -33,6 +33,7 @@ import {
   purgeActivity,
   removeEnrolmentMethod,
   resetCourse,
+  resolveLogins,
   restoreActivity,
   restoreCourse,
   searchEnrollableUsers,
@@ -640,16 +641,13 @@ export async function cohortMembersAction(cohortId: string, add: string[], remov
 export async function addCohortMemberByLoginAction(fd: FormData) {
   return runAction(async () => {
     const v = formToObject(fd);
-    const login = (v.login ?? '').trim().toLowerCase();
-    const user = await db.user.findFirst({
-      where: { OR: [{ email: login }, { username: login }], deletedAt: null },
+    const ctx = await getContext();
+    const add = await resolveLogins(ctx, v.login, {
+      allowed: () => ctx.perm.require('cohort:manage'),
+      field: 'login',
     });
-    if (!user) throw new ValidationError({ login: ['User not found'] });
-    await setCohortMembers.run(await getContext(), {
-      cohortId: v.cohortId,
-      add: [user.id],
-      remove: [],
-    });
+    if (!add.length) throw new ValidationError({ login: ['User not found'] });
+    await setCohortMembers.run(ctx, { cohortId: v.cohortId, add, remove: [] });
     revalidatePath('/admin/cohorts');
     return null;
   });

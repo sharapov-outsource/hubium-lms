@@ -20,6 +20,7 @@ import {
   rateUserCompetency,
   removeCourseCompetency,
   reorderCompetency,
+  resolveLogins,
   reviewUserCompetency,
   saveCompetency,
   saveFramework,
@@ -284,26 +285,13 @@ export async function setTemplateCohortAction(fd: FormData) {
 export async function createPlansAction(fd: FormData) {
   return runAction(async () => {
     const v = formToObject(fd);
-    const logins = (v.logins ?? '')
-      .split(/[\s,;]+/)
-      .map((x) => x.trim().toLowerCase())
-      .filter(Boolean);
-    if (!logins.length) throw new ValidationError({ logins: ['Name at least one person'] });
-    const users = await db.user.findMany({
-      where: {
-        OR: [{ email: { in: logins } }, { username: { in: logins } }],
-        deletedAt: null,
-      },
-      select: { id: true, email: true, username: true },
+    const ctx = await getContext();
+    const userIds = await resolveLogins(ctx, v.logins, {
+      allowed: () => ctx.perm.require('competency:planmanage'),
+      field: 'logins',
     });
-    const unknown = logins.filter(
-      (l) => !users.some((u) => u.email.toLowerCase() === l || u.username?.toLowerCase() === l),
-    );
-    if (unknown.length) throw new ValidationError({ logins: [`Not found: ${unknown.join(', ')}`] });
-    const r = await createPlansFromTemplate.run(await getContext(), {
-      templateId: v.templateId ?? '',
-      userIds: users.map((u) => u.id),
-    });
+    if (!userIds.length) throw new ValidationError({ logins: ['Name at least one person'] });
+    const r = await createPlansFromTemplate.run(ctx, { templateId: v.templateId ?? '', userIds });
     revalidatePath(TEMPLATES, 'layout');
     return r;
   });

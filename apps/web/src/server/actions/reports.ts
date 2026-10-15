@@ -4,6 +4,7 @@ import {
   deleteReport,
   deleteSchedule,
   duplicateReport,
+  resolveLogins,
   saveReport,
   saveSchedule,
   sendSchedule,
@@ -22,24 +23,6 @@ const json = (v: string | undefined, field: string) => {
     throw new ValidationError({ [field]: ['Invalid'] });
   }
 };
-
-/** People named by email or login, one per line or separated by commas. */
-async function usersByLogin(text: string | undefined, field: string) {
-  const logins = (text ?? '')
-    .split(/[\s,;]+/)
-    .map((x) => x.trim().toLowerCase())
-    .filter(Boolean);
-  if (!logins.length) return [];
-  const users = await db.user.findMany({
-    where: { OR: [{ email: { in: logins } }, { username: { in: logins } }], deletedAt: null },
-    select: { id: true, email: true, username: true },
-  });
-  const unknown = logins.filter(
-    (l) => !users.some((u) => u.email.toLowerCase() === l || u.username?.toLowerCase() === l),
-  );
-  if (unknown.length) throw new ValidationError({ [field]: [`Not found: ${unknown.join(', ')}`] });
-  return users.map((u) => u.id);
-}
 
 export async function createReportAction(fd: FormData) {
   const r = await runAction(async () => {
@@ -70,16 +53,22 @@ export async function saveReportAction(fd: FormData) {
 export async function saveAudiencesAction(fd: FormData) {
   return runAction(async () => {
     const v = formToObject(fd);
+    const ctx = await getContext();
+    // only those who edit reports learn whether a report or an address exists
+    await ctx.perm.require('report:customise');
     const report = await db.customReport.findUnique({ where: { id: v.id ?? '' } });
     if (!report) throw new ValidationError({ id: ['Unknown report'] });
-    await saveReport.run(await getContext(), {
+    await saveReport.run(ctx, {
       id: report.id,
       name: report.name,
       audiences: {
         all: v.all === 'on',
         roleIds: fd.getAll('roleIds').map(String),
         cohortIds: fd.getAll('cohortIds').map(String),
-        userIds: await usersByLogin(v.logins, 'logins'),
+        userIds: await resolveLogins(ctx, v.logins, {
+          allowed: () => ctx.perm.require('report:customise'),
+          field: 'logins',
+        }),
       },
     });
     revalidatePath(`/reports/${report.id}`, 'layout');
@@ -105,7 +94,8 @@ export async function duplicateReportAction(id: string, name: string) {
 export async function saveScheduleAction(fd: FormData) {
   return runAction(async () => {
     const v = formToObject(fd);
-    const r = await saveSchedule.run(await getContext(), {
+    const ctx = await getContext();
+    const r = await saveSchedule.run(ctx, {
       reportId: v.reportId ?? '',
       name: v.name ?? '',
       format: v.format === 'csv' ? 'csv' : 'xlsx',
@@ -113,7 +103,10 @@ export async function saveScheduleAction(fd: FormData) {
       hour: Number(v.hour ?? 8),
       day: Number(v.day || 1),
       toAudience: v.toAudience === 'on',
-      userIds: await usersByLogin(v.logins, 'logins'),
+      userIds: await resolveLogins(ctx, v.logins, {
+        allowed: () => ctx.perm.require('report:customise'),
+        field: 'logins',
+      }),
       skipEmpty: v.skipEmpty === 'on',
       enabled: true,
     });

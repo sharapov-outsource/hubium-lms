@@ -77,6 +77,7 @@ export * from './system/maintenance.ts';
 export * from './system/tasks.ts';
 export * from './users/bulk.ts';
 export * from './users/last-access.ts';
+export * from './users/logins.ts';
 export * from './users/profile-fields.ts';
 export * from './users/relations.ts';
 export * from './users/users.ts';
