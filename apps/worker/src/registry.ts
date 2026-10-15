@@ -21,8 +21,8 @@ async function systemCtx(db: Db) {
 }
 
 /**
- * Module cron jobs run with a system ModuleCtx inside a transaction; those of activity types
- * turned off in Administration → Modules are skipped.
+ * Module cron jobs run with a system ModuleCtx inside a transaction (unless they ask for
+ * none); those of activity types turned off in Administration → Modules are skipped.
  */
 function moduleCron(): JobHandlerDef[] {
   return serverModules.flatMap((m) =>
@@ -32,6 +32,7 @@ function moduleCron(): JobHandlerDef[] {
       async handler(_data: never, { db }: { db: Db }) {
         if (!isModuleEnabled(await getAllSettings(db), m.key)) return;
         const ctx = await systemCtx(db);
+        if (c.transaction === false) return c.handler(buildModuleCtx(ctx));
         return db.$transaction((tx) => c.handler(buildModuleCtx(ctx, tx)), {
           timeout: 120_000,
         });

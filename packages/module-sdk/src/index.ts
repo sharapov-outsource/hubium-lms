@@ -327,8 +327,17 @@ export interface ActivityModule<S = Record<string, unknown>> {
     onUserUnenrolled?(ctx: ModuleCtx, courseId: string, userId: string): Promise<void>;
   };
   todo?(ctx: ModuleCtx, userId: string, courseIds: string[]): Promise<TodoItem[]>;
-  /** Scheduled jobs run by the worker with a system ModuleCtx. Schedule is cron (UTC). */
-  cron?: { name: string; schedule: string; handler(ctx: ModuleCtx): Promise<unknown> }[];
+  /**
+   * Scheduled jobs run by the worker with a system ModuleCtx, in a transaction unless
+   * `transaction` is false (jobs that call other servers, which must not hold database
+   * locks while they wait). Schedule is cron (UTC).
+   */
+  cron?: {
+    name: string;
+    schedule: string;
+    transaction?: boolean;
+    handler(ctx: ModuleCtx): Promise<unknown>;
+  }[];
   /**
    * Background jobs, run by the worker with a system ModuleCtx (no transaction). The
    * `media` queue runs in the separate worker-media container.

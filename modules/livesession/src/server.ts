@@ -105,6 +105,7 @@ export async function syncRecordings(ctx: ModuleCtx, a: Live): Promise<number> {
   const recs = await getProvider(a.settings.provider as ProviderKind).recordings(
     meetingIdFor(a.id),
   );
+  // a recording hidden by the teacher stays hidden (published is left as it is)
   for (const r of recs) {
     await ctx.db.liveRecording.upsert({
       where: { recordId: r.recordId },
@@ -161,6 +162,9 @@ export const livesession = defineModule<LiveSettingsT>({
   reset: {
     async userData(ctx, a) {
       await ctx.db.liveAttendance.deleteMany({ where: { activityId: a.id } });
+      // the last term's meeting too: else the session shows as over and the stale start
+      // would end a new meeting at the first poll
+      await ctx.db.liveMeeting.deleteMany({ where: { activityId: a.id } });
     },
   },
   privacy: {
@@ -196,14 +200,17 @@ export const livesession = defineModule<LiveSettingsT>({
   },
   notifications: { starting: { email: 'IMMEDIATE' } },
   cron: [
+    // both call the meeting server, up to 15 s a meeting: no transaction held meanwhile
     {
       name: 'livesession.poll',
       schedule: '* * * * *',
+      transaction: false,
       handler: (ctx) => pollMeetings(ctx),
     },
     {
       name: 'livesession.recordings.sync',
       schedule: '*/15 * * * *',
+      transaction: false,
       async handler(ctx) {
         const ended = await ctx.db.liveMeeting.findMany({
           where: { status: 'ENDED', endedAt: { gt: new Date(ctx.now.getTime() - 7 * 86_400_000) } },
@@ -331,12 +338,29 @@ export const livesession = defineModule<LiveSettingsT>({
         return { count: await syncRecordings(ctx, ref as Live) };
       },
     }),
+    publishRecording: defineAction({
+      summary:
+        'Show a recording to participants or hide it (it stays on the server and comes back with a sync hidden)',
+      capability: 'mod.livesession:moderate',
+      input: z.object({ id: z.string().uuid(), published: z.boolean() }),
+      async handler(ctx, a, input) {
+        await ctx.db.liveRecording.updateMany({
+          where: { id: input.id, activityId: a.id },
+          data: { published: input.published },
+        });
+        return { ok: true };
+      },
+    }),
     deleteRecording: defineAction({
-      summary: 'Delete a recording',
+      summary: 'Hide a recording from participants (as publishRecording with published: false)',
       capability: 'mod.livesession:moderate',
       input: z.object({ id: z.string().uuid() }),
       async handler(ctx, a, input) {
-        await ctx.db.liveRecording.deleteMany({ where: { id: input.id, activityId: a.id } });
+        // a row deleted would be made again by the next sync
+        await ctx.db.liveRecording.updateMany({
+          where: { id: input.id, activityId: a.id },
+          data: { published: false },
+        });
         return { ok: true };
       },
     }),

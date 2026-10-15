@@ -9,6 +9,7 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
+import { resetCourse } from '../courses/reset.ts';
 import { runModuleAction } from './actions.ts';
 import { buildModuleCtx } from './module-ctx.ts';
 import { getModule } from './registry.ts';
@@ -134,6 +135,26 @@ describe('mod-livesession', () => {
       'recording',
     ]);
     expect(await t.db.liveRecording.count({ where: { activityId: liveId } })).toBe(1);
+
+    // a recording the teacher hides stays hidden when the list is fetched again
+    const rec = await t.db.liveRecording.findFirstOrThrow({ where: { activityId: liveId } });
+    const teacher = await ctxFor(t.db, f.users.teacher!);
+    await runModuleAction(teacher, liveId, 'deleteRecording', { id: rec.id });
+    await runModuleAction(teacher, liveId, 'syncRecordings', {});
+    expect(await t.db.liveRecording.findMany({ where: { activityId: liveId } })).toMatchObject([
+      { id: rec.id, published: false },
+    ]);
+    await runModuleAction(teacher, liveId, 'publishRecording', { id: rec.id, published: true });
+    expect((await t.db.liveRecording.findUniqueOrThrow({ where: { id: rec.id } })).published).toBe(
+      true,
+    );
+
+    // a course reset clears the meeting with the attendance: the session can run again
+    await resetCourse.run(await ctxFor(t.db, 'admin@test.local'), {
+      courseId: f.courseId,
+      activityData: ['livesession'],
+    });
+    expect(await t.db.liveMeeting.count({ where: { activityId: liveId } })).toBe(0);
   });
 
   it('students cannot moderate; the room cannot be joined long before the start', async () => {

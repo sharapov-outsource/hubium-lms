@@ -37,6 +37,40 @@ export function JoinButton({ activityId, label }: { activityId: string; label: s
   );
 }
 
+/** Shows a recording to participants or hides it. */
+export function RecordingToggle({
+  activityId,
+  id,
+  published,
+}: {
+  activityId: string;
+  id: string;
+  published: boolean;
+}) {
+  const t = useTranslations('mod.livesession');
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      disabled={pending}
+      onClick={() =>
+        start(async () => {
+          const r = await callModuleAction(activityId, 'publishRecording', {
+            id,
+            published: !published,
+          });
+          if (!r.ok) return void toast.error(r.message ?? 'Error');
+          router.refresh();
+        })
+      }
+    >
+      {published ? t('hideRecording') : t('showRecording')}
+    </Button>
+  );
+}
+
 export function ModeratorButtons({
   activityId,
   live,

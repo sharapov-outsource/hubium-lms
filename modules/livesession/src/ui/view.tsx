@@ -3,7 +3,7 @@ import { Alert, Badge, Card, CardContent, Table, TBody, Td, THead, Th, Tr } from
 import { CalendarClock, PlayCircle } from 'lucide-react';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { canJoinAt, type LiveSettingsT, providerConfigured, sessionWindow } from '../server.ts';
-import { JoinButton, ModeratorButtons } from './client.tsx';
+import { JoinButton, ModeratorButtons, RecordingToggle } from './client.tsx';
 
 type Props = ViewProps<LiveSettingsT>;
 
@@ -14,11 +14,10 @@ export async function LiveView({ activity: a, ctx }: Props) {
     ctx.perm.can('mod.livesession:moderate', a.id),
     ctx.perm.can('mod.livesession:join', a.id),
     ctx.db.liveMeeting.findUnique({ where: { activityId: a.id } }),
-    ctx.db.liveRecording.findMany({
-      where: { activityId: a.id, published: true },
-      orderBy: { startedAt: 'desc' },
-    }),
+    ctx.db.liveRecording.findMany({ where: { activityId: a.id }, orderBy: { startedAt: 'desc' } }),
   ]);
+  // participants see the recordings shown; moderators all, to show or hide them
+  const listed = moderator ? recordings : recordings.filter((r) => r.published);
   const w = sessionWindow(a.settings);
   const status = meeting?.status ?? 'SCHEDULED';
   const when = canJoinAt(a.settings, now, moderator);
@@ -65,14 +64,14 @@ export async function LiveView({ activity: a, ctx }: Props) {
           ) : null}
         </CardContent>
       </Card>
-      {recordings.length ? (
+      {listed.length ? (
         <section aria-labelledby="ls-rec" className="grid gap-2">
           <h2 id="ls-rec" className="text-lg font-semibold">
             {t('recordings')}
           </h2>
           <ul className="grid gap-2">
-            {recordings.map((r) => (
-              <li key={r.id}>
+            {listed.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-2">
                 <a
                   href={r.url}
                   target="_blank"
@@ -85,6 +84,12 @@ export async function LiveView({ activity: a, ctx }: Props) {
                     : r.recordId}
                   {r.durationSec ? ` · ${Math.round(r.durationSec / 60)} ${t('min')}` : ''}
                 </a>
+                {moderator ? (
+                  <>
+                    {r.published ? null : <Badge variant="warning">{t('recordingHidden')}</Badge>}
+                    <RecordingToggle activityId={a.id} id={r.id} published={r.published} />
+                  </>
+                ) : null}
               </li>
             ))}
           </ul>
