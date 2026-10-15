@@ -278,6 +278,8 @@ export function createAuth({
     },
     emailVerification: {
       sendOnSignUp: true,
+      // the sign-in page says the letter was sent again
+      sendOnSignIn: true,
       autoSignInAfterVerification: true,
       async sendVerificationEmail({ user, url }) {
         await sendAuthEmail({

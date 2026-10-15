@@ -228,9 +228,16 @@ describe('auth', () => {
     try {
       await setSettings(t.db, { 'registration.requireEmailVerification': true });
       expect((await signUp('strict@example.org')).token).toBeNull();
+      const letters = () =>
+        capturedJobs.filter(
+          (j) => j.name === 'email.send' && (j.data as { to: string }).to === 'strict@example.org',
+        ).length;
+      const sent = letters();
       await expect(signIn('strict@example.org')).rejects.toMatchObject({
         body: { code: 'EMAIL_NOT_VERIFIED' },
       });
+      // as the sign-in page says: the letter goes again
+      await expect.poll(letters).toBe(sent + 1);
 
       await setSettings(t.db, { 'registration.requireEmailVerification': false });
       expect((await signUp('relaxed@example.org')).token).toEqual(expect.any(String));
