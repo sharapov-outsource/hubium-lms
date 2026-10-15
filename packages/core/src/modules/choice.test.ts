@@ -2,6 +2,7 @@ import type { ChoiceResults } from '@hubium/mod-choice/server';
 import { describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
+import { updateActivity } from '../courses/activities.ts';
 import { createGroup, setGroupMembers } from '../groups/groups.ts';
 import { runModuleAction, runModuleQuery } from './actions.ts';
 
@@ -93,5 +94,35 @@ describe('mod-choice', () => {
       data: { settings: { ...(act.settings as object), closesAt: '2020-01-01T00:00:00Z' } },
     });
     await expect(runModuleAction(s1, id, 'withdraw', {})).rejects.toThrow('closed');
+  });
+
+  it('an option taken away takes its answers, and the completion they gave', async () => {
+    const f = await courseFixture(t.db, 'CHOICE3');
+    const { id } = await f.addActivity(
+      'choice',
+      'Дежурство',
+      { options: JSON.stringify([{ text: 'Понедельник' }, { text: 'Вторник' }]) },
+      { completionMode: 'AUTO', completionRules: { module: { submitted: true } } },
+    );
+    const act = await t.db.activity.findUniqueOrThrow({ where: { id } });
+    const options = (act.settings as { options: { id: string; text: string }[] }).options;
+    const s1 = await ctxFor(t.db, f.users.student1!);
+    await runModuleAction(s1, id, 'answer', { optionIds: [options[0]!.id] });
+    const state = async () =>
+      (
+        await t.db.activityCompletion.findUnique({
+          where: { activityId_userId: { activityId: id, userId: f.users.student1! } },
+        })
+      )?.state;
+    expect(await state()).toBe('COMPLETE');
+    await updateActivity.run(await ctxFor(t.db, f.users.teacher!), {
+      id,
+      name: act.name,
+      settings: { ...(act.settings as object), options: JSON.stringify([options[1]]) },
+      completionMode: 'AUTO',
+      completionRules: { module: { submitted: true } },
+    });
+    expect(await t.db.choiceAnswer.count({ where: { activityId: id } })).toBe(0);
+    expect(await state()).toBe('INCOMPLETE');
   });
 });

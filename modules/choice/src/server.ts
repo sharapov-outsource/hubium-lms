@@ -220,9 +220,15 @@ export const choice = defineModule<ChoiceSettingsT>({
   lifecycle: {
     // answers to options that are gone go too
     async onUpdate(ctx, a) {
-      await ctx.db.choiceAnswer.deleteMany({
-        where: { activityId: a.id, optionId: { notIn: a.settings.options.map((o) => o.id!) } },
+      // answers to options taken away go; completing by answering follows for their authors
+      const gone = { activityId: a.id, optionId: { notIn: a.settings.options.map((o) => o.id!) } };
+      const authors = await ctx.db.choiceAnswer.findMany({
+        where: gone,
+        select: { userId: true },
+        distinct: ['userId'],
       });
+      await ctx.db.choiceAnswer.deleteMany({ where: gone });
+      for (const { userId } of authors) await ctx.completion.recompute(a.id, userId);
     },
   },
   reset: {
