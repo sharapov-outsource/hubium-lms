@@ -92,6 +92,14 @@ export const updateRole = defineOperation({
       where: { id: role.id },
       data: { name: input.name, assignableLevels: role.isProtected ? [] : input.assignableLevels },
     });
+    await logEvent(ctx.tx, {
+      name: 'role.updated',
+      actorId: ctx.perm.userId,
+      objectType: 'role',
+      objectId: role.id,
+      data: { assignableLevels: role.isProtected ? [] : input.assignableLevels },
+      origin: ctx.origin,
+    });
     await notifyRoles(ctx.tx);
     return { id: role.id };
   },
@@ -112,6 +120,14 @@ export const deleteRole = defineOperation({
       throw new ConflictError('Role is in use');
     }
     await ctx.tx.role.delete({ where: { id } });
+    await logEvent(ctx.tx, {
+      name: 'role.deleted',
+      actorId: ctx.perm.userId,
+      objectType: 'role',
+      objectId: id,
+      data: { shortName: role.shortName },
+      origin: ctx.origin,
+    });
     await notifyRoles(ctx.tx);
     return { id };
   },

@@ -52,6 +52,12 @@ export async function recordFailedSignIn(
   userId: string,
   opts: { appUrl: string; ip?: string | null; now?: Date } = { appUrl: '' },
 ): Promise<Date | null> {
+  await logEvent(db, {
+    name: 'user.loginfailed',
+    relatedUserId: userId,
+    ip: opts.ip ?? null,
+    realActorId: null,
+  });
   const settings = await getAllSettings(db);
   const policy = lockoutPolicy(settings);
   if (!policy.threshold) return null;

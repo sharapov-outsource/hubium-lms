@@ -2,6 +2,7 @@ import { type Db, Prisma } from '@hubium/db';
 import { BASE_LOCALE, DEFAULT_SITE_LOCALE, isLocale, type Locale, locales } from '@hubium/i18n';
 import { z } from 'zod';
 import { ValidationError } from '../errors.ts';
+import { logEvent } from '../events/log.ts';
 import { ensureLanguagePacks } from './language-packs.ts';
 
 // Typed site settings. Each setting is declared once with a zod schema and a default;
@@ -124,6 +125,18 @@ export async function setSettings(
     else fieldErrors[key] = r.error.issues.map((i) => i.message);
   }
   if (Object.keys(fieldErrors).length) throw new ValidationError(fieldErrors);
+  // what changed, for the event log: who turned what off is the first question after an
+  // incident
+  const before = await getAllSettings(db);
+  const short = (v: unknown) =>
+    typeof v === 'string' && v.length > 200 ? `${v.slice(0, 200)}…` : v;
+  const changed = parsed
+    .filter(([key, value]) => JSON.stringify(before[key as SettingKey]) !== JSON.stringify(value))
+    .map(([key, value]) => ({
+      key,
+      from: short(before[key as SettingKey] ?? null),
+      to: short(value ?? null),
+    }));
   for (const [key, value] of parsed) {
     const json =
       value === null || value === undefined ? Prisma.JsonNull : (value as Prisma.InputJsonValue);
@@ -135,6 +148,12 @@ export async function setSettings(
   }
   invalidateSettingsCache();
   await db.$executeRaw`SELECT pg_notify('hubium_cache', 'settings')`;
+  if (changed.length)
+    await logEvent(db, {
+      name: 'site.settings.updated',
+      actorId: updatedById ?? null,
+      data: { changed } as Prisma.InputJsonValue,
+    });
 }
 
 /** The site language; the base language when the stored one is no longer installed. */

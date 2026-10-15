@@ -11,6 +11,7 @@ import {
 } from 'better-auth/plugins/generic-oauth';
 import { CLIENT_IP_HEADER, clientIp } from '../client-ip.ts';
 import { ValidationError } from '../errors.ts';
+import { logEvent } from '../events/log.ts';
 import { sendAuthEmail } from '../mail/mail.ts';
 import { getAllSettings, userLocale } from '../settings/settings.ts';
 import { noteSignIn } from './devices.ts';
@@ -524,6 +525,13 @@ export function createAuth({
             if (impersonatedBy(session)) return;
             await clearFailedSignIns(db, session.userId);
             await noteSignIn(db, session);
+            await logEvent(db, {
+              name: 'user.loggedin',
+              actorId: session.userId,
+              relatedUserId: session.userId,
+              ip: session.ipAddress ?? null,
+              realActorId: null,
+            });
             const user = await db.user.update({
               where: { id: session.userId },
               data: { lastLoginAt: new Date() },

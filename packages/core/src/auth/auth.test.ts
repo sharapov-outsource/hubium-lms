@@ -178,6 +178,47 @@ describe('auth', () => {
     });
   });
 
+  it('writes sign-ins, failed ones and security settings to the event log', async () => {
+    const headers = withClientIp(new Headers({ 'x-forwarded-for': '203.0.113.9' }), {});
+    const user = await t.db.user.findFirstOrThrow({ where: { username: 'student2' } });
+    await auth.api.signInEmail({
+      body: { email: 'student2@hubium.local', password: 'Demo12345!' },
+      headers,
+    });
+    await expect(
+      auth.api.signInEmail({
+        body: { email: 'student2@hubium.local', password: 'wrong' },
+        headers,
+      }),
+    ).rejects.toMatchObject({ statusCode: 401 });
+    const events = await t.db.eventLog.findMany({
+      where: { relatedUserId: user.id, name: { in: ['user.loggedin', 'user.loginfailed'] } },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(events.map((e) => [e.name, e.ip])).toEqual([
+      ['user.loggedin', '203.0.113.9'],
+      ['user.loginfailed', '203.0.113.9'],
+    ]);
+
+    // who switched two-factor sign-in for administrators off, and when
+    const admin = await t.db.user.findFirstOrThrow({ where: { email: 'admin@test.local' } });
+    await setSettings(t.db, { 'auth.require2faForAdmins': true }, admin.id);
+    // the site name is sent unchanged, so it is not listed
+    await setSettings(
+      t.db,
+      { 'auth.require2faForAdmins': false, 'site.name': 'Hubium LMS' },
+      admin.id,
+    );
+    const changed = await t.db.eventLog.findMany({
+      where: { name: 'site.settings.updated', actorId: admin.id },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(changed.map((e) => e.data)).toEqual([
+      { changed: [{ key: 'auth.require2faForAdmins', from: false, to: true }] },
+      { changed: [{ key: 'auth.require2faForAdmins', from: true, to: false }] },
+    ]);
+  });
+
   it('follows the "require email verification" setting', async () => {
     const signUp = (email: string) =>
       auth.api.signUpEmail({ body: { email, password: 'Secret12345!', name: 'Ann Lee' } });
