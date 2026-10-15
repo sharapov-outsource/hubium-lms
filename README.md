@@ -255,7 +255,7 @@ A native installation keeps the previous releases next to the new one.
   2. Run `hubium doctor db`, then `hubium migrate --seed minimal`.
   3. Install the systemd units from `deploy/systemd`.
   4. Put a reverse proxy in front.
-- **From source:** run `docker compose -f docker/compose.yml --env-file .env up -d --build` in a checkout. It builds the images instead of pulling them.
+- **From source:** in a checkout, copy `.env.production.example` to `.env.production`, fill it in, and run `docker compose -f docker/compose.yml --env-file .env.production up -d --build`. It builds the images instead of pulling them. Do not pass the root `.env`: it is the development file, with `localhost` addresses.
 
 ### After installation
 

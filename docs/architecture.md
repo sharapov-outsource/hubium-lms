@@ -39,9 +39,8 @@ Hubium LMS is an open-source learning management system (AGPL-3.0), a modern alt
 
 ```
 hubium/
-  hubium.config.ts                 # server-side plugin registry (web + worker)
-  turbo.json  biome.json  pnpm-workspace.yaml  tsconfig.base.json  .dependency-cruiser.cjs
-  docker/  compose.yml  compose.dev.yml  compose.test.yml  Caddyfile  Dockerfile (targets: web, worker, worker-media)
+  turbo.json  biome.json  pnpm-workspace.yaml  tsconfig.json  .dependency-cruiser.cjs
+  docker/  compose.yml  compose.dev.yml  Caddyfile  Dockerfile (targets: web, worker, worker-media, bundle)
   apps/
     web/                        # Next.js: UI (RSC), server actions, REST /api/v1, SSE, file/content routes, module route dispatcher
     worker/                     # pg-boss consumers + cron; WORKER_QUEUES env selects roles (default | media)
@@ -83,16 +82,7 @@ hubium/
 
 ### 1.3 Plugin registration (compile-time)
 
-```ts
-// hubium.config.ts  (imported by apps/web and apps/worker)
-import { defineConfig } from '@hubium/module-sdk';
-import { page, file, url, label } from '@hubium/mod-content/server';
-import assign from '@hubium/mod-assign/server'; /* quiz, forum, video, livesession, scorm, lti */
-export default defineConfig({ modules: [page, file, url, label, assign, quiz, forum, video, livesession, scorm, lti] });
-
-// apps/web/src/modules.ui.ts
-export const moduleUIs = defineModuleUIs([pageUI, fileUI, /* ... */]);
-```
+Each app lists the modules it runs: `apps/web/src/modules/server.ts` and `apps/worker/src/modules.ts` import every module's `./server` entry and pass them to `registerModules`; `apps/web/src/modules/ui.tsx` maps module keys to their `./ui` entries.
 
 - A unit test asserts that the key sets of the two registries match.
 - Runtime enable/disable is a site setting (`mod.<key>.enabled`). Every module's tables always exist.
@@ -245,7 +235,7 @@ Better Auth is the right choice. Auth.js has effectively folded into it, and Luc
 - **Moodle migrations.** A custom `password.verify` also accepts bcrypt (`$2y$`) hashes and rehashes to scrypt on first login. Users imported from Moodle keep their passwords.
 - **Emails.** The `sendVerificationEmail` and `sendResetPassword` hooks enqueue the `email.send` job, with localised React Email templates.
 - **Authorization boundary.** `proxy.ts` does only an optimistic cookie-presence redirect. Every page, action and route re-validates via `auth.api.getSession` and core permission checks.
-- **API tokens (Phase 8).** Implemented in-house as an `ApiToken` table: sha256-hashed `hub_pat_…`, scopes, expiry, last-used. Scopes intersect with capabilities, which is simpler than bending Better Auth's apiKey plugin to our RBAC.
+- **API tokens (Phase 8).** Implemented in-house as an `ApiToken` table: sha256-hashed `hub_…` tokens with read/write scopes, expiry and last use. A token acts with its owner's capabilities and never more, which is simpler than bending Better Auth's apiKey plugin to our RBAC.
 - **Consent at registration.** Personal-data processing consent (required under Russia's personal data law, 152-ФЗ) uses `Policy`/`PolicyAcceptance`. A checkbox is in Phase 1; full policy management is in Phase 8.
 - **Later SSO.** SAML/OIDC through the Better Auth `sso` plugin. LDAP as a custom credential sign-in endpoint using `ldapts`, with just-in-time user creation.
 
@@ -508,13 +498,26 @@ The FK cascade policy: activity → module rows cascade on purge, user → conte
 - **Why pg-boss.** No Redis, which rules out BullMQ. It has SKIP LOCKED queues, retries with backoff, `startAfter`, singleton/debounce keys, cron `schedule()`, dead-letter queues and expiration. The deciding feature is **transactional enqueue** through the `db` executor option, adapted from a Prisma interactive transaction.
 - **Alternatives.** Graphile Worker is a close second (LISTEN-based latency, SQL `add_job`), but our jobs are latency-insensitive. Realtime does not go through jobs.
 - **Worker structure.**
-  - `apps/worker/src/main.ts` boots core with `hubium.config.ts`, registers core and module jobs, and starts the queues named in `WORKER_QUEUES`.
+  - `apps/worker/src/main.ts` registers the core jobs (`handlers.ts`) and the modules' jobs and cron tasks (`registry.ts`) for the queues named in `WORKER_QUEUES`, and removes cron schedules no handler has any more.
   - It shuts down gracefully (`stop({ graceful })`) and exposes `/healthz` for compose.
   - A second container, `worker-media` (ffmpeg image, CPU/memory limits), runs only the `media` queue.
 - **User-visible tasks** (backup, imports, exports) get a `BackgroundTask` row with progress, pushed over SSE.
 
-| Area | Queues / cron |
+| Area | Jobs (cron in UTC where scheduled) |
 |---|---|
+| Email and notifications | `email.send`, `email.digest` (hourly, sends at each user's chosen hour), `notification.email`, `notification.push`, `notification.fanout` (chunked), `announcements.publish`, `notifications.prune` |
+| Media | `video.transcode` (media queue) |
+| Standards | `scorm.extract`, `lti.cleanup` |
+| Interchange | `interchange.import` (.hubium and .mbz), `interchange.backup`, `interchange.lost` (fails tasks a stopped worker left) |
+| Assessment | `quiz.overdue.sweep`, `lesson.overdue.sweep`, `workshop.phase.switch`, `grades.recalc.course` (large courses, in batches) |
+| Completion | `completion.recompute` (one activity for everyone), `completion.course` (a course's progress) |
+| Reminders and sync | `assign.due.reminder`, `calendar.reminders`, `calendar.subscriptions`, `enrol.expire`, `competency.plans.sync`, `livesession.remind`, `livesession.poll`, `livesession.recordings.sync`, `auth.ldapSync` |
+| Achievements and reports | `badges.review`, `certificates.review`, `reports.schedules` |
+| AI | `ai.index.activity`, `ai.index.course`, `ai.quizgen` |
+| Users and integrations | `users.bulk`, `webhook.deliver`, `webhooks.prune` |
+| Housekeeping | `system.heartbeat`, `files.gc` (unreferenced files, stray objects, expired uploads), `recyclebin.purge`, `eventlog.prune`, `auth.sessions.cleanup` |
+
+---|---|
 | Email | `email.send`, `email.digest` (cron hourly, sends at the user's chosen hour), `notification.fanout` (chunked, 500 recipients per job) |
 | Media | `video.probe` → `video.transcode` → `video.thumbnails` (media queue, concurrency 1), `image.variants` (sharp) |
 | Standards | `scorm.extract`, `lti.jwks.refresh` |
@@ -667,7 +670,7 @@ In dev, `localhost:3000` versus `127.0.0.1:3000` gives two distinct origins for 
 **Deliverables**
 - **module-sdk v1**, and **mod-content** (page, file/folder, url/embed, label) as the reference modules.
 - **editor** package (Tiptap + KaTeX + embeds + uploads).
-- **Course structure:** category tree admin (move with ancestor rewrite), courses (create from category, settings, formats topics/weeks/single, image variants), sections and activities with edit mode (dnd-kit drag-and-drop plus a keyboard-accessible "Move to…" menu), visibility/stealth, generic activity form with module `SettingsFields`.
+- **Course structure:** category tree admin (move with ancestor rewrite), courses (create from category, settings, formats topics/weeks/single, a course picture), sections and activities with edit mode (dnd-kit drag-and-drop plus a keyboard-accessible "Move to…" menu), visibility/stealth, generic activity form with module `SettingsFields`.
 - **Access:** availability conditions (date, completion, group, profile; grade arrives in Phase 3), recycle bin, "view as student" role switch, impersonation (`user:loginas`).
 - **Enrolment:** manual, self (with or without a key; group keys auto-add to the group), cohort sync, guest access, enrolment expiry.
 - **People:** participants (filters, role assignment, bulk actions), groups/groupings, cohorts admin.
@@ -925,7 +928,7 @@ interface EmbeddingProvider { model: string; dims: number; embed(texts: string[]
   - storage drivers are tested against RustFS (S3) and FS.
 - **Component tests:** minimal; happy-dom + Testing Library for complex client widgets only (grader table, quiz navigation).
 - **E2E** (Playwright):
-  - runs against `next build && next start` plus the worker on `compose.test.yml` (db, s3, mailpit) with seed profile `test`;
+  - runs against `next build && next start` plus the worker, with PostgreSQL, Mailpit, OpenLDAP and Keycloak as CI services and the `demo` seed profile;
   - auth state is stored per role;
   - Mailpit API asserts emails;
   - fixtures include a small MP4, Golf SCORM packages, `.mbz` files and the ltijs tool;
@@ -933,17 +936,11 @@ interface EmbeddingProvider { model: string; dims: number; embed(texts: string[]
   - traces are kept on failure.
 
 **GitHub Actions**
-- **PR pipeline:**
-  - `lint` (Biome) and dependency-cruiser;
-  - `typecheck` (TypeScript 7);
-  - `unit`;
-  - `integration` (Docker on ubuntu runners);
-  - `migrations` (`prisma migrate diff --from-migrations --to-schema --exit-code` against a shadow DB);
-  - `build` (turbo + Docker build of web/worker/worker-media);
-  - `e2e` (4 shards);
-  - `licenses` (allowlist of AGPL-compatible licences);
-  - `audit` (osv-scanner).
-  - Turbo cache via actions/cache.
+- **PR pipeline** (`.github/workflows/ci.yml`, each job with a time limit):
+  - `check`: Biome, shellcheck, dependency-cruiser (`apps`, `packages`, `modules`), the licence allowlist, migrations applied to a fresh database and compared with the schema (with the hand-made indexes), typecheck, unit and integration tests, build;
+  - `e2e`: Playwright in one job against the built app;
+  - `docker` and `native`: the production images and the release archive installed with `install-hubium.sh`, then `e2e/stack` and an upgrade in place;
+  - CodeQL and osv-scanner run in their own workflows.
 - **Nightly:** full e2e on production images in compose, the `.mbz` corpus, k6 smoke, and the live AI smoke test (secret-gated).
 - **Release:** changesets → tag → build and push multi-arch images to GHCR → attach the compose bundle. Renovate keeps dependencies up to date.
 

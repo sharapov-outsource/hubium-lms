@@ -42,9 +42,8 @@ Moodle умеет почти всё, но интерфейс у него уст�
 
 ```
 hubium/
-  hubium.config.ts          # реестр модулей-плагинов (web + worker)
-  apps/web               # Next.js: UI (RSC), server actions, REST /api/v1, SSE, файловые роуты
-  apps/worker            # pg-boss: письма, перекодирование видео, импорт, AI, cron
+  apps/web               # Next.js: UI (RSC), server actions, REST /api/v1, SSE, файловые роуты; список модулей — src/modules
+  apps/worker            # pg-boss: письма, перекодирование видео, импорт, AI, cron; список модулей — src/modules.ts
   packages/db            # Prisma-схема, миграции, клиент, сиды, raw SQL (pgvector, tsvector)
   packages/core          # вся бизнес-логика без next/react: права, курсы, оценки, файлы, уведомления, AI-фичи
   packages/module-sdk    # контракт ActivityModule и ModuleCtx (модули не импортируют core)

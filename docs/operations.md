@@ -110,7 +110,7 @@ docker compose up -d --wait
 | `clamav` | ClamAV для проверки загрузок; задайте также `CLAMAV_URL=tcp://clamav:3310` |
 | `ai-local` | Ollama с моделью bge-m3 для поиска AI-тьютора; задайте также `AI_EMBEDDINGS_URL=http://ollama:11434/v1`, `AI_EMBEDDINGS_MODEL=bge-m3` и `SSRF_ALLOW_HOSTS=ollama` |
 
-`HUBIUM_VERSION` выбирает релиз (тег образа). Из клона репозитория тот же файл собирает образы: `BUILD_COMMIT=$(git rev-parse HEAD) docker compose -f docker/compose.yml --env-file .env up -d --build`. `BUILD_COMMIT` необязателен: с ним в левом нижнем углу и на странице «Окружение» рядом с версией виден коммит сборки.
+`HUBIUM_VERSION` выбирает релиз (тег образа). Из клона репозитория тот же файл собирает образы: скопируйте `.env.production.example` в `.env.production`, заполните его и выполните `BUILD_COMMIT=$(git rev-parse HEAD) docker compose -f docker/compose.yml --env-file .env.production up -d --build`. Корневой `.env` клона для этого не подходит: это файл разработки с адресами `localhost`. `BUILD_COMMIT` необязателен: с ним в левом нижнем углу и на странице «Окружение» рядом с версией виден коммит сборки.
 
 Переменные окружения оболочки важнее `.env`: не экспортируйте в ней `DATABASE_URL` и подобные переменные, иначе они попадут в контейнеры.
 
@@ -147,6 +147,10 @@ docker compose up -d
 |---|---|
 | `hubium web`, `hubium worker` | запускает web-сервер или воркер |
 | `hubium migrate --seed minimal\|demo\|none [--disable-modules a,b]` | применяет миграции, готовит хранилище, наполняет базу |
+| `hubium migrate resolve --rolled-back <миграция>` | отмечает неудавшуюся миграцию как откаченную, когда база исправлена вручную; следующий `hubium migrate` применит её снова |
+| `hubium seed --profile minimal\|demo` | только наполнение базы, без миграций |
+| `hubium healthcheck` | отвечают ли web-сервер и воркер (`/api/health`, `/healthz`); так проверяет здоровье образ Docker |
+| `hubium ai reindex [--course <id>] [--sync]` | заново строит поиск AI-тьютора (после смены модели эмбеддингов) |
 | `hubium doctor [db] [--json]` | проверяет настройки, базу (и пустую), воркер, очереди, хранилище, SMTP, домен контента, ffmpeg; код выхода 0 — порядок, 1 — ошибки, 2 — предупреждения |
 | `hubium modules list\|enable\|disable <ключи>` | модули элементов курса, как в **Администрирование → Модули** |
 | `hubium secrets rotate` | перешифровывает секреты после смены `APP_SECRET` |
@@ -172,10 +176,14 @@ Caddy использует эти адреса как имена сайтов и
 | `DATABASE_URL` | строка подключения PostgreSQL |
 | `APP_URL`, `CONTENT_HOST` | публичные адреса (см. выше) |
 | `APP_SECRET` | ключ для подписей и шифрования секретов в БД, 32+ символа |
-| `STORAGE_DRIVER` | `fs` (по умолчанию; каталог `STORAGE_FS_ROOT`, в Docker — том `data`) или `s3`: `S3_ENDPOINT`, `S3_PUBLIC_URL`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION` |
+| `STORAGE_DRIVER` | `fs` (по умолчанию; каталог `STORAGE_FS_ROOT`, в Docker — том `data`; незавершённые загрузки лежат там при любом хранилище) или `s3`: `S3_ENDPOINT`, `S3_PUBLIC_URL`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION` |
 | `SMTP_URL`, `MAIL_FROM` | отправка почты |
 | `HOSTNAME`, `PORT` | где слушает web-сервер в системной установке (`127.0.0.1:3000`) |
 | `WORKER_QUEUES` | какие очереди обрабатывает воркер: `default`, `media` или оба через запятую |
+| `WORKER_HEALTH_PORT`, `WORKER_HEALTH_HOST` | где воркер отвечает на `/healthz`: порт (3001; второму воркеру на той же машине, например `worker-media`, нужен другой) и адрес (`127.0.0.1`) |
+| `LOG_LEVEL`, `LOG_FORMAT` | подробность журнала (`info`) и его вид: `json` (по умолчанию в production) или `pretty` |
+| `HUBIUM_ENV_FILE` | файл настроек, который читает лаунчер `bin/hubium` (`/etc/hubium/hubium.env`) |
+| `AUTH_RATE_LIMIT` | `off` выключает ограничение попыток входа. Только для автотестов: на рабочем сайте это открывает подбор паролей |
 | `FFMPEG_PATH`, `FFPROBE_PATH` | пути к ffmpeg для видео |
 | `BBB_URL`, `BBB_SECRET` / `JITSI_*` | вебинары |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Web Push (`npx web-push generate-vapid-keys`) |
@@ -265,12 +273,16 @@ sudo tar czf files-$(date +%F).tgz -C /var/lib/hubium files
 
 ### Восстановление
 
+Копия восстанавливается в пустую базу. `pg_restore --clean` удаляет только то, что есть в копии: таблицы, которые миграции добавили позже (например, при неудачном обновлении), остались бы, и следующее обновление остановилось бы на «relation … already exists».
+
 Docker:
 
 ```bash
 cd /opt/hubium
 docker compose stop web worker worker-media
-docker compose exec -T db pg_restore -U hubium -d hubium --clean --if-exists < hubium-2026-10-12.dump
+docker compose exec -T db dropdb -U hubium --if-exists hubium
+docker compose exec -T db createdb -U hubium hubium
+docker compose exec -T db pg_restore -U hubium -d hubium < hubium-2026-10-12.dump
 docker run --rm -v hubium_data:/data -v "$PWD/backup":/backup debian:trixie-slim sh -c 'rm -rf /data/* && tar xzf /backup/files-2026-10-12.tgz -C /data'
 docker compose up -d --wait
 ```
@@ -279,7 +291,9 @@ docker compose up -d --wait
 
 ```bash
 sudo systemctl stop hubium-web hubium-worker hubium-worker-media
-sudo -u postgres pg_restore -p 5432 -d hubium --clean --if-exists < hubium-2026-10-12.dump
+sudo -u postgres dropdb -p 5432 --if-exists hubium
+sudo -u postgres createdb -p 5432 -O hubium hubium
+sudo -u postgres pg_restore -p 5432 -d hubium < hubium-2026-10-12.dump
 sudo tar xzf files-2026-10-12.tgz -C /var/lib/hubium
 sudo systemctl start hubium-web hubium-worker hubium-worker-media
 ```
@@ -380,7 +394,8 @@ docker run -d --name jaeger -p 127.0.0.1:4318:4318 -p 127.0.0.1:16686:16686 jaeg
 
 ## Масштабирование
 
-- `web` можно запускать в нескольких экземплярах: сеансы в базе, realtime через `LISTEN/NOTIFY`, кэши сбрасываются через канал `hubium_cache`. Лимит REST API считается в каждом экземпляре. Незавершённые загрузки (и файлы с `STORAGE_DRIVER=fs`) лежат в `STORAGE_FS_ROOT` — в Docker это том `data`: экземплярам на разных машинах нужен общий каталог (NFS) или S3 и привязка клиента к экземпляру на балансировщике.
+- `web` можно запускать в нескольких экземплярах: сеансы в базе, realtime через `LISTEN/NOTIFY`, кэши сбрасываются через канал `hubium_cache`. Лимит REST API считается в каждом экземпляре.
+- Незавершённые загрузки лежат в `STORAGE_FS_ROOT` (в Docker это том `data`) **и при `STORAGE_DRIVER=s3`**: загрузку принимает `web`, а архив импортируемого курса читает из того же каталога `worker` и распаковывает его там же (`tmp/archives`). Поэтому `web` и `worker` на разных машинах должны видеть один каталог `STORAGE_FS_ROOT` (например, NFS), а клиент — попадать на один и тот же экземпляр `web` на балансировщике. С `STORAGE_DRIVER=fs` в этом каталоге лежат и сами файлы сайта.
 - Воркеров тоже может быть несколько; pg-boss распределяет задачи (`SKIP LOCKED`).
 - Видео перекодируется только `worker-media`; ему нужны ffmpeg и доступ к хранилищу.
 
