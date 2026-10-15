@@ -1,6 +1,7 @@
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
+import { createRole, deleteRole, updateRole } from '../access/admin.ts';
 import { createEvent, listUserEvents } from '../calendar/calendar.ts';
 import {
   completionReport,
@@ -15,8 +16,9 @@ import {
   unenrolUser,
   updateSelfEnrolment,
 } from '../enrol/enrol.ts';
-import { ForbiddenError, ValidationError } from '../errors.ts';
+import { ConflictError, ForbiddenError, ValidationError } from '../errors.ts';
 import { createGroup, listGroupNames, listGroups, setGroupMembers } from '../groups/groups.ts';
+import { setSettings } from '../settings/settings.ts';
 import { assignSystemRole } from '../users/users.ts';
 import {
   createActivity,
@@ -99,6 +101,52 @@ describe('courses domain', () => {
     await expect(
       createCourse.run(tctx, { categoryId: ids.math!, fullName: 'Dup', shortName: 'alg7' }),
     ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("keeps the course creator's role: not deleted, not taken off courses, not unknown", async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const { id: author } = await createRole.run(admin, {
+      shortName: 'author',
+      name: { ru: 'Автор', en: 'Author' },
+      archetype: 'EDITINGTEACHER',
+      assignableLevels: ['COURSE'],
+    });
+    await setSettings(t.db, { 'course.creatorRole': 'author' });
+    try {
+      await expect(deleteRole.run(admin, { id: author })).rejects.toBeInstanceOf(ConflictError);
+      await expect(
+        updateRole.run(admin, { id: author, name: { ru: 'Автор' }, assignableLevels: ['SYSTEM'] }),
+      ).rejects.toMatchObject({ fieldErrors: { assignableLevels: [expect.any(String)] } });
+      // a name that is no role on courses is not saved
+      await expect(setSettings(t.db, { 'course.creatorRole': 'nosuchrole' })).rejects.toMatchObject(
+        { fieldErrors: { 'course.creatorRole': [expect.any(String)] } },
+      );
+      await expect(setSettings(t.db, { 'course.creatorRole': 'user' })).rejects.toBeInstanceOf(
+        ValidationError,
+      );
+      // one gone before these checks: the creator still teaches the course, as by default
+      await t.db.siteSetting.update({
+        where: { key: 'course.creatorRole' },
+        data: { value: 'nosuchrole' },
+      });
+      await setSettings(t.db, { 'site.name': 'Hubium' });
+      const ctx = await ctxFor(t.db, 'teacher@hubium.local');
+      const { id } = await createCourse.run(ctx, {
+        categoryId: ids.math!,
+        fullName: 'Геометрия 7',
+        shortName: 'GEO7',
+      });
+      const roles = await t.db.roleAssignment.findMany({
+        where: { contextId: id, userId: ids.teacher! },
+        select: { role: { select: { shortName: true } } },
+      });
+      expect(roles.map((r) => r.role.shortName)).toEqual(['editingteacher']);
+      // the searches below count the category's courses
+      await t.db.course.delete({ where: { id } });
+    } finally {
+      await setSettings(t.db, { 'course.creatorRole': 'editingteacher' });
+    }
+    await deleteRole.run(admin, { id: author });
   });
 
   it('sections: add, reorder, general section is fixed, delete only empty', async () => {

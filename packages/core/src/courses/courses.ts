@@ -117,9 +117,10 @@ export const createCourse = defineOperation({
     });
     // The creator becomes the course teacher unless they already manage it from above.
     if (userId && !ctx.perm.isSiteAdmin) {
-      const role = await ctx.tx.role.findUnique({
-        where: { shortName: settings['course.creatorRole'] },
-      });
+      // a setting naming a role deleted before it was kept from that: the default role
+      const role =
+        (await ctx.tx.role.findUnique({ where: { shortName: settings['course.creatorRole'] } })) ??
+        (await ctx.tx.role.findUnique({ where: { shortName: 'editingteacher' } }));
       if (role) {
         const manual = await ctx.tx.enrolmentMethod.findFirstOrThrow({
           where: { courseId: id, type: 'MANUAL' },

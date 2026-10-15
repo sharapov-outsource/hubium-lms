@@ -409,6 +409,7 @@
       "testEmail": "Envoyer un e-mail de test",
       "testEmailSent": "E-mail de test mis en file d’attente",
       "creatorRole": "Rôle attribué à l’auteur d’un nouveau cours",
+      "creatorRoleMissing": "Ce rôle n’existe plus : les créateurs de cours reçoivent « Enseignant ». Choisissez un rôle.",
       "mentorsEnabled": "Mentors et parents",
       "mentorsHint": "Les administrateurs associent mentors et parents aux apprenants depuis la fiche utilisateur ou par import CSV ; ils suivent ensuite les cours, la progression, les notes et les échéances des apprenants.",
       "passwordPolicy": "Politique de mots de passe",

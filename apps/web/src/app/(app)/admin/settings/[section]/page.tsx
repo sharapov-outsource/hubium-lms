@@ -88,8 +88,23 @@ export default async function SettingsSectionPage({
               emptyText={tc('nothingFound')}
             />
           </FormField>
-          <FormField name="creatorRole" label={t('settings.creatorRole')}>
+          <FormField
+            name="creatorRole"
+            label={t('settings.creatorRole')}
+            hint={
+              roles.some((r) => r.shortName === s['course.creatorRole'])
+                ? undefined
+                : t('settings.creatorRoleMissing')
+            }
+          >
             <Select id="f-creatorRole" name="creatorRole" defaultValue={s['course.creatorRole']}>
+              {/* a role deleted before this was kept from happening: shown, not swapped for
+                  the first one in the list on the next save */}
+              {roles.some((r) => r.shortName === s['course.creatorRole']) ? null : (
+                <option value={s['course.creatorRole']} disabled>
+                  {s['course.creatorRole']}
+                </option>
+              )}
               {roles.map((r) => (
                 <option key={r.id} value={r.shortName}>
                   {roleName(r, locale)}

@@ -409,6 +409,7 @@
       "testEmail": "Invia un’email di prova",
       "testEmailSent": "Email di prova messa in coda",
       "creatorRole": "Ruolo assegnato all’autore di un nuovo corso",
+      "creatorRoleMissing": "Questo ruolo non esiste più: chi crea un corso riceve «Docente». Scegli un ruolo.",
       "mentorsEnabled": "Mentori e genitori",
       "mentorsHint": "Gli amministratori collegano mentori e genitori ai partecipanti dalla scheda utente o con un file CSV; questi seguono poi corsi, avanzamento, valutazioni e scadenze dei partecipanti.",
       "passwordPolicy": "Criteri per le password",

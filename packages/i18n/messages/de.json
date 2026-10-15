@@ -409,6 +409,7 @@
       "testEmail": "Test-E-Mail senden",
       "testEmailSent": "Test-E-Mail in die Warteschlange gestellt",
       "creatorRole": "Rolle für Ersteller/innen neuer Kurse",
+      "creatorRoleMissing": "Diese Rolle gibt es nicht mehr: Kursersteller erhalten „Trainer/in“. Wählen Sie eine Rolle.",
       "mentorsEnabled": "Mentor/innen und Eltern",
       "mentorsHint": "Administrator/innen verknüpfen Mentor/innen und Eltern mit Lernenden auf der Nutzerkarte oder per CSV-Upload; diese verfolgen dann Kurse, Fortschritt, Bewertungen und Fristen der Lernenden.",
       "passwordPolicy": "Passwortrichtlinie",

@@ -125,6 +125,16 @@ export async function setSettings(
     if (r.success) parsed.push([key, r.data]);
     else fieldErrors[key] = r.error.issues.map((i) => i.message);
   }
+  // the course creator's role is one that can be given on a course
+  const creatorRole = parsed.find(([key]) => key === 'course.creatorRole')?.[1];
+  if (
+    typeof creatorRole === 'string' &&
+    !(await db.role.findFirst({
+      where: { shortName: creatorRole, assignableLevels: { has: 'COURSE' } },
+      select: { id: true },
+    }))
+  )
+    fieldErrors['course.creatorRole'] = ['Not a role given on courses'];
   if (Object.keys(fieldErrors).length) throw new ValidationError(fieldErrors);
   // what changed, for the event log: who turned what off is the first question after an
   // incident

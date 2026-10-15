@@ -4,6 +4,7 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '.
 import { logEvent } from '../events/log.ts';
 import { localizedText } from '../lib/localized.ts';
 import { defineOperation } from '../operation.ts';
+import { getSetting } from '../settings/settings.ts';
 import { type Capability, capabilities, isCapability, type Level } from './capabilities.ts';
 import { invalidatePermissionCaches } from './permissions.ts';
 
@@ -88,6 +89,13 @@ export const updateRole = defineOperation({
   async handler(ctx, input) {
     const role = await ctx.tx.role.findUnique({ where: { id: input.id } });
     if (!role) throw new NotFoundError('Role');
+    if (
+      !input.assignableLevels.includes('COURSE') &&
+      role.shortName === (await getSetting(ctx.tx, 'course.creatorRole'))
+    )
+      throw new ValidationError({
+        assignableLevels: ['Course creators get this role on their courses (site settings)'],
+      });
     await ctx.tx.role.update({
       where: { id: role.id },
       data: { name: input.name, assignableLevels: role.isProtected ? [] : input.assignableLevels },
@@ -119,6 +127,10 @@ export const deleteRole = defineOperation({
     if (role._count.assignments || role._count.enrolMethods) {
       throw new ConflictError('Role is in use');
     }
+    if (role.shortName === (await getSetting(ctx.tx, 'course.creatorRole')))
+      throw new ConflictError(
+        'Course creators get this role on their courses: choose another in the site settings first',
+      );
     await ctx.tx.role.delete({ where: { id } });
     await logEvent(ctx.tx, {
       name: 'role.deleted',

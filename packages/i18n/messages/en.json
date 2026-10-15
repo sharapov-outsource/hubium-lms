@@ -410,6 +410,7 @@
       "testEmail": "Send a test email",
       "testEmailSent": "Test email queued",
       "creatorRole": "Role given to a new course's author",
+      "creatorRoleMissing": "This role no longer exists: course creators get Teacher. Choose a role.",
       "mentorsEnabled": "Mentors and parents",
       "mentorsHint": "Administrators link mentors and parents to learners on the user card or by CSV upload; they then follow the learners’ courses, progress, grades and deadlines.",
       "passwordPolicy": "Password policy",
