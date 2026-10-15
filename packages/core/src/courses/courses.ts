@@ -2,6 +2,7 @@ import { type Course, type Db, Prisma, uuidv7 } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { z } from 'zod';
 import { createContext } from '../access/contexts.ts';
+import { scheduleCourseProgress } from '../completion/schedule.ts';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
@@ -189,6 +190,9 @@ export const updateCourse = defineOperation({
         customFields,
       },
     });
+    // with tracking turned on, learners' progress so far
+    if (input.enableCompletion && !course.enableCompletion)
+      await scheduleCourseProgress(ctx.tx, course.id);
     // A forced group mode applies to every activity of the course.
     if (input.groupModeForced)
       await ctx.tx.activity.updateMany({

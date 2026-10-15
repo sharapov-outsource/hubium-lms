@@ -3,6 +3,7 @@ import {
   type BulkAction,
   COMPLETION_RECOMPUTE_JOB,
   CORE_SCHEDULE,
+  COURSE_PROGRESS_JOB,
   deliverWebhook,
   expireEnrolments,
   INDEX_COURSE_JOB,
@@ -14,6 +15,7 @@ import {
   pruneWebhookDeliveries,
   QUIZGEN_JOB,
   recomputeActivityForAll,
+  recomputeCourseForAll,
   recordHeartbeat,
   runBulkUsersJob,
   runQuizGeneration,
@@ -159,6 +161,12 @@ export const coreHandlers: JobHandlerDef[] = [
     name: COMPLETION_RECOMPUTE_JOB,
     async handler(data: { activityId: string }, { db }) {
       return { users: await recomputeActivityForAll(db, data.activityId) };
+    },
+  },
+  {
+    name: COURSE_PROGRESS_JOB,
+    async handler(data: { courseId: string }, { db }) {
+      return { users: await recomputeCourseForAll(db, data.courseId) };
     },
   },
   {

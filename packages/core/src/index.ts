@@ -25,6 +25,7 @@ export * from './competencies/model.ts';
 export * from './competencies/plans.ts';
 export * from './competencies/ratings.ts';
 export * from './completion/completion.ts';
+export * from './completion/schedule.ts';
 export * from './content.ts';
 export * from './context.ts';
 export * from './courses/activities.ts';

@@ -1,12 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { capturedJobs, ctxFor, useTestDb } from '../../test/helpers.ts';
-import { updateActivity } from '../courses/activities.ts';
 import {
+  deleteActivity,
+  restoreActivity,
+  setActivityVisibility,
+  updateActivity,
+} from '../courses/activities.ts';
+import { updateCourse } from '../courses/courses.ts';
+import {
+  overrideCompletion,
   recomputeActivityForAll,
+  recomputeCourseForAll,
   recomputeCourseProgress,
   toggleManualCompletion,
 } from './completion.ts';
+import { COURSE_PROGRESS_JOB } from './schedule.ts';
 
 describe('completion rule changes', () => {
   const t = useTestDb();
@@ -123,5 +132,92 @@ describe('completion rule changes', () => {
       data: { state: 'COMPLETE_PASS' },
     });
     expect(await recomputeCourseProgress(t.db, f.courseId, f.users.student1!)).toBe(100);
+  });
+
+  it('recomputes progress when the activities that count change; completion stays', async () => {
+    const f = await courseFixture(t.db, 'COMPL4');
+    const ids: string[] = [];
+    for (const name of ['Один', 'Два', 'Три'])
+      ids.push(
+        (
+          await f.addActivity(
+            'page',
+            name,
+            { content: '<p>Текст</p>' },
+            { completionMode: 'MANUAL' },
+          )
+        ).id,
+      );
+    const s1 = await ctxFor(t.db, f.users.student1!);
+    await toggleManualCompletion.run(s1, { activityId: ids[0]!, done: true });
+    await toggleManualCompletion.run(s1, { activityId: ids[1]!, done: true });
+    const progress = async () =>
+      t.db.courseCompletion.findUniqueOrThrow({
+        where: { courseId_userId: { courseId: f.courseId, userId: f.users.student1! } },
+      });
+    expect((await progress()).progressPercent).toBe(67);
+
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const queued = () =>
+      capturedJobs.some((j) => j.name === COURSE_PROGRESS_JOB && 'courseId' in j.data);
+    const changes: [string, () => Promise<unknown>, number][] = [
+      ['deleting', () => deleteActivity.run(admin, { id: ids[2]! }), 100],
+      ['restoring', () => restoreActivity.run(admin, { id: ids[2]! }), 67],
+      [
+        'hiding',
+        () => setActivityVisibility.run(admin, { id: ids[2]!, visibility: 'HIDDEN' }),
+        100,
+      ],
+      ['showing', () => setActivityVisibility.run(admin, { id: ids[2]!, visibility: 'SHOWN' }), 67],
+      [
+        'no longer tracking',
+        () =>
+          updateActivity.run(admin, {
+            id: ids[2]!,
+            name: 'Три',
+            settings: { content: '<p>Текст</p>' },
+            completionMode: 'NONE',
+          }),
+        100,
+      ],
+    ];
+    for (const [what, change, percent] of changes) {
+      capturedJobs.length = 0;
+      await change();
+      expect(queued(), what).toBe(true);
+      expect(await recomputeCourseForAll(t.db, f.courseId), what).toBeGreaterThan(0);
+      expect((await progress()).progressPercent, what).toBe(percent);
+    }
+    // completed once, the course stays completed (as in Moodle), from the first time
+    const done = (await progress()).completedAt;
+    expect(done).not.toBeNull();
+    await overrideCompletion.run(admin, {
+      activityId: ids[0]!,
+      userId: f.users.student1!,
+      state: 'INCOMPLETE',
+    });
+    expect((await progress()).progressPercent).toBe(50);
+    expect((await progress()).completedAt).toEqual(done);
+    await overrideCompletion.run(admin, {
+      activityId: ids[0]!,
+      userId: f.users.student1!,
+      state: 'COMPLETE',
+    });
+    expect(await progress()).toMatchObject({ progressPercent: 100, completedAt: done });
+
+    // turning completion tracking on works progress out for everyone
+    const course = await t.db.course.findUniqueOrThrow({ where: { id: f.courseId } });
+    const edit = (enableCompletion: boolean) =>
+      updateCourse.run(admin, {
+        id: f.courseId,
+        categoryId: course.categoryId,
+        fullName: course.fullName,
+        shortName: course.shortName,
+        enableCompletion,
+      });
+    await edit(false);
+    capturedJobs.length = 0;
+    await edit(true);
+    expect(queued()).toBe(true);
   });
 });

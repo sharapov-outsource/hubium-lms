@@ -17,7 +17,7 @@ type Tx = Prisma.TransactionClient | Db;
 
 /**
  * Recomputes the course progress percentage for one user. Activities count when completed
- * or passed, not failed, as Moodle's.
+ * or passed, not failed, as Moodle's; the course, once completed, stays completed.
  */
 export async function recomputeCourseProgress(
   tx: Tx,
@@ -29,6 +29,7 @@ export async function recomputeCourseProgress(
     select: { enableCompletion: true },
   });
   if (!course?.enableCompletion) return 0;
+  // as countsTowardsProgress
   const tracked = await tx.activity.findMany({
     where: { courseId, deletedAt: null, visibility: 'SHOWN', completionMode: { not: 'NONE' } },
     select: { id: true },
@@ -47,7 +48,7 @@ export async function recomputeCourseProgress(
   const existing = await tx.courseCompletion.findUnique({
     where: { courseId_userId: { courseId, userId } },
   });
-  const completedAt = percent === 100 && tracked.length ? (existing?.completedAt ?? now) : null;
+  const completedAt = existing?.completedAt ?? (percent === 100 && tracked.length ? now : null);
   await tx.courseCompletion.upsert({
     where: { courseId_userId: { courseId, userId } },
     create: { courseId, userId, progressPercent: percent, startedAt: now, completedAt },
@@ -167,6 +168,21 @@ export async function recomputeActivityForAll(db: Db, activityId: string): Promi
   });
   for (const { userId } of users)
     await db.$transaction((tx) => recomputeActivityCompletion(ctx, tx, activityId, userId));
+  return users.length;
+}
+
+/**
+ * Worker job: course progress for everyone enrolled, after the activities that count
+ * changed (see scheduleCourseProgress).
+ */
+export async function recomputeCourseForAll(db: Db, courseId: string): Promise<number> {
+  const users = await db.enrolment.findMany({
+    where: { courseId },
+    select: { userId: true },
+    distinct: ['userId'],
+  });
+  for (const { userId } of users)
+    await db.$transaction((tx) => recomputeCourseProgress(tx, courseId, userId));
   return users.length;
 }
 

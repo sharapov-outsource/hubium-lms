@@ -394,7 +394,7 @@ Cohort            contextId(system|category) name idNumber(uniq) description vis
 
 // ── core/completion.prisma
 ActivityCompletion  PK(activityId,userId) state(INCOMPLETE|COMPLETE|COMPLETE_PASS|COMPLETE_FAIL) viewedAt overriddenById completedAt
-CourseCompletion    PK(courseId,userId) progressPercent startedAt completedAt needsRecalc
+CourseCompletion    PK(courseId,userId) progressPercent startedAt completedAt      // completedAt stays once set; job completion.course recomputes a course
 
 // ── core/calendar.prisma
 CalendarEvent     scope(SITE|CATEGORY|COURSE|GROUP|USER) categoryId? courseId? groupId? userId? activityId? moduleKey?

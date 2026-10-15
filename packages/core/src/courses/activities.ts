@@ -3,6 +3,7 @@ import { sanitizeRichText } from '@hubium/editor/server';
 import { parseSettings } from '@hubium/module-sdk';
 import { z } from 'zod';
 import { createContext } from '../access/contexts.ts';
+import { countsTowardsProgress, scheduleCourseProgress } from '../completion/schedule.ts';
 import type { MutationContext, RequestContext } from '../context.ts';
 import { NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
@@ -241,6 +242,7 @@ async function insertActivity(ctx: MutationContext, input: z.output<typeof Activ
   await m.lifecycle?.onCreate?.(mctx, toActivityRef(a));
   if (m.grading) await mctx.grades.syncItems(a.id).catch(() => {});
   await syncCalendar(ctx.tx, a);
+  if (countsTowardsProgress(a)) await scheduleCourseProgress(ctx.tx, a.courseId);
   await logEvent(ctx.tx, {
     name: 'activity.created',
     actorId: ctx.perm.userId,
@@ -309,6 +311,8 @@ export const updateActivity = defineOperation({
         { activityId: a.id },
         { tx: ctx.tx, singletonKey: a.id, singletonSeconds: 60, singletonNextSlot: true },
       );
+    if (countsTowardsProgress(prev) !== countsTowardsProgress(a))
+      await scheduleCourseProgress(ctx.tx, a.courseId);
     await logEvent(ctx.tx, {
       name: 'activity.updated',
       actorId: ctx.perm.userId,
@@ -341,8 +345,11 @@ export const setActivityVisibility = defineOperation({
   input: z.object({ id: z.string().uuid(), visibility: z.enum(['SHOWN', 'HIDDEN', 'STEALTH']) }),
   authorize: (ctx, i) => authorizeActivity(ctx, i.id),
   async handler(ctx, { id, visibility }) {
+    const prev = await ctx.tx.activity.findUniqueOrThrow({ where: { id } });
     const a = await ctx.tx.activity.update({ where: { id }, data: { visibility } });
     await syncCalendar(ctx.tx, a);
+    if (countsTowardsProgress(prev) !== countsTowardsProgress(a))
+      await scheduleCourseProgress(ctx.tx, a.courseId);
     return { id };
   },
 });
@@ -407,6 +414,8 @@ export const deleteActivity = defineOperation({
     const a = await ctx.tx.activity.update({ where: { id }, data: { deletedAt: ctx.now } });
     await syncCalendar(ctx.tx, a);
     await syncGrades(ctx, a);
+    if (countsTowardsProgress({ ...a, deletedAt: null }))
+      await scheduleCourseProgress(ctx.tx, a.courseId);
     await logEvent(ctx.tx, {
       name: 'activity.deleted',
       actorId: ctx.perm.userId,
@@ -427,6 +436,7 @@ export const restoreActivity = defineOperation({
     const a = await ctx.tx.activity.update({ where: { id }, data: { deletedAt: null } });
     await syncCalendar(ctx.tx, a);
     await syncGrades(ctx, a);
+    if (countsTowardsProgress(a)) await scheduleCourseProgress(ctx.tx, a.courseId);
     await scheduleAiIndex(ctx, id);
     return { id };
   },
