@@ -21,6 +21,7 @@ import {
   validateProfileValues,
   writeProfileValues,
 } from '../users/profile-fields.ts';
+import { SSO_FIELD_PREFIX } from './field-mappings.ts';
 import { generateSpKeyPair, spMetadataXml } from './saml-keys.ts';
 
 const logger = log('sso');
@@ -33,9 +34,6 @@ const logger = log('sso');
 
 export const SSO_PROTOCOLS = ['oidc', 'saml', 'oauth2'] as const;
 export type SsoProtocol = (typeof SSO_PROTOCOLS)[number];
-
-/** Extra fields carry profile fields under this prefix through Better Auth's mapping. */
-const FIELD_PREFIX = 'hubium_field_';
 
 const seal = (s: string) => encryptSecret(s, getEnv().APP_SECRET);
 const unseal = (s: string) => decryptSecret(s, getEnv().APP_SECRET);
@@ -158,7 +156,7 @@ function extraFields(m: SsoMapping, first: string, last: string): Record<string,
     ...Object.fromEntries(
       Object.entries(m.fields)
         .filter(([, a]) => a)
-        .map(([short, a]) => [FIELD_PREFIX + short, a]),
+        .map(([short, a]) => [SSO_FIELD_PREFIX + short, a]),
     ),
   };
 }
@@ -547,7 +545,7 @@ export function provisionSsoUser(db: Db): Provision {
       const fields = await listProfileFields(db);
       const raw: Record<string, unknown> = {};
       for (const f of fields) {
-        const v = str(FIELD_PREFIX + f.shortName);
+        const v = str(SSO_FIELD_PREFIX + f.shortName);
         if (v) raw[f.shortName] = v;
       }
       let values: ProfileValues = {};

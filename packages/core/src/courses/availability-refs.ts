@@ -1,5 +1,10 @@
 import { Prisma } from '@hubium/db';
-import { type Condition, parseAvailability, pruneAvailability } from './availability.ts';
+import {
+  type AvailabilityTree,
+  type Condition,
+  parseAvailability,
+  pruneAvailability,
+} from './availability.ts';
 
 /**
  * Removes conditions on something deleted for good (an activity purged from the recycle
@@ -47,3 +52,47 @@ export const namesGroups = (groupIds: ReadonlySet<string>) => (c: Condition) =>
 
 export const namesGroupings = (groupingIds: ReadonlySet<string>) => (c: Condition) =>
   c.type === 'grouping' && groupingIds.has(c.groupingId);
+
+/**
+ * Points the conditions on a custom profile field (`cf:<shortName>`) in every course at its
+ * new short name, when the field is renamed: the values move with it (profile-fields.ts).
+ */
+export async function renameProfileFieldConditions(
+  tx: Prisma.TransactionClient,
+  from: string,
+  to: string,
+): Promise<void> {
+  const [before, after] = [`cf:${from}`, `cf:${to}`];
+  const rename = (node: AvailabilityTree['c'][number]): AvailabilityTree['c'][number] =>
+    'c' in node
+      ? { ...node, c: node.c.map(rename) }
+      : node.type === 'profile' && node.field === before
+        ? { ...node, field: after }
+        : node;
+  // only the rows whose JSON names the field at all are read
+  const like = `%${JSON.stringify(before)}%`;
+  const [activities, sections] = await Promise.all([
+    tx.$queryRaw<{ id: string; availability: unknown }[]>`
+      SELECT id, availability FROM "Activity" WHERE availability::text LIKE ${like}`,
+    tx.$queryRaw<{ id: string; availability: unknown }[]>`
+      SELECT id, availability FROM "CourseSection" WHERE availability::text LIKE ${like}`,
+  ]);
+  const renamed = (raw: unknown) => {
+    const tree = parseAvailability(raw);
+    if (!tree) return undefined;
+    const next = rename(tree) as AvailabilityTree;
+    return JSON.stringify(next) === JSON.stringify(tree)
+      ? undefined
+      : (next as unknown as Prisma.InputJsonValue);
+  };
+  for (const a of activities) {
+    const availability = renamed(a.availability);
+    if (availability !== undefined)
+      await tx.activity.update({ where: { id: a.id }, data: { availability } });
+  }
+  for (const s of sections) {
+    const availability = renamed(s.availability);
+    if (availability !== undefined)
+      await tx.courseSection.update({ where: { id: s.id }, data: { availability } });
+  }
+}

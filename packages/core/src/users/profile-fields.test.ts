@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { evaluateCondition } from '../courses/availability.ts';
 import { ValidationError } from '../errors.ts';
@@ -121,6 +122,98 @@ describe('profile fields', () => {
     });
     await deleteProfileField.run(admin, { id: f!.id });
     expect((await t.db.user.findUniqueOrThrow({ where: { id } })).customFields).toEqual({});
+  });
+
+  it('take access conditions and SSO and LDAP mappings along when renamed', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const { id } = await saveProfileField.run(admin, {
+      shortName: 'klass',
+      name: { ru: 'Класс' },
+      type: 'text',
+    });
+    const f = await courseFixture(t.db, 'PF-REFS');
+    const { id: page } = await f.addActivity('page', 'Только 7Б', { content: '<p>7Б</p>' });
+    const onKlass = {
+      op: '&',
+      c: [{ type: 'profile', field: 'cf:klass', op: 'equals', value: '7Б' }],
+    };
+    await t.db.activity.update({ where: { id: page }, data: { availability: onKlass } });
+    const section = await t.db.courseSection.findFirstOrThrow({ where: { courseId: f.courseId } });
+    await t.db.courseSection.update({
+      where: { id: section.id },
+      data: {
+        availability: {
+          op: '|',
+          c: [onKlass, { type: 'profile', field: 'email', op: 'contains', value: 'cf:klass' }],
+        },
+      },
+    });
+    const extra = { firstName: 'given_name', hubium_field_klass: 'school_class' };
+    await t.db.ssoProvider.create({
+      data: {
+        providerId: 'school',
+        issuer: 'https://idp.example.org',
+        name: 'School',
+        protocol: 'oidc',
+        userId: admin.perm.userId!,
+        oidcConfig: JSON.stringify({
+          clientId: 'c',
+          mapping: { email: 'email', extraFields: extra },
+        }),
+        mapping: { fields: { klass: 'school_class' } },
+      },
+    });
+    await t.db.ldapServer.create({
+      data: {
+        url: 'ldap://ldap.example.org',
+        baseDn: 'dc=example,dc=org',
+        mapping: { email: 'mail', fields: { klass: 'ou' } },
+      },
+    });
+
+    await saveProfileField.run(admin, {
+      id,
+      shortName: 'grade_class',
+      name: { ru: 'Класс' },
+      type: 'text',
+    });
+    const renamed = { type: 'profile', field: 'cf:grade_class', op: 'equals', value: '7Б' };
+    expect((await t.db.activity.findUniqueOrThrow({ where: { id: page } })).availability).toEqual({
+      op: '&',
+      c: [renamed],
+    });
+    // a condition's value is the person's text, not a field: it stays as it was
+    expect(
+      (await t.db.courseSection.findUniqueOrThrow({ where: { id: section.id } })).availability,
+    ).toEqual({
+      op: '|',
+      c: [
+        { op: '&', c: [renamed] },
+        { type: 'profile', field: 'email', op: 'contains', value: 'cf:klass' },
+      ],
+    });
+    const sso = await t.db.ssoProvider.findUniqueOrThrow({ where: { providerId: 'school' } });
+    expect(sso.mapping).toEqual({ fields: { grade_class: 'school_class' } });
+    expect(JSON.parse(sso.oidcConfig!).mapping.extraFields).toEqual({
+      firstName: 'given_name',
+      hubium_field_grade_class: 'school_class',
+    });
+    expect((await t.db.ldapServer.findUniqueOrThrow({ where: { id: 'default' } })).mapping).toEqual(
+      { email: 'mail', fields: { grade_class: 'ou' } },
+    );
+
+    // a deleted field is no longer filled at sign-in; the conditions on it stay, met by no one
+    await deleteProfileField.run(admin, { id });
+    const after = await t.db.ssoProvider.findUniqueOrThrow({ where: { providerId: 'school' } });
+    expect(after.mapping).toEqual({ fields: {} });
+    expect(JSON.parse(after.oidcConfig!).mapping.extraFields).toEqual({ firstName: 'given_name' });
+    expect((await t.db.ldapServer.findUniqueOrThrow({ where: { id: 'default' } })).mapping).toEqual(
+      { email: 'mail', fields: {} },
+    );
+    expect((await t.db.activity.findUniqueOrThrow({ where: { id: page } })).availability).toEqual({
+      op: '&',
+      c: [renamed],
+    });
   });
 
   it('are filled from profile_field_ columns of a CSV upload', async () => {

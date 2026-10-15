@@ -2,6 +2,8 @@ import type { Db, Prisma } from '@hubium/db';
 import { locales } from '@hubium/i18n';
 import { createTranslator } from '@hubium/i18n/packs';
 import { z } from 'zod';
+import { moveFieldMappings } from '../auth/field-mappings.ts';
+import { renameProfileFieldConditions } from '../courses/availability-refs.ts';
 import { NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { type Localized, localizedText, pickLocalized } from '../lib/localized.ts';
@@ -204,13 +206,16 @@ export const saveProfileField = defineOperation({
     if (id) {
       const prev = await ctx.tx.userProfileField.findUnique({ where: { id } });
       if (!prev) throw new NotFoundError('Profile field');
-      // Values and reports name the field by its short name: renaming carries them over.
+      // Values, reports, access conditions and the SSO and LDAP mappings name the field by
+      // its short name: renaming carries them over.
       if (prev.shortName !== input.shortName) {
         await ctx.tx.$executeRaw`
           UPDATE "User" SET "customFields" = ("customFields" - ${prev.shortName}::text)
             || jsonb_build_object(${input.shortName}::text, "customFields" -> ${prev.shortName}::text)
           WHERE "customFields" ? ${prev.shortName}::text`;
         await renameReportField(ctx.tx, 'user', prev.shortName, input.shortName);
+        await renameProfileFieldConditions(ctx.tx, prev.shortName, input.shortName);
+        await moveFieldMappings(ctx.tx, prev.shortName, input.shortName);
       }
       await ctx.tx.userProfileField.update({ where: { id }, data });
     } else {
@@ -244,6 +249,8 @@ export const deleteProfileField = defineOperation({
     await ctx.tx.$executeRaw`
       UPDATE "User" SET "customFields" = "customFields" - ${f.shortName}::text
       WHERE "customFields" ? ${f.shortName}::text`;
+    // sign-in no longer fills it; access conditions on it stay, met as by an empty field
+    await moveFieldMappings(ctx.tx, f.shortName, null);
     await logEvent(ctx.tx, {
       name: 'profilefield.deleted',
       actorId: ctx.perm.userId,
