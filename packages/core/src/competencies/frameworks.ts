@@ -1,6 +1,6 @@
 import { type Competency, type CompetencyFramework, type Db, Prisma } from '@hubium/db';
 import { z } from 'zod';
-import type { RequestContext } from '../context.ts';
+import type { MutationContext, RequestContext } from '../context.ts';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { defineOperation } from '../operation.ts';
@@ -96,35 +96,70 @@ export const FrameworkInput = z.object({
   shortName: z.string().trim().min(1).max(255),
   idNumber,
   description: z.string().max(10_000).default(''),
-  scaleId: z.string().uuid(),
+  /** A site scale, or "new" for `newScale`, made with the framework (or an equal one taken). */
+  scaleId: z.union([z.string().uuid(), z.literal('new')]),
+  newScale: z
+    .object({
+      name: z.string().trim().min(1).max(255),
+      items: z.array(z.string().trim().min(1).max(100)).min(2).max(100),
+    })
+    .optional(),
   scaleConfig: z.unknown(),
   taxonomies: z.array(z.enum(TAXONOMIES)).min(1).max(10).default(['competency']),
   visible: z.boolean().default(true),
 });
+
+/** The scale a framework asked for as "new": a site scale with the same name and grades if
+ *  there is one, else made now, in the framework's transaction and under its permission. */
+async function frameworkScale(
+  ctx: MutationContext,
+  scaleId: string,
+  spec: z.output<typeof FrameworkInput>['newScale'],
+): Promise<string> {
+  if (scaleId !== 'new') return scaleId;
+  if (!spec) throw new ValidationError({ scaleId: ['Required'] });
+  if (new Set(spec.items).size !== spec.items.length)
+    throw new ValidationError({ scaleId: ['Each grade must be different'] });
+  const same = await ctx.tx.scale.findFirst({
+    where: { courseId: null, name: spec.name, items: { equals: spec.items } },
+    select: { id: true },
+  });
+  if (same) return same.id;
+  const s = await ctx.tx.scale.create({ data: { courseId: null, ...spec } });
+  await logEvent(ctx.tx, {
+    name: 'grade.scale.created',
+    actorId: ctx.perm.userId,
+    objectType: 'scale',
+    objectId: s.id,
+    origin: ctx.origin,
+  });
+  return s.id;
+}
 
 export const saveFramework = defineOperation({
   name: 'competency.framework.save',
   input: FrameworkInput,
   authorize: (ctx) => ctx.perm.require('competency:manage'),
   async handler(ctx, input) {
-    const { config } = await siteScale(ctx.tx, input.scaleId, input.scaleConfig, 'scaleId');
     const clash = await ctx.tx.competencyFramework.findUnique({
       where: { idNumber: input.idNumber },
     });
     if (clash && clash.id !== input.id)
       throw new ValidationError({ idNumber: ['Another framework has this ID number'] });
+    const scaleId = await frameworkScale(ctx, input.scaleId, input.newScale);
+    const { config } = await siteScale(ctx.tx, scaleId, input.scaleConfig, 'scaleId');
     const data = {
       shortName: input.shortName,
       idNumber: input.idNumber,
       description: input.description,
-      scaleId: input.scaleId,
+      scaleId,
       scaleConfig: config as unknown as Prisma.InputJsonValue,
       taxonomies: input.taxonomies,
       visible: input.visible,
     };
     if (input.id) {
       const old = await loadFramework(ctx.tx, input.id);
-      if (old.scaleId !== input.scaleId) {
+      if (old.scaleId !== scaleId) {
         const ids = (
           await ctx.tx.competency.findMany({
             where: { frameworkId: old.id, scaleId: null },

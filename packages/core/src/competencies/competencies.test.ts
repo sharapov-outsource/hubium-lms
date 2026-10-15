@@ -150,6 +150,45 @@ describe('competencies', () => {
     expect(byIdNumber('B').related).toEqual([byIdNumber('A1').id]);
   });
 
+  it('lets a manager start a framework on a new scale, made with it or not at all', async () => {
+    const manager = await ctxFor(t.db, 'manager@hubium.local');
+    const newScale = { name: 'Владение', items: ['Не владеет', 'Владеет'] };
+    const scaleConfig = { default: 2, proficient: [2] };
+    const scales = () => t.db.scale.count({ where: { name: 'Владение' } });
+    // the ID number is taken: neither the framework nor its scale is made
+    await expect(
+      saveFramework.run(manager, {
+        shortName: 'Другие',
+        idNumber: 'DIG',
+        scaleId: 'new',
+        newScale,
+        scaleConfig,
+      }),
+    ).rejects.toMatchObject({ fieldErrors: { idNumber: [expect.any(String)] } });
+    expect(await scales()).toBe(0);
+    const { id } = await saveFramework.run(manager, {
+      shortName: 'Гибкие навыки',
+      idNumber: 'SOFT',
+      scaleId: 'new',
+      newScale,
+      scaleConfig,
+    });
+    const fw = await t.db.competencyFramework.findUniqueOrThrow({
+      where: { id },
+      include: { scale: true },
+    });
+    expect(fw.scale).toMatchObject({ courseId: null, ...newScale });
+    // the next one takes that scale rather than another copy of it
+    await saveFramework.run(manager, {
+      shortName: 'Гибкие навыки 2',
+      idNumber: 'SOFT2',
+      scaleId: 'new',
+      newScale,
+      scaleConfig,
+    });
+    expect(await scales()).toBe(1);
+  });
+
   it('is rated through activities, teachers and its children', async () => {
     const f = await courseFixture(t.db, 'COMP1');
     const teacher = await ctxFor(t.db, f.users.teacher!);

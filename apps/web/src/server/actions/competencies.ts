@@ -25,7 +25,6 @@ import {
   saveCompetency,
   saveFramework,
   savePlan,
-  saveScale,
   saveTemplate,
   saveUserEvidence,
   setActivityCompetency,
@@ -61,16 +60,16 @@ export async function saveFrameworkAction(fd: FormData) {
   return runAction(async () => {
     const v = formToObject(fd);
     const ctx = await getContext();
-    let scaleId = v.scaleId ?? '';
+    const scaleId = v.scaleId ?? '';
     let scaleConfig: unknown;
+    let newScale: { name: string; items: string[] } | undefined;
     if (scaleId === 'new') {
+      // made with the framework, under its permission, or not at all
       const t = createTranslator(await getLocale());
-      scaleId = (
-        await saveScale.run(ctx, {
-          name: t('competencies.defaultScale.name'),
-          items: [t('competencies.defaultScale.no'), t('competencies.defaultScale.yes')],
-        })
-      ).id;
+      newScale = {
+        name: t('competencies.defaultScale.name'),
+        items: [t('competencies.defaultScale.no'), t('competencies.defaultScale.yes')],
+      };
       scaleConfig = { default: 2, proficient: [2] };
     } else
       scaleConfig = {
@@ -83,6 +82,7 @@ export async function saveFrameworkAction(fd: FormData) {
       idNumber: v.idNumber ?? '',
       description: v.description ?? '',
       scaleId,
+      newScale,
       scaleConfig,
       taxonomies: fd.getAll('taxonomy').map(String) as never,
       visible: v.visible === 'on',
