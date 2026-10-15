@@ -791,7 +791,7 @@ In dev, `localhost:3000` versus `127.0.0.1:3000` gives two distinct origins for 
 
 **Backup / restore / import (`packages/interchange`)**
 - **Own `.hubium` format:** a zip containing `manifest.json` (formatVersion, appVersion, module versions/dataVersions, userData flag), `course.json`, `activities/<id>/…` from module `backup.export`, `questions/`, `files.json` + `files/<blobId>`. Per-version zod schemas with migrations.
-- **Restore:** to a new or existing course with an `IdMapper`. Course duplicate and "import from another course" use the same pipeline.
+- **Restore:** to a new or existing course with an `IdMapper`. Course duplicate, activity duplicate and "import from another course" use the same pipeline without an archive: the copy's `File` rows point to the same blobs, so no bytes are read or stored. An archive is written as a stream, file by file; pictures, media and other compressed content go in stored, not deflated.
 - **.mbz import:**
   - tar.gz (newer) or zip (older) via `tar-stream`;
   - reads `moodle_backup.xml`, course, sections, `activities/*/{module.xml,<mod>.xml,grades.xml,inforef.xml}`, `files.xml`, `questions.xml`, `gradebook.xml`, `groups.xml`;

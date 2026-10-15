@@ -31,6 +31,7 @@ import {
 } from '@hubium/core';
 import { enrolUsers } from '@hubium/core/enrol/enrol';
 import { fileUrl, storeFile } from '@hubium/core/files/files';
+import { getStorage, setStorage } from '@hubium/core/files/storage';
 import { ctxFor, useTestDb } from '@hubium/core/testing';
 import { courseFixture } from '@hubium/core/testing/course-fixture';
 import { createUserRecord } from '@hubium/core/users/users';
@@ -204,6 +205,17 @@ describe('.hubium backup and restore', () => {
     expect(b.course.questions).toHaveLength(2);
     expect((b.course.activities[2]!.module as { slots: unknown[] }).slots).toHaveLength(2);
     expect(b.files.map((x) => x.name)).toContain('pic.png');
+    // pictures go in as they are, the course's description is compressed
+    const methods: Record<string, number> = {};
+    unzipSync(zip, {
+      filter: (e) => {
+        methods[e.name] = e.compression;
+        return false;
+      },
+    });
+    const pic = b.files.find((x) => x.name === 'pic.png')!;
+    expect(methods[`files/${pic.blobId}`]).toBe(0);
+    expect(methods['course.json']).toBe(8);
     const s1 = await ctxFor(t.db, f.users.student1!);
     await expect(exportCourse(s1, f.courseId)).rejects.toThrow();
   });
@@ -211,9 +223,22 @@ describe('.hubium backup and restore', () => {
   it('restores into a new course with every reference remapped', async () => {
     const admin = await ctxFor(t.db, 'admin@test.local');
     const course = await t.db.course.findUniqueOrThrow({ where: { id: f.courseId } });
-    const r = await restoreCourse(admin, zip, { categoryId: course.categoryId });
+    // the course is hidden while it is being made, and named to whoever waits for it
+    const made: { id: string; visible: boolean }[] = [];
+    const r = await restoreCourse(admin, zip, {
+      categoryId: course.categoryId,
+      onCreated: async (id) =>
+        made.push(
+          await t.db.course.findUniqueOrThrow({
+            where: { id },
+            select: { id: true, visible: true },
+          }),
+        ),
+    });
     expect(r).toMatchObject({ activities: 3, questions: 2, files: 1, warnings: [] });
+    expect(made).toEqual([{ id: r.courseId, visible: false }]);
     const copy = await t.db.course.findUniqueOrThrow({ where: { id: r.courseId } });
+    expect(copy.visible).toBe(true);
     expect(copy.shortName).toBe('BACKUP1-1');
     expect(copy.customFields).toEqual({ hours: '72' });
     const acts = await t.db.activity.findMany({
@@ -435,15 +460,42 @@ describe('.hubium backup and restore', () => {
     await t.db.activityCompetency.deleteMany({ where: { competencyId: c.id } });
   });
 
-  it('duplicates a course with a new name', async () => {
+  it('duplicates a course with a new name, its files on the same stored content', async () => {
     const admin = await ctxFor(t.db, 'admin@test.local');
-    const r = await duplicateCourse(admin, f.courseId, {
-      fullName: 'Копия',
-      shortName: 'BACKUP1-COPY',
-    });
+    const real = getStorage();
+    let reads = 0;
+    setStorage(
+      new Proxy(real, {
+        get(o, p) {
+          if (p === 'getStream') reads++;
+          const v = Reflect.get(o, p);
+          return typeof v === 'function' ? v.bind(o) : v;
+        },
+      }),
+    );
+    const blobs = await t.db.fileBlob.count();
+    let r: Awaited<ReturnType<typeof duplicateCourse>>;
+    try {
+      r = await duplicateCourse(admin, f.courseId, {
+        fullName: 'Копия',
+        shortName: 'BACKUP1-COPY',
+      });
+    } finally {
+      setStorage(real);
+    }
     expect((await t.db.course.findUniqueOrThrow({ where: { id: r.courseId } })).fullName).toBe(
       'Копия',
     );
+    // nothing read or stored again: the copy's picture is a new row on the same content
+    expect(reads).toBe(0);
+    expect(await t.db.fileBlob.count()).toBe(blobs);
+    const [original, copied] = await Promise.all(
+      [f.courseId, r.courseId].map((contextId) =>
+        t.db.file.findFirstOrThrow({ where: { contextId, name: 'pic.png' } }),
+      ),
+    );
+    expect(copied!.id).not.toBe(original!.id);
+    expect(copied!.blobId).toBe(original!.blobId);
     await expect(
       duplicateCourse(admin, f.courseId, { fullName: 'Ещё', shortName: 'BACKUP1-COPY' }),
     ).rejects.toThrow();

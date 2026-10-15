@@ -1,4 +1,7 @@
 import { createHash } from 'node:crypto';
+import { createWriteStream } from 'node:fs';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import {
   addSection,
   assertModuleEnabled,
@@ -25,7 +28,7 @@ import {
   toActivityRef,
   ValidationError,
 } from '@hubium/core';
-import { purgeActivityRecord } from '@hubium/core/courses/recyclebin';
+import { purgeActivityRecord, purgeCourseRecord } from '@hubium/core/courses/recyclebin';
 import { storeFile } from '@hubium/core/files/files';
 import { getStorage } from '@hubium/core/files/storage';
 import { type Db, type Prisma, uuidv7 } from '@hubium/db';
@@ -40,13 +43,14 @@ import {
   questionDataSchemas,
   questionTypes,
 } from '@hubium/questions';
-import { strFromU8, strToU8, zipSync } from 'fflate';
+import { strFromU8, strToU8, Zip, ZipDeflate, ZipPassThrough } from 'fflate';
 import { z } from 'zod';
 import { type ArchiveLimits, unzipLimited } from './archive.ts';
 
 // The .hubium course format: a zip with manifest.json, course.json, files.json and
 // files/<blobId>. Restoring maps every id from the source course to a new one, so the
-// same pipeline also duplicates courses. Learners' data is not included.
+// same pipeline also copies courses and activities on this site, without an archive: the
+// copy's files are new rows on the same stored content. Learners' data is not included.
 
 export const FORMAT = 'hubium-course';
 export const FORMAT_VERSION = 1;
@@ -273,31 +277,114 @@ const FileRow = z.object({
 
 export type CourseBackup = z.infer<typeof CourseJson>;
 
-async function readAll(stream: NodeJS.ReadableStream): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  for await (const c of stream)
-    chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c as unknown as Uint8Array));
+/** What a backup of a course holds, read from the database: all but the files' content. */
+interface BackupParts {
+  manifest: z.input<typeof Manifest>;
+  course: z.input<typeof CourseJson>;
+  files: z.input<typeof FileRow>[];
+  /** The stored content the files name, once each. */
+  blobs: { id: string; storageKey: string; size: number; mimeType: string }[];
+}
+
+/** A .hubium archive of a course in memory (structure, content, question bank, files). */
+export async function exportCourse(ctx: RequestContext, courseId: string): Promise<Uint8Array> {
+  await ctx.perm.require('backup:create', courseId);
+  const chunks: Uint8Array[] = [];
+  for await (const c of archiveChunks(await collectBackup(ctx, courseId, {}))) chunks.push(c);
   return Buffer.concat(chunks);
 }
 
-/** Builds a .hubium archive of a course (structure, content, question bank, files). */
-export async function exportCourse(
+/** Writes a .hubium archive of a course to a file, a little at a time (a background task). */
+export async function writeCourseArchive(
+  ctx: RequestContext,
+  courseId: string,
+  path: string,
+): Promise<void> {
+  await ctx.perm.require('backup:create', courseId);
+  const parts = await collectBackup(ctx, courseId, {});
+  await pipeline(Readable.from(archiveChunks(parts)), createWriteStream(path));
+}
+
+/** Content that is compressed already (pictures, media, archives, PDF, office files). */
+const compressed = (mime: string) =>
+  (/^(image|video|audio)\//.test(mime) && mime !== 'image/svg+xml') ||
+  /^application\/(zip|gzip|x-gzip|pdf|x-7z-compressed|vnd\.rar|epub\+zip|vnd\.openxmlformats-|vnd\.oasis\.opendocument\.)/.test(
+    mime,
+  );
+
+/**
+ * The zip of a backup, chunk by chunk as it is written: each file is read from storage as it
+ * goes in, so a course takes little memory whatever its size. Content that is compressed
+ * already goes in as it is; compressing it again would cost time and gain nothing.
+ */
+async function* archiveChunks(parts: BackupParts): AsyncGenerator<Uint8Array> {
+  if (parts.blobs.reduce((n, b) => n + b.size, 0) > MAX_BACKUP_BYTES)
+    throw new ValidationError({ course: ['The course is too large to back up'] });
+  const out: Uint8Array[] = [];
+  const state: { error?: Error } = {};
+  const zip = new Zip((err, chunk) => {
+    if (err) state.error = err;
+    else out.push(chunk);
+  });
+  const settled = () => {
+    if (state.error) throw state.error;
+    return out.splice(0);
+  };
+  for (const [name, value] of [
+    ['manifest.json', parts.manifest],
+    ['course.json', parts.course],
+    ['files.json', parts.files],
+  ] as const) {
+    const entry = new ZipDeflate(name, { level: 6 });
+    zip.add(entry);
+    entry.push(strToU8(JSON.stringify(value)), true);
+    yield* settled();
+  }
+  const storage = getStorage();
+  for (const b of parts.blobs) {
+    const name = `files/${b.id}`;
+    const entry = compressed(b.mimeType)
+      ? new ZipPassThrough(name)
+      : new ZipDeflate(name, { level: 6 });
+    zip.add(entry);
+    for await (const c of await storage.getStream(b.storageKey)) {
+      entry.push(typeof c === 'string' ? strToU8(c) : (c as Uint8Array));
+      yield* settled();
+    }
+    entry.push(new Uint8Array(0), true);
+    yield* settled();
+  }
+  zip.end();
+  yield* settled();
+}
+
+/**
+ * A backup of a course on this site, taken without an archive: read through the archive's
+ * schemas as a restore reads them, its files naming the content already stored.
+ */
+async function localBackup(
+  ctx: RequestContext,
+  courseId: string,
+  opts: { activityIds?: string[] },
+): Promise<Backup> {
+  const parts = await collectBackup(ctx, courseId, opts);
+  return {
+    manifest: Manifest.parse(parts.manifest),
+    course: CourseJson.parse(JSON.parse(JSON.stringify(parts.course))),
+    files: z.array(FileRow).parse(parts.files),
+    blob: () => undefined,
+    local: true,
+  };
+}
+
+async function collectBackup(
   ctx: RequestContext,
   courseId: string,
   opts: {
     /** Only these activities, and of the course's own files those they show (an import). */
     activityIds?: string[];
-  } = {},
-): Promise<Uint8Array> {
-  await ctx.perm.require('backup:create', courseId);
-  return buildArchive(ctx, courseId, opts);
-}
-
-async function buildArchive(
-  ctx: RequestContext,
-  courseId: string,
-  opts: { activityIds?: string[] },
-): Promise<Uint8Array> {
+  },
+): Promise<BackupParts> {
   const db = ctx.db;
   const course = await db.course.findUniqueOrThrow({ where: { id: courseId } });
   const allSections = await db.courseSection.findMany({
@@ -382,16 +469,17 @@ async function buildArchive(
       (shown === null || f.contextId !== courseId || shown.includes(f.id)),
   );
 
-  const out: Record<string, Uint8Array> = {};
-  let total = 0;
-  for (const f of files) {
-    const key = `files/${f.blobId}`;
-    if (out[key]) continue;
-    total += Number(f.blob.size);
-    if (total > MAX_BACKUP_BYTES)
-      throw new ValidationError({ course: ['The course is too large to back up'] });
-    out[key] = await readAll(await getStorage().getStream(f.blob.storageKey));
-  }
+  const blobs = new Map(
+    files.map((f) => [
+      f.blobId,
+      {
+        id: f.blobId,
+        storageKey: f.blob.storageKey,
+        size: Number(f.blob.size),
+        mimeType: f.blob.mimeType,
+      },
+    ]),
+  );
   const manifest: z.input<typeof Manifest> = {
     format: FORMAT,
     formatVersion: FORMAT_VERSION,
@@ -546,10 +634,7 @@ async function buildArchive(
     mimeType: f.mimeType,
     blobId: f.blobId,
   }));
-  out['manifest.json'] = strToU8(JSON.stringify(manifest, null, 2));
-  out['course.json'] = strToU8(JSON.stringify(body));
-  out['files.json'] = strToU8(JSON.stringify(fileRows));
-  return zipSync(out, { level: 6 });
+  return { manifest, course: body, files: fileRows, blobs: [...blobs.values()] };
 }
 
 /** The short name of a course made from an archive: the one it had, or with -1, -2… when
@@ -607,8 +692,19 @@ export function pruneAvailability(tree: unknown, map: Map<string, string>): unkn
   return c.length ? { ...t, c } : null;
 }
 
+/** A backup to restore: read from a .hubium archive, or taken on this site. */
+interface Backup {
+  manifest: z.infer<typeof Manifest>;
+  course: CourseBackup;
+  files: z.infer<typeof FileRow>[];
+  /** A file's content in the archive. */
+  blob(blobId: string): Uint8Array | undefined;
+  /** Taken on this site: the copy's files are new rows on the content already stored. */
+  local?: boolean;
+}
+
 /** Reads and validates a .hubium archive. */
-export function readBackup(zip: Uint8Array, limits?: ArchiveLimits) {
+export function readBackup(zip: Uint8Array, limits?: ArchiveLimits): Backup {
   let entries: Record<string, Uint8Array>;
   try {
     entries = unzipLimited(zip, limits);
@@ -654,13 +750,33 @@ function splitSections(sections: z.infer<typeof Section>[]) {
   };
 }
 
+/** Where a course made from an archive goes, and what it is called there. */
+export interface NewCourseTarget {
+  categoryId: string;
+  fullName?: string;
+  shortName?: string;
+  /** Called once the course exists, before anything is put in it (a task records it). */
+  onCreated?: (courseId: string) => Promise<unknown>;
+}
+
 /** Restores a .hubium archive into a new course in `categoryId`. */
 export async function restoreCourse(
   ctx: RequestContext,
   zip: Uint8Array,
-  target: { categoryId: string; fullName?: string; shortName?: string },
+  target: NewCourseTarget,
 ): Promise<RestoreReport> {
-  const b = readBackup(zip);
+  return restoreBackup(ctx, readBackup(zip), target);
+}
+
+/**
+ * Makes a course of a backup. It stays hidden until it is complete; when the restore fails
+ * it is deleted again.
+ */
+async function restoreBackup(
+  ctx: RequestContext,
+  b: Backup,
+  target: NewCourseTarget,
+): Promise<RestoreReport> {
   const src = b.course.course;
 
   const shortName = target.shortName ?? (await freeShortName(ctx.db, src.shortName));
@@ -678,12 +794,16 @@ export async function restoreCourse(
     enableCompletion: src.enableCompletion,
     groupMode: src.groupMode,
     groupModeForced: src.groupModeForced,
+    visible: false,
   });
   try {
+    await target.onCreated?.(courseId);
     await ctx.perm.require('restore:course', courseId).catch(() => {
       throw new ForbiddenError('You cannot restore into this course');
     });
-    return await restoreInto(ctx, b, courseId, { fresh: true });
+    const report = await restoreInto(ctx, b, courseId, { fresh: true });
+    await ctx.db.course.update({ where: { id: courseId }, data: { visible: true } });
+    return report;
   } catch (e) {
     // do not leave a half-restored course behind
     await discardCourse(ctx, courseId);
@@ -718,7 +838,7 @@ export async function duplicateActivity(
   if (!a || a.deletedAt) throw new NotFoundError('Activity');
   await ctx.perm.require('course:manageactivities', a.courseId);
   await assertModuleEnabled(ctx.db, a.moduleKey);
-  const b = readBackup(await buildArchive(ctx, a.courseId, { activityIds: [a.id] }));
+  const b = await localBackup(ctx, a.courseId, { activityIds: [a.id] });
   const r = await restoreInto(ctx, b, a.courseId, {
     fresh: false,
     duplicate: { name: name(a.name), after: { sectionId: a.sectionId, rank: a.rank } },
@@ -738,8 +858,8 @@ export async function importActivities(
   if (!input.activityIds.length)
     throw new ValidationError({ activityIds: ['Choose at least one activity'] });
   await ctx.perm.require('restore:course', input.targetCourseId);
-  const zip = await exportCourse(ctx, input.sourceCourseId, { activityIds: input.activityIds });
-  const b = readBackup(zip);
+  await ctx.perm.require('backup:create', input.sourceCourseId);
+  const b = await localBackup(ctx, input.sourceCourseId, { activityIds: input.activityIds });
   if (!b.course.activities.length) throw new NotFoundError('Activity');
   return restoreInto(ctx, b, input.targetCourseId, { fresh: false });
 }
@@ -750,8 +870,6 @@ interface RestoreScope {
   /** Copying an activity in its own course: placed after it, hidden, under this name. */
   duplicate?: { name: string; after: { sectionId: string; rank: string } };
 }
-
-type Backup = ReturnType<typeof readBackup>;
 
 async function restoreInto(
   ctx: RequestContext,
@@ -1108,10 +1226,22 @@ async function restoreInto(
     }
 
     let fileCount = 0;
+    // a copy on this site: the content each file names, as it is stored
+    const stored = b.local
+      ? new Map(
+          (
+            await db.fileBlob.findMany({
+              where: { id: { in: [...new Set(b.files.map((f) => f.blobId))] } },
+              select: { id: true, size: true },
+            })
+          ).map((x) => [x.id, x]),
+        )
+      : null;
     for (const f of b.files) {
       const contextId = map.get(f.contextId);
-      const data = b.blob(f.blobId);
-      if (!contextId || !data) continue;
+      const data = stored ? null : b.blob(f.blobId);
+      const blob = stored?.get(f.blobId);
+      if (!contextId || !(data || blob)) continue;
       const address = {
         contextId,
         component: f.component,
@@ -1124,19 +1254,31 @@ async function restoreInto(
       // the same content is that file; other content goes to a folder of its own.
       const there = await db.file.findFirst({ where: address, include: { blob: true } });
       if (there) {
-        const sha = createHash('sha256').update(data).digest('hex');
-        if (there.blob.sha256 === sha) {
+        const same = data
+          ? there.blob.sha256 === createHash('sha256').update(data).digest('hex')
+          : there.blobId === f.blobId;
+        if (same) {
           map.set(f.id, there.id);
           continue;
         }
         address.path = `${f.path}${uuidv7().slice(-12)}/`;
       }
-      const nf = await storeFile(db, {
-        ...address,
-        mimeType: f.mimeType,
-        data: Buffer.from(data),
-        uploadedById: ctx.perm.userId ?? null,
-      });
+      const nf = data
+        ? await storeFile(db, {
+            ...address,
+            mimeType: f.mimeType,
+            data: Buffer.from(data),
+            uploadedById: ctx.perm.userId ?? null,
+          })
+        : await db.file.create({
+            data: {
+              ...address,
+              blobId: f.blobId,
+              mimeType: f.mimeType,
+              size: blob!.size,
+              uploadedById: ctx.perm.userId ?? null,
+            },
+          });
       map.set(f.id, nf.id);
       fileCount++;
     }
@@ -1370,27 +1512,32 @@ async function freeIdNumber(
 }
 
 /**
- * Removes a course that an import gave up on. Its question bank is keyed by context id
- * without a foreign key, so it goes explicitly, after the quizzes that use it.
+ * Removes a course that an import gave up on, as deleting it for good does (the modules'
+ * clean-up of stored packages and media included). Should that fail on what was half made,
+ * the rows go all the same; its question bank is keyed by context id without a foreign key.
  */
 export async function discardCourse(ctx: RequestContext, courseId: string) {
-  await ctx.db.course.delete({ where: { id: courseId } }).catch(() => {});
-  await ctx.db.context.delete({ where: { id: courseId } }).catch(() => {});
-  await ctx.db.questionCategory.deleteMany({ where: { contextId: courseId } }).catch(() => {});
+  try {
+    await ctx.db.$transaction((tx) => purgeCourseRecord(ctx, tx, courseId), { timeout: 300_000 });
+  } catch {
+    await ctx.db.course.delete({ where: { id: courseId } }).catch(() => {});
+    await ctx.db.context.delete({ where: { id: courseId } }).catch(() => {});
+    await ctx.db.questionCategory.deleteMany({ where: { contextId: courseId } }).catch(() => {});
+  }
 }
 
-/** Copies a course through the backup pipeline. */
+/** Copies a course on this site: through the backup pipeline, without an archive. */
 export async function duplicateCourse(
   ctx: RequestContext,
   courseId: string,
   target: { categoryId?: string; fullName: string; shortName: string },
 ): Promise<RestoreReport> {
-  const zip = await exportCourse(ctx, courseId);
+  await ctx.perm.require('backup:create', courseId);
   const src = await ctx.db.course.findUniqueOrThrow({
     where: { id: courseId },
     select: { categoryId: true },
   });
-  return restoreCourse(ctx, zip, {
+  return restoreBackup(ctx, await localBackup(ctx, courseId, {}), {
     categoryId: target.categoryId ?? src.categoryId,
     fullName: target.fullName,
     shortName: target.shortName,
