@@ -9,10 +9,12 @@ import {
   deleteUser,
   ForbiddenError,
   getAllSettings,
+  installLanguagePack,
   listProfileFields,
   localizedFromForm,
   logEvent,
   profileValuesFromForm,
+  removeLanguagePack,
   saveLanguageSettings,
   saveModuleSettings,
   setMaintenance,
@@ -283,6 +285,29 @@ export async function saveLanguagesAction(fd: FormData) {
       enabled,
       detectBrowser: fd.get('detectBrowser') === 'on',
     });
+    revalidatePath('/', 'layout');
+    return null;
+  });
+}
+
+/** Installs an uploaded language pack (.zip or .json). */
+export async function installLanguagePackAction(fd: FormData) {
+  return runAction(async () => {
+    const file = fd.get('file');
+    if (!(file instanceof File) || !file.size)
+      throw new ValidationError({ file: ['Choose a .zip or .json language pack'] });
+    const r = await installLanguagePack.run(await getContext(), {
+      fileName: file.name,
+      data: new Uint8Array(await file.arrayBuffer()),
+    });
+    revalidatePath('/', 'layout');
+    return r;
+  });
+}
+
+export async function removeLanguagePackAction(code: string) {
+  return runAction(async () => {
+    await removeLanguagePack.run(await getContext(), { code });
     revalidatePath('/', 'layout');
     return null;
   });

@@ -1894,7 +1894,7 @@
     "title": "Sprachen",
     "description": "Sprachpakete der Website. Nutzer/innen wählen aus den aktivierten Sprachen; fehlt ein Text in einem Paket, erscheint er in der Website-Sprache und sonst auf Englisch.",
     "packs": "Installierte Sprachen",
-    "howToAdd": "Eine Sprache besteht aus Dateien im Repository; wie man eine hinzufügt, steht in docs/i18n.md.",
+    "howToAdd": "Eine neue Sprache oder eine neuere Version einer mitgelieferten wird als Paket installiert. Die Vorlage zum Übersetzen ist das englische Paket („Herunterladen“ in der Tabelle); wie man übersetzt, steht in docs/i18n.md.",
     "language": "Sprache",
     "translated": "Übersetzt",
     "users": "Nutzer/innen",
@@ -1911,7 +1911,18 @@
     "siteAlwaysEnabled": "Die Website-Sprache ist immer aktiviert. Wer eine deaktivierte Sprache gewählt hat, sieht die Website-Sprache.",
     "orphaned": "{n, plural, one {# Person hat} other {# Personen haben}} eine deaktivierte Sprache gewählt.",
     "detectBrowser": "Sprache von Gästen erkennen",
-    "detectBrowserHint": "Solange keine Sprache gewählt ist, sehen Gäste und Nutzer/innen ohne eigene Sprache die Website in der Sprache ihres Browsers, sofern diese aktiviert ist."
+    "detectBrowserHint": "Solange keine Sprache gewählt ist, sehen Gäste und Nutzer/innen ohne eigene Sprache die Website in der Sprache ihres Browsers, sofern diese aktiviert ist.",
+    "installTitle": "Paket installieren",
+    "packFile": "Paket (.zip oder .json)",
+    "installHint": "Ein Archiv, aufgebaut wie das Hubium-Repository (für Ukrainisch messages/uk.json, modules/quiz/messages/uk.json usw.), oder eine einzelne Datei uk.json. Das Paket einer vorhandenen Sprache ersetzt sie.",
+    "install": "Installieren",
+    "installed": "{name} installiert: {percent} % übersetzt",
+    "sourceInstalled": "Installiert",
+    "sourceUpdated": "Aktualisiert",
+    "pack": "Paket",
+    "download": "Herunterladen",
+    "remove": "Entfernen",
+    "removeConfirm": "Das installierte Paket {name} entfernen? Eine mitgelieferte Sprache kehrt zu ihrer Version zurück, eine andere verschwindet aus der Liste."
   },
   "adminModules": {
     "title": "Aktivitätsmodule",

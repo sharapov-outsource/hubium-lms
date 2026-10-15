@@ -11,9 +11,11 @@ import {
 } from '@hubium/ui';
 import { getTranslations } from 'next-intl/server';
 import { ActionForm, SubmitButton } from '@/components/action-form';
-import { saveLanguagesAction } from '@/server/actions/admin';
+import { CommandButton } from '@/components/confirm-button';
+import { removeLanguagePackAction, saveLanguagesAction } from '@/server/actions/admin';
 import { titled } from '@/server/page-title';
 import { requireCapability } from '@/server/session';
+import { InstallPackForm } from './install-form';
 
 export const generateMetadata = titled('adminLanguages', 'title');
 
@@ -30,14 +32,22 @@ export default async function AdminLanguagesPage() {
   return (
     <div className="grid max-w-5xl gap-6">
       <PageHeader title={t('title')} description={t('description')} className="mb-0" />
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('installTitle')}</CardTitle>
+          <CardDescription>{t('howToAdd')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <InstallPackForm />
+        </CardContent>
+      </Card>
       <ActionForm action={saveLanguagesAction} success={tc('saved')} className="grid gap-6">
         <Card className="min-w-0">
           <CardHeader>
             <CardTitle>{t('packs')}</CardTitle>
-            <CardDescription>{t('howToAdd')}</CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
-            <table className="w-full min-w-[36rem] text-sm">
+            <table className="w-full min-w-[42rem] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
                   <th scope="col" className="py-2 pr-3 font-medium">
@@ -52,8 +62,11 @@ export default async function AdminLanguagesPage() {
                   <th scope="col" className="py-2 pr-3 text-center font-medium">
                     {t('enabled')}
                   </th>
-                  <th scope="col" className="py-2 text-center font-medium">
+                  <th scope="col" className="py-2 pr-3 text-center font-medium">
                     {t('siteLanguage')}
+                  </th>
+                  <th scope="col" className="py-2 font-medium">
+                    {t('pack')}
                   </th>
                 </tr>
               </thead>
@@ -74,6 +87,11 @@ export default async function AdminLanguagesPage() {
                           {l.englishName} · <code>{l.code}</code>
                         </span>
                         {l.isBase ? <Badge className="mt-1">{t('base')}</Badge> : null}
+                        {l.source !== 'bundled' ? (
+                          <Badge variant="accent" className="mt-1">
+                            {t(l.source === 'updated' ? 'sourceUpdated' : 'sourceInstalled')}
+                          </Badge>
+                        ) : null}
                       </th>
                       <td className="py-3 pr-3">
                         <span className="tabular-nums">{l.percent}%</span>
@@ -118,7 +136,7 @@ export default async function AdminLanguagesPage() {
                           aria-label={`${t('enabled')}: ${l.name}`}
                         />
                       </td>
-                      <td className="py-3 text-center">
+                      <td className="py-3 pr-3 text-center">
                         <input
                           type="radio"
                           name="defaultLocale"
@@ -126,6 +144,30 @@ export default async function AdminLanguagesPage() {
                           defaultChecked={l.isSite}
                           aria-label={`${t('siteLanguage')}: ${l.name}`}
                         />
+                      </td>
+                      <td className="py-3">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <a
+                            href={`/admin/languages/${l.code}/pack`}
+                            download
+                            className="text-accent hover:underline"
+                            aria-label={`${t('download')}: ${l.name}`}
+                          >
+                            {t('download')}
+                          </a>
+                          {l.source !== 'bundled' ? (
+                            <CommandButton
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              aria-label={`${t('remove')}: ${l.name}`}
+                              confirm={t('removeConfirm', { name: l.name })}
+                              run={removeLanguagePackAction.bind(null, l.code)}
+                            >
+                              {t('remove')}
+                            </CommandButton>
+                          ) : null}
+                        </span>
                       </td>
                     </tr>
                   );

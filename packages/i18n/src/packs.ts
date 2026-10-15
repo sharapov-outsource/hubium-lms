@@ -1,6 +1,14 @@
 import { type MessageFormatElement, parse, TYPE } from '@formatjs/icu-messageformat-parser';
 import { corePacks, modulePacks } from './generated/packs.ts';
-import { BASE_LOCALE, format, isLocale, type Locale, locales, type Messages } from './index.ts';
+import {
+  BASE_LOCALE,
+  format,
+  isLocale,
+  type Locale,
+  locales,
+  type Messages,
+  setExtraLocales,
+} from './index.ts';
 
 // Language packs, checked against the base language when first used. A string that is
 // missing, empty, or whose placeholders or ICU syntax differ from the base is never
@@ -60,11 +68,57 @@ function flatten(tree: unknown, prefix: string, out: Map<string, unknown>): Map<
   return out;
 }
 
+// Packs installed from Administration → Languages (kept in the database): a new language,
+// or a newer version of a bundled one. The base language is always the bundled one.
+const installedCore = new Map<Locale, Tree>();
+const installedModules = new Map<Locale, Tree[]>();
+
+const coreOf = (code: Locale): Tree | undefined => installedCore.get(code) ?? corePacks[code];
+const modulesOf = (code: Locale): Tree[] => installedModules.get(code) ?? modulePacks[code] ?? [];
+
+/** A language pack as installed: its core strings and one object per module. */
+export interface InstalledPack {
+  code: Locale;
+  core: Tree;
+  modules: Tree[];
+}
+
+/** Replaces the installed packs (all of them) and forgets what was worked out before. */
+export function installPacks(packs: InstalledPack[]): void {
+  installedCore.clear();
+  installedModules.clear();
+  for (const p of packs) {
+    if (p.code === BASE_LOCALE) continue;
+    installedCore.set(p.code, p.core);
+    installedModules.set(p.code, p.modules);
+  }
+  setExtraLocales([...installedCore.keys()]);
+  checked.clear();
+  infos.clear();
+  merged.clear();
+  trees.clear();
+}
+
+/** Where a language's strings come from. */
+export function packSource(code: Locale): 'bundled' | 'installed' | 'updated' {
+  if (!installedCore.has(code)) return 'bundled';
+  return corePacks[code] ? 'updated' : 'installed';
+}
+
+/** A pack's files as the repository keeps them, for download. */
+export function packContents(code: Locale): { core: Tree; modules: Tree[] } {
+  return { core: coreOf(code) ?? {}, modules: modulesOf(code) };
+}
+
 /** Core strings at the top, module strings under `mod`, as next-intl expects them. */
-function flatPack(code: Locale): Map<string, unknown> {
-  const out = flatten(corePacks[code], '', new Map());
-  for (const m of modulePacks[code] ?? []) flatten(m, 'mod', out);
+function flattenPack(core: Tree | undefined, modules: Tree[]): Map<string, unknown> {
+  const out = flatten(core, '', new Map());
+  for (const m of modules) flatten(m, 'mod', out);
   return out;
+}
+
+function flatPack(code: Locale): Map<string, unknown> {
+  return flattenPack(coreOf(code), modulesOf(code));
 }
 
 interface Shape {
@@ -134,8 +188,18 @@ const checked = new Map<Locale, { strings: Map<string, string>; report: PackRepo
 function check(code: Locale) {
   let hit = checked.get(code);
   if (hit) return hit;
+  hit = checkFlat(code, code === BASE_LOCALE ? new Map<string, unknown>(base()) : flatPack(code));
+  checked.set(code, hit);
+  return hit;
+}
+
+/** The report of a pack before it is installed. */
+export function checkPack(code: Locale, core: Tree, modules: Tree[]): PackReport {
+  return checkFlat(code, flattenPack(core, modules)).report;
+}
+
+function checkFlat(code: Locale, flat: Map<string, unknown>) {
   const b = base();
-  const flat = code === BASE_LOCALE ? new Map<string, unknown>(b) : flatPack(code);
   const strings = new Map<string, string>();
   const report: PackReport = {
     code,
@@ -157,9 +221,7 @@ function check(code: Locale) {
   }
   for (const key of b.keys()) if (!flat.has(key)) report.missing.push(key);
   report.translated = strings.size;
-  hit = { strings, report };
-  checked.set(code, hit);
-  return hit;
+  return { strings, report };
 }
 
 export function packReport(code: Locale): PackReport {
@@ -194,7 +256,7 @@ const infos = new Map<Locale, LanguageInfo>();
 export function languageInfo(code: Locale): LanguageInfo {
   let info = infos.get(code);
   if (info) return info;
-  const raw = (corePacks[code]?.$language ?? {}) as Record<string, unknown>;
+  const raw = (coreOf(code)?.$language ?? {}) as Record<string, unknown>;
   const str = (k: string) => (typeof raw[k] === 'string' && raw[k] ? (raw[k] as string) : null);
   let dir: 'ltr' | 'rtl' = str('dir') === 'rtl' ? 'rtl' : 'ltr';
   if (!str('dir')) {

@@ -25,6 +25,19 @@ enum BackgroundTaskStatus {
   CANCELLED
 }
 
+/// A language pack installed from Administration → Languages: a new language, or a newer
+/// version of one that ships with Hubium (it then takes that one's place).
+model LanguagePack {
+  code          String   @id
+  /// Strings of the interface, as packages/i18n/messages/<code>.json holds them.
+  core          Json
+  /// Strings of activity modules: module key → { <key>: { ... } }.
+  modules       Json     @default("{}")
+  installedById String?  @db.Uuid
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+}
+
 model SiteSetting {
   key         String   @id
   value       Json

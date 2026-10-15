@@ -1894,7 +1894,7 @@
     "title": "Lingue",
     "description": "Pacchetti lingua del sito. Gli utenti scelgono tra le lingue attivate; un testo assente da un pacchetto viene mostrato nella lingua del sito e poi in inglese.",
     "packs": "Lingue installate",
-    "howToAdd": "Una lingua è un insieme di file nel repository; docs/i18n.md spiega come aggiungerne una.",
+    "howToAdd": "Una nuova lingua, o una versione più recente di una inclusa, si installa come pacchetto. Il modello da tradurre è il pacchetto inglese («Scarica» nella tabella); docs/i18n.md spiega come tradurre.",
     "language": "Lingua",
     "translated": "Tradotto",
     "users": "Utenti",
@@ -1911,7 +1911,18 @@
     "siteAlwaysEnabled": "La lingua del sito è sempre attiva. Chi ha scelto una lingua disattivata vede la lingua del sito.",
     "orphaned": "{n, plural, one {# utente ha} other {# utenti hanno}} scelto una lingua disattivata.",
     "detectBrowser": "Rileva la lingua degli ospiti",
-    "detectBrowserHint": "Finché non scelgono una lingua, ospiti e utenti senza una lingua propria vedono il sito nella lingua del browser, se attivata."
+    "detectBrowserHint": "Finché non scelgono una lingua, ospiti e utenti senza una lingua propria vedono il sito nella lingua del browser, se attivata.",
+    "installTitle": "Installa un pacchetto",
+    "packFile": "Pacchetto (.zip o .json)",
+    "installHint": "Un archivio organizzato come il repository di Hubium (per l’ucraino, messages/uk.json, modules/quiz/messages/uk.json e così via), o un solo file uk.json. Il pacchetto di una lingua già presente la sostituisce.",
+    "install": "Installa",
+    "installed": "{name} installato: {percent}% tradotto",
+    "sourceInstalled": "Installato",
+    "sourceUpdated": "Aggiornato",
+    "pack": "Pacchetto",
+    "download": "Scarica",
+    "remove": "Rimuovi",
+    "removeConfirm": "Rimuovere il pacchetto installato {name}? Una lingua inclusa torna alla sua versione; un’altra esce dall’elenco."
   },
   "adminModules": {
     "title": "Moduli di attività",

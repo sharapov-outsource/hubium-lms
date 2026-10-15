@@ -1,3 +1,6 @@
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { sql } from './db';
 import { ADMIN, DEMO_PASSWORD, expectAccessible, login } from './helpers';
@@ -92,5 +95,53 @@ test('a course can force its language', async ({ page }) => {
     await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
   } finally {
     await sql(`UPDATE "Course" SET lang = NULL WHERE id = $1`, [course!.id]);
+  }
+});
+
+test('an administrator installs a language pack, people use it, and it is removed', async ({
+  page,
+}) => {
+  try {
+    await login(page, ADMIN.login, ADMIN.password);
+    await page.goto('/admin/languages');
+    // a pack of interface strings: a few translated, the rest falls back
+    const file = path.join(mkdtempSync(path.join(tmpdir(), 'lang-')), 'uk.json');
+    writeFileSync(
+      file,
+      JSON.stringify({
+        $language: { name: 'Українська', englishName: 'Ukrainian', tag: 'uk-UA' },
+        nav: { dashboard: 'Головна' },
+        common: { save: 'Зберегти' },
+      }),
+    );
+    await page.getByLabel('Пакет (.zip или .json)').setInputFiles(file);
+    await page.getByRole('button', { name: 'Установить', exact: true }).click();
+    await expect(page.getByText(/Язык «Українська» установлен/).first()).toBeVisible();
+    const row = page.getByRole('row', { name: /Українська/ });
+    await expect(row.getByText('Установлен', { exact: true })).toBeVisible();
+    await expectAccessible(page);
+
+    // the English pack is the template to translate
+    const template = await page.request.get('/admin/languages/en/pack');
+    expect(template.headers()['content-type']).toBe('application/zip');
+
+    // a user picks it from the switcher
+    await page.context().clearCookies();
+    await login(page, 'student2', DEMO_PASSWORD);
+    await page.getByRole('button', { name: 'Язык' }).click();
+    await page.getByRole('menuitem', { name: 'Українська' }).click();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'uk');
+    await expect(page.getByRole('link', { name: 'Головна' }).first()).toBeVisible();
+
+    await page.context().clearCookies();
+    await login(page, ADMIN.login, ADMIN.password);
+    await page.goto('/admin/languages');
+    await page.getByRole('button', { name: 'Удалить: Українська' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Подтвердить' }).click();
+    await expect(page.getByRole('row', { name: /Українська/ })).toHaveCount(0);
+  } finally {
+    await sql(`DELETE FROM "LanguagePack" WHERE code = 'uk'`);
+    await sql(`SELECT pg_notify('hubium_cache', 'languages')`);
+    await sql(`UPDATE "User" SET locale = NULL WHERE username = 'student2'`);
   }
 });

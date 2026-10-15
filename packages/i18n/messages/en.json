@@ -1895,7 +1895,7 @@
     "title": "Languages",
     "description": "Language packs of the site. Users choose among the enabled languages; a string missing from a pack is shown in the site language, then in English.",
     "packs": "Installed languages",
-    "howToAdd": "A language is a set of files in the repository; docs/i18n.md explains how to add one.",
+    "howToAdd": "A new language, or a newer version of a bundled one, is installed as a pack. The template to translate is the English pack (Download in the table); docs/i18n.md tells how to translate.",
     "language": "Language",
     "translated": "Translated",
     "users": "Users",
@@ -1912,7 +1912,18 @@
     "siteAlwaysEnabled": "The site language is always enabled. Users who chose a disabled language see the site language.",
     "orphaned": "{n, plural, one {# user has} other {# users have}} chosen a language that is disabled.",
     "detectBrowser": "Detect the language of guests",
-    "detectBrowserHint": "Until they choose a language, guests and users without a language of their own see the site in their browser’s language when it is enabled."
+    "detectBrowserHint": "Until they choose a language, guests and users without a language of their own see the site in their browser’s language when it is enabled.",
+    "installTitle": "Install a pack",
+    "packFile": "Pack (.zip or .json)",
+    "installHint": "An archive laid out as the Hubium repository is (for Ukrainian, messages/uk.json, modules/quiz/messages/uk.json and so on), or a single uk.json file. A pack of a language that is already there replaces it.",
+    "install": "Install",
+    "installed": "{name} installed: {percent}% translated",
+    "sourceInstalled": "Installed",
+    "sourceUpdated": "Updated",
+    "pack": "Pack",
+    "download": "Download",
+    "remove": "Remove",
+    "removeConfirm": "Remove the installed pack {name}? A bundled language returns to its own version; another one leaves the list."
   },
   "adminModules": {
     "title": "Activity modules",

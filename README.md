@@ -129,7 +129,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 
 - Sign-in by email or username (for learners without email), email verification, two-factor authentication (TOTP) with backup codes and recovery phrases for a lost phone, a password policy (length, character classes, no reuse, expiry), lockout after failed sign-ins with an unlock link by email, notices of sign-ins from a new device with an "it wasn't me" link, sign-in with Google, Yandex ID, VK ID, Keycloak and custom OAuth 2 providers, single sign-on over OpenID Connect and SAML 2.0 (Keycloak, Microsoft Entra ID, ADFS, Okta and others) with profile field mapping, LDAP sign-in (OpenLDAP, Active Directory, FreeIPA) with a nightly sync, and active session management.
 - An installable PWA with an offline page and push notifications.
-- Russian, English, French, German and Italian; a language is a set of JSON files ([docs/i18n.md](docs/i18n.md)) and administrators enable languages and set the site language in the admin area. Light and dark themes, and a mobile layout with bottom navigation.
+- Russian, English, French, German and Italian; a language is a set of JSON files ([docs/i18n.md](docs/i18n.md)) that administrators install from the admin area as a pack (a new language or a newer version of a bundled one, without a rebuild), enable, and make the site language. Light and dark themes, and a mobile layout with bottom navigation.
 - Accessibility: every end-to-end scenario is checked with axe for serious and critical violations.
 - Security:
   - a CSP with a nonce on every request, and Origin checks;

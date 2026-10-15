@@ -2,6 +2,7 @@ import { type Db, Prisma } from '@hubium/db';
 import { BASE_LOCALE, DEFAULT_SITE_LOCALE, isLocale, type Locale, locales } from '@hubium/i18n';
 import { z } from 'zod';
 import { ValidationError } from '../errors.ts';
+import { ensureLanguagePacks } from './language-packs.ts';
 
 // Typed site settings. Each setting is declared once with a zod schema and a default;
 // values are stored in SiteSetting(key, value Json) and cached in memory.
@@ -79,6 +80,8 @@ export function defaultSettings(): AllSettings {
 }
 
 export async function getAllSettings(db: Db | Prisma.TransactionClient): Promise<AllSettings> {
+  // settings name languages, and installed packs add languages
+  await ensureLanguagePacks(db);
   if (cache) return cache;
   const rows = await db.siteSetting.findMany({
     where: { key: { in: Object.keys(settingDefs) } },

@@ -42,9 +42,17 @@ vi.mock('./generated/packs.ts', () => ({
   },
 }));
 
-const { createTranslator, languageInfo, messagesFor, packReport, problemOf } = await import(
-  './packs.ts'
-);
+const {
+  checkPack,
+  createTranslator,
+  installPacks,
+  languageInfo,
+  messagesFor,
+  packReport,
+  packSource,
+  problemOf,
+} = await import('./packs.ts');
+const { isLocale, locales } = await import('./index.ts');
 
 describe('a broken pack', () => {
   it('reports what is missing, dropped and unknown', () => {
@@ -101,5 +109,42 @@ describe('a broken pack', () => {
     expect(problemOf('<docs>Docs</docs>', 'Doku')).toMatch(/tags/);
     expect(problemOf('{n, plural, one {#} other {#}}', '{n, plural, one {#}}')).toMatch(/ICU/);
     expect(problemOf('x', 3)).toBe('not text');
+  });
+
+  it('installs packs at run time: a new language, or a newer bundled one', () => {
+    const uk = {
+      code: 'uk',
+      core: { $language: { name: 'Українська' }, common: { save: 'Зберегти' } },
+      modules: [{ quiz: { name: 'Тест (uk)' } }],
+    };
+    expect(checkPack('uk', uk.core, uk.modules)).toMatchObject({ translated: 2, total: 6 });
+    // the base is always the bundled one
+    installPacks([
+      uk,
+      { code: 'ru', core: { common: { save: 'Сохранить!' } }, modules: [] },
+      {
+        code: 'en',
+        core: { common: { save: 'Nope' } },
+        modules: [],
+      },
+    ]);
+    expect(locales).toEqual(['en', 'ru', 'xx', 'uk']);
+    expect(isLocale('uk')).toBe(true);
+    expect(languageInfo('uk').name).toBe('Українська');
+    expect([packSource('uk'), packSource('ru'), packSource('en')]).toEqual([
+      'installed',
+      'updated',
+      'bundled',
+    ]);
+    const t = createTranslator('uk', 'ru');
+    expect(t('common.save')).toBe('Зберегти');
+    expect(t('mod.quiz.name')).toBe('Тест (uk)');
+    expect(t('common.only')).toBe('Only in English');
+    expect(createTranslator('ru')('common.save')).toBe('Сохранить!');
+    expect(createTranslator('en')('common.save')).toBe('Save');
+    // removed again: the bundled ones only
+    installPacks([]);
+    expect(locales).toEqual(['en', 'ru', 'xx']);
+    expect(createTranslator('ru')('common.save')).toBe('Сохранить');
   });
 });

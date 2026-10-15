@@ -1894,7 +1894,7 @@
     "title": "Langues",
     "description": "Paquets de langue du site. Les utilisateurs choisissent parmi les langues activées ; une chaîne absente d’un paquet s’affiche dans la langue du site, puis en anglais.",
     "packs": "Langues installées",
-    "howToAdd": "Une langue est un ensemble de fichiers dans le dépôt ; docs/i18n.md explique comment en ajouter une.",
+    "howToAdd": "Une nouvelle langue, ou une version plus récente d’une langue fournie, s’installe sous forme de paquet. Le modèle à traduire est le paquet anglais (« Télécharger » dans le tableau) ; docs/i18n.md explique comment traduire.",
     "language": "Langue",
     "translated": "Traduit",
     "users": "Utilisateurs",
@@ -1911,7 +1911,18 @@
     "siteAlwaysEnabled": "La langue du site est toujours activée. Les utilisateurs ayant choisi une langue désactivée voient la langue du site.",
     "orphaned": "{n, plural, one {# utilisateur a} other {# utilisateurs ont}} choisi une langue désactivée.",
     "detectBrowser": "Détecter la langue des visiteurs",
-    "detectBrowserHint": "Tant qu’ils n’ont pas choisi de langue, les visiteurs et les utilisateurs sans langue définie voient le site dans la langue de leur navigateur, si elle est activée."
+    "detectBrowserHint": "Tant qu’ils n’ont pas choisi de langue, les visiteurs et les utilisateurs sans langue définie voient le site dans la langue de leur navigateur, si elle est activée.",
+    "installTitle": "Installer un paquet",
+    "packFile": "Paquet (.zip ou .json)",
+    "installHint": "Une archive organisée comme le dépôt Hubium (pour l’ukrainien, messages/uk.json, modules/quiz/messages/uk.json, etc.), ou un seul fichier uk.json. Le paquet d’une langue déjà présente la remplace.",
+    "install": "Installer",
+    "installed": "{name} installé : {percent} % traduit",
+    "sourceInstalled": "Installé",
+    "sourceUpdated": "Mis à jour",
+    "pack": "Paquet",
+    "download": "Télécharger",
+    "remove": "Supprimer",
+    "removeConfirm": "Supprimer le paquet installé {name} ? Une langue fournie revient à sa propre version ; une autre quitte la liste."
   },
   "adminModules": {
     "title": "Modules d’activité",

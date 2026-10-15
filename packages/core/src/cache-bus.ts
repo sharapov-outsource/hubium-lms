@@ -3,6 +3,7 @@ import { log } from '@hubium/log';
 import pg from 'pg';
 import { invalidatePermissionCaches } from './access/permissions.ts';
 import { dispatchRealtime, RT_CHANNEL } from './realtime.ts';
+import { invalidateLanguagePacks } from './settings/language-packs.ts';
 import { invalidateSettingsCache } from './settings/settings.ts';
 import { invalidateWebhookCache } from './webhooks/events.ts';
 
@@ -12,7 +13,7 @@ const logger = log('cache-bus');
 // instance listens on `hubium_cache`; NOTIFY inside a transaction is delivered on commit.
 // The same connection listens on `hubium_rt` for realtime events (see realtime.ts).
 
-export type CacheTopic = 'settings' | 'roles' | 'contexts' | 'webhooks' | 'auth';
+export type CacheTopic = 'settings' | 'roles' | 'contexts' | 'webhooks' | 'auth' | 'languages';
 export const CACHE_CHANNEL = 'hubium_cache';
 
 const subscribers = new Map<string, Set<() => void>>();
@@ -30,6 +31,11 @@ function applyLocal(topic: string): void {
   else if (topic === 'roles') invalidatePermissionCaches('roles');
   else if (topic === 'contexts') invalidatePermissionCaches('contexts');
   else if (topic === 'webhooks') invalidateWebhookCache();
+  else if (topic === 'languages') {
+    invalidateLanguagePacks();
+    // settings name languages: read them again with the new list
+    invalidateSettingsCache();
+  }
   for (const fn of subscribers.get(topic) ?? []) fn();
 }
 

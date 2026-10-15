@@ -1,14 +1,25 @@
 import { LOCALE_CODES } from './generated/locales.ts';
 
-// Languages are data: a language exists when packages/i18n/messages/<code>.json does
-// (see docs/i18n.md). This entry point is light — it never loads message files; the
-// packs, their checks and translators live in `@hubium/i18n/packs`.
+// Languages are data: a language exists when packages/i18n/messages/<code>.json does, or
+// when an administrator installs its pack (see docs/i18n.md). This entry point is light —
+// it never loads message files; the packs, their checks and translators live in
+// `@hubium/i18n/packs`.
 
 /** A language code of an installed pack, e.g. `de` or `pt-BR`. */
 export type Locale = string;
 
-/** Every installed language, by code. */
-export const locales: readonly Locale[] = LOCALE_CODES;
+const installed: Locale[] = [...LOCALE_CODES];
+
+/** Every installed language, by code: those that ship with Hubium, then installed ones. */
+export const locales: readonly Locale[] = installed;
+/** The languages that ship with Hubium. */
+export const bundledLocales: readonly Locale[] = LOCALE_CODES;
+
+/** Sets the languages installed besides the bundled ones (see `installPacks`). */
+export function setExtraLocales(codes: readonly Locale[]): void {
+  installed.length = 0;
+  installed.push(...new Set([...LOCALE_CODES, ...codes]));
+}
 /** The last fallback: complete by test, and what a missing or broken string falls back to. */
 export const BASE_LOCALE: Locale = 'en';
 /** The site language of a fresh installation. */
