@@ -103,3 +103,29 @@ test('an all-day event keeps its date west of UTC', async ({ page }) => {
     await sql(`UPDATE "User" SET timezone = NULL WHERE id = $1`, [u!.id]);
   }
 });
+
+test('the subscription link is shown once, and a new one is asked for first', async ({ page }) => {
+  const [u] = await sql<{ id: string }>(`SELECT id FROM "User" WHERE username = 'student3'`);
+  await sql(`DELETE FROM "CalendarFeedToken" WHERE "userId" = $1`, [u!.id]);
+  try {
+    await login(page, 'student3', DEMO_PASSWORD);
+    await page.goto('/calendar');
+    const link = page.getByLabel('Подписка в календаре');
+    await page.getByRole('button', { name: 'Получить ссылку' }).click();
+    const first = await link.inputValue();
+    expect((await page.request.get(first)).ok()).toBe(true);
+
+    await page.reload();
+    await expect(page.getByText(/^Ссылка выдана /)).toBeVisible();
+    await page.getByRole('button', { name: 'Получить новую ссылку' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText(/перестанут обновляться/)).toBeVisible();
+    await dialog.getByRole('button', { name: 'Подтвердить' }).click();
+    await expect(link).not.toHaveValue(first);
+    expect((await page.request.get(await link.inputValue())).ok()).toBe(true);
+    // the old link no longer opens the calendar
+    expect((await page.request.get(first)).ok()).toBe(false);
+  } finally {
+    await sql(`DELETE FROM "CalendarFeedToken" WHERE "userId" = $1`, [u!.id]);
+  }
+});

@@ -1662,7 +1662,10 @@
     "refresh": "Aktualisieren",
     "refreshed": "Aktualisiert",
     "unsubscribe": "Entfernen",
-    "unsubscribeConfirm": "Import oder Abonnement mit seinen Terminen entfernen?"
+    "unsubscribeConfirm": "Import oder Abonnement mit seinen Terminen entfernen?",
+    "feedGet": "Link erhalten",
+    "feedIssued": "Ein Link wurde am {date} ausgestellt. Er wird nur einmal angezeigt: Wenn Sie ihn verloren haben, holen Sie einen neuen.",
+    "feedResetConfirm": "Kalender, die den aktuellen Link abonniert haben, werden nicht mehr aktualisiert. Fügen Sie ihnen den neuen Link hinzu."
   },
   "categories": {
     "title": "Kursbereiche",

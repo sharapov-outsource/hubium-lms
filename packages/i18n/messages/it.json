@@ -1662,7 +1662,10 @@
     "refresh": "Aggiorna",
     "refreshed": "Aggiornato",
     "unsubscribe": "Rimuovi",
-    "unsubscribeConfirm": "Rimuovere l’importazione o l’iscrizione con i suoi eventi?"
+    "unsubscribeConfirm": "Rimuovere l’importazione o l’iscrizione con i suoi eventi?",
+    "feedGet": "Ottieni un link",
+    "feedIssued": "Un link è stato emesso il {date}. Viene mostrato una sola volta: se l’hai perso, ottienine uno nuovo.",
+    "feedResetConfirm": "I calendari iscritti con il link attuale smetteranno di aggiornarsi. Aggiungi loro il nuovo link."
   },
   "categories": {
     "title": "Categorie di corsi",

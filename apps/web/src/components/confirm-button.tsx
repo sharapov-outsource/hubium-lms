@@ -9,16 +9,19 @@ import { useTranslations } from 'next-intl';
 import { type ReactNode, useState, useTransition } from 'react';
 
 /** Runs a server action on click, optionally behind a confirmation dialog. */
-export function CommandButton({
+export function CommandButton<T>({
   run,
   confirm,
   success,
+  onDone,
   children,
   ...props
 }: Omit<ButtonProps, 'onClick'> & {
-  run: () => Promise<ActionResult<unknown> | undefined>;
+  run: () => Promise<ActionResult<T> | undefined>;
   confirm?: ReactNode;
   success?: string;
+  /** what the action answered, when it succeeded */
+  onDone?: (data: T) => void;
   children: ReactNode;
 }) {
   const tc = useTranslations('common');
@@ -31,6 +34,7 @@ export function CommandButton({
       setOpen(false);
       if (r && !r.ok) toast.error(r.message);
       else {
+        if (r) onDone?.(r.data);
         if (success) toast.success(success);
         router.refresh();
       }

@@ -194,7 +194,8 @@ export async function resetFeedToken(db: Tx, userId: string): Promise<string> {
   await db.calendarFeedToken.upsert({
     where: { userId },
     create: { userId, tokenHash: sha256Hex(token) },
-    update: { tokenHash: sha256Hex(token) },
+    // createdAt: when the link in use was issued
+    update: { tokenHash: sha256Hex(token), createdAt: new Date() },
   });
   return token;
 }

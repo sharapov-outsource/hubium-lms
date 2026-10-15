@@ -393,7 +393,17 @@ export default async function CalendarPage({
               <CardTitle>{t('feed')}</CardTitle>
             </CardHeader>
             <CardContent>
-              <FeedLink baseUrl={process.env.APP_URL ?? ''} />
+              <FeedLink
+                baseUrl={process.env.APP_URL ?? ''}
+                issuedAt={
+                  (
+                    await db.calendarFeedToken.findUnique({
+                      where: { userId: user.id },
+                      select: { createdAt: true },
+                    })
+                  )?.createdAt ?? null
+                }
+              />
             </CardContent>
           </Card>
         </div>

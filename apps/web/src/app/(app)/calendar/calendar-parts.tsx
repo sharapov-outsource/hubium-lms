@@ -1,12 +1,13 @@
 'use client';
 
 import { LocalDateTimeInput } from '@hubium/module-sdk/form';
-import { Button, Checkbox, Input, Select, Textarea } from '@hubium/ui';
+import { Checkbox, Input, Select, Textarea } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
-import { useState, useTransition } from 'react';
+import { useFormatter, useTranslations } from 'next-intl';
+import { useState } from 'react';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
+import { CommandButton } from '@/components/confirm-button';
 import {
   createEventAction,
   importCalendarAction,
@@ -167,10 +168,15 @@ export function ImportCalendarForm({
   );
 }
 
-export function FeedLink({ baseUrl }: { baseUrl: string }) {
+/**
+ * The subscription link. Only its hash is kept, so a link issued before is not shown again;
+ * a new one stops the calendars subscribed with the old one, so it is asked for first.
+ */
+export function FeedLink({ baseUrl, issuedAt }: { baseUrl: string; issuedAt: Date | null }) {
   const t = useTranslations('calendar');
+  const format = useFormatter();
   const [url, setUrl] = useState<string | null>(null);
-  const [pending, start] = useTransition();
+  const issued = !!(url || issuedAt);
   return (
     <div className="grid gap-2">
       <p className="text-sm text-muted-foreground">{t('feedHint')}</p>
@@ -181,20 +187,21 @@ export function FeedLink({ baseUrl }: { baseUrl: string }) {
           aria-label={t('feed')}
           onFocus={(e) => e.currentTarget.select()}
         />
+      ) : issuedAt ? (
+        <p className="text-sm text-muted-foreground">
+          {t('feedIssued', { date: format.dateTime(issuedAt, { dateStyle: 'medium' }) })}
+        </p>
       ) : null}
-      <Button
+      <CommandButton
         variant="secondary"
-        disabled={pending}
-        onClick={() =>
-          start(async () => {
-            const r = await resetFeedTokenAction();
-            if (r.ok)
-              setUrl(`${baseUrl || window.location.origin}/api/calendar/ical/${r.data.token}.ics`);
-          })
+        run={resetFeedTokenAction}
+        confirm={issued ? t('feedResetConfirm') : undefined}
+        onDone={(r) =>
+          setUrl(`${baseUrl || window.location.origin}/api/calendar/ical/${r.token}.ics`)
         }
       >
-        {t('feedReset')}
-      </Button>
+        {t(issued ? 'feedReset' : 'feedGet')}
+      </CommandButton>
     </div>
   );
 }
