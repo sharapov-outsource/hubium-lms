@@ -101,4 +101,30 @@ describe('grading settings changed after grades were given', () => {
     });
     expect(await gradeOf(id, f.users.student1!)).toBe(8);
   });
+
+  it("a quiz graded by the first attempt waits for that attempt's essay", async () => {
+    const f = await courseFixture(t.db, 'GSFIRST');
+    const teacher = await ctxFor(t.db, f.users.teacher!);
+    await importGift.run(teacher, { courseId: f.courseId, gift: '::Эссе:: Опишите лето {}' });
+    const { id } = await f.addActivity('quiz', 'Тест', {
+      attempts: 2,
+      gradeMax: 10,
+      gradeMethod: 'FIRST',
+    });
+    const q = await t.db.question.findFirstOrThrow({
+      where: { category: { contextId: f.courseId } },
+    });
+    await runModuleAction(teacher, id, 'addQuestions', { questionIds: [q.id] });
+    const s1 = await ctxFor(t.db, f.users.student1!);
+    const attempts: string[] = [];
+    for (const text of ['Тепло', 'Жарко']) {
+      const { attemptId } = (await runModuleAction(s1, id, 'start', {})) as { attemptId: string };
+      await runModuleAction(s1, id, 'finish', { attemptId, answers: { 1: { text } } });
+      attempts.push(attemptId);
+    }
+    // the second attempt is graded first
+    const qa = await t.db.questionAttempt.findFirstOrThrow({ where: { attemptId: attempts[1] } });
+    await runModuleAction(teacher, id, 'gradeQuestion', { questionAttemptId: qa.id, mark: 1 });
+    expect(await gradeOf(id, f.users.student1!)).toBeNull();
+  });
 });

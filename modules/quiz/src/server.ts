@@ -672,27 +672,28 @@ export async function updateQuizGrade(
     orderBy: { attemptNumber: 'asc' },
     include: { questions: { select: { maxMark: true } } },
   });
-  const graded = attempts.filter((x) => !x.needsManualGrading && x.sumGrades !== null);
+  const score = (x: (typeof attempts)[number]) => {
+    if (x.needsManualGrading || x.sumGrades === null) return null;
+    const max = sumMaxMarks(x.questions);
+    return max > 0 ? (Number(x.sumGrades) / max) * a.settings.gradeMax : 0;
+  };
+  const scores = attempts.map(score).filter((x): x is number => x !== null);
   let grade: number | null = null;
-  if (graded.length) {
-    const scores = graded.map((x) => {
-      const max = sumMaxMarks(x.questions);
-      return max > 0 ? (Number(x.sumGrades) / max) * a.settings.gradeMax : 0;
-    });
-    switch (a.settings.gradeMethod) {
-      case 'HIGHEST':
-        grade = Math.max(...scores);
-        break;
-      case 'AVERAGE':
-        grade = scores.reduce((s, x) => s + x, 0) / scores.length;
-        break;
-      case 'FIRST':
-        grade = scores[0]!;
-        break;
-      case 'LAST':
-        grade = scores.at(-1)!;
-        break;
-    }
+  switch (a.settings.gradeMethod) {
+    case 'HIGHEST':
+      grade = scores.length ? Math.max(...scores) : null;
+      break;
+    case 'AVERAGE':
+      grade = scores.length ? scores.reduce((s, x) => s + x, 0) / scores.length : null;
+      break;
+    // the first or last attempt itself: while it waits for an essay to be graded there is
+    // no grade, rather than another attempt's
+    case 'FIRST':
+      grade = attempts.length ? score(attempts[0]!) : null;
+      break;
+    case 'LAST':
+      grade = attempts.length ? score(attempts.at(-1)!) : null;
+      break;
   }
   if (grade !== null || attempts.length) {
     await ctx.grades.setGrades(a.id, [
