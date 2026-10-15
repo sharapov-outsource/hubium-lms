@@ -109,6 +109,9 @@ describe('mod-scorm', () => {
       });
     const r1 = await commit({
       core: {
+        // the runtime sends back what it was given, the learner's name with it
+        student_id: f.users.student1,
+        student_name: 'Иванов, Иван',
         lesson_status: 'incomplete',
         lesson_location: 'page-2',
         exit: 'suspend',
@@ -117,6 +120,9 @@ describe('mod-scorm', () => {
       suspend_data: 'visited=1',
     });
     expect(await r1.json()).toEqual({ result: true, errorCode: 0 });
+    const stored = await t.db.scormTrack.findFirstOrThrow({ where: { attemptId: attempt.id } });
+    expect(JSON.stringify(stored.cmi)).not.toMatch(/Иванов|student_name|student_id/);
+    expect(stored.cmi).toMatchObject({ cmi: { core: { lesson_location: 'page-2' } } });
     // the same session commits again (autocommit): time is not double counted
     await commit({
       core: {
@@ -190,6 +196,23 @@ describe('mod-scorm', () => {
       { method: 'POST', body: JSON.stringify({ cmi: { core: { lesson_status: 'failed' } } }) },
     );
     expect(await foreign.json()).toEqual({ result: false, errorCode: 101 });
+  });
+
+  it("exports a learner's tracks and erases what they hold with the account", async () => {
+    const scorm = getModule('scorm')!;
+    const sys = buildModuleCtx(await ctxFor(t.db, 'system'));
+    const exported = JSON.stringify(await scorm.privacy!.export!(sys, f.users.student1!));
+    expect(exported).toContain('"lesson_status":"passed"');
+    await scorm.privacy!.erase!(sys, f.users.student1!);
+    const tracks = await t.db.scormTrack.findMany({
+      where: { attempt: { userId: f.users.student1! } },
+    });
+    expect(tracks.length).toBeGreaterThan(0);
+    for (const tr of tracks) {
+      expect(tr).toMatchObject({ cmi: {}, suspendData: '', location: '' });
+      // results stay for the course's statistics
+      expect(tr.completionStatus).not.toBe('not attempted');
+    }
   });
 
   it('new attempts after finishing, within the limit', async () => {

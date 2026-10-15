@@ -239,6 +239,26 @@ async function attemptClosed(
   return !!attempt.finishedAt && ctx.now.getTime() - attempt.finishedAt.getTime() > grace;
 }
 
+/**
+ * A commit as stored: without the learner's name and id, which the runtime sends back as it
+ * was given them (SCORM 1.2 cmi.core.student_*, 2004 cmi.learner_*).
+ */
+function storedCmi(body: unknown): Prisma.InputJsonValue {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return {};
+  const copy = structuredClone(body) as Record<string, unknown>;
+  const root = (
+    copy.cmi && typeof copy.cmi === 'object' && !Array.isArray(copy.cmi) ? copy.cmi : copy
+  ) as Record<string, unknown>;
+  const core = root.core;
+  if (core && typeof core === 'object' && !Array.isArray(core)) {
+    delete (core as Record<string, unknown>).student_name;
+    delete (core as Record<string, unknown>).student_id;
+  }
+  delete root.learner_name;
+  delete root.learner_id;
+  return copy as Prisma.InputJsonValue;
+}
+
 /** A commit the runtime may not make (stale link, closed attempt): refused, not a fault. */
 class RefusedCommit extends Error {}
 
@@ -264,7 +284,7 @@ export async function commitTrack(
   });
   const base = prev?.sessionBaseSec ?? 0;
   const data = {
-    cmi: (body ?? {}) as Prisma.InputJsonValue,
+    cmi: storedCmi(body),
     location: f.location,
     suspendData: f.suspendData.slice(0, 64_000),
     exit: f.exit,
@@ -372,7 +392,27 @@ export const scorm = defineModule<ScormSettingsT>({
           startedAt: true,
           finishedAt: true,
           score: true,
+          tracks: {
+            select: {
+              cmi: true,
+              location: true,
+              suspendData: true,
+              completionStatus: true,
+              successStatus: true,
+              scoreRaw: true,
+              totalTimeSec: true,
+              updatedAt: true,
+            },
+          },
         },
+      });
+    },
+    // Results stay for the course's statistics; what the package stored (answers, notes,
+    // its own state) goes.
+    async erase(ctx, userId) {
+      await ctx.db.scormTrack.updateMany({
+        where: { attempt: { userId } },
+        data: { cmi: {}, suspendData: '', location: '' },
       });
     },
   },
