@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
-import type { Db, Prisma } from '@hubium/db';
+import type { Db, EnrolmentMethodType, Prisma } from '@hubium/db';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
@@ -32,6 +32,8 @@ export async function enrolUserRecord(
     startsAt?: Date | null;
     endsAt?: Date | null;
     component?: 'ENROL' | 'COHORT';
+    /** Log user.enrolled when this enrols them (paths that do not log it themselves). */
+    log?: { ctx: Pick<RequestContext, 'perm' | 'origin'>; method: string };
   },
 ) {
   const existing = await tx.enrolment.findUnique({
@@ -57,6 +59,11 @@ export async function enrolUserRecord(
         },
       });
   const ra = await tx.roleAssignment.findFirst({ where: { enrolmentId: enrolment.id } });
+  // a new enrolment, or one active again
+  if (opts.log && existing?.status !== 'ACTIVE')
+    await logEnrolments(tx, opts.log.ctx, 'enrolled', opts.courseId, [opts.userId], {
+      method: opts.log.method,
+    });
   if (!ra) {
     await tx.roleAssignment.create({
       data: {
@@ -70,6 +77,33 @@ export async function enrolUserRecord(
   }
   return enrolment;
 }
+
+/**
+ * user.enrolled or user.unenrolled for each of `userIds`, with the method's type: the
+ * course log shows who joined and left, and the enrolment.created and enrolment.deleted
+ * webhooks follow, whichever path enrols or unenrols them.
+ */
+export async function logEnrolments(
+  tx: Tx,
+  ctx: Pick<RequestContext, 'perm' | 'origin'>,
+  change: 'enrolled' | 'unenrolled',
+  courseId: string,
+  userIds: Iterable<string>,
+  data: { method: string } & Record<string, Prisma.InputJsonValue | null>,
+) {
+  for (const userId of new Set(userIds))
+    await logEvent(tx, {
+      name: `user.${change}`,
+      actorId: ctx.perm.userId ?? null,
+      courseId,
+      relatedUserId: userId,
+      data,
+      origin: ctx.origin,
+    });
+}
+
+/** How a method is named in events and webhooks: manual, self, cohort. */
+export const methodName = (type: EnrolmentMethodType) => type.toLowerCase();
 
 async function manualMethod(tx: Tx, courseId: string) {
   const m = await tx.enrolmentMethod.findFirst({
@@ -181,7 +215,10 @@ export const unenrolUser = defineOperation({
   input: z.object({ courseId: z.string().uuid(), userId: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('enrol:manage', i.courseId),
   async handler(ctx, { courseId, userId }) {
-    const enrolments = await ctx.tx.enrolment.findMany({ where: { courseId, userId } });
+    const enrolments = await ctx.tx.enrolment.findMany({
+      where: { courseId, userId },
+      include: { method: { select: { type: true } } },
+    });
     if (!enrolments.length) throw new NotFoundError('Enrolment');
     await ctx.tx.roleAssignment.deleteMany({
       where: { enrolmentId: { in: enrolments.map((e) => e.id) } },
@@ -189,13 +226,11 @@ export const unenrolUser = defineOperation({
     await ctx.tx.roleAssignment.deleteMany({ where: { userId, contextId: courseId } });
     await ctx.tx.enrolment.deleteMany({ where: { courseId, userId } });
     await removeCourseMembership(ctx, ctx.tx, courseId, userId);
-    await logEvent(ctx.tx, {
-      name: 'user.unenrolled',
-      actorId: ctx.perm.userId,
-      courseId,
-      relatedUserId: userId,
-      origin: ctx.origin,
-    });
+    // one for each way they were enrolled
+    for (const e of enrolments)
+      await logEnrolments(ctx.tx, ctx, 'unenrolled', courseId, [userId], {
+        method: methodName(e.method.type),
+      });
     return { userId };
   },
 });
@@ -431,13 +466,7 @@ export const unenrolSelf = defineOperation({
     await ctx.tx.enrolment.deleteMany({ where: { id: { in: self.map((e) => e.id) } } });
     if (!(await ctx.tx.enrolment.count({ where: { courseId, userId } })))
       await removeCourseMembership(ctx, ctx.tx, courseId, userId);
-    await logEvent(ctx.tx, {
-      name: 'user.unenrolled',
-      actorId: userId,
-      courseId,
-      relatedUserId: userId,
-      origin: ctx.origin,
-    });
+    await logEnrolments(ctx.tx, ctx, 'unenrolled', courseId, [userId], { method: 'self' });
     return { courseId };
   },
 });

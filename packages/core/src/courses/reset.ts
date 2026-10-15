@@ -1,7 +1,7 @@
 import { Prisma } from '@hubium/db';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
-import { removeCourseMembership } from '../enrol/enrol.ts';
+import { logEnrolments, methodName, removeCourseMembership } from '../enrol/enrol.ts';
 import { NotFoundError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { recomputeAllTotals } from '../grades/gradebook.ts';
@@ -161,7 +161,10 @@ export const resetCourse = defineOperation({
         distinct: ['userId'],
       });
       for (const { userId } of people) {
-        const enrolments = await tx.enrolment.findMany({ where: { courseId, userId } });
+        const enrolments = await tx.enrolment.findMany({
+          where: { courseId, userId },
+          include: { method: { select: { type: true } } },
+        });
         await tx.roleAssignment.deleteMany({
           where: {
             OR: [
@@ -172,6 +175,10 @@ export const resetCourse = defineOperation({
         });
         await tx.enrolment.deleteMany({ where: { courseId, userId } });
         await removeCourseMembership(ctx, tx, courseId, userId);
+        for (const e of enrolments)
+          await logEnrolments(tx, ctx, 'unenrolled', courseId, [userId], {
+            method: methodName(e.method.type),
+          });
         report.unenrolled++;
       }
     }

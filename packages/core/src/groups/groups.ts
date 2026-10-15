@@ -2,7 +2,13 @@ import { type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { dropAvailabilityRefs, namesGroupings, namesGroups } from '../courses/availability-refs.ts';
-import { assertCourseRole, enrolUserRecord, removeCourseMembership } from '../enrol/enrol.ts';
+import {
+  assertCourseRole,
+  enrolUserRecord,
+  logEnrolments,
+  methodName,
+  removeCourseMembership,
+} from '../enrol/enrol.ts';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { optionalText } from '../lib/zod.ts';
@@ -288,6 +294,14 @@ async function deleteMethod(
     where: { enrolmentId: { in: ens.map((e) => e.id) } },
   });
   await ctx.tx.enrolmentMethod.delete({ where: { id: methodId } });
+  await logEnrolments(
+    ctx.tx,
+    ctx,
+    'unenrolled',
+    method.courseId,
+    ens.map((e) => e.userId),
+    { method: methodName(method.type) },
+  );
   await leaveCourseIfUnenrolled(
     ctx,
     method.courseId,
@@ -341,6 +355,7 @@ export const setCohortMembers = defineOperation({
           userId,
           roleId: m.roleId,
           component: 'COHORT',
+          log: { ctx, method: 'cohort' },
         });
       }
       if (remove.length) {
@@ -351,6 +366,14 @@ export const setCohortMembers = defineOperation({
           where: { enrolmentId: { in: ens.map((e) => e.id) } },
         });
         await ctx.tx.enrolment.deleteMany({ where: { id: { in: ens.map((e) => e.id) } } });
+        await logEnrolments(
+          ctx.tx,
+          ctx,
+          'unenrolled',
+          m.courseId,
+          ens.map((e) => e.userId),
+          { method: 'cohort' },
+        );
         await leaveCourseIfUnenrolled(
           ctx,
           m.courseId,
@@ -390,6 +413,7 @@ export const addCohortSync = defineOperation({
         userId: m.userId,
         roleId,
         component: 'COHORT',
+        log: { ctx, method: 'cohort' },
       });
     }
     return { methodId: method.id, enrolled: cohort.members.length };

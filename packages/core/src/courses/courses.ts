@@ -5,6 +5,7 @@ import { createContext } from '../access/contexts.ts';
 import { loadUserAccess, Permissions } from '../access/permissions.ts';
 import { scheduleCourseProgress } from '../completion/schedule.ts';
 import type { RequestContext } from '../context.ts';
+import { logEnrolments } from '../enrol/enrol.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { rankBetween } from '../lib/rank.ts';
@@ -134,6 +135,10 @@ export const createCourse = defineOperation({
             component: 'ENROL',
             enrolmentId: enrolment.id,
           },
+        });
+        await logEnrolments(ctx.tx, ctx, 'enrolled', id, [userId], {
+          method: 'manual',
+          roleId: role.id,
         });
       }
     }
