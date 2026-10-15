@@ -1,4 +1,5 @@
-import { certificateDetail, csvEscape } from '@hubium/core';
+import { certificateDetail } from '@hubium/core';
+import { csvFile } from '@hubium/module-sdk/csv';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { getContext } from '@/server/session';
 
@@ -24,7 +25,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       i.revokedReason ?? '',
     ]),
   ];
-  const csv = `﻿${rows.map((r) => r.map(csvEscape).join(',')).join('\r\n')}\r\n`;
+  const csv = csvFile(rows);
   const name = `${d.certificate.name}.csv`.replace(/[\\/:*?"<>|]+/g, ' ');
   return new Response(csv, {
     headers: {

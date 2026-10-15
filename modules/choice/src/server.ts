@@ -7,6 +7,7 @@ import {
   type ModuleCtx,
   ModuleError,
 } from '@hubium/module-sdk';
+import { csvFile } from '@hubium/module-sdk/csv';
 import { bool, isoDate } from '@hubium/module-sdk/fields';
 import { visibleGroupFilter } from '@hubium/module-sdk/groups';
 import { z } from 'zod';
@@ -178,8 +179,6 @@ export async function takenPlaces(ctx: ModuleCtx, a: ActivityRef, except?: strin
   return new Map(rows.map((r) => [r.optionId, r._count]));
 }
 
-const csvCell = (v: string) => (/[",\n\r;]/.test(v) ? `"${v.replaceAll('"', '""')}"` : v);
-
 export const choice = defineModule<ChoiceSettingsT>({
   key: 'choice',
   archetype: 'activity',
@@ -341,20 +340,16 @@ export const choice = defineModule<ChoiceSettingsT>({
       },
     });
     const lines = [
-      'name,username,email,option,answeredAt',
-      ...rows.map((r) =>
-        [
-          r.user.name,
-          r.user.username ?? '',
-          r.user.emailPlaceholder ? '' : r.user.email,
-          text.get(r.optionId) ?? '',
-          r.createdAt.toISOString(),
-        ]
-          .map(csvCell)
-          .join(','),
-      ),
+      ['name', 'username', 'email', 'option', 'answeredAt'],
+      ...rows.map((r) => [
+        r.user.name,
+        r.user.username ?? '',
+        r.user.emailPlaceholder ? '' : r.user.email,
+        text.get(r.optionId) ?? '',
+        r.createdAt.toISOString(),
+      ]),
     ];
-    return new Response(`﻿${lines.join('\r\n')}\r\n`, {
+    return new Response(csvFile(lines), {
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
         'Content-Disposition': 'attachment; filename="responses.csv"',

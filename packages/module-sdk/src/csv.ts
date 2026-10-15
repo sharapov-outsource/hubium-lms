@@ -35,12 +35,20 @@ export function parseCsv(text: string): string[][] {
   }
   row.push(field);
   if (row.some((f) => f.trim() !== '')) rows.push(row);
-  return rows;
+  return rows.map((r) => r.map((f) => (GUARDED.test(f) ? f.slice(1) : f)));
 }
 
-/** A CSV cell: quoted when it holds a separator, a quote or a line break. */
+// Spreadsheets run a cell starting with = + - @ (or a tab or CR) as a formula, and cells
+// hold what people typed: such text is written with a leading apostrophe, which parseCsv
+// takes off again. Numbers, also as formatted text ("-1 234,5"), stay numbers.
+const FORMULA = /^[=+\-@\t\r]/;
+const NUMBER = /^-[\d \u00a0\u202f.,]+$/;
+const GUARDED = /^'[=+\-@\t\r]/;
+
+/** A CSV cell: guarded against formulas; quoted when it holds a separator, a quote or a line break. */
 export const csvCell = (v: string | number | null | undefined): string => {
-  const s = v === null || v === undefined ? '' : String(v);
+  let s = v === null || v === undefined ? '' : String(v);
+  if (typeof v === 'string' && FORMULA.test(s) && !NUMBER.test(s)) s = `'${s}`;
   return /[",;\n\r]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
 };
 

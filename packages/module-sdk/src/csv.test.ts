@@ -23,4 +23,23 @@ describe('CSV', () => {
     ];
     expect(parseCsv(csvFile(rows))).toEqual(rows);
   });
+
+  it('keeps spreadsheets from running a cell as a formula, and reads it back as written', () => {
+    expect(csvCell('=HYPERLINK("http://evil","x")')).toBe(`"'=HYPERLINK(""http://evil"",""x"")"`);
+    expect(csvCell('@SUM(A1)')).toBe("'@SUM(A1)");
+    expect(csvCell('+7 900')).toBe("'+7 900");
+    expect(csvCell('-cmd|x')).toBe("'-cmd|x");
+    expect(csvCell('\t=1')).toBe("'\t=1");
+    // numbers, written or formatted, stay numbers
+    expect(csvCell(-2.5)).toBe('-2.5');
+    expect(csvCell('-2.5')).toBe('-2.5');
+    expect(csvCell('-1\u00a0234,5')).toBe('"-1\u00a0234,5"');
+    expect(csvCell('Иванов, Пётр')).toBe('"Иванов, Пётр"');
+    const rows = [
+      ['name', 'note'],
+      ['=1+1', '-x'],
+      ["'plain", '@home'],
+    ];
+    expect(parseCsv(csvFile(rows))).toEqual(rows);
+  });
 });

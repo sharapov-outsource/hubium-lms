@@ -6,6 +6,7 @@ import {
   SYSTEM_CONTEXT_ID,
 } from '@hubium/db';
 import { createTranslator } from '@hubium/i18n/packs';
+import { csvFile } from '@hubium/module-sdk/csv';
 import { fromZonedValue, toZonedValue } from '@hubium/module-sdk/zoned';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
@@ -396,13 +397,8 @@ export async function reportFile(
       mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       rows: body.length,
     };
-  const cell = (v: string | number) => {
-    const s = String(v);
-    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const csv = `﻿${[head, ...body].map((row) => row.map(cell).join(',')).join('\r\n')}\r\n`;
   return {
-    data: Buffer.from(csv, 'utf8'),
+    data: Buffer.from(csvFile([head, ...body]), 'utf8'),
     name: `${name}.csv`,
     mimeType: 'text/csv; charset=utf-8',
     rows: body.length,

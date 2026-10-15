@@ -6,7 +6,6 @@ import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { runModuleAction } from '../modules/actions.ts';
 import {
   createManualItem,
-  csvEscape,
   exportGradesCsv,
   graderReport,
   overrideGrade,
@@ -64,14 +63,6 @@ describe('gradebook', () => {
     expect(await total(t.db, g.courseId, g.users.student1!)).toBeCloseTo(100);
     await restoreActivity.run(admin, { id: a2 });
     expect(await total(t.db, g.courseId, g.users.student1!)).toBeCloseTo(50);
-  });
-
-  it('neutralises spreadsheet formulas in CSV cells', () => {
-    expect(csvEscape('=HYPERLINK("http://evil","x")')).toBe(`"'=HYPERLINK(""http://evil"",""x"")"`);
-    expect(csvEscape('@SUM(A1)')).toBe("'@SUM(A1)");
-    expect(csvEscape('-cmd')).toBe("'-cmd");
-    expect(csvEscape('-2.5')).toBe('-2.5');
-    expect(csvEscape('Иванов, Пётр')).toBe('"Иванов, Пётр"');
   });
 
   it('grade categories of another course cannot be used or edited', async () => {

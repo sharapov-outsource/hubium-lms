@@ -2,6 +2,7 @@ import { type Db, type GradeCategory, type GradeItem, Prisma } from '@hubium/db'
 import { sanitizeRichText } from '@hubium/editor/server';
 import { isLocale } from '@hubium/i18n';
 import { createTranslator } from '@hubium/i18n/packs';
+import { csvFile } from '@hubium/module-sdk/csv';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
@@ -1132,12 +1133,6 @@ export async function learnerCourseTotal(db: Tx, courseId: string, userId: strin
   return total ? (byItem.get(total.id)?.finalGrade ?? null) : null;
 }
 
-export function csvEscape(v: string): string {
-  // Spreadsheets run cells starting with = + - @ as formulas, and names are user input.
-  const s = /^[=+@\t\r]/.test(v) || (v.startsWith('-') && !/^-\d+(\.\d+)?$/.test(v)) ? `'${v}` : v;
-  return /[",;\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
 /** Rows of the grade export (header first): points as numbers, scale grades by name. */
 export async function gradeExportRows(
   ctx: RequestContext,
@@ -1174,9 +1169,7 @@ export async function gradeExportRows(
 }
 
 export async function exportGradesCsv(ctx: RequestContext, courseId: string): Promise<string> {
-  const rows = await gradeExportRows(ctx, courseId);
-  const lines = rows.map((r) => r.map((v) => csvEscape(v === null ? '' : String(v))).join(','));
-  return `\uFEFF${lines.join('\r\n')}\r\n`;
+  return csvFile(await gradeExportRows(ctx, courseId));
 }
 
 export async function exportGradesXlsx(ctx: RequestContext, courseId: string): Promise<Uint8Array> {

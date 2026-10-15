@@ -1,5 +1,5 @@
 import { htmlToText } from '@hubium/ai';
-import { parseCsv } from '@hubium/module-sdk/csv';
+import { csvCell, parseCsv } from '@hubium/module-sdk/csv';
 import { type Outcome, type PointsConfigT, type ScaleConfigT, TAXONOMIES } from './model.ts';
 
 // Competency frameworks as CSV in the layout of Moodle's "Import competency framework"
@@ -56,10 +56,6 @@ export interface CsvCompetency {
 }
 
 // ── writing ──────────────────────────────────────────────────────────────────
-
-function cell(v: string): string {
-  return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-}
 
 /** Moodle's scale configuration: the scale, then each value with its flags. */
 function scaleConfigJson(scaleId: string, items: number, c: ScaleConfigT): string {
@@ -122,7 +118,7 @@ export function buildFrameworkCsv(
       '0',
       '',
     ]);
-  return `${rows.map((r) => r.map(cell).join(',')).join('\r\n')}\r\n`;
+  return `${rows.map((r) => r.map(csvCell).join(',')).join('\r\n')}\r\n`;
 }
 
 // ── reading ──────────────────────────────────────────────────────────────────

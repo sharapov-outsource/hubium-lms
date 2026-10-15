@@ -1,11 +1,11 @@
 import type { Prisma } from '@hubium/db';
 import { log } from '@hubium/log';
+import { csvFile } from '@hubium/module-sdk/csv';
 import { z } from 'zod';
 import { userContext } from '../ai/user-ctx.ts';
 import type { RequestContext } from '../context.ts';
 import { enrolUsers } from '../enrol/enrol.ts';
 import { AppError, ValidationError } from '../errors.ts';
-import { csvEscape } from '../grades/gradebook.ts';
 import { setCohortMembers } from '../groups/groups.ts';
 import { enqueue } from '../jobs/jobs.ts';
 import { writeOds } from '../lib/sheets.ts';
@@ -258,5 +258,5 @@ export async function exportUsers(
   });
   if (format === 'xlsx') return writeXlsx([header, ...rows], 'Users');
   if (format === 'ods') return writeOds([header, ...rows], 'Users');
-  return `﻿${[header, ...rows].map((r) => r.map(csvEscape).join(',')).join('\r\n')}\r\n`;
+  return csvFile([header, ...rows]);
 }

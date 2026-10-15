@@ -6,6 +6,7 @@ import {
   type ModuleCtx,
   ModuleError,
 } from '@hubium/module-sdk';
+import { csvFile } from '@hubium/module-sdk/csv';
 import { bool, isoDate } from '@hubium/module-sdk/fields';
 import { type Cell, writeXlsx } from '@hubium/module-sdk/xlsx';
 import { z } from 'zod';
@@ -256,11 +257,6 @@ async function renumber(ctx: ModuleCtx, ids: string[]) {
     await ctx.db.feedbackItem.update({ where: { id }, data: { sortOrder: i } });
 }
 
-const csvCell = (v: Cell) => {
-  const s = v === null || v === undefined ? '' : String(v);
-  return /[",\n\r;]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
-};
-
 const ExportedItem = z.object({
   type: z.enum(ITEM_TYPES),
   label: z.string(),
@@ -495,7 +491,7 @@ export const feedback = defineModule<FeedbackSettingsT>({
           'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         },
       });
-    return new Response(`﻿${rows.map((r) => r.map(csvCell).join(',')).join('\r\n')}\r\n`, {
+    return new Response(csvFile(rows), {
       headers: { ...headers, 'Content-Type': 'text/csv; charset=utf-8' },
     });
   },
