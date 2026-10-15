@@ -89,6 +89,12 @@ export default async function CourseLayout({
           show: access.isEnrolled || access.canViewAllGrades,
         },
         {
+          key: 'questionBank',
+          href: `${base}/question-bank`,
+          label: t('tabs.questionBank'),
+          show: !access.isGuest && (await ctx.perm.can('question:manage', courseId)),
+        },
+        {
           key: 'completion',
           href: `${base}/completion`,
           label: t('tabs.completion'),

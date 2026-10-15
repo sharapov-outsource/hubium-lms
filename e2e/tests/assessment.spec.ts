@@ -115,7 +115,10 @@ test.describe
 
     test('teacher imports GIFT questions into the bank', async ({ page }) => {
       await login(page, 'teacher', DEMO_PASSWORD);
-      await page.goto(`/course/${ids.courseId}/question-bank`);
+      // the course's tabs lead to the bank
+      await page.goto(`/course/${ids.courseId}`);
+      await page.getByRole('link', { name: 'Банк вопросов', exact: true }).first().click();
+      await page.waitForURL(/\/question-bank$/);
       const name = `E2E-${Date.now().toString(36)}`;
       await page.locator('#f-gift').fill(`::${name}:: 2 + 2 = ? {=4 ~5 ~22}`);
       await page.locator('form:has(#f-gift) button[type=submit]').click();
