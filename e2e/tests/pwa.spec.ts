@@ -43,6 +43,10 @@ test('service worker serves the offline page when the network is gone', async ({
         { timeout: 30_000 },
       )
       .toBeGreaterThan(0);
+    // the page came to life (its scripts were cached with it): back online, it loads the
+    // page that was asked for by itself
+    await context.setOffline(false);
+    await expect(page.getByRole('heading', { name: 'Мои курсы', level: 1 })).toBeVisible();
   } finally {
     await context.setOffline(false);
   }
