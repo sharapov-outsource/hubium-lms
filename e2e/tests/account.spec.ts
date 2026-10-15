@@ -142,6 +142,10 @@ test('password policy: rules in the forms, refusals and expiry', async ({ page }
       ['password.maxAgeDays', 0],
     ] as const)
       await setSetting(k, v);
+    // a run that stopped halfway leaves no forced change behind for the tests after it
+    await sql(
+      `UPDATE "User" SET "mustChangePassword" = false, "passwordChangedAt" = now() WHERE username = 'student2'`,
+    );
     // back to the demo password for other tests (the policy is off again)
     await page.context().clearCookies();
     await login(page, 'student2', 'Longer-12345').catch(() => undefined);
