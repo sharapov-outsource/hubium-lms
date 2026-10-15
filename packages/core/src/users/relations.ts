@@ -287,11 +287,13 @@ export async function menteeOverview(ctx: RequestContext, menteeId: string) {
     courses.map(async (c) => {
       const item = totals.find((t) => t.courseId === c.id);
       const g = item?.grades[0];
+      // user managers see who learns what; grades only those who may see the person's grades
       const visible =
         item &&
         !item.hidden &&
         (!item.hiddenUntil || item.hiddenUntil <= now) &&
         !g?.hidden &&
+        (await canViewUserData(ctx, menteeId, 'grades', c.id)) &&
         (await as.perm.can('grade:view', c.id));
       return {
         id: c.id,

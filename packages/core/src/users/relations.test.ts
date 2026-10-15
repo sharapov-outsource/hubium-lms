@@ -1,6 +1,8 @@
+import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
+import { invalidatePermissionCaches } from '../access/permissions.ts';
 import { ForbiddenError } from '../errors.ts';
 import { userReport } from '../grades/gradebook.ts';
 import { runModuleAction } from '../modules/actions.ts';
@@ -103,6 +105,33 @@ describe('mentors and parents', () => {
       await setUserSuspended.run(await admin(), { id: f.users.student1!, suspended: false });
     } finally {
       await enable(false);
+    }
+  });
+
+  it('shows user managers what a learner studies, not their grades', async () => {
+    // the learner sees their course total (graded in the test above)
+    const own = await menteeOverview(await as(f.users.student1!), f.users.student1!);
+    expect(own.courses.find((c) => c.id === f.courseId)?.grade).not.toBeNull();
+    // a role that edits accounts and nothing more
+    const role = await t.db.role.create({
+      data: {
+        shortName: 'accounts',
+        name: { ru: 'Учётные записи', en: 'Accounts' },
+        archetype: 'NONE',
+        assignableLevels: ['SYSTEM'],
+        capabilities: { create: { capability: 'user:update', permission: 'ALLOW' } },
+      },
+    });
+    await t.db.roleAssignment.create({
+      data: { userId: parentId, roleId: role.id, contextId: SYSTEM_CONTEXT_ID },
+    });
+    invalidatePermissionCaches('roles');
+    try {
+      const o = await menteeOverview(await as(parentId), f.users.student1!);
+      expect(o.courses.find((c) => c.id === f.courseId)).toMatchObject({ grade: null });
+    } finally {
+      await t.db.role.delete({ where: { id: role.id } });
+      invalidatePermissionCaches('roles');
     }
   });
 
