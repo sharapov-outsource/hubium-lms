@@ -6,6 +6,7 @@ import {
   SYSTEM_CONTEXT_ID,
 } from '@hubium/db';
 import { createTranslator } from '@hubium/i18n/packs';
+import { log } from '@hubium/log';
 import { csvFile } from '@hubium/module-sdk/csv';
 import { fromZonedValue, toZonedValue } from '@hubium/module-sdk/zoned';
 import { z } from 'zod';
@@ -31,6 +32,8 @@ import {
   storedDefinition,
 } from './engine.ts';
 import { type FieldType, SOURCE_KEYS, SOURCES } from './sources.ts';
+
+const logger = log('reports');
 
 // Custom reports, as Moodle's report builder: those who build reports (report:customise)
 // choose a source, columns, conditions and filters, and who else may view the report
@@ -531,12 +534,25 @@ async function recipients(db: Tx, s: ReportSchedule, r: CustomReport) {
   });
 }
 
-/** Sends a schedule's report now; the number of letters sent. */
-export async function sendSchedule(db: Db, id: string, now = new Date()): Promise<number> {
+/** Sends a schedule's report now; the number of letters sent. With `due`, only when the
+ *  schedule is due (the cron): another worker may have sent it already. */
+export async function sendSchedule(
+  db: Db,
+  id: string,
+  now = new Date(),
+  { due = false } = {},
+): Promise<number> {
   const s = await db.reportSchedule.findUnique({ where: { id }, include: { report: true } });
   if (!s) return 0;
   const settings = await getAllSettings(db);
   const tz = settings['site.defaultTimezone'];
+  // The schedule moves to its next time before anything is sent: a letter that fails is not
+  // sent again to everyone at the next run, and of two workers only one sends it.
+  const claimed = await db.reportSchedule.updateMany({
+    where: { id: s.id, nextRunAt: due ? { lte: now } : s.nextRunAt },
+    data: { lastRunAt: now, nextRunAt: nextRunAt(s, tz, now) },
+  });
+  if (!claimed.count) return 0;
   const people = await recipients(db, s, s.report);
   // one file per language the recipients read
   const files = new Map<string, Awaited<ReturnType<typeof reportFile>>>();
@@ -561,21 +577,26 @@ export async function sendSchedule(db: Db, id: string, now = new Date()): Promis
       action: { label: t('customReports.email.open'), url },
       footer: t('customReports.email.footer', { schedule: s.name }),
     });
-    await deliverMail({
-      to: p.email,
-      subject: t('customReports.email.subject', {
-        name: s.report.name,
-        site: settings['site.name'],
-      }),
-      html,
-      text,
-      attachments: [{ filename: file.name, content: file.data, contentType: file.mimeType }],
-    });
-    sent++;
+    try {
+      await deliverMail({
+        to: p.email,
+        subject: t('customReports.email.subject', {
+          name: s.report.name,
+          site: settings['site.name'],
+        }),
+        html,
+        text,
+        attachments: [{ filename: file.name, content: file.data, contentType: file.mimeType }],
+      });
+      sent++;
+    } catch (err) {
+      // one address the mail server refuses does not keep the report from the others
+      logger.warn({ err, scheduleId: s.id, userId: p.id }, 'Report email not sent');
+    }
   }
   await db.reportSchedule.update({
     where: { id: s.id },
-    data: { lastRunAt: now, lastRows: sent ? rows : null, nextRunAt: nextRunAt(s, tz, now) },
+    data: { lastRows: sent ? rows : null },
   });
   return sent;
 }
@@ -587,7 +608,14 @@ export async function runDueSchedules(db: Db, now = new Date()): Promise<number>
     select: { id: true },
   });
   let n = 0;
-  for (const s of due) n += await sendSchedule(db, s.id, now);
+  for (const s of due) {
+    try {
+      n += await sendSchedule(db, s.id, now, { due: true });
+    } catch (err) {
+      // a report that cannot be built is tried again at its next time, and the others go out
+      logger.error({ err, scheduleId: s.id }, 'Report schedule failed');
+    }
+  }
   return n;
 }
 

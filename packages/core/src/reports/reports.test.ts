@@ -6,6 +6,7 @@ import { toggleManualCompletion } from '../completion/completion.ts';
 import { deleteCourseField, saveCourseField } from '../courses/course-fields.ts';
 import { ForbiddenError } from '../errors.ts';
 import { readSheet } from '../lib/sheets.ts';
+import { setMailTransport } from '../mail/mail.ts';
 import { deleteProfileField, saveProfileField } from '../users/profile-fields.ts';
 import { deleteUser } from '../users/users.ts';
 import { reportFieldsOf } from './engine.ts';
@@ -198,6 +199,65 @@ describe('custom reports', () => {
     expect(
       (await t.db.reportSchedule.findUniqueOrThrow({ where: { id: s.id } })).nextRunAt > new Date(),
     ).toBe(true);
+  });
+
+  it('sends each schedule once, whatever one letter or one schedule does', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const person = (username: string) => t.db.user.findFirstOrThrow({ where: { username } });
+    const [manager, teacher, assistant] = await Promise.all(
+      ['manager', 'teacher', 'assistant'].map(person),
+    );
+    const { id: reportId } = await saveReport.run(admin, {
+      name: 'Сводка',
+      source: 'users',
+      columns: [{ field: 'user.fullName' }],
+    });
+    const a = await saveSchedule.run(admin, {
+      reportId,
+      name: 'Двоим',
+      frequency: 'DAILY',
+      userIds: [manager!.id, teacher!.id],
+    });
+    const b = await saveSchedule.run(admin, {
+      reportId,
+      name: 'Третьему',
+      frequency: 'DAILY',
+      userIds: [assistant!.id],
+    });
+    await t.db.reportSchedule.updateMany({ data: { nextRunAt: new Date(Date.now() + 3_600_000) } });
+    await t.db.reportSchedule.updateMany({
+      where: { id: { in: [a.id, b.id] } },
+      data: { nextRunAt: new Date(0) },
+    });
+    // the mail server refuses one address
+    setMailTransport({
+      sendMail: async (m: (typeof sentMail)[number]) => {
+        if (m.to === manager!.email) throw new Error('550 mailbox unavailable');
+        sentMail.push(m);
+        return { messageId: 'ok' };
+      },
+    } as never);
+    try {
+      sentMail.length = 0;
+      // two workers at once send each schedule once
+      const runs = await Promise.all([runDueSchedules(t.db), runDueSchedules(t.db)]);
+      expect(runs[0]! + runs[1]!).toBe(2);
+      expect(sentMail.map((m) => m.to).sort()).toEqual([assistant!.email, teacher!.email].sort());
+      for (const id of [a.id, b.id])
+        expect(
+          (await t.db.reportSchedule.findUniqueOrThrow({ where: { id } })).nextRunAt > new Date(),
+        ).toBe(true);
+      // the next run is the next due time, not the next quarter of an hour
+      expect(await runDueSchedules(t.db)).toBe(0);
+      expect(sentMail).toHaveLength(2);
+    } finally {
+      setMailTransport({
+        sendMail: async (m: (typeof sentMail)[number]) => {
+          sentMail.push(m);
+          return { messageId: `test-${sentMail.length}` };
+        },
+      } as never);
+    }
   });
 
   it('forgets a person who is erased', async () => {
