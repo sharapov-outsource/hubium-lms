@@ -4,6 +4,9 @@ import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import {
   ensureDefaultQuestionCategory,
   importGift,
+  listQuestionCategories,
+  listQuestions,
+  questionsForExport,
   saveQuestion,
   saveQuestionCategory,
 } from './bank.ts';
@@ -96,5 +99,66 @@ describe('question bank isolation', () => {
       data: { correct: false, feedbackTrue: '', feedbackFalse: '' },
     });
     expect((await t.db.question.findUniqueOrThrow({ where: { id } })).hints).toHaveLength(2);
+  });
+
+  it('lists a large bank page by page and exports all of it, subcategories too', async () => {
+    const f = await courseFixture(t.db, 'QB-P');
+    const teacher = await ctxFor(t.db, f.users.teacher!);
+    const root = await ensureDefaultQuestionCategory(t.db, f.courseId);
+    // created before the category they sit under, to check the tree is not by date
+    const zeta = await t.db.questionCategory.create({
+      data: { contextId: f.courseId, name: 'Zeta', parentId: root.id },
+    });
+    const { id: alpha } = await saveQuestionCategory.run(teacher, {
+      courseId: f.courseId,
+      name: 'Alpha',
+    });
+    const { id: inner } = await saveQuestionCategory.run(teacher, {
+      courseId: f.courseId,
+      name: 'Inner',
+      parentId: zeta.id,
+    });
+    const make = (categoryId: string, n: number, status = 'READY') =>
+      t.db.question.createMany({
+        data: Array.from({ length: n }, (_, i) => ({
+          categoryId,
+          type: 'TRUEFALSE' as const,
+          name: `Q${i}`,
+          text: `<p>${i}</p>`,
+          status: status as 'READY' | 'HIDDEN',
+          data: { correct: true, feedbackTrue: '', feedbackFalse: '' },
+        })),
+      });
+    await make(zeta.id, 520);
+    await make(zeta.id, 3, 'HIDDEN');
+    await make(inner, 7);
+    await make(alpha, 2);
+
+    const cats = await listQuestionCategories(teacher, f.courseId);
+    expect(cats.map((c) => [c.name, c.depth])).toEqual([
+      ['', 0],
+      ['Alpha', 1],
+      ['Zeta', 1],
+      ['Inner', 2],
+    ]);
+    // the count matches the list, which shows hidden questions too
+    expect(cats.find((c) => c.id === zeta.id)!._count.questions).toBe(523);
+
+    const seen = new Set<string>();
+    for (let page = 1; page <= 11; page++) {
+      const r = await listQuestions(teacher, f.courseId, {
+        categoryId: zeta.id,
+        includeHidden: true,
+        page,
+      });
+      expect(r.total).toBe(523);
+      for (const q of r.items) seen.add(q.id);
+    }
+    expect(seen.size).toBe(523);
+
+    const all = await questionsForExport(teacher, f.courseId, zeta.id);
+    expect(all).toHaveLength(527);
+    expect(all.at(-1)!.categoryPath).toEqual(['', 'Zeta', 'Inner']);
+    expect((await questionsForExport(teacher, f.courseId)).length).toBe(529);
   });
 });

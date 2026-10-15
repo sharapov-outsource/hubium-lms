@@ -20,6 +20,8 @@ import { Download, Plus, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { forbidden } from 'next/navigation';
 import { getFormatter, getTranslations } from 'next-intl/server';
+import { Pagination } from '@/components/pagination';
+import { pageParam, textParam } from '@/lib/url-params';
 import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
 import {
@@ -36,7 +38,7 @@ export default async function QuestionBankPage({
   searchParams,
 }: {
   params: Promise<{ courseId: string }>;
-  searchParams: Promise<{ category?: string; q?: string }>;
+  searchParams: Promise<{ category?: string; q?: string; page?: string }>;
 }) {
   const [{ courseId }, sp] = await Promise.all([params, searchParams]);
   const ctx = await getContext();
@@ -45,10 +47,12 @@ export default async function QuestionBankPage({
   const categories = await listQuestionCategories(ctx, courseId);
   const current =
     categories.find((c) => c.id === sp.category) ?? categories.find((c) => !c.parentId)!;
+  const search = textParam(sp.q);
   const questions = await listQuestions(ctx, courseId, {
     categoryId: current.id,
-    q: sp.q,
+    q: search,
     includeHidden: true,
+    page: pageParam(sp.page),
   });
   const base = `/course/${courseId}/question-bank`;
   const ai = await aiFeaturesFor(ctx, courseId);
@@ -68,8 +72,8 @@ export default async function QuestionBankPage({
                 className={cn(
                   'flex justify-between rounded-md px-2 py-1.5 text-sm',
                   c.id === current.id ? 'bg-accent-soft font-medium text-accent' : 'hover:bg-muted',
-                  c.parentId && 'pl-5',
                 )}
+                style={{ paddingLeft: `${0.5 + c.depth * 0.75}rem` }}
               >
                 <span className="truncate">{c.name || t('defaultCategory')}</span>
                 <span className="text-xs text-muted-foreground">{c._count.questions}</span>
@@ -122,7 +126,7 @@ export default async function QuestionBankPage({
             ))}
           </CardContent>
         </Card>
-        {questions.length === 0 ? (
+        {questions.total === 0 ? (
           <EmptyState title={t('empty')} />
         ) : (
           <Table>
@@ -136,7 +140,7 @@ export default async function QuestionBankPage({
               </Tr>
             </THead>
             <TBody>
-              {questions.map((q) => (
+              {questions.items.map((q) => (
                 <Tr key={q.id}>
                   <Td>
                     <Link href={`${base}/edit?id=${q.id}`} className="font-medium hover:underline">
@@ -161,6 +165,12 @@ export default async function QuestionBankPage({
             </TBody>
           </Table>
         )}
+        <Pagination
+          page={questions.page}
+          pageSize={questions.pageSize}
+          total={questions.total}
+          params={{ category: current.id, q: search }}
+        />
         <Card>
           <CardHeader>
             <CardTitle>{t('import')}</CardTitle>

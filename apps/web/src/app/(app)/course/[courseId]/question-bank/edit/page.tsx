@@ -56,7 +56,10 @@ export default async function EditQuestionPage({
       <QuestionEditor
         courseId={courseId}
         type={type}
-        categories={categories.map((c) => ({ id: c.id, name: c.name || t('defaultCategory') }))}
+        categories={categories.map((c) => ({
+          id: c.id,
+          name: '\u00a0\u00a0'.repeat(c.depth) + (c.name || t('defaultCategory')),
+        }))}
         initial={{
           id: q?.id,
           categoryId,

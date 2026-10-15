@@ -44,14 +44,46 @@ async function categoryCourse(db: Tx, categoryId: string): Promise<string> {
   return c.contextId;
 }
 
+/** Categories each followed by their subcategories, with how deep each one sits. */
+function inTreeOrder<T extends { id: string; parentId: string | null }>(
+  cats: T[],
+): (T & { depth: number })[] {
+  const ids = new Set(cats.map((c) => c.id));
+  const children = new Map<string | null, T[]>();
+  for (const c of cats) {
+    // one whose parent is missing is shown at the top rather than lost
+    const parent = c.parentId && ids.has(c.parentId) ? c.parentId : null;
+    children.set(parent, [...(children.get(parent) ?? []), c]);
+  }
+  const out: (T & { depth: number })[] = [];
+  const walk = (parent: string | null, depth: number) => {
+    for (const c of children.get(parent) ?? []) {
+      out.push({ ...c, depth });
+      walk(c.id, depth + 1);
+    }
+  };
+  walk(null, 0);
+  return out;
+}
+
+/** The course's question categories as a tree; the default one comes first. */
 export async function listQuestionCategories(ctx: RequestContext, courseId: string) {
   await ctx.perm.require('question:use', courseId);
   await ensureDefaultQuestionCategory(ctx.db, courseId);
-  return ctx.db.questionCategory.findMany({
+  const cats = await ctx.db.questionCategory.findMany({
     where: { contextId: courseId },
-    orderBy: [{ parentId: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
-    include: { _count: { select: { questions: { where: { status: { not: 'HIDDEN' } } } } } },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    // hidden ones too: the bank lists them, and a category with them cannot go
+    include: { _count: { select: { questions: true } } },
   });
+  // the default category is the oldest top one (see ensureDefaultQuestionCategory)
+  const root = cats
+    .filter((c) => !c.parentId)
+    .reduce<(typeof cats)[number] | undefined>(
+      (a, c) => (!a || c.createdAt < a.createdAt ? c : a),
+      undefined,
+    );
+  return inTreeOrder(root ? [root, ...cats.filter((c) => c !== root)] : cats);
 }
 
 /** Throws unless the category exists and belongs to `courseId`. */
@@ -263,31 +295,79 @@ export const deleteQuestion = defineOperation({
   },
 });
 
+/** One page of a course's questions, the most recently changed first. */
 export async function listQuestions(
   ctx: RequestContext,
   courseId: string,
-  opts: { categoryId?: string; q?: string; type?: QuestionType; includeHidden?: boolean } = {},
+  opts: {
+    categoryId?: string;
+    q?: string;
+    type?: QuestionType;
+    includeHidden?: boolean;
+    page?: number;
+    pageSize?: number;
+  } = {},
 ) {
   await ctx.perm.require('question:use', courseId);
-  return ctx.db.question.findMany({
-    where: {
-      category: { contextId: courseId },
-      ...(opts.categoryId ? { categoryId: opts.categoryId } : {}),
-      ...(opts.type ? { type: opts.type } : {}),
-      ...(opts.includeHidden ? {} : { status: { not: 'HIDDEN' } }),
-      ...(opts.q
-        ? {
-            OR: [
-              { name: { contains: opts.q, mode: 'insensitive' } },
-              { text: { contains: opts.q, mode: 'insensitive' } },
-              { tags: { has: opts.q } },
-            ],
-          }
-        : {}),
-    },
-    orderBy: [{ updatedAt: 'desc' }],
-    take: 500,
+  const page = Math.max(1, Math.floor(opts.page ?? 1));
+  const pageSize = Math.min(200, Math.max(1, Math.floor(opts.pageSize ?? 50)));
+  const where: Prisma.QuestionWhereInput = {
+    category: { contextId: courseId },
+    ...(opts.categoryId ? { categoryId: opts.categoryId } : {}),
+    ...(opts.type ? { type: opts.type } : {}),
+    ...(opts.includeHidden ? {} : { status: { not: 'HIDDEN' } }),
+    ...(opts.q
+      ? {
+          OR: [
+            { name: { contains: opts.q, mode: 'insensitive' } },
+            { text: { contains: opts.q, mode: 'insensitive' } },
+            { tags: { has: opts.q } },
+          ],
+        }
+      : {}),
+  };
+  const [total, items] = await Promise.all([
+    ctx.db.question.count({ where }),
+    ctx.db.question.findMany({
+      where,
+      orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
+  return { items, total, page, pageSize };
+}
+
+/**
+ * Every question of a category and of the categories below it (of the whole bank without
+ * one) that is not hidden, category by category, for an export; with the category path
+ * of each question.
+ */
+export async function questionsForExport(
+  ctx: RequestContext,
+  courseId: string,
+  categoryId?: string,
+) {
+  await ctx.perm.require('question:manage', courseId);
+  const cats = await listQuestionCategories(ctx, courseId);
+  const byId = new Map(cats.map((c) => [c.id, c]));
+  const pathOf = (id: string): string[] => {
+    const c = byId.get(id);
+    return c ? [...(c.parentId ? pathOf(c.parentId) : []), c.name] : [];
+  };
+  const within = (id: string): boolean =>
+    !categoryId ||
+    id === categoryId ||
+    (!!byId.get(id)?.parentId && within(byId.get(id)!.parentId!));
+  const chosen = cats.filter((c) => within(c.id));
+  const questions = await ctx.db.question.findMany({
+    where: { categoryId: { in: chosen.map((c) => c.id) }, status: { not: 'HIDDEN' } },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   });
+  const rank = new Map(chosen.map((c, i) => [c.id, i]));
+  return questions
+    .sort((a, b) => rank.get(a.categoryId)! - rank.get(b.categoryId)!)
+    .map((q) => ({ ...q, categoryPath: pathOf(q.categoryId) }));
 }
 
 export const importGift = defineOperation({

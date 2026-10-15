@@ -27,7 +27,7 @@ export default async function AiQuestionsPage({
   const ctx = await getContext();
   const features = await aiFeaturesFor(ctx, courseId);
   if (!features.QUIZGEN || !(await ctx.perm.can('question:manage', courseId))) notFound();
-  const t = await getTranslations('ai.quizgen');
+  const [t, tb] = await Promise.all([getTranslations('ai.quizgen'), getTranslations('qbank')]);
   if (ctx.actor.kind !== 'user') notFound();
   const consent = await consentStatus(ctx.db, ctx.actor.userId, 'QUIZGEN');
   if (!consent.accepted)
@@ -52,7 +52,10 @@ export default async function AiQuestionsPage({
       <QuizGenerator
         courseId={courseId}
         generationId={sp.g ?? null}
-        categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+        categories={categories.map((c) => ({
+          id: c.id,
+          name: '\u00a0\u00a0'.repeat(c.depth) + (c.name || tb('defaultCategory')),
+        }))}
         defaultCategory={sp.category ?? categories[0]?.id ?? ''}
         activities={usable.map((a) => ({ id: a.id, name: a.name }))}
         languages={languages}

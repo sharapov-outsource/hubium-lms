@@ -1,4 +1,4 @@
-import { listQuestions } from '@hubium/core';
+import { questionsForExport } from '@hubium/core';
 import { exportMoodleXml } from '@hubium/interchange';
 import { type QuestionData, type QuestionType, toGift } from '@hubium/questions';
 import { getContext } from '@/server/session';
@@ -27,20 +27,27 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
         'Content-Disposition': 'attachment; filename="questions.moodle.xml"',
       },
     });
-  const qs = await listQuestions(ctx, courseId, { categoryId });
-  // types GIFT cannot express are left out (Moodle XML keeps them)
-  const body = qs
-    .map((q) =>
-      toGift({
-        type: q.type as QuestionType,
-        name: q.name,
-        text: plain(q.text),
-        generalFeedback: plain(q.generalFeedback),
-        data: q.data as QuestionData,
-      }),
-    )
-    .filter((g): g is string => g !== null)
-    .join('\n\n');
+  const qs = await questionsForExport(ctx, courseId, categoryId);
+  // types GIFT cannot express are left out (Moodle XML keeps them); each category starts
+  // with its path, so an import puts the questions back into their categories
+  const blocks: string[] = [];
+  let lastCat = '';
+  for (const q of qs) {
+    const gift = toGift({
+      type: q.type as QuestionType,
+      name: q.name,
+      text: plain(q.text),
+      generalFeedback: plain(q.generalFeedback),
+      data: q.data as QuestionData,
+    });
+    if (gift === null) continue;
+    // the default category has no name and no line: its questions come first
+    const path = q.categoryPath.filter(Boolean).join('/');
+    if (path && q.categoryId !== lastCat) blocks.push(`$CATEGORY: $course$/top/${path}`);
+    lastCat = q.categoryId;
+    blocks.push(gift);
+  }
+  const body = blocks.join('\n\n');
   return new Response(`${body}\n`, {
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',
