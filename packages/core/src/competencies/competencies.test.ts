@@ -108,6 +108,25 @@ describe('competencies', () => {
       fieldErrors: { parentId: [expect.any(String)] },
     });
     await moveCompetency.run(admin, { id: ids.b, parentId: null });
+    // "moving" it under the parent it has keeps it in the parent's rule
+    await setCompetencyRule.run(admin, {
+      id: ids.a,
+      ruleType: 'POINTS',
+      ruleOutcome: 'COMPLETE',
+      ruleConfig: {
+        points: 4,
+        children: [
+          { id: ids.a1, points: 2 },
+          { id: ids.a2, points: 2 },
+        ],
+      },
+    });
+    await moveCompetency.run(admin, { id: ids.a1, parentId: ids.a });
+    expect(await t.db.competency.findUniqueOrThrow({ where: { id: ids.a } })).toMatchObject({
+      ruleType: 'POINTS',
+      ruleConfig: { points: 4 },
+    });
+    await setCompetencyRule.run(admin, { id: ids.a, ruleType: 'ALL', ruleOutcome: 'COMPLETE' });
 
     const copy = await duplicateFramework.run(admin, { id: ids.fw });
     const copied = await frameworkTree(t.db, copy.id);

@@ -343,6 +343,9 @@ export const moveCompetency = defineOperation({
     const parent = parentId ? await loadCompetency(ctx.tx, parentId) : null;
     if (parent && parent.frameworkId !== c.frameworkId)
       throw new ValidationError({ parentId: ['The parent is in another framework'] });
+    // the form offers the current parent first: moving there changes nothing, and above all
+    // keeps the competency in its parent's rule
+    if ((parent?.id ?? null) === c.parentId) return { id };
     const below = await subtree(ctx.tx, c);
     if (parent && below.includes(parent.id))
       throw new ValidationError({ parentId: ['A competency cannot go under itself'] });
