@@ -80,12 +80,16 @@ model CalendarEvent {
   course       Course?               @relation(fields: [courseId], references: [id], onDelete: Cascade)
   user         User?                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   subscription CalendarSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  /// Deleted for good with its activity or group, not left in calendars and feeds.
+  activity     Activity?             @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  group        Group?                @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@unique([activityId, kind])
   @@unique([subscriptionId, uid])
   @@index([startsAt])
   @@index([courseId, startsAt])
   @@index([userId, startsAt])
+  @@index([groupId])
 }
 
 /// An iCalendar feed subscribed to by URL and refreshed on a schedule, or a file imported

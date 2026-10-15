@@ -11,12 +11,10 @@ import { dropAvailabilityRefs, namesActivity } from './availability-refs.ts';
 
 type Tx = Prisma.TransactionClient;
 
-/** Deletes an activity for good: its module's clean-up (stored packages, media), its
- *  calendar events and its context with what hangs on it. */
+/** Deletes an activity for good: its module's clean-up (stored packages, media), then its
+ *  context with what hangs on it (its calendar events too). */
 export async function purgeActivityRecord(ctx: RequestContext, tx: Tx, a: Activity) {
   await getModule(a.moduleKey)?.lifecycle?.onDelete?.(buildModuleCtx(ctx, tx), toActivityRef(a));
-  // calendar events name activities without a foreign key
-  await tx.calendarEvent.deleteMany({ where: { activityId: a.id } });
   await tx.questionCategory.deleteMany({ where: { contextId: a.id } });
   await tx.activity.delete({ where: { id: a.id } });
   await tx.context.delete({ where: { id: a.id } });
@@ -32,7 +30,6 @@ export async function purgeCourseRecord(ctx: RequestContext, tx: Tx, courseId: s
     await getModule(a.moduleKey)?.lifecycle?.onDelete?.(buildModuleCtx(ctx, tx), toActivityRef(a));
   }
   const ids = activities.map((a) => a.id);
-  await tx.calendarEvent.deleteMany({ where: { activityId: { in: ids } } });
   // question categories are keyed by context id without a foreign key
   await tx.questionCategory.deleteMany({ where: { contextId: { in: [courseId, ...ids] } } });
   await tx.context.delete({ where: { id: courseId } });

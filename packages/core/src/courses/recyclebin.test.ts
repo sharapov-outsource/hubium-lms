@@ -3,7 +3,7 @@ import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { ValidationError } from '../errors.ts';
 import { setSettings } from '../settings/settings.ts';
-import { deleteActivity } from './activities.ts';
+import { deleteActivity, purgeActivity } from './activities.ts';
 import { createCourse, deleteCourse, purgeCourse, restoreCourse } from './courses.ts';
 import { purgeRecycleBin } from './recyclebin.ts';
 
@@ -59,5 +59,29 @@ describe('recycle bin', () => {
     expect(await t.db.course.findUnique({ where: { id: h.courseId } })).toBeNull();
     expect(await t.db.activity.findUnique({ where: { id: old } })).toBeNull();
     expect(await t.db.activity.findUnique({ where: { id: fresh } })).not.toBeNull();
+  });
+
+  it('takes the calendar events of an activity or a group deleted for good', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const f = await courseFixture(t.db, 'BIN-CAL');
+    const { id: page } = await f.addActivity('page', 'Со сроком', { content: '<p>x</p>' });
+    const group = await t.db.group.create({ data: { courseId: f.courseId, name: 'Г' } });
+    const event = (data: { activityId?: string; groupId?: string }) =>
+      t.db.calendarEvent.create({
+        data: {
+          scope: 'COURSE',
+          courseId: f.courseId,
+          title: 'Срок',
+          startsAt: new Date(),
+          ...data,
+        },
+      });
+    await deleteActivity.run(admin, { id: page });
+    const ofActivity = await event({ activityId: page });
+    const ofGroup = await event({ groupId: group.id });
+    await purgeActivity.run(admin, { id: page });
+    await t.db.group.delete({ where: { id: group.id } });
+    expect(await t.db.calendarEvent.findUnique({ where: { id: ofActivity.id } })).toBeNull();
+    expect(await t.db.calendarEvent.findUnique({ where: { id: ofGroup.id } })).toBeNull();
   });
 });

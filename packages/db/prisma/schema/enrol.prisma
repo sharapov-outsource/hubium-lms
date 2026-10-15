@@ -78,6 +78,7 @@ model Group {
   assignOverrides   AssignOverride[]
   conversation      Conversation?
   announcements     Announcement[]
+  calendarEvents    CalendarEvent[]
   quizOverrides     QuizOverride[]
 
   @@unique([courseId, name])

@@ -198,6 +198,7 @@ model Activity {
   h5pPackage          H5pPackage?
   h5pAttempts         H5pAttempt[]
   ltiScores           LtiScore[]
+  calendarEvents      CalendarEvent[]
 
   contentChunks      ContentChunk[]
   gradingSuggestions GradingSuggestion[]
