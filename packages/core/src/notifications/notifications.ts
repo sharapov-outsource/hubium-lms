@@ -180,10 +180,14 @@ provideModuleServices({
     // Module notifications are typed `<module>.<name>`: none from types that are turned off.
     const key = n.type.split('.')[0]!;
     if (getModule(key) && !isModuleEnabled(await getAllSettings(tx), key)) return;
-    await notifyUsers(tx, userIds, {
-      ...n,
-      actorId: ctx.actor.kind === 'user' ? ctx.actor.userId : null,
-    });
+    const { anonymous, ...rest } = n;
+    const actorId = ctx.actor.kind === 'user' ? ctx.actor.userId : null;
+    // the acting user is never notified; an anonymous notification just does not say who
+    await notifyUsers(
+      tx,
+      userIds.filter((id) => id !== actorId),
+      { ...rest, actorId: anonymous ? null : actorId },
+    );
   },
 });
 

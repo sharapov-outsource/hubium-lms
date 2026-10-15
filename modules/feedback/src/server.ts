@@ -452,6 +452,7 @@ export const feedback = defineModule<FeedbackSettingsT>({
             url: `/course/${a.courseId}/a/${a.id}?tab=responses`,
             courseId: a.courseId,
             contextId: a.id,
+            anonymous: a.settings.anonymous,
           });
         }
         return { id: r.id };

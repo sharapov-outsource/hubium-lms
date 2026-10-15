@@ -173,6 +173,8 @@ export interface ModuleNotify {
       courseId?: string;
       contextId?: string;
       data?: Record<string, unknown>;
+      /** Leave out who acted (an anonymous answer, say): recipients see no sender. */
+      anonymous?: boolean;
     },
   ): Promise<void>;
 }

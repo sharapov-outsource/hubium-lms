@@ -107,6 +107,12 @@ describe('mod-feedback', () => {
         where: { userId: f.users.teacher!, type: 'feedback.submitted' },
       }),
     ).toBe(2);
+    // the survey is anonymous: the notification does not say who answered
+    expect(
+      await t.db.notification.count({
+        where: { userId: f.users.teacher!, type: 'feedback.submitted', actorId: { not: null } },
+      }),
+    ).toBe(0);
 
     const response = await t.db.feedbackResponse.findFirstOrThrow({
       where: { activityId: id, userId: f.users.student2! },
