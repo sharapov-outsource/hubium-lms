@@ -9,20 +9,27 @@ import {
   ModuleError,
   type ModuleFile,
 } from '@hubium/module-sdk';
-import { bool, isoDate, optionalNumber } from '@hubium/module-sdk/fields';
+import { bool, optionalNumber } from '@hubium/module-sdk/fields';
 import { groupsWhere, userGroupIds, visibleGroupFilter } from '@hubium/module-sdk/groups';
+import {
+  aggregateRatings,
+  scaleItems as courseScaleItems,
+  inRatingWindow,
+  ratingAggregates,
+  ratingFields,
+  scaleIdField,
+} from '@hubium/module-sdk/ratings';
 import { z } from 'zod';
-import { aggregateRatings, inRatingWindow, ratingAggregates } from './ratings.ts';
 
 // mod-forum: standard and Q&A forums with threaded posts, group modes, subscriptions,
 // unread tracking, pin/lock, private replies and moderation; ratings of posts and a grade
 // for the whole forum, each with its gradebook item.
 
-export { aggregateRatings, type RatingAggregate, ratingAggregates } from './ratings.ts';
-
-const scaleId = z
-  .preprocess((v) => (v === '' ? null : v), z.string().uuid().nullable())
-  .default(null);
+export {
+  aggregateRatings,
+  type RatingAggregate,
+  ratingAggregates,
+} from '@hubium/module-sdk/ratings';
 
 export const ForumSettings = z
   .object({
@@ -38,21 +45,14 @@ export const ForumSettings = z
       .min(0)
       .max(7 * 24 * 60)
       .default(30),
-    /** How a student's post ratings make their grade; none turns ratings off. */
-    ratingAggregate: z.enum(ratingAggregates).default('none'),
-    /** Ratings on this scale (1-based positions) instead of points 0..ratingMax. */
-    ratingScaleId: scaleId,
-    ratingMax: z.coerce.number().int().min(1).max(100).default(10),
-    /** Only posts written in this window can be rated (and count). */
-    ratingFrom: isoDate,
-    ratingTo: isoDate,
+    // ratings of posts (see @hubium/module-sdk/ratings)
+    ...ratingFields,
     /** Students rate each other's posts too. */
     allowPeerRating: bool(false),
-    ratingPass: optionalNumber(0, 10_000),
     /** Teachers grade each student's part in the whole forum. */
     wholeForumGrading: bool(false),
     gradeMax: z.coerce.number().min(1).max(10_000).default(100),
-    gradeScaleId: scaleId,
+    gradeScaleId: scaleIdField,
     gradePass: optionalNumber(0, 10_000),
   })
   .refine((s) => !s.ratingFrom || !s.ratingTo || s.ratingTo > s.ratingFrom, {
@@ -137,12 +137,7 @@ export function postVisible(
 
 /** The grades of a scale, worst first; null for points (or a scale no longer there). */
 export async function scaleItems(db: Db, a: Forum, id: string | null): Promise<string[] | null> {
-  if (!id) return null;
-  const s = await db.scale.findFirst({
-    where: { id, OR: [{ courseId: null }, { courseId: a.courseId }] },
-    select: { items: true },
-  });
-  return s?.items ?? null;
+  return courseScaleItems(db, a.courseId, id);
 }
 
 /** Does the user rate posts here: with the right to, or as a student with peer rating? */

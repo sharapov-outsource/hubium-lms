@@ -3,6 +3,7 @@
 import { RichTextEditor } from '@hubium/editor/client';
 import { useEditorLabels } from '@hubium/editor/field';
 import { callModuleAction } from '@hubium/module-sdk/form';
+import { RatingControl } from '@hubium/module-sdk/ratings-ui';
 import { Button, Card, CardContent, Checkbox, Field, Input, Label, Select } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { Bell, BellOff, Lock, LockOpen, Pin, PinOff, Plus } from 'lucide-react';
@@ -379,10 +380,7 @@ export function MarkRead({
   return null;
 }
 
-/**
- * A post's rating: the aggregate as the user may see it, who rated what, and a select for
- * those who rate (points 0..max, or the forum's scale).
- */
+/** A post's rating (see RatingControl), rated through the forum's "rate" action. */
 export function PostRatingControl({
   activityId,
   postId,
@@ -408,60 +406,18 @@ export function PostRatingControl({
 }) {
   const t = useTranslations('mod.forum.rating');
   const { pending, run } = useAction(activityId);
-  const label = (v: number) => (scale ? (scale[v - 1] ?? String(v)) : String(v));
-  // a count is a number of ratings, not a rating
-  const shown = (v: number) => (scale && kind !== 'count' ? label(Math.round(v)) : String(v));
-  const values = scale ? scale.map((_, i) => i + 1) : Array.from({ length: max + 1 }, (_, i) => i);
-  if (rating.aggregate === null && !rating.canRate) return null;
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-      {rating.aggregate !== null ? (
-        <span>
-          {t(`aggregates.${kind}`, { value: shown(rating.aggregate) })}{' '}
-          <span className="text-muted-foreground">({t('count', { n: rating.count })})</span>
-        </span>
-      ) : null}
-      {rating.canRate ? (
-        <span className="inline-flex items-center gap-2">
-          <span aria-hidden className="text-muted-foreground">
-            {t('yours')}
-          </span>
-          <Select
-            id={`rate-${postId}`}
-            aria-label={t('rateLabel', { name: authorName })}
-            className="w-40"
-            value={rating.mine === null ? '' : String(rating.mine)}
-            disabled={pending}
-            onChange={(e) =>
-              run(
-                'rate',
-                { postId, value: e.target.value === '' ? null : Number(e.target.value) },
-                { ok: t('saved') },
-              )
-            }
-          >
-            <option value="">—</option>
-            {values.map((v) => (
-              <option key={v} value={v}>
-                {label(v)}
-              </option>
-            ))}
-          </Select>
-        </span>
-      ) : null}
-      {rating.raters.length ? (
-        <details className="w-full">
-          <summary className="cursor-pointer text-muted-foreground">{t('raters')}</summary>
-          <ul className="mt-1 grid gap-0.5 pl-4">
-            {rating.raters.map((r) => (
-              <li key={r.name}>
-                {r.name}: {label(r.value)}
-              </li>
-            ))}
-          </ul>
-        </details>
-      ) : null}
-    </div>
+    <RatingControl
+      id={postId}
+      messages="mod.forum.rating"
+      authorName={authorName}
+      kind={kind}
+      scale={scale}
+      max={max}
+      rating={rating}
+      pending={pending}
+      onRate={(value) => run('rate', { postId, value }, { ok: t('saved') })}
+    />
   );
 }
 

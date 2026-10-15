@@ -1,6 +1,7 @@
 'use client';
 
-import { DateTimeInput, useFieldErrors } from '@hubium/module-sdk/form';
+import { useFieldErrors } from '@hubium/module-sdk/form';
+import { RatingSettingsFields } from '@hubium/module-sdk/ratings-ui';
 import type { SettingsFieldsProps } from '@hubium/module-sdk/ui';
 import { Checkbox, Field, Input, Select } from '@hubium/ui';
 import { useTranslations } from 'next-intl';
@@ -51,37 +52,14 @@ function Bool({
   );
 }
 
-function When({
-  name,
-  label,
-  value,
-}: {
-  name: 'ratingFrom' | 'ratingTo';
-  label: string;
-  value: string | null;
-}) {
-  const error = useFieldErrors(`settings.${name}`);
-  return (
-    <Field label={label} htmlFor={`fs-${name}`} error={error}>
-      <DateTimeInput
-        id={`fs-${name}`}
-        name={`settings.${name}`}
-        defaultValue={value}
-        defaultTime={name === 'ratingFrom' ? '00:00' : '23:59'}
-        ariaInvalid={!!error}
-      />
-    </Field>
-  );
-}
-
-/** Points or one of the scales, for ratings or the whole-forum grade. */
+/** Points or one of the scales, for the whole-forum grade. */
 function ScaleSelect({
   name,
   label,
   value,
   scales,
 }: {
-  name: 'ratingScaleId' | 'gradeScaleId';
+  name: 'gradeScaleId';
   label: string;
   value: string | null;
   scales: { id: string; name: string }[];
@@ -135,36 +113,14 @@ export function ForumSettingsFields({ settings, scales }: SettingsFieldsProps<Fo
         label={t('allowPrivateReplies')}
         checked={settings.allowPrivateReplies}
       />
-      <fieldset className="grid gap-3 rounded-lg border border-border p-4">
-        <legend className="px-1 text-sm font-medium">{t('ratings.title')}</legend>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={t('ratings.aggregate')} htmlFor="fs-ratingAggregate">
-            <Select
-              id="fs-ratingAggregate"
-              name="settings.ratingAggregate"
-              defaultValue={settings.ratingAggregate}
-            >
-              {(['none', 'average', 'count', 'max', 'min', 'sum'] as const).map((k) => (
-                <option key={k} value={k}>
-                  {t(`ratings.aggregates.${k}`)}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <ScaleSelect
-            name="ratingScaleId"
-            label={t('ratings.type')}
-            value={settings.ratingScaleId}
-            scales={scales ?? []}
-          />
-          <Num name="ratingMax" label={t('ratings.max')} value={settings.ratingMax} min={1} />
-          <Num name="ratingPass" label={t('ratings.pass')} value={settings.ratingPass} />
-          <When name="ratingFrom" label={t('ratings.from')} value={settings.ratingFrom} />
-          <When name="ratingTo" label={t('ratings.to')} value={settings.ratingTo} />
-        </div>
+      <RatingSettingsFields
+        idPrefix="fs"
+        messages="mod.forum.ratings"
+        settings={settings}
+        scales={scales ?? []}
+      >
         <Bool name="allowPeerRating" label={t('ratings.peer')} checked={settings.allowPeerRating} />
-        <p className="text-xs text-muted-foreground">{t('ratings.hint')}</p>
-      </fieldset>
+      </RatingSettingsFields>
       <fieldset className="grid gap-3 rounded-lg border border-border p-4">
         <legend className="px-1 text-sm font-medium">{t('whole.title')}</legend>
         <Bool

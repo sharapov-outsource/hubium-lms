@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { aggregateRatings, inRatingWindow } from './ratings.ts';
 
-describe('forum ratings', () => {
+describe('ratings', () => {
   it('aggregates as Moodle does, capped at the most a rating can be', () => {
     const v = [4, 7, 10];
     expect(aggregateRatings('average', v, 10, false)).toBe(7);
@@ -23,7 +23,7 @@ describe('forum ratings', () => {
     expect(aggregateRatings('count', [1], 3, true)).toBe(1);
   });
 
-  it('rates posts written within the window', () => {
+  it('rates items written within the window', () => {
     const w = { ratingFrom: '2026-10-01T00:00:00Z', ratingTo: '2026-10-31T00:00:00Z' };
     expect(inRatingWindow(new Date('2026-10-10T00:00:00Z'), w)).toBe(true);
     expect(inRatingWindow(new Date('2026-09-30T00:00:00Z'), w)).toBe(false);

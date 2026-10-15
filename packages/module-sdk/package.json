@@ -15,7 +15,9 @@
     "./groups": "./src/groups.ts",
     "./grading": "./src/grading.ts",
     "./zoned": "./src/zoned.ts",
-    "./xlsx": "./src/xlsx.ts"
+    "./xlsx": "./src/xlsx.ts",
+    "./ratings": "./src/ratings.ts",
+    "./ratings-ui": "./src/ratings-ui.tsx"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
