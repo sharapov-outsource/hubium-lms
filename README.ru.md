@@ -361,6 +361,7 @@ pnpm dev                                          # http://localhost:3000
 
 ## Документация
 
+- [docs/guide/](docs/guide/README.md) — руководство пользователя для учащихся, преподавателей, менеджеров и администраторов.
 - [docs/operations.md](docs/operations.md) — установка, настройка, резервное копирование, обновление, мониторинг.
 - [docs/releasing.md](docs/releasing.md) — как собираются и публикуются релизы (на английском).
 - [docs/api.md](docs/api.md) — REST API, токены и вебхуки (на английском).

@@ -314,6 +314,7 @@ The stack is Node.js 24, Next.js 16, React 19, PostgreSQL 18 with pgvector, Pris
 
 ## Documentation
 
+- [docs/guide/](docs/guide/README.md): user guide for learners, teachers, managers and administrators (in Russian).
 - [docs/operations.md](docs/operations.md): installation, configuration, backups, updates, monitoring (in Russian).
 - [docs/releasing.md](docs/releasing.md): how releases are built and published.
 - [docs/i18n.md](docs/i18n.md): languages, language packs, fallback and how to add a language.
