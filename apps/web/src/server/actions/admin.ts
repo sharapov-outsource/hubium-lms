@@ -38,12 +38,10 @@ import { generateAccentPalette } from '@hubium/ui/palette';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { formToObject, runAction } from '../action';
+import { formBool, formToObject, runAction } from '../action';
 import { auth } from '../auth';
 import { db } from '../db';
 import { getContext } from '../session';
-
-const bool = (v: FormDataEntryValue | null) => v === 'on' || v === 'true' || v === '1';
 
 /** Custom profile fields of the admin user form; required ones must be filled. */
 async function profileFieldsFromForm(v: Record<string, string>) {
@@ -57,7 +55,7 @@ export async function createUserAction(fd: FormData) {
     const v = formToObject(fd);
     return createUser.run(ctx, {
       ...v,
-      isSiteAdmin: bool(fd.get('isSiteAdmin')),
+      isSiteAdmin: formBool(fd.get('isSiteAdmin')),
       customFields: await profileFieldsFromForm(v),
     });
   });
@@ -73,7 +71,7 @@ export async function updateUserAction(fd: FormData) {
       ...v,
       locale: v.locale || null,
       timezone: v.timezone || null,
-      isSiteAdmin: ctx.perm.isSiteAdmin ? bool(fd.get('isSiteAdmin')) : undefined,
+      isSiteAdmin: ctx.perm.isSiteAdmin ? formBool(fd.get('isSiteAdmin')) : undefined,
       customFields: await profileFieldsFromForm(v),
     });
     revalidatePath(`/admin/users/${r.id}`);
@@ -316,35 +314,35 @@ export async function saveSettingsAction(fd: FormData) {
             'course.creatorRole': v.creatorRole,
             'recyclebin.days': Number(v.recyclebinDays ?? 30),
             'eventlog.retentionDays': Number(v.eventlogDays ?? 365),
-            'mentors.enabled': bool(fd.get('mentorsEnabled')),
+            'mentors.enabled': formBool(fd.get('mentorsEnabled')),
           });
           break;
         case 'registration':
           Object.assign(values, {
-            'registration.enabled': bool(fd.get('enabled')),
-            'registration.requireEmailVerification': bool(fd.get('requireEmailVerification')),
+            'registration.enabled': formBool(fd.get('enabled')),
+            'registration.requireEmailVerification': formBool(fd.get('requireEmailVerification')),
             'registration.consentText': v.consentText ?? '',
           });
           break;
         case 'authentication':
           Object.assign(values, {
-            'auth.oauth.google': bool(fd.get('google')),
-            'auth.oauth.yandex': bool(fd.get('yandex')),
-            'auth.oauth.vk': bool(fd.get('vk')),
-            'auth.oauth.keycloak': bool(fd.get('keycloak')),
-            'auth.require2faForAdmins': bool(fd.get('require2fa')),
+            'auth.oauth.google': formBool(fd.get('google')),
+            'auth.oauth.yandex': formBool(fd.get('yandex')),
+            'auth.oauth.vk': formBool(fd.get('vk')),
+            'auth.oauth.keycloak': formBool(fd.get('keycloak')),
+            'auth.require2faForAdmins': formBool(fd.get('require2fa')),
           });
           break;
         case 'security':
           Object.assign(values, {
             'password.minLength': v.minLength,
-            'password.requireDigit': bool(fd.get('requireDigit')),
-            'password.requireLower': bool(fd.get('requireLower')),
-            'password.requireUpper': bool(fd.get('requireUpper')),
-            'password.requireSymbol': bool(fd.get('requireSymbol')),
+            'password.requireDigit': formBool(fd.get('requireDigit')),
+            'password.requireLower': formBool(fd.get('requireLower')),
+            'password.requireUpper': formBool(fd.get('requireUpper')),
+            'password.requireSymbol': formBool(fd.get('requireSymbol')),
             'password.history': v.history,
             'password.maxAgeDays': v.maxAgeDays,
-            'auth.newSignInNotice': bool(fd.get('newSignInNotice')),
+            'auth.newSignInNotice': formBool(fd.get('newSignInNotice')),
             'lockout.threshold': v.lockoutThreshold,
             'lockout.windowMinutes': v.lockoutWindow,
             'lockout.durationMinutes': v.lockoutDuration,
@@ -359,7 +357,7 @@ export async function saveSettingsAction(fd: FormData) {
           await setMaintenance(
             db,
             {
-              enabled: bool(fd.get('maintenanceEnabled')),
+              enabled: formBool(fd.get('maintenanceEnabled')),
               message: v.maintenanceMessage ?? '',
               until: v.maintenanceUntil || null,
             },

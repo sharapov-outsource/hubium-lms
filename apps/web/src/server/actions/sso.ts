@@ -3,10 +3,8 @@
 import { deleteSsoProvider, saveSsoProvider } from '@hubium/core';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { formToObject, runAction } from '../action';
+import { formToObject, MAP_PREFIX, mappingFromForm, runAction } from '../action';
 import { getContext } from '../session';
-
-const MAP_PREFIX = 'map_field_';
 
 /** The form's fields for the mapping's errors. */
 const MAPPING_FIELDS = {
@@ -21,11 +19,7 @@ export async function saveSsoProviderAction(fd: FormData) {
   const res = await runAction(
     async () => {
       const v = formToObject(fd);
-      const fields = Object.fromEntries(
-        Object.entries(v)
-          .filter(([k, a]) => k.startsWith(MAP_PREFIX) && a.trim())
-          .map(([k, a]) => [k.slice(MAP_PREFIX.length), a.trim()]),
-      );
+      const fields = mappingFromForm(v);
       return saveSsoProvider.run(await getContext(), {
         id: v.id || undefined,
         providerId: v.providerId ?? '',

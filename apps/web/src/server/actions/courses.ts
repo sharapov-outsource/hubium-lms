@@ -68,13 +68,11 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { safePath } from '@/lib/safe-path';
-import { formToObject, runAction } from '../action';
+import { formBool, formToObject, runAction } from '../action';
 import { courseFieldViews } from '../course-fields';
 import { db } from '../db';
 import { formFiles } from '../form-files';
 import { freshContext, getContext, VIEW_AS_COOKIE } from '../session';
-
-const bool = (v: FormDataEntryValue | null) => v === 'on' || v === 'true' || v === '1';
 
 function courseFormValues(fd: FormData) {
   const v = formToObject(fd);
@@ -88,12 +86,12 @@ function courseFormValues(fd: FormData) {
     sections: v.sections,
     startDate: v.startDate || null,
     endDate: v.endDate || null,
-    visible: bool(fd.get('visible')),
+    visible: formBool(fd.get('visible')),
     lang: v.lang || null,
-    enableCompletion: bool(fd.get('enableCompletion')),
+    enableCompletion: formBool(fd.get('enableCompletion')),
     groupMode: v.groupMode,
-    groupModeForced: bool(fd.get('groupModeForced')),
-    guestAccess: bool(fd.get('guestAccess')),
+    groupModeForced: formBool(fd.get('groupModeForced')),
+    guestAccess: formBool(fd.get('guestAccess')),
   };
 }
 
@@ -178,7 +176,7 @@ export async function updateCourseAction(fd: FormData) {
       customFields: await customFieldValues(fd, id),
     });
     await saveCourseImage(await getContext(), id, image);
-    if (bool(fd.get('removeImage'))) await setCourseImage(await getContext(), id, null);
+    if (formBool(fd.get('removeImage'))) await setCourseImage(await getContext(), id, null);
     revalidatePath(`/course/${id}`, 'layout');
     return r;
   });
@@ -287,7 +285,7 @@ function collectCompletionRules(fd: FormData) {
     if (k.startsWith('completion.') && typeof v === 'string' && v !== '')
       module[k.slice('completion.'.length)] = v === 'on' ? true : v;
   }
-  return { view: bool(fd.get('completionView')), module };
+  return { view: formBool(fd.get('completionView')), module };
 }
 
 const ACTIVITY_FILE_BYTES = 200 * 1024 * 1024;
@@ -346,7 +344,7 @@ function activityValues(fd: FormData) {
   return {
     name: v.name,
     intro: v.intro ?? '',
-    showIntro: bool(fd.get('showIntro')),
+    showIntro: formBool(fd.get('showIntro')),
     visibility: v.visibility as 'SHOWN',
     completionMode: (v.completionMode || 'NONE') as 'NONE',
     completionRules: collectCompletionRules(fd),
@@ -533,9 +531,9 @@ export async function saveSelfEnrolmentAction(fd: FormData) {
     const v = formToObject(fd);
     const r = await updateSelfEnrolment.run(await getContext(), {
       courseId: v.courseId,
-      enabled: bool(fd.get('enabled')),
+      enabled: formBool(fd.get('enabled')),
       key: v.key,
-      useGroupKeys: bool(fd.get('useGroupKeys')),
+      useGroupKeys: formBool(fd.get('useGroupKeys')),
       startsAt: v.startsAt,
       endsAt: v.endsAt,
       durationDays: v.durationDays,
@@ -671,7 +669,7 @@ export async function saveCategoryAction(fd: FormData) {
       description: v.description ?? '',
       idNumber: v.idNumber,
       parentId: v.parentId || null,
-      visible: bool(fd.get('visible')),
+      visible: formBool(fd.get('visible')),
     };
     const r = v.id
       ? await updateCategory.run(ctx, { id: v.id, ...input })

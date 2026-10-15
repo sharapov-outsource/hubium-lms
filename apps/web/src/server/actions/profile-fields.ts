@@ -7,10 +7,8 @@ import {
   saveProfileField,
 } from '@hubium/core';
 import { revalidatePath } from 'next/cache';
-import { formToObject, runAction } from '../action';
+import { formBool, formToObject, runAction } from '../action';
 import { getContext } from '../session';
-
-const bool = (v: FormDataEntryValue | null) => v === 'on' || v === 'true' || v === '1';
 
 export async function saveProfileFieldAction(fd: FormData) {
   return runAction(async () => {
@@ -24,9 +22,9 @@ export async function saveProfileFieldAction(fd: FormData) {
         .split('\n')
         .map((c) => c.trim())
         .filter(Boolean),
-      required: bool(fd.get('required')),
-      locked: bool(fd.get('locked')),
-      visibleToOthers: bool(fd.get('visibleToOthers')),
+      required: formBool(fd.get('required')),
+      locked: formBool(fd.get('locked')),
+      visibleToOthers: formBool(fd.get('visibleToOthers')),
     });
     revalidatePath('/admin/profile-fields');
     return r;

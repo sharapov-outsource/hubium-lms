@@ -7,10 +7,8 @@ import {
   saveCourseField,
 } from '@hubium/core';
 import { revalidatePath } from 'next/cache';
-import { formToObject, runAction } from '../action';
+import { formBool, formToObject, runAction } from '../action';
 import { getContext } from '../session';
-
-const bool = (v: FormDataEntryValue | null) => v === 'on' || v === 'true' || v === '1';
 
 export async function saveCourseFieldAction(fd: FormData) {
   return runAction(async () => {
@@ -24,9 +22,9 @@ export async function saveCourseFieldAction(fd: FormData) {
         .split('\n')
         .map((c) => c.trim())
         .filter(Boolean),
-      required: bool(fd.get('required')),
-      locked: bool(fd.get('locked')),
-      visible: bool(fd.get('visible')),
+      required: formBool(fd.get('required')),
+      locked: formBool(fd.get('locked')),
+      visible: formBool(fd.get('visible')),
     });
     revalidatePath('/admin/course-fields');
     return r;

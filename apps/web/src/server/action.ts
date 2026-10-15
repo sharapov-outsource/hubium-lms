@@ -68,3 +68,20 @@ export function formToObject(fd: FormData): Record<string, string> {
     if (typeof v === 'string' && !k.startsWith('$ACTION')) out[k] = v;
   return out;
 }
+
+/** A checkbox or switch of a form: on when it was sent as on, true or 1. */
+export function formBool(v: FormDataEntryValue | null): boolean {
+  return v === 'on' || v === 'true' || v === '1';
+}
+
+/** The prefix of the fields that map a profile field to an attribute (LDAP, SSO). */
+export const MAP_PREFIX = 'map_field_';
+
+/** Profile fields mapped in a form, by short name, without the empty ones. */
+export function mappingFromForm(v: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(v)
+      .filter(([k, a]) => k.startsWith(MAP_PREFIX) && a.trim())
+      .map(([k, a]) => [k.slice(MAP_PREFIX.length), a.trim()]),
+  );
+}
