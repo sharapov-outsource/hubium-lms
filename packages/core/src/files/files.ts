@@ -326,6 +326,43 @@ export async function copyFiles(
   return files.length;
 }
 
+/**
+ * Deletes stored blob objects that no FileBlob row names, older than the grace period: the
+ * content written before the transaction that was to record it rolled back (an upload
+ * refused halfway, a failed import). Their rows were never committed, so only the store
+ * knows them.
+ */
+export async function reconcileBlobObjects(db: Db, olderThanMs = 24 * 3600_000): Promise<number> {
+  const cutoff = new Date(Date.now() - olderThanMs);
+  const storage = getStorage();
+  let deleted = 0;
+  let batch: string[] = [];
+  const sweep = async () => {
+    const ids = batch.map((k) => k.slice(k.lastIndexOf('/') + 1));
+    const known = new Set(
+      (
+        await db.fileBlob.findMany({
+          where: { storageKey: { in: batch } },
+          select: { storageKey: true },
+        })
+      ).map((b) => b.storageKey),
+    );
+    for (const [i, k] of batch.entries())
+      if (!known.has(k) && /^[0-9a-f-]{36}$/.test(ids[i]!)) {
+        await storage.delete(k);
+        deleted++;
+      }
+    batch = [];
+  };
+  for await (const o of storage.list('blobs/')) {
+    if (o.modifiedAt >= cutoff) continue;
+    batch.push(o.key);
+    if (batch.length >= 500) await sweep();
+  }
+  if (batch.length) await sweep();
+  return deleted;
+}
+
 /** Deletes blobs no File/FileVariant references, older than the grace period. */
 export async function garbageCollectBlobs(db: Db, olderThanMs = 24 * 3600_000): Promise<number> {
   const cutoff = new Date(Date.now() - olderThanMs);

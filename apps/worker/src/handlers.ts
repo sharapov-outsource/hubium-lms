@@ -30,7 +30,7 @@ import { syncDueSubscriptions } from '@hubium/core/calendar/subscriptions';
 import { CERTIFICATES_REVIEW_JOB, reviewCertificate } from '@hubium/core/certificates/certificates';
 import { syncTemplateCohorts } from '@hubium/core/competencies/plans';
 import { purgeRecycleBin } from '@hubium/core/courses/recyclebin';
-import { garbageCollectBlobs } from '@hubium/core/files/files';
+import { garbageCollectBlobs, reconcileBlobObjects } from '@hubium/core/files/files';
 import { cleanupUploads } from '@hubium/core/files/uploads';
 import { deliverMail } from '@hubium/core/mail/mail';
 import {
@@ -239,7 +239,11 @@ export const coreHandlers: JobHandlerDef[] = [
     name: 'files.gc',
     cron: CORE_SCHEDULE['files.gc'],
     async handler(_data: never, { db }) {
-      return { deleted: await garbageCollectBlobs(db), uploads: await cleanupUploads(db) };
+      return {
+        deleted: await garbageCollectBlobs(db),
+        objects: await reconcileBlobObjects(db),
+        uploads: await cleanupUploads(db),
+      };
     },
   },
   {

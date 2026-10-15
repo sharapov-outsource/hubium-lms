@@ -4,7 +4,7 @@ import { parseSettings } from '@hubium/module-sdk';
 import type { Capability } from '../access/capabilities.ts';
 import { usersWithCap } from '../access/permissions.ts';
 import { contentUrl } from '../content.ts';
-import type { RequestContext } from '../context.ts';
+import type { MutationContext, RequestContext } from '../context.ts';
 import { logEvent } from '../events/log.ts';
 import { deleteFiles, fileUrl, listFiles, storeFile, storeFileFromPath } from '../files/files.ts';
 import { getStorage } from '../files/storage.ts';
@@ -220,7 +220,14 @@ export function buildModuleCtx(
       get: (key) => getStorage().getStream(moduleKey(key)),
       head: (key) => getStorage().head(moduleKey(key)),
       async delete(keys) {
-        for (const k of keys) await getStorage().delete(moduleKey(k));
+        const run = async () => {
+          for (const k of keys) await getStorage().delete(moduleKey(k));
+        };
+        // In an operation the objects go once its transaction commits: rolled back, the rows
+        // that name them stay, and so must they.
+        const afterCommit = (ctx as Partial<MutationContext>).afterCommit;
+        if (afterCommit) afterCommit(run);
+        else await run();
       },
     },
     jobs: {

@@ -1,9 +1,10 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, utimes } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
+import { buildModuleCtx } from '../modules/module-ctx.ts';
 import {
   canReadFile,
   checkFile,
@@ -12,12 +13,13 @@ import {
   isInlineSafe,
   listFiles,
   normalizeMimeType,
+  reconcileBlobObjects,
   sanitizeFilename,
   servesInline,
   sniffMimeType,
   storeFile,
 } from './files.ts';
-import { FsStorage, setStorage } from './storage.ts';
+import { FsStorage, getStorage, setStorage } from './storage.ts';
 
 const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
 
@@ -228,5 +230,43 @@ describe('file service', () => {
     expect(await garbageCollectBlobs(t.db, -1000)).toBeGreaterThanOrEqual(1);
     expect(await t.db.fileBlob.findUnique({ where: { id: f.blobId } })).toBeNull();
     expect(await t.db.fileBlob.count()).toBeGreaterThan(0);
+  });
+
+  it('removes stored content no row names, once it is old enough', async () => {
+    const kept = await storeFile(t.db, {
+      contextId: SYSTEM_CONTEXT_ID,
+      component: 'site',
+      area: 'gc',
+      name: 'kept.txt',
+      data: Buffer.from('kept content'),
+      mimeType: 'text/plain',
+    });
+    const blob = await t.db.fileBlob.findUniqueOrThrow({ where: { id: kept.blobId } });
+    // written by an upload whose transaction rolled back: the store has it, no row does
+    const orphan = 'blobs/ab/01a1404a-0000-7000-8000-0000000000ab';
+    const fresh = 'blobs/cd/01a1404a-0000-7000-8000-0000000000cd';
+    await getStorage().put(orphan, Buffer.from('lost'), 'text/plain');
+    await getStorage().put(fresh, Buffer.from('being written'), 'text/plain');
+    const old = new Date(Date.now() - 2 * 86_400_000);
+    for (const key of [orphan, blob.storageKey]) await utimes(path.join(dir, key), old, old);
+    expect(await reconcileBlobObjects(t.db)).toBe(1);
+    expect(await getStorage().head(orphan)).toBeNull();
+    expect(await getStorage().head(fresh)).not.toBeNull();
+    expect(await getStorage().head(blob.storageKey)).not.toBeNull();
+  });
+
+  it("a module's stored objects go when the operation commits, not before", async () => {
+    await getStorage().put('mod/test/x.txt', Buffer.from('x'), 'text/plain');
+    const after: (() => void | Promise<void>)[] = [];
+    const ctx = await ctxFor(t.db, 'admin@test.local');
+    const mctx = buildModuleCtx({
+      ...ctx,
+      afterCommit: (fn: () => void) => after.push(fn),
+    } as never);
+    await mctx.storage.delete(['mod/test/x.txt']);
+    // a rollback now would keep the rows naming it, and the object with them
+    expect(await getStorage().head('mod/test/x.txt')).not.toBeNull();
+    for (const fn of after) await fn();
+    expect(await getStorage().head('mod/test/x.txt')).toBeNull();
   });
 });

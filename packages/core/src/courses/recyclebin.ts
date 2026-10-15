@@ -57,16 +57,26 @@ export async function purgeRecycleBin(
   const days = await getSetting(db, 'recyclebin.days');
   if (!days) return { courses: 0, activities: 0 };
   const before = new Date(now.getTime() - days * 86_400_000);
-  const ctx = systemCtx(db, now);
+  // the modules' stored objects go once each deletion has committed
+  const after: (() => void | Promise<void>)[] = [];
+  const ctx = {
+    ...systemCtx(db, now),
+    afterCommit: (fn: () => void | Promise<void>) => after.push(fn),
+  };
+  const purge = async (fn: (tx: Tx) => Promise<void>) => {
+    after.length = 0;
+    await db.$transaction(fn);
+    for (const f of after.splice(0)) await f();
+  };
   const courses = await db.course.findMany({
     where: { deletedAt: { lt: before } },
     select: { id: true },
   });
-  for (const c of courses) await db.$transaction((tx) => purgeCourseRecord(ctx, tx, c.id));
+  for (const c of courses) await purge((tx) => purgeCourseRecord(ctx, tx, c.id));
   // activities binned in courses that stay
   const activities = await db.activity.findMany({
     where: { deletedAt: { lt: before }, course: { deletedAt: null } },
   });
-  for (const a of activities) await db.$transaction((tx) => purgeActivityRecord(ctx, tx, a));
+  for (const a of activities) await purge((tx) => purgeActivityRecord(ctx, tx, a));
   return { courses: courses.length, activities: activities.length };
 }

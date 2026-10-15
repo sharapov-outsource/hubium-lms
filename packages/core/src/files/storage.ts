@@ -1,5 +1,5 @@
-import { createReadStream, createWriteStream, existsSync } from 'node:fs';
-import { copyFile, mkdir, rm, stat } from 'node:fs/promises';
+import { createReadStream, createWriteStream, type Dirent, existsSync } from 'node:fs';
+import { copyFile, mkdir, readdir, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -10,6 +10,7 @@ import {
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -32,6 +33,9 @@ export interface StorageDriver {
   head(key: string): Promise<StoredObject | null>;
   delete(key: string): Promise<void>;
   copy(from: string, to: string): Promise<void>;
+  /** The objects under a prefix, with when each was last written: for reconciling the store
+   *  with the rows that name its objects. */
+  list(prefix: string): AsyncIterable<{ key: string; modifiedAt: Date }>;
   /**
    * Short-lived URL a browser can GET. FS driver returns a signed app route. `contentType`
    * is the type the answer carries (S3), whatever the object was stored with.
@@ -75,6 +79,24 @@ export class FsStorage implements StorageDriver {
   }
   async delete(key: string) {
     await rm(safeJoin(this.root, key), { force: true });
+  }
+  async *list(prefix: string): AsyncIterable<{ key: string; modifiedAt: Date }> {
+    const walk = async function* (dir: string): AsyncGenerator<{ key: string; modifiedAt: Date }> {
+      let entries: Dirent[];
+      try {
+        entries = await readdir(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const e of entries) {
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) yield* walk(p);
+        else if (e.isFile()) yield { key: p, modifiedAt: (await stat(p)).mtime };
+      }
+    };
+    const root = path.resolve(this.root);
+    for await (const o of walk(safeJoin(this.root, prefix)))
+      yield { key: path.relative(root, o.key).split(path.sep).join('/'), modifiedAt: o.modifiedAt };
   }
   async copy(from: string, to: string) {
     const dest = safeJoin(this.root, to);
@@ -171,6 +193,21 @@ export class S3Storage implements StorageDriver {
   }
   async delete(key: string) {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.cfg.bucket, Key: key }));
+  }
+  async *list(prefix: string): AsyncIterable<{ key: string; modifiedAt: Date }> {
+    let token: string | undefined;
+    do {
+      const r = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.cfg.bucket,
+          Prefix: prefix,
+          ContinuationToken: token,
+        }),
+      );
+      for (const o of r.Contents ?? [])
+        if (o.Key) yield { key: o.Key, modifiedAt: o.LastModified ?? new Date() };
+      token = r.IsTruncated ? r.NextContinuationToken : undefined;
+    } while (token);
   }
   async copy(from: string, to: string) {
     await this.client.send(
