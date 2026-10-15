@@ -2384,7 +2384,7 @@
     "importTitle": "Importa corso",
     "importHint": "Ripristinare un backup di corso (.hubium) o importare un corso Moodle (.mbz).",
     "file": "File di archivio",
-    "fileHint": ".hubium o .mbz (backup Moodle 3.x–4.x senza dati degli utenti)",
+    "fileHint": ".hubium o .mbz (backup Moodle 4.1–5.x senza dati degli utenti)",
     "notAllowed": "Non è possibile eseguire questo tipo di importazione nella categoria selezionata",
     "importSubmit": "Importa",
     "uploading": "Caricamento…",

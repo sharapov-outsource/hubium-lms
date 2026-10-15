@@ -2,7 +2,8 @@ import { createPrivateKey, X509Certificate } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { certificateBody, generateSpKeyPair, spMetadataXml } from './saml-keys.ts';
 
-describe('service provider keys', () => {
+// generating an RSA key takes seconds on a busy machine
+describe('service provider keys', { timeout: 30_000 }, () => {
   it('makes a self-signed certificate for its key', () => {
     const k = generateSpKeyPair('Hubium LMS test', 10, new Date('2026-10-16T00:00:00Z'));
     const cert = new X509Certificate(k.certificate);

@@ -2385,7 +2385,7 @@
     "importTitle": "Import course",
     "importHint": "Restore a course backup (.hubium) or import a Moodle course (.mbz).",
     "file": "Archive file",
-    "fileHint": ".hubium or .mbz (Moodle 3.x–4.x backup without user data)",
+    "fileHint": ".hubium or .mbz (Moodle 4.1–5.x backup without user data)",
     "notAllowed": "You cannot run this kind of import in the selected category",
     "importSubmit": "Import",
     "uploading": "Uploading…",
