@@ -6,6 +6,7 @@ import {
   COURSE_PROGRESS_JOB,
   deliverWebhook,
   expireEnrolments,
+  INDEX_ALL_JOB,
   INDEX_COURSE_JOB,
   INDEX_JOB,
   indexActivity,
@@ -14,6 +15,7 @@ import {
   PUSH_JOB,
   pruneWebhookDeliveries,
   QUIZGEN_JOB,
+  queueAllCourses,
   recomputeActivityForAll,
   recomputeCourseForAll,
   recordHeartbeat,
@@ -213,6 +215,13 @@ export const coreHandlers: JobHandlerDef[] = [
     batchSize: 10,
     async handler(data: { activityId: string }, { db }) {
       return indexActivity(db, data.activityId);
+    },
+  },
+  {
+    // Administration → AI → reindex: the courses are queued here, not in the request
+    name: INDEX_ALL_JOB,
+    async handler(_data: never, { db }) {
+      return { courses: await queueAllCourses(db) };
     },
   },
   {

@@ -4,21 +4,19 @@ import {
   acceptConsent,
   deleteAiProvider,
   getQuizGeneration,
-  INDEX_COURSE_JOB,
   rateTutorMessage,
+  reindexAllCourses,
   reviewGeneratedQuestions,
   saveAiFeature,
   saveAiProvider,
   saveEmbeddingConfig,
+  saveSiteSettings,
   setCourseAiFeature,
-  setSettings,
   startQuizGeneration,
 } from '@hubium/core';
-import { enqueue } from '@hubium/core/jobs/jobs';
 import { revalidatePath } from 'next/cache';
 import { formToObject, runAction } from '../action';
-import { db } from '../db';
-import { getContext, requireCapability } from '../session';
+import { getContext } from '../session';
 
 type Feature = 'QUIZGEN' | 'GRADING_ASSIST' | 'TUTOR';
 const on = (fd: FormData, k: string) => fd.get(k) === 'on';
@@ -26,12 +24,9 @@ const num = (v: string | undefined) => (v?.trim() ? Number(v) : null);
 
 export async function saveAiSiteAction(fd: FormData) {
   return runAction(async () => {
-    const { ctx } = await requireCapability('site:config');
-    await setSettings(
-      db,
-      { 'ai.enabled': on(fd, 'enabled'), 'ai.notice': String(fd.get('notice') ?? '') },
-      ctx.perm.userId,
-    );
+    await saveSiteSettings.run(await getContext(), {
+      values: { 'ai.enabled': on(fd, 'enabled'), 'ai.notice': String(fd.get('notice') ?? '') },
+    });
     revalidatePath('/admin/ai');
     return null;
   });
@@ -112,12 +107,7 @@ export async function saveEmbeddingsAction(fd: FormData) {
 }
 
 export async function reindexAllAction() {
-  return runAction(async () => {
-    await requireCapability('site:config');
-    const courses = await db.course.findMany({ where: { deletedAt: null }, select: { id: true } });
-    for (const c of courses) await enqueue(INDEX_COURSE_JOB, { courseId: c.id });
-    return { courses: courses.length };
-  });
+  return runAction(async () => reindexAllCourses.run(await getContext(), {}));
 }
 
 export async function setCourseAiFeatureAction(

@@ -1,10 +1,9 @@
 'use server';
 
-import { LDAP_SYNC_JOB, saveLdapServer, testLdapConnection } from '@hubium/core';
-import { enqueue } from '@hubium/core/jobs/jobs';
+import { saveLdapServer, startLdapSync, testLdapConnection } from '@hubium/core';
 import { revalidatePath } from 'next/cache';
 import { formToObject, runAction } from '../action';
-import { getContext, requireCapability } from '../session';
+import { getContext } from '../session';
 
 const MAP_PREFIX = 'map_field_';
 
@@ -59,9 +58,5 @@ export async function testLdapAction(login: string) {
 }
 
 export async function syncLdapAction() {
-  return runAction(async () => {
-    await requireCapability('site:config');
-    await enqueue(LDAP_SYNC_JOB, {});
-    return null;
-  });
+  return runAction(async () => startLdapSync.run(await getContext(), {}));
 }

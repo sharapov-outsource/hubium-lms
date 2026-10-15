@@ -3,6 +3,7 @@ import { chunkText, htmlToText } from '@hubium/ai';
 import { type Db, Prisma, uuidv7 } from '@hubium/db';
 import { Permissions } from '../access/permissions.ts';
 import type { RequestContext } from '../context.ts';
+import { enqueue } from '../jobs/jobs.ts';
 import { buildModuleCtx, toActivityRef } from '../modules/module-ctx.ts';
 import { getModule } from '../modules/registry.ts';
 import { embeddingProvider } from './config.ts';
@@ -13,6 +14,20 @@ import { embeddingProvider } from './config.ts';
 
 export const INDEX_JOB = 'ai.index.activity';
 export const INDEX_COURSE_JOB = 'ai.index.course';
+/** Queues every course's indexing, in the worker rather than in the request that asks. */
+export const INDEX_ALL_JOB = 'ai.index.all';
+
+/** Queues the indexing of every course that is not in the bin; returns how many. */
+export async function queueAllCourses(db: Db): Promise<number> {
+  const courses = await db.course.findMany({
+    where: { deletedAt: null },
+    select: { id: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  for (const c of courses)
+    await enqueue(INDEX_COURSE_JOB, { courseId: c.id }, { singletonKey: c.id });
+  return courses.length;
+}
 
 function systemCtx(db: Db): RequestContext {
   return {

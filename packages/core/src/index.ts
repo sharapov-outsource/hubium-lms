@@ -77,6 +77,7 @@ export * from './reports/sources.ts';
 export * from './settings/languages.ts';
 export * from './settings/modules.ts';
 export * from './settings/settings.ts';
+export * from './settings/site-admin.ts';
 export * from './system/health.ts';
 export * from './system/maintenance.ts';
 export * from './system/tasks.ts';

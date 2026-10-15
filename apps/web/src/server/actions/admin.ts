@@ -9,35 +9,30 @@ import {
   deleteRole,
   deleteUser,
   ForbiddenError,
-  getAllSettings,
   installLanguagePack,
   listProfileFields,
   localizedFromForm,
   logEvent,
   profileValuesFromForm,
   removeLanguagePack,
+  saveBranding,
   saveLanguageSettings,
   saveModuleSettings,
+  saveSiteSettings,
+  sendTestEmail,
   setMaintenance,
   setRoleCapability,
   setRoleOverride,
-  setSettings,
   setUserSuspended,
-  siteLocale,
   startBulkUserAction,
   unlockUser,
   updateRole,
   updateUser,
-  userLocale,
   ValidationError,
   validateProfileValues,
 } from '@hubium/core';
-import { BRANDING_CONTEXT, storeFile } from '@hubium/core/files/files';
-import { enqueue } from '@hubium/core/jobs/jobs';
 import { readSheet } from '@hubium/core/lib/sheets';
-import { renderActionEmail } from '@hubium/core/mail/mail';
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
-import { createTranslator } from '@hubium/i18n/packs';
 import { msg } from '@hubium/module-sdk';
 import { generateAccentPalette } from '@hubium/ui/palette';
 import { revalidatePath } from 'next/cache';
@@ -46,7 +41,7 @@ import { redirect } from 'next/navigation';
 import { formToObject, runAction } from '../action';
 import { auth } from '../auth';
 import { db } from '../db';
-import { getContext, requireUser } from '../session';
+import { getContext } from '../session';
 
 const bool = (v: FormDataEntryValue | null) => v === 'on' || v === 'true' || v === '1';
 
@@ -283,12 +278,6 @@ export async function setRoleCapabilityAction(
 
 // ── site settings ─────────────────────────────────────────────────────────────
 
-async function requireConfig() {
-  const ctx = await getContext();
-  await ctx.perm.require('site:config');
-  return ctx;
-}
-
 /** The settings forms' fields, by the setting each one holds: a refusal shows at its field. */
 const SETTING_FIELDS: Record<string, string> = {
   'site.name': 'siteName',
@@ -315,7 +304,7 @@ const SETTING_FIELDS: Record<string, string> = {
 export async function saveSettingsAction(fd: FormData) {
   return runAction(
     async () => {
-      const ctx = await requireConfig();
+      const ctx = await getContext();
       const section = String(fd.get('_section'));
       const v = formToObject(fd);
       const values: Record<string, unknown> = {};
@@ -366,6 +355,7 @@ export async function saveSettingsAction(fd: FormData) {
           break;
         case 'maintenance':
           // logged, and the same as `hubium maintenance on|off`
+          await ctx.perm.require('site:config');
           await setMaintenance(
             db,
             {
@@ -375,11 +365,12 @@ export async function saveSettingsAction(fd: FormData) {
             },
             ctx.perm.userId,
           );
-          break;
+          revalidatePath('/', 'layout');
+          return null;
         default:
           throw new ValidationError({ _section: [msg('errors.admin.unknownSettingsSection')] });
       }
-      await setSettings(db, values, ctx.perm.userId);
+      await saveSiteSettings.run(ctx, { values });
       revalidatePath('/', 'layout');
       return null;
     },
@@ -438,44 +429,20 @@ export async function saveModulesAction(fd: FormData) {
 export async function saveBrandingAction(fd: FormData) {
   return runAction(
     async () => {
-      const ctx = await requireConfig();
       const accent = String(fd.get('accent') ?? '');
-      const values: Record<string, unknown> = { 'branding.accent': accent };
       const logo = fd.get('logo');
-      let file: { id: string } | null = null;
-      if (logo instanceof File && logo.size > 0) {
-        file = await storeFile(db, {
-          contextId: BRANDING_CONTEXT,
-          component: 'site',
-          area: 'branding',
-          name: `logo-${Date.now()}-${logo.name}`,
-          mimeType: logo.type,
-          data: Buffer.from(await logo.arrayBuffer()),
-          uploadedById: ctx.perm.userId,
-          maxBytes: 1024 * 1024,
-          allowedTypes: /^image\/(png|jpeg|svg\+xml|webp)$/,
-        });
-        values['branding.logoFileId'] = file.id;
-      }
-      const remove = fd.get('removeLogo') === 'on';
-      if (remove) values['branding.logoFileId'] = null;
-      try {
-        await setSettings(db, values, ctx.perm.userId);
-      } catch (e) {
-        // settings refused: the logo uploaded with them is not kept either
-        if (file) await db.file.delete({ where: { id: file.id } });
-        throw e;
-      }
-      // the logo replaced or removed goes; its content with the next garbage collection
-      if (file || remove)
-        await db.file.deleteMany({
-          where: {
-            contextId: BRANDING_CONTEXT,
-            component: 'site',
-            area: 'branding',
-            ...(file ? { id: { not: file.id } } : {}),
-          },
-        });
+      await saveBranding.run(await getContext(), {
+        accent,
+        logo:
+          logo instanceof File && logo.size > 0
+            ? {
+                name: logo.name,
+                mimeType: logo.type,
+                data: new Uint8Array(await logo.arrayBuffer()),
+              }
+            : undefined,
+        removeLogo: fd.get('removeLogo') === 'on',
+      });
       revalidatePath('/', 'layout');
       const p = generateAccentPalette(accent);
       return {
@@ -490,25 +457,7 @@ export async function saveBrandingAction(fd: FormData) {
 
 export async function sendTestEmailAction() {
   return runAction(async () => {
-    await requireConfig();
-    const user = await requireUser();
-    const settings = await getAllSettings(db);
-    const locale = userLocale(settings, user.locale);
-    const t = createTranslator(locale, siteLocale(settings));
-    const { html, text } = renderActionEmail({
-      locale,
-      siteName: settings['site.name'],
-      heading: t('email.test.heading'),
-      intro: t('email.test.intro'),
-      footer: t('email.footer'),
-    });
-    await enqueue('email.send', {
-      to: user.email,
-      subject: t('email.test.subject', { site: settings['site.name'] }),
-      html,
-      text,
-      template: 'test',
-    });
+    await sendTestEmail.run(await getContext(), {});
     return null;
   });
 }
