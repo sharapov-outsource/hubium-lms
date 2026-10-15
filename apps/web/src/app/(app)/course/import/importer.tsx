@@ -5,7 +5,8 @@ import { Alert, Button, Card, CardContent, Field, Input, Progress, Select } from
 import { toast } from '@hubium/ui/theme';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { usePoll } from '@/lib/use-poll';
 import { importStatusAction, startImportAction } from '@/server/actions/interchange';
 
 type Status = Awaited<ReturnType<typeof importStatusAction>>;
@@ -29,23 +30,10 @@ export function CourseImporter({
   const allowed = kind === 'mbz' ? cat.mbz : cat.hubium;
   const busy = upload !== null || (taskId !== null && !task?.status.match(/SUCCEEDED|FAILED/));
 
-  useEffect(() => {
-    if (!taskId) return;
-    let stop = false;
-    const tick = async () => {
-      const r = await importStatusAction(taskId);
-      if (stop) return;
-      if (r.ok) {
-        setTask(r.data);
-        if (r.data.status === 'SUCCEEDED' || r.data.status === 'FAILED') return;
-      }
-      setTimeout(tick, 1500);
-    };
-    void tick();
-    return () => {
-      stop = true;
-    };
-  }, [taskId]);
+  usePoll(taskId, importStatusAction, {
+    onData: setTask,
+    done: (t) => t.status === 'SUCCEEDED' || t.status === 'FAILED',
+  });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();

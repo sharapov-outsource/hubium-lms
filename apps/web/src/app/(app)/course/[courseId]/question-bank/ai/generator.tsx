@@ -15,8 +15,9 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { ActionForm, SubmitButton } from '@/components/action-form';
+import { usePoll } from '@/lib/use-poll';
 import { quizGenStatusAction, reviewQuizGenAction, startQuizGenAction } from '@/server/actions/ai';
 
 type Status = Extract<Awaited<ReturnType<typeof quizGenStatusAction>>, { ok: true }>['data'];
@@ -56,23 +57,10 @@ export function QuizGenerator({
   const [rejected, setRejected] = useState<Set<string>>(new Set());
   const [pending, start] = useTransition();
 
-  useEffect(() => {
-    if (!id) return;
-    let stop = false;
-    const tick = async () => {
-      const r = await quizGenStatusAction(id);
-      if (stop) return;
-      if (r.ok) {
-        setStatus(r.data);
-        if (r.data.status === 'SUCCEEDED' || r.data.status === 'FAILED') return;
-      }
-      setTimeout(tick, 1500);
-    };
-    void tick();
-    return () => {
-      stop = true;
-    };
-  }, [id]);
+  usePoll(id, quizGenStatusAction, {
+    onData: setStatus,
+    done: (s) => s.status === 'SUCCEEDED' || s.status === 'FAILED',
+  });
 
   if (!id)
     return (

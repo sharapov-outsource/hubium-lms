@@ -272,7 +272,16 @@ function NewGroupDialog() {
   const [pending, start] = useTransition();
   useEffect(() => {
     if (dq.length < 2) return setFound([]);
-    void searchPeopleAction(dq).then(setFound);
+    // an answer to an earlier query that arrives late is not shown
+    let current = true;
+    void searchPeopleAction(dq)
+      .then((people) => {
+        if (current) setFound(people);
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
   }, [dq]);
   return (
     <Dialog open={open} onOpenChange={setOpen}>

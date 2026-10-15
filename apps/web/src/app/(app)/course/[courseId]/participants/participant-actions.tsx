@@ -47,11 +47,16 @@ export function EnrolDialog({
       setFound([]);
       return;
     }
+    // an answer to an earlier query that arrives late is not shown
+    let current = true;
     const h = setTimeout(async () => {
-      const r = await searchUsersToEnrolAction(courseId, q);
-      if (r.ok) setFound(r.data);
+      const r = await searchUsersToEnrolAction(courseId, q).catch(() => null);
+      if (current && r?.ok) setFound(r.data);
     }, 250);
-    return () => clearTimeout(h);
+    return () => {
+      current = false;
+      clearTimeout(h);
+    };
   }, [q, courseId]);
   return (
     <Dialog open={open} onOpenChange={setOpen}>

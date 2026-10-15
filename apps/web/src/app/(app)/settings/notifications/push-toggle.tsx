@@ -37,8 +37,12 @@ export function PushToggle({ publicKey }: { publicKey: string }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(sub.toJSON()),
-    });
-    if (!r.ok) throw new Error(t('pushFailed'));
+    }).catch(() => null);
+    // a subscription the site does not know would stay in the browser, receiving nothing
+    if (!r?.ok) {
+      await sub.unsubscribe().catch(() => {});
+      throw new Error(t('pushFailed'));
+    }
     setState('on');
     toast.success(t('pushOn'));
   }
