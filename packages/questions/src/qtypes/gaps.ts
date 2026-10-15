@@ -1,3 +1,4 @@
+import { problem } from '../problem.ts';
 import { shuffle, subSeed } from '../random.ts';
 import type { QuestionTypeDef, QuestionView } from '../registry.ts';
 import { combinedFeedback } from './combined.ts';
@@ -110,14 +111,16 @@ function makeGapType<T extends GapType>(type: T): QuestionTypeDef<T> {
     publicText: (_q, text) => placeGaps(text),
     checkText(text, data) {
       const numbers = gapNumbers(text);
-      if (!numbers.length) return 'The text needs at least one gap, such as [[1]]';
+      if (!numbers.length) return problem('errors.questions.needsGap', { example: '[[1]]' });
       const missing = numbers.filter((n) => n < 1 || n > data.choices.length);
       if (missing.length)
-        return `No choice for ${[...new Set(missing)].map((n) => `[[${n}]]`).join(', ')}`;
+        return problem('errors.questions.noChoiceFor', {
+          gaps: [...new Set(missing)].map((n) => `[[${n}]]`).join(', '),
+        });
       if (type === 'DDWTOS') {
         const list = data.choices as Choice[];
         const twice = numbers.filter((n, i) => numbers.indexOf(n) !== i && !list[n - 1]?.infinite);
-        if (twice.length) return `Choice ${twice[0]} fills several gaps: make it unlimited`;
+        if (twice.length) return problem('errors.questions.choiceTwice', { n: twice[0]! });
       }
       return null;
     },

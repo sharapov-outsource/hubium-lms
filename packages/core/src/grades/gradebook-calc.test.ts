@@ -112,7 +112,7 @@ describe('gradebook calculations', () => {
     );
     await fails(
       setGradeCalculation.run(teacher, { id: hw1.id, calculation: '=[[hw2]] +' }),
-      /ends too early \(at 11\)/,
+      /Mistake in the formula \(character 11\)/,
     );
     // nor move the calculated item into the category its formula uses
     await fails(updateGradeItem.run(teacher, { id: final.id, categoryId: catId }), /own grade/);

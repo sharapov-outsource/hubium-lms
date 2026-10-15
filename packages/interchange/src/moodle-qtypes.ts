@@ -92,6 +92,3 @@ export function datasetFromOptions(name: string, options: string, items: number[
     items: items.slice(0, 100),
   };
 }
-
-/** A note for questions whose units Hubium does not keep. */
-export const UNITS_LEFT_OUT = 'units are not supported: the question was imported without them';

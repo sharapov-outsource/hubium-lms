@@ -6,12 +6,14 @@ import {
   calculationOrder,
   calculationRefs,
   createCourse,
+  describeError,
   disabledTypesIn,
   disabledTypesWarning,
   ensureCourseGradebook,
   foreignCourseValues,
   getModule,
   importActivity,
+  issueMsg,
   listCourseFields,
   type RequestContext,
   toActivityRef,
@@ -21,7 +23,7 @@ import { fileUrl, storeFile } from '@hubium/core/files/files';
 import type { Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { createTranslator } from '@hubium/i18n/packs';
-import { msg } from '@hubium/module-sdk';
+import { type Msg, msg, renderMsg } from '@hubium/module-sdk';
 import { Guide, Rubric } from '@hubium/module-sdk/grading';
 import { invalidIpListEntries } from '@hubium/module-sdk/net';
 import {
@@ -62,7 +64,6 @@ import {
   orderingSelect,
   orderingShowGrading,
   toleranceType,
-  UNITS_LEFT_OUT,
 } from './moodle-qtypes.ts';
 
 // Moodle course backup (.mbz) import for Moodle 4.1–5.x: course, sections, the common
@@ -253,7 +254,7 @@ const DURING = 0x10000;
  * The quiz's question behaviour. Certainty-based marking is not supported (its plain
  * behaviour is used) and adaptive mode becomes interactive: both are reported.
  */
-export function quizBehaviour(data: Node, warn: (why: string) => void) {
+export function quizBehaviour(data: Node, warn: (why: Msg) => void) {
   const b = txt(data.preferredbehaviour);
   const behaviour =
     b === 'immediatefeedback' || b === 'immediatecbm'
@@ -261,9 +262,8 @@ export function quizBehaviour(data: Node, warn: (why: string) => void) {
       : b === 'interactive' || b === 'adaptive' || b === 'adaptivenopenalty'
         ? 'interactive'
         : 'deferred';
-  if (b.endsWith('cbm')) warn('certainty-based marking is not supported: plain marking is used');
-  if (b.startsWith('adaptive'))
-    warn('adaptive mode is imported as interactive with multiple tries');
+  if (b.endsWith('cbm')) warn(msg('errors.import.cbm'));
+  if (b.startsWith('adaptive')) warn(msg('errors.import.adaptive'));
   const during = (field: unknown, d: boolean) =>
     txt(field) === '' ? d : (num(field) & DURING) !== 0;
   return {
@@ -298,11 +298,15 @@ const AGGREGATIONS: Record<
  * Moodle's aggregation of a grade category as Hubium's. Those Hubium lacks (mode, simple
  * weighted mean, mean with extra credit) come as the nearest, and are reported.
  */
-export function gradeAggregation(code: string, warn: (why: string) => void) {
+export function gradeAggregation(code: string, warn: (why: Msg) => void) {
   const a = AGGREGATIONS[code];
   if (a) return a;
   const near = code === '11' ? ('WEIGHTED_MEAN' as const) : ('MEAN' as const);
-  warn(`grade category aggregation ${code} is not available: ${near} is used`);
+  warn(
+    msg(near === 'MEAN' ? 'errors.import.aggregationMean' : 'errors.import.aggregationWeighted', {
+      code,
+    }),
+  );
   return near;
 }
 
@@ -1053,8 +1057,12 @@ export async function importMbz(
   archive: Archive,
   target: NewCourseTarget,
 ): Promise<MbzReport> {
+  // what was left out or changed, in the language of whoever imports
   const warnings: string[] = [];
   const t = createTranslator(ctx.locale);
+  const say = (key: string, values?: Record<string, string | number>) =>
+    t(`errors.import.${key}`, values);
+  const aboutQuestion = (name: string, problem: string) => say('question', { name, problem });
   const info = ((xml(archive, 'moodle_backup.xml')?.moodle_backup as Node | undefined)
     ?.information ?? {}) as Node;
   const contents = (info.contents ?? {}) as Node;
@@ -1213,7 +1221,7 @@ export async function importMbz(
         await storeArea(courseCtx, 'course', 'section', s.moodleId),
         missing,
       );
-      if (missing.n) warnings.push(`Section "${title}": ${missing.n} picture(s) not in the backup`);
+      if (missing.n) warnings.push(say('sectionPictures', { title, n: missing.n }));
       return summary;
     };
     const sectionMap = new Map<string, string>();
@@ -1295,12 +1303,18 @@ export async function importMbz(
               : mapMoodleQuestion(q);
             const name = txt(q.name) || t('qbank.untitledQuestion');
             if (!mapped) {
-              warnings.push(`Question "${name}": type ${txt(q.qtype)} is not supported`);
+              warnings.push(aboutQuestion(name, say('typeNotSupported', { type: txt(q.qtype) })));
               continue;
             }
             const parsed = questionDataSchemas[mapped.type].safeParse(mapped.data);
             if (!parsed.success) {
-              warnings.push(`Question "${name}": ${parsed.error.issues[0]?.message ?? 'invalid'}`);
+              const issue = parsed.error.issues[0];
+              warnings.push(
+                aboutQuestion(
+                  name,
+                  issue ? renderMsg(issueMsg(issue), ctx.locale) : say('invalid'),
+                ),
+              );
               continue;
             }
             const sharedHere = (mapped.shared ?? []).map((s) => s.set);
@@ -1316,7 +1330,7 @@ export async function importMbz(
                   )
                 : null);
             if (textError) {
-              warnings.push(`Question "${name}": ${textError}`);
+              warnings.push(aboutQuestion(name, t(textError.key, textError.values)));
               continue;
             }
             // pictures in the question, its feedback and its answers: files of the question
@@ -1346,7 +1360,7 @@ export async function importMbz(
                 update: {},
               });
             }
-            if (mapped.unitsLeftOut) warnings.push(`Question "${name}": ${UNITS_LEFT_OUT}`);
+            if (mapped.unitsLeftOut) warnings.push(aboutQuestion(name, say('unitsLeftOut')));
             const created2 = await db.question.create({
               data: {
                 categoryId: fallbackCategory,
@@ -1364,7 +1378,7 @@ export async function importMbz(
             });
             questionCount++;
             if (missing.n)
-              warnings.push(`Question "${name}": ${missing.n} picture(s) not in the backup`);
+              warnings.push(aboutQuestion(name, say('picturesMissing', { n: missing.n })));
             if (g.entryId) entryToQuestion.set(g.entryId, created2.id);
             entryToQuestion.set(`q:${String(q['@_id'])}`, created2.id);
           }
@@ -1421,7 +1435,7 @@ export async function importMbz(
         });
     }
     const groupCount = groupMap.size;
-    if (groupCount) warnings.push(`${groupCount} groups were created without their members`);
+    if (groupCount) warnings.push(say('groupsWithoutMembers', { n: groupCount }));
 
     // activities in section order; a subsection's activities right after it
     const actInfo = new Map(activitiesInfo.map((a) => [txt(a.moduleid), a]));
@@ -1487,16 +1501,14 @@ export async function importMbz(
       try {
         introFiles = await storeArea(contextid, `mod_${modname}`, 'intro');
       } catch (e) {
-        warnings.push(
-          `"${name}": pictures of its description were left out (${e instanceof Error ? e.message : String(e)})`,
-        );
+        warnings.push(say('introPictures', { name, error: describeError(e, ctx.locale) }));
       }
       const intro = rewrite(txt(data.intro), introFiles);
       const groupMode = ({ '1': 'SEPARATE', '2': 'VISIBLE' } as const)[txt(module.groupmode)];
       // an ID number already in the gradebook stays with the first (and is reported)
       let idNumber: string | null = txt(module.idnumber).trim().slice(0, 100) || null;
       if (idNumber && (await idNumberTaken(idNumber))) {
-        warnings.push(`"${name}": the ID number ${idNumber} is used already and was left out`);
+        warnings.push(say('idNumberTaken', { name, idNumber }));
         idNumber = null;
       }
       const base = {
@@ -1517,7 +1529,7 @@ export async function importMbz(
         return r;
       };
       const placeholder = async (why: string) => {
-        warnings.push(`"${name}" (${modname}): ${why}`);
+        warnings.push(say('replaced', { name, type: modname, problem: why }));
         await create({
           ...base,
           idNumber: undefined,
@@ -1547,7 +1559,7 @@ export async function importMbz(
           case 'url': {
             const url = txt(data.externalurl);
             if (!/^https?:\/\//i.test(url)) {
-              await placeholder('link is not http(s)');
+              await placeholder(say('linkNotHttp'));
               continue;
             }
             await create({
@@ -1593,7 +1605,7 @@ export async function importMbz(
               gradingMethod: form?.method ?? 'simple',
             };
             if (num(data.grade, 100) < 0 && !settings.scaleId)
-              warnings.push(`"${name}": its scale was not in the backup: graded by points`);
+              warnings.push(say('scaleMissing', { name }));
             // teams are the groups of the assignment's team grouping
             const teams = groupingMap.get(txt(data.teamsubmissiongroupingid));
             const { id } = await create({
@@ -1614,7 +1626,9 @@ export async function importMbz(
                   },
                 });
               else
-                warnings.push(`"${name}": its ${form.method} could not be read and was left out`);
+                warnings.push(
+                  say(form.method === 'rubric' ? 'rubricUnread' : 'guideUnread', { name }),
+                );
             }
             if (settings.blindMarking && txt(data.revealidentities) === '1')
               await db.assignState.create({
@@ -1648,7 +1662,7 @@ export async function importMbz(
             // address entries Hubium cannot read are left out (and reported)
             const badNets = invalidIpListEntries(txt(data.subnet));
             if (badNets.length)
-              warnings.push(`"${name}": network addresses skipped: ${badNets.join(', ')}`);
+              warnings.push(say('networksSkipped', { name, entries: badNets.join(', ') }));
             const subnet = txt(data.subnet)
               .split(/[\s,;]+/)
               .filter((e) => e && !badNets.includes(e))
@@ -1670,7 +1684,9 @@ export async function importMbz(
                 delay1Min: Math.ceil(num(data.delay1) / 60),
                 delay2Min: Math.ceil(num(data.delay2) / 60),
                 navMethod: txt(data.navmethod) === 'seq' ? 'sequential' : 'free',
-                ...quizBehaviour(data, (why) => warnings.push(`"${name}": ${why}`)),
+                ...quizBehaviour(data, (why) =>
+                  warnings.push(say('activity', { name, problem: why.in(ctx.locale) })),
+                ),
               },
             });
             const instances = arr(
@@ -1698,9 +1714,7 @@ export async function importMbz(
                 } catch {}
               }
               if (!qid && !categoryId) {
-                warnings.push(
-                  `"${name}": slot ${txt(qi.slot)} refers to a question that was not imported`,
-                );
+                warnings.push(say('slotMissing', { name, slot: txt(qi.slot) }));
                 continue;
               }
               await db.quizSlot.create({
@@ -1720,9 +1734,7 @@ export async function importMbz(
           case 'forum': {
             const type = txt(data.type);
             if (type === 'news') {
-              warnings.push(
-                `"${name}": the announcements forum maps to the course stream and was skipped`,
-              );
+              warnings.push(say('newsForum', { name }));
               continue;
             }
             const grading = mbzForumGrading(data, scaleOf);
@@ -1730,7 +1742,7 @@ export async function importMbz(
               (num(data.scale) < 0 && !grading.ratingScaleId) ||
               (num(data.grade_forum) < 0 && !grading.gradeScaleId)
             )
-              warnings.push(`"${name}": its scale was not in the backup: graded by points`);
+              warnings.push(say('scaleMissing', { name }));
             await create({
               ...base,
               moduleKey: 'forum',
@@ -1747,7 +1759,7 @@ export async function importMbz(
             );
             const b = pkg && blob(pkg);
             if (!b || !getModule('scorm')) {
-              await placeholder('SCORM package file is missing');
+              await placeholder(say('scormMissing'));
               continue;
             }
             const { id } = await create({
@@ -1784,15 +1796,15 @@ export async function importMbz(
             );
             const b = pkg && blob(pkg);
             if (!b || !getModule('h5p')) {
-              await placeholder('H5P package file is missing');
+              await placeholder(say('h5pMissing'));
               continue;
             }
             const h = mbzH5pSettings(data);
             const left: string[] = [];
-            if (h.attempts) left.push(`attempts, which are users' data (${h.attempts})`);
-            if (h.manual) left.push('manual grading (the best attempt is graded)');
-            if (h.onScale) left.push('the scale (graded by points)');
-            if (left.length) warnings.push(`"${name}": left out ${left.join('; ')}`);
+            if (h.attempts) left.push(say('attemptsData', { n: h.attempts }));
+            if (h.manual) left.push(say('manualGrading'));
+            if (h.onScale) left.push(say('theScale'));
+            if (left.length) warnings.push(say('leftOut', { name, items: left.join('; ') }));
             const { id } = await create({ ...base, moduleKey: 'h5p', settings: h.settings });
             await storeFile(db, {
               contextId: id,
@@ -1815,7 +1827,7 @@ export async function importMbz(
           }
           case 'bigbluebuttonbn': {
             if (!getModule('livesession')) {
-              await placeholder('live sessions are not installed');
+              await placeholder(say('noLiveSessions'));
               continue;
             }
             const start = date(data.openingtime) ?? new Date(Date.now() + 86_400_000).toISOString();
@@ -1837,7 +1849,7 @@ export async function importMbz(
             break;
           }
           case 'lti':
-            await placeholder('external tools must be registered and mapped by an administrator');
+            await placeholder(say('externalTools'));
             continue;
           case 'book': {
             const numbering =
@@ -1871,7 +1883,7 @@ export async function importMbz(
               .map((o) => ({ text: txt(o.text).trim().slice(0, 255), limit: num(o.maxanswers) }))
               .filter((o) => o.text);
             if (!options.length) {
-              await placeholder('the choice has no options');
+              await placeholder(say('choiceNoOptions'));
               continue;
             }
             const date = (v: unknown) =>
@@ -1986,9 +1998,7 @@ export async function importMbz(
               });
             }
             if (skipped.size)
-              warnings.push(
-                `"${name}": questions of type ${[...skipped].join(', ')} were left out`,
-              );
+              warnings.push(say('questionTypesLeftOut', { name, types: [...skipped].join(', ') }));
             break;
           }
           case 'lesson': {
@@ -1998,14 +2008,13 @@ export async function importMbz(
               rewrite(html, await storeArea(contextid, 'mod_lesson', 'page_contents', pageId)),
             );
             const left: string[] = [];
-            if (num(data.grade) < 0) left.push('its scale (graded by points)');
-            if (txt(data.usepassword) === '1')
-              left.push('the password (Moodle keeps only its hash)');
-            if (num(data.nextpagedefault) !== 0) left.push('the action after a correct answer');
-            if (txt(data.slideshow) === '1') left.push('the slide show');
-            if (num(data.dependency) > 0) left.push('the dependency on another lesson');
-            if (skipped.length) left.push(`pages of type ${skipped.join(', ')}`);
-            if (left.length) warnings.push(`"${name}": left out ${left.join('; ')}`);
+            if (num(data.grade) < 0) left.push(say('itsScale'));
+            if (txt(data.usepassword) === '1') left.push(say('password'));
+            if (num(data.nextpagedefault) !== 0) left.push(say('nextPage'));
+            if (txt(data.slideshow) === '1') left.push(say('slideShow'));
+            if (num(data.dependency) > 0) left.push(say('dependency'));
+            if (skipped.length) left.push(say('pageTypes', { types: skipped.join(', ') }));
+            if (left.length) warnings.push(say('leftOut', { name, items: left.join('; ') }));
             const { id } = await create({ ...base, moduleKey: 'lesson', settings });
             const act = await db.activity.findUniqueOrThrow({ where: { id } });
             await getModule('lesson')?.backup?.import?.(
@@ -2022,8 +2031,7 @@ export async function importMbz(
               (n, sw) => n + arr(((sw.pages ?? {}) as Node).page as Node | Node[]).length,
               0,
             );
-            if (pages)
-              warnings.push(`"${name}": pages are users' data and were left out (${pages})`);
+            if (pages) warnings.push(say('wikiPages', { name, n: pages }));
             await create({
               ...base,
               moduleKey: 'wiki',
@@ -2080,11 +2088,11 @@ export async function importMbz(
             const grading = mbzForumGrading(data, scaleOf);
             const entries = arr(((data.records ?? {}) as Node).record as Node | Node[]).length;
             const left: string[] = [];
-            if (entries) left.push(`entries, which are users' data (${entries})`);
-            if (skippedTypes.size) left.push(`fields of type ${[...skippedTypes].join(', ')}`);
-            if (num(data.scale) < 0 && !grading.ratingScaleId)
-              left.push('its scale (graded by points)');
-            if (left.length) warnings.push(`"${name}": left out ${left.join('; ')}`);
+            if (entries) left.push(say('entriesData', { n: entries }));
+            if (skippedTypes.size)
+              left.push(say('fieldTypes', { types: [...skippedTypes].join(', ') }));
+            if (num(data.scale) < 0 && !grading.ratingScaleId) left.push(say('itsScale'));
+            if (left.length) warnings.push(say('leftOut', { name, items: left.join('; ') }));
             const { id } = await create({
               ...base,
               moduleKey: 'data',
@@ -2118,12 +2126,11 @@ export async function importMbz(
             // the settings and the assessment form; work and assessments are users' data
             const w = mbzWorkshop(data);
             const left: string[] = [];
-            if (w.submissions) left.push(`submissions, which are users' data (${w.submissions})`);
-            if (w.examples) left.push('example submissions');
-            if (w.unknownStrategy)
-              left.push(`the grading strategy ${txt(data.strategy)} (accumulative is used)`);
-            if (w.onScale) left.push('scales of criteria (graded by points)');
-            if (left.length) warnings.push(`"${name}": left out ${left.join('; ')}`);
+            if (w.submissions) left.push(say('submissionsData', { n: w.submissions }));
+            if (w.examples) left.push(say('examples'));
+            if (w.unknownStrategy) left.push(say('strategy', { strategy: txt(data.strategy) }));
+            if (w.onScale) left.push(say('criteriaScales'));
+            if (left.length) warnings.push(say('leftOut', { name, items: left.join('; ') }));
             const { id } = await create({ ...base, moduleKey: 'workshop', settings: w.settings });
             const act = await db.activity.findUniqueOrThrow({ where: { id } });
             await getModule('workshop')?.backup?.import?.(
@@ -2138,10 +2145,9 @@ export async function importMbz(
             // the settings; entries are users' work and stay out like forum posts
             const grading = mbzForumGrading(data, scaleOf);
             if (num(data.scale) < 0 && !grading.ratingScaleId)
-              warnings.push(`"${name}": its scale was not in the backup: graded by points`);
+              warnings.push(say('scaleMissing', { name }));
             const entries = arr(((data.entries ?? {}) as Node).entry as Node | Node[]).length;
-            if (entries)
-              warnings.push(`"${name}": entries are users' data and were left out (${entries})`);
+            if (entries) warnings.push(say('glossaryEntries', { name, n: entries }));
             await create({
               ...base,
               moduleKey: 'glossary',
@@ -2161,18 +2167,18 @@ export async function importMbz(
             break;
           }
           default:
-            await placeholder('this activity type is not supported');
+            await placeholder(say('activityTypeNotSupported'));
             continue;
         }
         activityCount++;
       } catch (e) {
         warnings.push(
-          `"${name}" (${modname}) was skipped: ${e instanceof Error ? e.message : String(e)}`,
+          say('activitySkipped', { name, type: modname, error: describeError(e, ctx.locale) }),
         );
       }
     }
     await importGradebook();
-    warnings.push(...(await importCompetencies()));
+    warnings.push(...(await importCompetencies()).map((m) => m.in(ctx.locale)));
 
     return {
       courseId,
@@ -2182,7 +2188,10 @@ export async function importMbz(
       activities: activityCount,
       questions: questionCount,
       files: fileCount,
-      warnings: [...warnings, ...disabledTypesWarning(await disabledTypesIn(db, courseId))],
+      warnings: [
+        ...warnings,
+        ...disabledTypesWarning(await disabledTypesIn(db, courseId)).map((m) => m.in(ctx.locale)),
+      ],
     };
 
     /**
@@ -2234,7 +2243,7 @@ export async function importMbz(
     async function importGradebook() {
       const gb = xml(archive, 'gradebook.xml')?.gradebook as Node | undefined;
       if (!gb) return;
-      const warnGb = (why: string) => warnings.push(`Gradebook: ${why}`);
+      const warnGb = (why: string) => warnings.push(say('gradebook', { problem: why }));
       const { root: gradeRoot } = await ensureCourseGradebook(db, courseId);
       const catMap = new Map<string, string>();
       const catAggregation = new Map<string, string>();
@@ -2243,7 +2252,9 @@ export async function importMbz(
       );
       for (const c of cats) {
         const id = String(c['@_id']);
-        const aggregation = gradeAggregation(txt(c.aggregation), warnGb);
+        const aggregation = gradeAggregation(txt(c.aggregation), (why) =>
+          warnGb(why.in(ctx.locale)),
+        );
         const common = {
           aggregation,
           dropLowest: Math.min(100, num(c.droplow)),
@@ -2277,7 +2288,7 @@ export async function importMbz(
         const idNumber = txt(v).trim().slice(0, 100);
         if (!idNumber) return null;
         if (await idNumberTaken(idNumber)) {
-          warnGb(`${what}: the ID number ${idNumber} is used already and was left out`);
+          warnGb(say('idNumberTakenGb', { name: what, idNumber }));
           return null;
         }
         return idNumber;
@@ -2292,7 +2303,7 @@ export async function importMbz(
         const type = txt(it.itemtype);
         const name = (txt(it.itemname) || '—').slice(0, 255);
         if (type === 'course' || type === 'category') {
-          if (txt(it.calculation)) warnGb('calculated category totals are not supported');
+          if (txt(it.calculation)) warnGb(say('calculatedTotals'));
           if (type === 'course') continue;
           const categoryId = catMap.get(txt(it.iteminstance));
           if (!categoryId) continue;
@@ -2311,12 +2322,11 @@ export async function importMbz(
         if (type !== 'manual') continue;
         const gradeType = txt(it.gradetype);
         if (gradeType !== '1' && gradeType !== '2') {
-          warnGb(`"${name}": only items graded by points or a scale are imported`);
+          warnGb(say('onlyPointsOrScale', { name }));
           continue;
         }
         const scaleId = gradeType === '2' ? scaleMap.get(txt(it.scaleid)) : undefined;
-        if (gradeType === '2' && !scaleId)
-          warnGb(`"${name}": its scale was not in the backup: graded by points`);
+        if (gradeType === '2' && !scaleId) warnGb(say('scaleMissing', { name }));
         const scale = scaleId ? await db.scale.findUniqueOrThrow({ where: { id: scaleId } }) : null;
         const categoryId = catMap.get(txt(it.categoryid)) ?? gradeRoot.id;
         const created = await db.gradeItem.create({
@@ -2377,7 +2387,7 @@ export async function importMbz(
             data: { calculation: stored.startsWith('=') ? stored : `=${stored}` },
           });
         } catch {
-          warnGb(`"${f.name}": its formula could not be read and was left out`);
+          warnGb(say('formulaUnread', { name: f.name }));
         }
       }
       const [categories, items] = await Promise.all([
@@ -2387,7 +2397,7 @@ export async function importMbz(
       try {
         calculationOrder(items, categories);
       } catch {
-        warnGb('formulas that use their own grade were left out');
+        warnGb(say('selfFormulas'));
         await db.gradeItem.updateMany({
           where: { courseId, calculation: { not: null } },
           data: { calculation: null },

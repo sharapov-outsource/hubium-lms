@@ -1,11 +1,12 @@
 import type { Db, Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
-import { msg } from '@hubium/module-sdk';
+import { msg, renderMsg } from '@hubium/module-sdk';
 import {
   checkQuestionText,
   checkVariants,
   Dataset,
   Hint,
+  type Problem,
   parseGift,
   type QuestionType,
   questionDataFrom,
@@ -19,6 +20,9 @@ import { issueMsg } from '../issue-messages.ts';
 import { optionalText } from '../lib/zod.ts';
 import { defineOperation } from '../operation.ts';
 import { isCalculated, saveSharedDatasets, sharedDatasets } from './datasets.ts';
+
+/** A question's problem (see @hubium/questions) as a message for people. */
+export const problemMsg = (p: Problem) => msg(p.key, p.values);
 
 type Tx = Prisma.TransactionClient | Db;
 
@@ -168,10 +172,10 @@ export const saveQuestion = defineOperation({
     const derived = questionDataFrom(input.type, text, input.data);
     const fromText = derived !== input.data;
     const early = fromText ? checkQuestionText(input.type, text, derived) : null;
-    if (early) throw new ValidationError({ text: [early] });
+    if (early) throw new ValidationError({ text: [problemMsg(early)] });
     const data = validateData(input.type, derived) as Prisma.InputJsonValue;
     const textError = fromText ? null : checkQuestionText(input.type, text, data);
-    if (textError) throw new ValidationError({ text: [textError] });
+    if (textError) throw new ValidationError({ text: [problemMsg(textError)] });
     if (isCalculated(input.type)) {
       // the shared datasets it names change with it; every variant must give numbers
       const names = new Set((data as { shared?: string[] }).shared ?? []);
@@ -191,7 +195,7 @@ export const saveQuestion = defineOperation({
           await categoryCourse(ctx.tx, input.categoryId),
         ),
       );
-      if (problem) throw new ValidationError({ data: [problem] });
+      if (problem) throw new ValidationError({ data: [problemMsg(problem)] });
     }
     const values = {
       categoryId: input.categoryId,
@@ -301,7 +305,10 @@ export const importGift = defineOperation({
     const target = categoryId ?? root.id;
     const byName = new Map<string, string>();
     let created = 0;
-    const errors = [...parsed.errors.map((e) => ({ block: e.block, message: e.message }))];
+    const errors = parsed.errors.map((e) => ({
+      block: e.block,
+      message: problemMsg(e.problem).in(ctx.locale),
+    }));
     for (const q of parsed.questions) {
       let cat = target;
       if (q.category && !categoryId) {
@@ -324,9 +331,13 @@ export const importGift = defineOperation({
       }
       const data = questionDataSchemas[q.type].safeParse(q.data);
       if (!data.success) {
+        const issue = data.error.issues[0];
         errors.push({
           block: 0,
-          message: `${q.name}: ${data.error.issues[0]?.message ?? 'invalid'}`,
+          message: msg('errors.questions.named', {
+            name: q.name,
+            problem: issue ? renderMsg(issueMsg(issue), ctx.locale) : '',
+          }).in(ctx.locale),
         });
         continue;
       }

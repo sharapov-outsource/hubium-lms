@@ -1,4 +1,5 @@
 import { evaluate, FormulaError, parseFormula, phpRound, refs } from '@hubium/formula';
+import { type Problem, problem } from '../problem.ts';
 import { rng, shuffle, subSeed } from '../random.ts';
 import type { GradeResult, QuestionTypeDef, QuestionView } from '../registry.ts';
 import type { Dataset } from '../types.ts';
@@ -70,12 +71,13 @@ export function variantVars(names: string[], datasets: Dataset[], variant: numbe
 }
 
 /** What is wrong with a formula as written, or null. */
-export function formulaError(f: string): string | null {
+export function formulaError(f: string): Problem | null {
   try {
     parseFormula(f, { dialect: 'question' });
     return null;
   } catch (e) {
-    return e instanceof Error ? e.message : String(e);
+    if (!(e instanceof FormulaError)) throw e;
+    return problem(`grades.calc.errors.${e.code}`, { pos: e.pos + 1 });
   }
 }
 
@@ -208,7 +210,7 @@ export function checkCalculated(
   text: string,
   type: CalcType,
   data: { answers: { formula?: string; text?: string }[]; datasets: Dataset[]; shared?: string[] },
-): string | null {
+): Problem | null {
   for (const [i, a] of data.answers.entries()) {
     const formulas =
       a.formula !== undefined
@@ -218,13 +220,17 @@ export function checkCalculated(
       try {
         parseFormula(f, { dialect: 'question' });
       } catch (e) {
-        return `Answer ${i + 1}: ${e instanceof Error ? e.message : String(e)}`;
+        if (!(e instanceof FormulaError)) throw e;
+        return problem('errors.questions.answerFormula', { n: i + 1, pos: e.pos + 1 });
       }
   }
   const names = namesOf({ type, data: data as never, text });
   const shared = new Set(data.shared ?? []);
   const missing = names.filter((n) => !shared.has(n) && !data.datasets.some((d) => d.name === n));
-  if (missing.length) return `No dataset for ${missing.map((n) => `{${n}}`).join(', ')}`;
+  if (missing.length)
+    return problem('errors.questions.noDataset', {
+      names: missing.map((n) => `{${n}}`).join(', '),
+    });
   return null;
 }
 
@@ -377,16 +383,18 @@ export function checkVariants(
   text: string,
   data: CalcData,
   shared: Dataset[],
-): string | null {
+): Problem | null {
   const names = calculatedVariables({ type: type as CalcType, data: data as never, text });
   const missing = (data.shared ?? []).filter(
     (n) => names.includes(n) && !shared.some((s) => s.name === n),
   );
   if (missing.length)
-    return `No dataset ${missing.map((n) => `{${n}}`).join(', ')} is shared in the category`;
+    return problem('errors.questions.notShared', {
+      names: missing.map((n) => `{${n}}`).join(', '),
+    });
   const sets = datasetsFor(data, shared);
   const n = variantCount(names, sets);
-  if (n < 1) return 'Every variable needs dataset items: generate them';
+  if (n < 1) return problem('errors.questions.noDatasetItems');
   const formulas = answerFormulas(data.answers);
   for (let v = 0; v < n; v++) {
     const vars = variantVars(names, sets, v);
@@ -394,10 +402,14 @@ export function checkVariants(
       for (const f of fs)
         try {
           calculate(f, vars);
-        } catch (e) {
-          return `Answer ${i + 1} is not a number for item ${v + 1} (${Object.entries(vars)
-            .map(([k, x]) => `${k} = ${x}`)
-            .join(', ')}): ${e instanceof Error ? e.message : String(e)}`;
+        } catch {
+          return problem('errors.questions.answerNotNumber', {
+            n: i + 1,
+            item: v + 1,
+            values: Object.entries(vars)
+              .map(([k, x]) => `${k} = ${x}`)
+              .join(', '),
+          });
         }
   }
   return null;

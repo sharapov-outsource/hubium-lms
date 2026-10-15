@@ -1,4 +1,5 @@
 import { evaluate, FormulaError, parseFormula, refs, rewriteRefs } from '@hubium/formula';
+import { type Msg, msg } from '@hubium/module-sdk';
 
 // Calculated grade items, as Moodle's: a formula over other items and categories. Teachers
 // write references as [[idnumber]]; they are stored as ##gi<id>## / ##gc<id>## so renaming
@@ -31,9 +32,16 @@ export class CalculationError extends Error {
       | 'cycle',
     message: string,
     readonly pos = 0,
+    /** The ID number a formula names that nothing has (unknownIdNumber). */
+    readonly idNumber?: string,
   ) {
     super(message);
     this.name = 'CalculationError';
+  }
+
+  /** The error for people: its kind's message in the language packs (grades.calc.errors). */
+  get msg(): Msg {
+    return msg(`grades.calc.errors.${this.code}`, { pos: this.pos + 1, name: this.idNumber ?? '' });
   }
 }
 
@@ -65,6 +73,8 @@ export function storeCalculation(src: string, items: CalcItem[], categories: Cal
       throw new CalculationError(
         'unknownIdNumber',
         `No item or category has the ID number "${r.name}"`,
+        0,
+        r.name,
       );
     return to;
   });

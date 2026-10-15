@@ -53,6 +53,7 @@ export * from './grades/scales.ts';
 export * from './groups/groups.ts';
 export * from './groups/import.ts';
 export * from './groups/visibility.ts';
+export * from './issue-messages.ts';
 export * from './lib/localized.ts';
 export * from './lib/rank.ts';
 export * from './lib/zod.ts';

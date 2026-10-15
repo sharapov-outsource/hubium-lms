@@ -64,6 +64,7 @@ export function CalculatedFields(props: FieldsProps & { kind: Kind }) {
   const { data, setData, kind } = props;
   const t = useTranslations('qbank.calc');
   const tq = useTranslations('qbank');
+  const tr = useTranslations();
   const { list, setItem, removeItem } = listHelpers(props);
   const answers = list<Answer>('answers');
   const multi = kind === 'CALCULATEDMULTI';
@@ -130,8 +131,10 @@ export function CalculatedFields(props: FieldsProps & { kind: Kind }) {
         {answers.map((a, i) => {
           const errors = (formulas[i] ?? [])
             .filter((f) => f.trim())
-            .map(formulaError)
-            .filter(Boolean);
+            .flatMap((f) => {
+              const p = formulaError(f);
+              return p ? [tr(p.key as never, p.values as never)] : [];
+            });
           return (
             <li
               // biome-ignore lint/suspicious/noArrayIndexKey: answers have no ids of their own
@@ -143,7 +146,7 @@ export function CalculatedFields(props: FieldsProps & { kind: Kind }) {
                   label={multi ? t('answerText', { n: i + 1 }) : t('formula', { n: i + 1 })}
                   htmlFor={`c-f-${i}`}
                   className="min-w-56 flex-1"
-                  error={errors.length ? errors.map(String) : undefined}
+                  error={errors.length ? errors : undefined}
                 >
                   <Input
                     id={`c-f-${i}`}

@@ -1,8 +1,8 @@
-import { type RequestContext, ValidationError } from '@hubium/core';
+import { isAppError, issueMsg, type RequestContext, ValidationError } from '@hubium/core';
 import type { Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { createTranslator } from '@hubium/i18n/packs';
-import { msg } from '@hubium/module-sdk';
+import { type Msg, msg, renderMsg } from '@hubium/module-sdk';
 import {
   checkQuestionText,
   checkVariants,
@@ -26,7 +26,6 @@ import {
   orderingShowGrading,
   toleranceType,
   toleranceTypeNumber,
-  UNITS_LEFT_OUT,
 } from './moodle-qtypes.ts';
 
 // Moodle XML question format: import (11 question types, category paths, base64 images,
@@ -51,13 +50,22 @@ export interface ParsedQuestion {
   tags: string[];
 }
 
+/** A question and what is wrong with it: a message, for importMoodleXml to put in a language. */
+export interface QuestionNote {
+  name: string;
+  message: Msg | string;
+}
+
 export interface ParseResult {
   questions: ParsedQuestion[];
   /** Questions left out, and why. */
-  errors: { name: string; message: string }[];
+  errors: QuestionNote[];
   /** Questions imported with something left out. */
-  warnings: { name: string; message: string }[];
+  warnings: QuestionNote[];
 }
+
+const problemMsg = (p: { key: string; values?: Record<string, string | number> }) =>
+  msg(p.key, p.values);
 
 const arr = <T>(v: T | T[] | undefined): T[] =>
   v === undefined || v === null ? [] : Array.isArray(v) ? v : [v];
@@ -406,20 +414,27 @@ export function parseMoodleXml(xml: string, untitled = 'Question'): ParseResult 
     try {
       const mapped = mapQuestion(q, path, untitled);
       if (!mapped) {
-        out.errors.push({ name, message: `Unsupported question type: ${q['@_type']}` });
+        out.errors.push({
+          name,
+          message: msg('errors.import.unsupportedQuestionType', { type: String(q['@_type']) }),
+        });
         continue;
       }
       if (mapped.type === 'MULTIANSWER') {
         const clozeError = checkQuestionText(mapped.type, mapped.text, mapped.data);
         if (clozeError) {
-          out.errors.push({ name, message: clozeError });
+          out.errors.push({ name, message: problemMsg(clozeError) });
           continue;
         }
       }
       const schema = questionDataSchemas[mapped.type];
       const parsed = schema.safeParse(mapped.data);
       if (!parsed.success) {
-        out.errors.push({ name, message: parsed.error.issues[0]?.message ?? 'Invalid question' });
+        const issue = parsed.error.issues[0];
+        out.errors.push({
+          name,
+          message: issue ? issueMsg(issue) : msg('errors.import.invalidQuestion'),
+        });
         continue;
       }
       // gaps in the text must match the choices (a Cloze text, its answers)
@@ -434,14 +449,17 @@ export function parseMoodleXml(xml: string, untitled = 'Question'): ParseResult 
             )
           : null);
       if (textError) {
-        out.errors.push({ name, message: textError });
+        out.errors.push({ name, message: problemMsg(textError) });
         continue;
       }
       if (q.units && String(q['@_type']).startsWith('calculated'))
-        out.warnings.push({ name, message: UNITS_LEFT_OUT });
+        out.warnings.push({ name, message: msg('errors.import.unitsLeftOut') });
       out.questions.push({ ...mapped, data: parsed.data });
     } catch (e) {
-      out.errors.push({ name, message: e instanceof Error ? e.message : String(e) });
+      out.errors.push({
+        name,
+        message: isAppError(e) && e.msg ? e.msg : e instanceof Error ? e.message : String(e),
+      });
     }
   }
   return out;
@@ -510,7 +528,14 @@ export async function importMoodleXml(ctx: RequestContext, courseId: string, xml
       });
     }
   });
-  return { created: parsed.questions.length, errors: parsed.errors, warnings: parsed.warnings };
+  // what was left out, in the language of whoever imports
+  const said = (notes: QuestionNote[]) =>
+    notes.map((n) => ({ name: n.name, message: renderMsg(n.message, ctx.locale) }));
+  return {
+    created: parsed.questions.length,
+    errors: said(parsed.errors),
+    warnings: said(parsed.warnings),
+  };
 }
 
 // ── export ───────────────────────────────────────────────────────────────────

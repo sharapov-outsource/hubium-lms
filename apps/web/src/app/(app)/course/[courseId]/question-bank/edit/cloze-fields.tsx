@@ -30,9 +30,9 @@ export function ClozeFields({ text = '' }: FieldsProps) {
               key={i}
               className={cn(
                 'rounded-md border p-2 text-sm',
-                b.error ? 'border-destructive/50 text-destructive' : 'border-border',
+                b.code ? 'border-destructive/50 text-destructive' : 'border-border',
               )}
-              role={b.error ? 'alert' : undefined}
+              role={b.code ? 'alert' : undefined}
             >
               <span className="font-medium">{t('gap', { n: i + 1 })}</span>
               {b.part ? (

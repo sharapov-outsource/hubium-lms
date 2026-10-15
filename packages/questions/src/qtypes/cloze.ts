@@ -1,3 +1,4 @@
+import { problem } from '../problem.ts';
 import { shuffle, subSeed } from '../random.ts';
 import type { GradeResult, QuestionTypeDef, QuestionView } from '../registry.ts';
 import type { ClozePart } from '../types.ts';
@@ -97,12 +98,6 @@ const NUMBER =
 const num = (s: string) => Number(s.replace(',', '.'));
 
 export type ClozeError = 'noAnswers' | 'noRight' | 'noNumber';
-const MESSAGES: Record<ClozeError, string> = {
-  noAnswers: 'no answers',
-  noRight: 'no right answer',
-  noNumber: 'no right number',
-};
-
 export interface ClozeBlock {
   /** Where the gap is in the text. */
   start: number;
@@ -110,7 +105,6 @@ export interface ClozeBlock {
   part: ClozePart | null;
   /** What is wrong with the gap, for the editor to say in its language. */
   code: ClozeError | null;
-  error: string | null;
 }
 
 function readPart(weightText: string, code: string, body: string): ClozePart | ClozeError {
@@ -227,7 +221,6 @@ export function scanCloze(text: string): ClozeBlock[] {
       end: end + 1,
       part: bad ? null : read,
       code: bad ? read : null,
-      error: bad ? `Gap ${out.length + 1}: ${MESSAGES[read]}` : null,
     });
     start.lastIndex = end + 1;
   }
@@ -409,10 +402,11 @@ export const multianswer: QuestionTypeDef<'MULTIANSWER'> = {
   publicText: (_q, text) => replaceGaps(text, (k) => `[[${k + 1}]]`),
   checkText(text, data) {
     const blocks = scanCloze(text);
-    if (!blocks.length) return 'The text needs at least one gap, such as {1:SHORTANSWER:=answer}';
-    const bad = blocks.find((b) => b.error);
-    if (bad) return bad.error;
-    if (blocks.length !== data.parts.length) return 'The gaps of the text do not match its answers';
+    if (!blocks.length)
+      return problem('errors.questions.needsGap', { example: '{1:SHORTANSWER:=answer}' });
+    const bad = blocks.findIndex((b) => b.code);
+    if (bad >= 0) return problem(`errors.questions.gap.${blocks[bad]!.code}`, { n: bad + 1 });
+    if (blocks.length !== data.parts.length) return problem('errors.questions.gapsMismatch');
     return null;
   },
   deriveData: (text) => ({

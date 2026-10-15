@@ -193,15 +193,18 @@ describe('gaps (select missing words, drag and drop into text)', () => {
 
   it('checks the text against the choices', () => {
     const text = (t: string) => gapselect.checkText!(t, { choices: CHOICES } as never);
-    expect(text('no gaps')).toMatch(/at least one gap/);
-    expect(text('a [[7]] b')).toMatch(/\[\[7\]\]/);
+    expect(text('no gaps')?.key).toBe('errors.questions.needsGap');
+    expect(text('a [[7]] b')).toEqual({
+      key: 'errors.questions.noChoiceFor',
+      values: { gaps: '[[7]]' },
+    });
     expect(text(TEXT)).toBeNull();
     // a drag item in two gaps must be unlimited
     const drag = (infinite: boolean) =>
       ddwtos.checkText!('a [[1]] b [[1]]', {
         choices: CHOICES.map((c) => ({ ...c, infinite })),
       } as never);
-    expect(drag(false)).toMatch(/unlimited/);
+    expect(drag(false)?.key).toBe('errors.questions.choiceTwice');
     expect(drag(true)).toBeNull();
   });
 

@@ -1,3 +1,4 @@
+import { type Problem, ProblemError, problem } from './problem.ts';
 import { typeDef } from './qtypes/index.ts';
 import type { QuestionData, QuestionType } from './types.ts';
 
@@ -15,7 +16,7 @@ export interface ParsedQuestion {
 
 export interface GiftResult {
   questions: ParsedQuestion[];
-  errors: { block: number; message: string }[];
+  errors: { block: number; problem: Problem }[];
 }
 
 const ESC: Record<string, string> = {
@@ -75,7 +76,8 @@ function parseBlock(raw: string, category: string | undefined): ParsedQuestion {
     };
   }
   const close = s.lastIndexOf('}');
-  if (close < open) throw new Error('Unclosed "{"');
+  if (close < open)
+    throw new ProblemError(problem('errors.questions.giftUnclosed', { brace: '{' }));
   const textBefore = s.slice(0, open);
   const textAfter = s.slice(close + 1);
   const text = restore(`${textBefore}${textAfter ? ` _____ ${textAfter}` : ''}`);
@@ -130,14 +132,16 @@ function parseBlock(raw: string, category: string | undefined): ParsedQuestion {
         tolerance = t ? Number(t) : 0;
       }
       if (Number.isNaN(value) || Number.isNaN(tolerance))
-        throw new Error(`Bad numeric answer "${restore(valuePart)}"`);
+        throw new ProblemError(
+          problem('errors.questions.giftNumber', { value: restore(valuePart) }),
+        );
       return { value, tolerance, fraction: w ?? 1, feedback: restore(fb) };
     });
     return { ...base, type: 'NUMERICAL', data: { answers } };
   }
 
   const answers = splitAnswers(body);
-  if (!answers.length) throw new Error('No answers found');
+  if (!answers.length) throw new ProblemError(problem('errors.questions.giftNoAnswers'));
 
   if (answers.every((a) => a.mark === '=') && answers.some((a) => a.text.includes('->'))) {
     const pairs = answers.map((a, i) => {
@@ -211,7 +215,9 @@ export function parseGift(source: string): GiftResult {
     try {
       result.questions.push(parseBlock(text, category));
     } catch (e) {
-      result.errors.push({ block: i + 1, message: e instanceof Error ? e.message : String(e) });
+      // a block that breaks the parser in a way it does not name is reported, not fatal
+      const p = e instanceof ProblemError ? e.problem : problem('errors.questions.giftUnreadable');
+      result.errors.push({ block: i + 1, problem: p });
     }
   });
   return result;

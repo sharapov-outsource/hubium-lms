@@ -86,8 +86,14 @@ describe('Cloze (embedded answers)', () => {
       shuffle: true,
       answers: [{ fraction: 0.5 }, { fraction: 0.5 }, { fraction: -0.5 }],
     });
-    expect(scanCloze('{1:SA:wrong only}')[0]!.error).toBe('Gap 1: no right answer');
-    expect(checkQuestionText('MULTIANSWER', 'no gaps', { parts: [] })).toMatch(/at least one gap/);
+    expect(scanCloze('{1:SA:wrong only}')[0]!.code).toBe('noRight');
+    expect(checkQuestionText('MULTIANSWER', 'x {1:SA:wrong only}', { parts: [] })).toEqual({
+      key: 'errors.questions.gap.noRight',
+      values: { n: 1 },
+    });
+    expect(checkQuestionText('MULTIANSWER', 'no gaps', { parts: [] })?.key).toBe(
+      'errors.questions.needsGap',
+    );
   });
 
   it('writes gaps back as Cloze', () => {

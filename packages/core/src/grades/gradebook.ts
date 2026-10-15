@@ -822,12 +822,7 @@ export const setGradeCalculation = defineOperation({
       try {
         stored = storeCalculation(calculation, items, categories);
       } catch (e) {
-        if (e instanceof CalculationError)
-          throw new ValidationError({
-            calculation: [
-              msg('errors.grades.formulaError', { message: e.message, position: e.pos + 1 }),
-            ],
-          });
+        if (e instanceof CalculationError) throw new ValidationError({ calculation: [e.msg] });
         throw e;
       }
       requireOrder(

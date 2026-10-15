@@ -1,6 +1,5 @@
 import type { Db } from '@hubium/db';
-import type { ActivityModule } from '@hubium/module-sdk';
-import { msg } from '@hubium/module-sdk';
+import { type ActivityModule, type Msg, msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, ValidationError } from '../errors.ts';
@@ -111,11 +110,7 @@ export async function disabledTypesIn(db: Db, courseId: string): Promise<string[
   return rows.map((r) => r.moduleKey).filter((k) => !isModuleEnabled(s, k));
 }
 
-export function disabledTypesWarning(keys: string[]): string[] {
-  return keys.length
-    ? [
-        `Activities of types turned off on this site (${keys.join(', ')}) were kept; ` +
-          'learners will see them once the types are turned on in Administration → Modules',
-      ]
-    : [];
+/** What an import says about the activities it kept whose types are turned off. */
+export function disabledTypesWarning(keys: string[]): Msg[] {
+  return keys.length ? [msg('errors.import.disabledTypes', { types: keys.join(', ') })] : [];
 }

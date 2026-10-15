@@ -1,3 +1,4 @@
+import type { Problem } from './problem.ts';
 import { typeDef } from './qtypes/index.ts';
 import { subSeed } from './random.ts';
 import type { GradeResult, QuestionView } from './registry.ts';
@@ -66,7 +67,7 @@ export function questionDataFrom(type: QuestionType, text: string, data: unknown
 }
 
 /** What is wrong with a question's text for its type, or null. */
-export function checkQuestionText(type: QuestionType, text: string, data: unknown): string | null {
+export function checkQuestionText(type: QuestionType, text: string, data: unknown): Problem | null {
   return typeDef(type).checkText?.(text, data as never) ?? null;
 }
 

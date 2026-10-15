@@ -2,6 +2,7 @@ export * from './behaviours.ts';
 export * from './draft.ts';
 export * from './gift.ts';
 export * from './grade.ts';
+export * from './problem.ts';
 export {
   answerFormulas,
   calculate,

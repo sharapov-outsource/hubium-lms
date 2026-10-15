@@ -148,16 +148,17 @@ describe('calculated questions', () => {
   });
 
   it('checks formulas and datasets', () => {
-    expect(checkCalculated('{a} {c}', 'CALCULATED', { ...data, shared: [] })).toBe(
-      'No dataset for {c}',
-    );
+    expect(checkCalculated('{a} {c}', 'CALCULATED', { ...data, shared: [] })).toEqual({
+      key: 'errors.questions.noDataset',
+      values: { names: '{c}' },
+    });
     expect(checkCalculated('{a} {c}', 'CALCULATED', { ...data, shared: ['c'] })).toBeNull();
     expect(
       checkCalculated('', 'CALCULATED', {
         answers: [{ formula: '{a} +' }],
         datasets: data.datasets,
       }),
-    ).toMatch(/^Answer 1: /);
+    ).toEqual({ key: 'errors.questions.answerFormula', values: { n: 1, pos: 6 } });
   });
 
   it('multichoice: choices worked out with the values', () => {

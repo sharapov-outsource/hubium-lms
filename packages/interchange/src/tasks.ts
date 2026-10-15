@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  AppError,
+  describeError,
   ForbiddenError,
   getAllSettings,
   loadUserAccess,
@@ -15,7 +15,7 @@ import { fileUrl, storeFileFromPath } from '@hubium/core/files/files';
 import { consumeUpload } from '@hubium/core/files/uploads';
 import { enqueue } from '@hubium/core/jobs/jobs';
 import type { BackgroundTask, Db, Prisma } from '@hubium/db';
-import { ModuleError, msg } from '@hubium/module-sdk';
+import { msg } from '@hubium/module-sdk';
 import { discardCourse, restoreCourse, writeCourseArchive } from './hubium.ts';
 import { importMbz, readMbz } from './mbz.ts';
 
@@ -92,16 +92,7 @@ function systemCtx(db: Db): RequestContext {
   };
 }
 
-/** What went wrong: an error for people in their language, else the error's own text. */
-const errorMessage = (e: unknown, locale: string) => {
-  let message: string;
-  if (e instanceof AppError) {
-    const r = e.in(locale);
-    message = r.fieldErrors ? Object.values(r.fieldErrors).flat().join('; ') : r.message;
-  } else if (e instanceof ModuleError && e.msg) message = e.msg.in(locale);
-  else message = e instanceof Error ? e.message : String(e);
-  return message.slice(0, 2000);
-};
+const errorMessage = (e: unknown, locale: string) => describeError(e, locale).slice(0, 2000);
 
 /** Ends a task its worker left halfway: the course an import was making is deleted. */
 async function abandonTask(db: Db, task: BackgroundTask) {

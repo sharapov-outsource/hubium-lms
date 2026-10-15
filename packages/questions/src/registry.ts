@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { Problem } from './problem.ts';
 import type { QuestionData, QuestionSnapshot, QuestionType, ResponseSchemas } from './types.ts';
 
 // One definition per question type: grading, presentation, review text, the public view an
@@ -112,7 +113,7 @@ export interface QuestionTypeDef<T extends QuestionType> {
   /** Texts around the question (general feedback, hints) with the attempt's values in. */
   fillText?(q: QuestionView<T>, html: string): string;
   /** What is wrong with the question text for this type's data, or null. */
-  checkText?(text: string, data: QuestionData<T>): string | null;
+  checkText?(text: string, data: QuestionData<T>): Problem | null;
   /** Per-part scores shown in review (an ordering's items), when the question shows them. */
   reviewParts?(
     q: QuestionView<T>,

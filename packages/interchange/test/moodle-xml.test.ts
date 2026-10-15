@@ -126,12 +126,17 @@ describe('Moodle XML', () => {
   it('parses the supported types', () => {
     const r = parseMoodleXml(SAMPLE);
     expect(r.questions.map((q) => q.type)).toEqual(TYPES);
-    expect(r.errors).toEqual([
+    // messages, read in English as text
+    const said = (notes: typeof r.errors) =>
+      notes.map((n) => ({ ...n, message: String(n.message) }));
+    expect(said(r.errors)).toEqual([
       { name: 'Битый', message: 'No choice for [[3]]' },
       { name: 'Формула', message: 'No dataset for {x}' },
     ]);
     // units are left out, and said so
-    expect(r.warnings).toEqual([{ name: 'Площадь', message: expect.stringContaining('units') }]);
+    expect(said(r.warnings)).toEqual([
+      { name: 'Площадь', message: expect.stringContaining('units') },
+    ]);
     expect(r.questions[11]!).toMatchObject({
       sharedDatasets: [{ name: 'h', distribution: 'loguniform', items: [4, 40] }],
       data: {

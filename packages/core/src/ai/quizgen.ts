@@ -6,7 +6,7 @@ import { msg } from '@hubium/module-sdk';
 import { draftToQuestion, draftTypes, QuestionDraftList } from '@hubium/questions';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
-import { AppError, NotFoundError, ValidationError } from '../errors.ts';
+import { describeError, NotFoundError, ValidationError } from '../errors.ts';
 import { enqueue } from '../jobs/jobs.ts';
 import { localeCode } from '../lib/zod.ts';
 import { ensureDefaultQuestionCategory, saveQuestion } from '../questions/bank.ts';
@@ -105,13 +105,6 @@ async function sourcesFor(db: Db, activityIds: string[]) {
 const sourceBlock = (s: { index: number; title: string; text: string }) =>
   `<source index="${s.index}" title="${s.title.replace(/"/g, "'")}">\n${s.text}\n</source>`;
 
-/** Why a step failed: an error for people in their language, else the error's own text. */
-function reason(e: unknown, locale: string): string {
-  if (!(e instanceof AppError)) return e instanceof Error ? e.message : String(e);
-  const r = e.in(locale);
-  return r.fieldErrors ? Object.values(r.fieldErrors).flat().join('; ') : r.message;
-}
-
 /** Worker job body. Never throws: failures are stored on the generation. */
 export async function runQuizGeneration(db: Db, generationId: string) {
   const gen = await db.aiGeneration.findUnique({ where: { id: generationId } });
@@ -202,7 +195,7 @@ export async function runQuizGeneration(db: Db, generationId: string) {
         await db.question.update({ where: { id: saved.id }, data: { source: 'AI' } });
         questionIds.push(saved.id);
       } catch (e) {
-        errors.push(`${d.name}: ${reason(e, locale)}`);
+        errors.push(`${d.name}: ${describeError(e, locale)}`);
       }
     }
     await db.aiGeneration.update({
@@ -211,7 +204,7 @@ export async function runQuizGeneration(db: Db, generationId: string) {
     });
     return { questionIds, errors };
   } catch (e) {
-    const message = reason(e, locale);
+    const message = describeError(e, locale);
     await db.aiGeneration.update({
       where: { id: gen.id },
       data: { status: 'FAILED', error: message.slice(0, 2000) },

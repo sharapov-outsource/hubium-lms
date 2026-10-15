@@ -12,6 +12,7 @@ import {
   checkCriteria,
   compareRank,
   createCourse,
+  describeError,
   disabledTypesIn,
   disabledTypesWarning,
   ensureCourseGradebook,
@@ -34,7 +35,7 @@ import { getStorage } from '@hubium/core/files/storage';
 import { type Db, type Prisma, uuidv7 } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { isLocale } from '@hubium/i18n';
-import { msg, parseSettings } from '@hubium/module-sdk';
+import { type Msg, type MsgInput, msg, parseSettings } from '@hubium/module-sdk';
 import {
   Dataset,
   datasetFromRow,
@@ -889,7 +890,10 @@ async function restoreInto(
   courseId: string,
   scope: RestoreScope,
 ): Promise<RestoreReport> {
+  // what was left out or changed, in the language of whoever restores
   const warnings: string[] = [];
+  const say = (key: string, values?: MsgInput) =>
+    msg(`errors.import.${key}`, values).in(ctx.locale);
   const map = new Map<string, string>();
   const src = b.course.course;
   const db = ctx.db;
@@ -1081,7 +1085,7 @@ async function restoreInto(
         ? questionDataSchemas[q.type as QuestionType].safeParse(q.data)
         : null;
       if (!categoryId || !data?.success) {
-        warnings.push(`Question "${q.name}" could not be restored`);
+        warnings.push(say('questionNotRestored', { name: q.name }));
         continue;
       }
       const id = uuidv7();
@@ -1116,9 +1120,7 @@ async function restoreInto(
       const known = getModule(a.moduleKey);
       const sectionId = map.get(a.sectionId) ?? newSections[0]!.id;
       if (!known) {
-        warnings.push(
-          `Unknown activity type "${a.moduleKey}" (${a.name}) was replaced with a label`,
-        );
+        warnings.push(say('unknownType', { type: a.moduleKey, name: a.name }));
         const { id } = await importActivity.run(ctx, {
           courseId,
           sectionId,
@@ -1165,7 +1167,7 @@ async function restoreInto(
         }
       } catch (e) {
         warnings.push(
-          `"${a.name}" could not be restored: ${e instanceof Error ? e.message : String(e)}`,
+          say('activityNotRestored', { name: a.name, error: describeError(e, ctx.locale) }),
         );
       }
     }
@@ -1173,7 +1175,9 @@ async function restoreInto(
     // competencies, where the site has them
     if (b.course.competencies)
       warnings.push(
-        ...(await restoreCompetencies(db, b.course.competencies, courseId, map, scope.fresh)),
+        ...(await restoreCompetencies(db, b.course.competencies, courseId, map, scope.fresh)).map(
+          (m) => m.in(ctx.locale),
+        ),
       );
 
     // course badges, as drafts to look over: their rules keep what they still point to
@@ -1199,7 +1203,7 @@ async function restoreInto(
           false,
         );
       } catch {
-        warnings.push(`The criteria of the badge "${x.name}" could not be restored`);
+        warnings.push(say('badgeCriteria', { name: x.name }));
       }
       await db.badge.create({
         data: {
@@ -1478,7 +1482,10 @@ async function restoreInto(
       activityIds: created.map((c) => c.id),
       questions: withBank ? b.course.questions.length : 0,
       files: fileCount,
-      warnings: [...warnings, ...disabledTypesWarning(await disabledTypesIn(db, courseId))],
+      warnings: [
+        ...warnings,
+        ...disabledTypesWarning(await disabledTypesIn(db, courseId)).map((m) => m.in(ctx.locale)),
+      ],
     };
   } catch (e) {
     // a fresh course is discarded by the caller; an import takes back what it added
@@ -1614,7 +1621,7 @@ export async function restoreCompetencies(
   courseId: string,
   map: Map<string, string>,
   fresh: boolean,
-): Promise<string[]> {
+): Promise<Msg[]> {
   const cache = new Map<string, string | null>();
   const find = async (framework: string, idNumber: string) => {
     const key = `${framework}\u0000${idNumber}`;
@@ -1672,6 +1679,6 @@ export async function restoreCompetencies(
     });
   }
   return missing.size
-    ? [`Competencies this site does not have were left out: ${[...missing].join(', ')}`]
+    ? [msg('errors.import.competenciesMissing', { list: [...missing].join(', ') })]
     : [];
 }

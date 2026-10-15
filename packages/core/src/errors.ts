@@ -1,4 +1,4 @@
-import { isMsg, type Msg, msg, renderMsg } from '@hubium/module-sdk';
+import { errorText, isMsg, type Msg, msg, renderMsg } from '@hubium/module-sdk';
 
 /**
  * What an error says to people: a message (a key in the language packs, put in their
@@ -125,4 +125,17 @@ export class UnavailableError extends AppError {
 
 export function isAppError(e: unknown): e is AppError {
   return e instanceof AppError;
+}
+
+/**
+ * What an error says in a language, for a report people read later (an import, a task that
+ * failed): an error for people translated, with its fields' errors when it has them; any
+ * other error's own text, which tells an administrator what broke.
+ */
+export function describeError(e: unknown, locale: string): string {
+  if (e instanceof AppError) {
+    const r = e.in(locale);
+    return r.fieldErrors ? Object.values(r.fieldErrors).flat().join('; ') : r.message;
+  }
+  return errorText(e, locale);
 }
