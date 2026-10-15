@@ -5,6 +5,7 @@ import { checkCourseBadges } from '../badges/badges.ts';
 import { checkCourseCertificates } from '../certificates/certificates.ts';
 import { onActivityCompleted, onCourseCompleted } from '../competencies/ratings.ts';
 import type { RequestContext } from '../context.ts';
+import { getActivityAccess } from '../courses/activities.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { buildModuleCtx, provideModuleServices, toActivityRef } from '../modules/module-ctx.ts';
@@ -195,6 +196,33 @@ provideModuleServices({
 export const toggleManualCompletion = defineOperation({
   name: 'completion.manual',
   input: z.object({ activityId: z.string().uuid(), done: z.boolean() }),
+  // a mark on an activity the learner cannot open would unlock what depends on it and count
+  // towards the course
+  async authorize(ctx, { activityId }) {
+    const userId = ctx.perm.userId;
+    if (!userId) throw new ForbiddenError();
+    const a = await ctx.db.activity.findUnique({
+      where: { id: activityId },
+      select: { courseId: true, deletedAt: true },
+    });
+    if (!a || a.deletedAt) throw new NotFoundError('Activity');
+    const enrolled = await ctx.db.enrolment.findFirst({
+      where: {
+        courseId: a.courseId,
+        userId,
+        status: 'ACTIVE',
+        method: { enabled: true },
+        AND: [
+          { OR: [{ startsAt: null }, { startsAt: { lte: ctx.now } }] },
+          { OR: [{ endsAt: null }, { endsAt: { gt: ctx.now } }] },
+        ],
+      },
+      select: { id: true },
+    });
+    if (!enrolled) throw new ForbiddenError('Only enrolled users track completion');
+    if (!(await getActivityAccess(ctx, activityId)).canOpen)
+      throw new ForbiddenError('You cannot open this activity');
+  },
   async handler(ctx, { activityId, done }) {
     const userId = ctx.perm.userId;
     if (!userId) throw new ForbiddenError();
@@ -202,10 +230,6 @@ export const toggleManualCompletion = defineOperation({
     if (!a || a.deletedAt) throw new NotFoundError('Activity');
     if (a.completionMode !== 'MANUAL')
       throw new ValidationError({ activityId: ['This activity is completed automatically'] });
-    const enrolled = await ctx.tx.enrolment.findFirst({
-      where: { courseId: a.courseId, userId, status: 'ACTIVE' },
-    });
-    if (!enrolled) throw new ForbiddenError('Only enrolled users track completion');
     await writeState(ctx.tx, activityId, userId, done ? 'COMPLETE' : 'INCOMPLETE');
     const percent = await recomputeCourseProgress(ctx.tx, a.courseId, userId);
     await logEvent(ctx.tx, {
