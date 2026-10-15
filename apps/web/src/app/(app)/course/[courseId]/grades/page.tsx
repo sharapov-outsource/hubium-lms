@@ -510,8 +510,9 @@ export default async function GradesPage({
                   <Td className="tabular-nums font-medium">
                     {shown(r.finalGrade, r.item)}
                     {r.overridden ? (
-                      <Badge variant="warning" className="ml-1 px-1 py-0">
-                        ✎
+                      <Badge variant="warning" className="ml-1 px-1 py-0" title={t('overridden')}>
+                        <span aria-hidden>✎</span>
+                        <span className="sr-only">{t('overridden')}</span>
                       </Badge>
                     ) : null}
                   </Td>
@@ -623,7 +624,13 @@ export default async function GradesPage({
                         <span className="font-normal text-muted-foreground">
                           {t(`kind.${col.item.kind}`)} ·{' '}
                           {col.item.scale ? col.item.scale.name : n(col.item.gradeMax)}
-                          {hiddenFromLearner(col.item) ? ' · 👁‍🗨' : ''}
+                          {hiddenFromLearner(col.item) ? (
+                            <span title={t('hidden')}>
+                              {' · '}
+                              <span aria-hidden>👁‍🗨</span>
+                              <span className="sr-only">{t('hidden')}</span>
+                            </span>
+                          ) : null}
                         </span>
                       </th>
                     ),
@@ -701,8 +708,13 @@ export default async function GradesPage({
                               />
                             )}
                             {g?.overridden ? (
-                              <Badge variant="warning" className="ml-1 px-1 py-0">
-                                ✎
+                              <Badge
+                                variant="warning"
+                                className="ml-1 px-1 py-0"
+                                title={t('overridden')}
+                              >
+                                <span aria-hidden>✎</span>
+                                <span className="sr-only">{t('overridden')}</span>
                               </Badge>
                             ) : null}
                           </td>

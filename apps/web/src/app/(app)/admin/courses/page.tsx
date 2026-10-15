@@ -91,7 +91,11 @@ export default async function AdminCoursesPage({
             <Th>{tco('category')}</Th>
             <Th className="text-right">{tco('tabs.participants')}</Th>
             <Th>{tc('created')}</Th>
-            {bin ? <Th /> : null}
+            {bin ? (
+              <Th>
+                <span className="sr-only">{tc('actions')}</span>
+              </Th>
+            ) : null}
           </Tr>
         </THead>
         <TBody>

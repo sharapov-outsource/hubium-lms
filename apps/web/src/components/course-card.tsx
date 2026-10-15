@@ -27,7 +27,7 @@ export async function CourseCard({
   const img = courseImageUrl(course.imageFileId);
   return (
     <Card className="group overflow-hidden transition-shadow hover:shadow-md">
-      <Link href={`/course/${course.id}`} className="block focus-visible:outline-none">
+      <Link href={`/course/${course.id}`} className="block focus-visible:-outline-offset-2">
         <div
           className="flex h-28 items-end p-3"
           style={

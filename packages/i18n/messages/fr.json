@@ -1665,7 +1665,8 @@
     "unsubscribeConfirm": "Supprimer l’importation ou l’abonnement avec ses événements ?",
     "feedGet": "Obtenir un lien",
     "feedIssued": "Un lien a été émis le {date}. Il n’est affiché qu’une fois : si vous l’avez perdu, obtenez-en un nouveau.",
-    "feedResetConfirm": "Les calendriers abonnés avec le lien actuel ne seront plus mis à jour. Ajoutez-leur le nouveau lien."
+    "feedResetConfirm": "Les calendriers abonnés avec le lien actuel ne seront plus mis à jour. Ajoutez-leur le nouveau lien.",
+    "deleteEvent": "Supprimer l’événement « {title} »"
   },
   "categories": {
     "title": "Catégories de cours",

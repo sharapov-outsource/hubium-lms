@@ -614,7 +614,9 @@ function Thread({
                       <button
                         type="button"
                         onClick={() => run(deleteMessageAction(m.id), () => void reloadRecent())}
-                        className="invisible rounded p-1 text-muted-foreground hover:bg-muted group-hover:visible group-focus-within:visible"
+                        // hidden until hovered, but in the tab order and shown when focused;
+                        // always shown where there is no hover (touch screens)
+                        className="rounded p-1 text-muted-foreground opacity-0 hover:bg-muted focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"
                         aria-label={t('delete')}
                       >
                         <Trash2 className="size-3.5" aria-hidden />

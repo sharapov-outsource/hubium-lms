@@ -1666,7 +1666,8 @@
     "unsubscribeConfirm": "Remove the import or subscription with its events?",
     "feedGet": "Get a link",
     "feedIssued": "A link was issued on {date}. It is shown only once: if you have lost it, get a new one.",
-    "feedResetConfirm": "Calendars subscribed with the current link stop receiving updates. Add the new link to them again."
+    "feedResetConfirm": "Calendars subscribed with the current link stop receiving updates. Add the new link to them again.",
+    "deleteEvent": "Delete the event “{title}”"
   },
   "categories": {
     "title": "Course categories",

@@ -152,6 +152,7 @@ export function AttemptPlayer({
 }) {
   const failed = useFailureText();
   const t = useTranslations('mod.quiz');
+  const tc = useTranslations('common');
   const router = useRouter();
   const sequential = navMethod === 'sequential';
   const [page, setPage] = useState(pages.includes(currentPage) ? currentPage : (pages[0] ?? 1));
@@ -448,7 +449,7 @@ export function AttemptPlayer({
             <div className="flex gap-2">
               <Button onClick={() => void finish()}>{t('finish')}</Button>
               <Button variant="ghost" onClick={() => setConfirm(false)}>
-                ×
+                {tc('cancel')}
               </Button>
             </div>
           </Alert>

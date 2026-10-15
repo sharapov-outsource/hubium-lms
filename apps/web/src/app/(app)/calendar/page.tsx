@@ -310,8 +310,10 @@ export default async function CalendarPage({
                             variant="ghost"
                             confirm={t('deleteConfirm')}
                             run={deleteEventAction.bind(null, e.id)}
+                            aria-label={t('deleteEvent', { title: e.title })}
+                            title={t('deleteEvent', { title: e.title })}
                           >
-                            ×
+                            <span aria-hidden>×</span>
                           </CommandButton>
                         ) : null}
                       </div>
