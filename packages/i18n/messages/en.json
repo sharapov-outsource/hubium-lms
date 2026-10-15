@@ -1605,7 +1605,16 @@
     },
     "period": "Period",
     "lastDays": "{n, plural, one {Last # day} other {Last # days}}",
-    "allTime": "All time"
+    "allTime": "All time",
+    "logsFilter": "Filter the event log",
+    "who": "Who (name or email)",
+    "anyEvent": "Any event",
+    "anyActivity": "Any activity",
+    "from": "From",
+    "to": "To",
+    "noLogs": "No events found",
+    "earlierLogs": "Earlier events",
+    "latestLogs": "Back to the latest"
   },
   "calendar": {
     "title": "Calendar",

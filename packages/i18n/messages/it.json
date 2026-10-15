@@ -1604,7 +1604,16 @@
     },
     "period": "Periodo",
     "lastDays": "{n, plural, one {Ultimo # giorno} other {Ultimi # giorni}}",
-    "allTime": "Da sempre"
+    "allTime": "Da sempre",
+    "logsFilter": "Filtra il registro eventi",
+    "who": "Chi (nome o email)",
+    "anyEvent": "Qualsiasi evento",
+    "anyActivity": "Qualsiasi attività",
+    "from": "Dal",
+    "to": "Al",
+    "noLogs": "Nessun evento trovato",
+    "earlierLogs": "Eventi precedenti",
+    "latestLogs": "Torna ai più recenti"
   },
   "calendar": {
     "title": "Calendario",

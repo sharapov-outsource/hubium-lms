@@ -1604,7 +1604,16 @@
     },
     "period": "Période",
     "lastDays": "{n, plural, one {Dernier # jour} other {Derniers # jours}}",
-    "allTime": "Depuis le début"
+    "allTime": "Depuis le début",
+    "logsFilter": "Filtrer le journal des événements",
+    "who": "Qui (nom ou e-mail)",
+    "anyEvent": "Tout événement",
+    "anyActivity": "Toute activité",
+    "from": "Du",
+    "to": "Au",
+    "noLogs": "Aucun événement trouvé",
+    "earlierLogs": "Événements antérieurs",
+    "latestLogs": "Revenir aux plus récents"
   },
   "calendar": {
     "title": "Calendrier",

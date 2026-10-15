@@ -1604,7 +1604,16 @@
     },
     "period": "Zeitraum",
     "lastDays": "{n, plural, one {Letzter # Tag} other {Letzte # Tage}}",
-    "allTime": "Gesamter Zeitraum"
+    "allTime": "Gesamter Zeitraum",
+    "logsFilter": "Ereignisprotokoll filtern",
+    "who": "Wer (Name oder E-Mail)",
+    "anyEvent": "Jedes Ereignis",
+    "anyActivity": "Jede Aktivität",
+    "from": "Von",
+    "to": "Bis",
+    "noLogs": "Keine Ereignisse gefunden",
+    "earlierLogs": "Frühere Ereignisse",
+    "latestLogs": "Zurück zu den neuesten"
   },
   "calendar": {
     "title": "Kalender",

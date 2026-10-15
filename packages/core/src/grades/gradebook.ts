@@ -1148,20 +1148,49 @@ export async function reportLearners(
 export async function graderReport(
   ctx: RequestContext,
   courseId: string,
-  opts: { groupId?: string } = {},
+  opts: { groupId?: string; page?: number; pageSize?: number } = {},
 ) {
   await ctx.perm.require('grade:viewall', courseId);
   const { categories, items } = await gradebookStructure(ctx.db, courseId);
-  const users = await ctx.db.user.findMany({
-    where: { id: { in: await reportLearners(ctx, courseId, opts) }, deletedAt: null },
-    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-    select: { id: true, name: true, email: true, username: true, emailPlaceholder: true },
-  });
+  const where = {
+    id: { in: await reportLearners(ctx, courseId, opts) },
+    deletedAt: null,
+  };
+  // with a page, that page of learners (exports leave it out and get everyone)
+  const pageSize = opts.page ? Math.min(500, Math.max(1, Math.floor(opts.pageSize ?? 50))) : null;
+  const page = Math.max(1, Math.floor(opts.page ?? 1));
+  const [users, counted] = await Promise.all([
+    ctx.db.user.findMany({
+      where,
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }],
+      select: { id: true, name: true, email: true, username: true, emailPlaceholder: true },
+      ...(pageSize ? { skip: (page - 1) * pageSize, take: pageSize } : {}),
+    }),
+    pageSize ? ctx.db.user.count({ where }) : null,
+  ]);
   const grades = await ctx.db.grade.findMany({
     where: { item: { courseId }, userId: { in: users.map((u) => u.id) } },
   });
   const cell = new Map(grades.map((g) => [`${g.userId}:${g.gradeItemId}`, g]));
-  return { categories, items, users, cell };
+  return {
+    categories,
+    items,
+    users,
+    cell,
+    total: counted ?? users.length,
+    page,
+    pageSize: pageSize ?? Math.max(1, users.length),
+  };
+}
+
+/** The learners of the grader report by name, without their grades (for filters). */
+export async function reportLearnerNames(ctx: RequestContext, courseId: string) {
+  await ctx.perm.require('grade:viewall', courseId);
+  return ctx.db.user.findMany({
+    where: { id: { in: await reportLearners(ctx, courseId) }, deletedAt: null },
+    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }],
+    select: { id: true, name: true },
+  });
 }
 
 /**

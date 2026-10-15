@@ -13,6 +13,7 @@ import {
   hiddenFromLearner,
   listGroupNames,
   listScales,
+  reportLearnerNames,
 } from '@hubium/core';
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import {
@@ -411,7 +412,7 @@ export default async function GradesPage({
   }
 
   if (view === 'history') {
-    const [h, structure, report, format] = await Promise.all([
+    const [h, structure, learners, format] = await Promise.all([
       gradeHistory(ctx, courseId, {
         userId: uuidParam(sp.user),
         itemId: uuidParam(sp.item),
@@ -420,7 +421,8 @@ export default async function GradesPage({
         page: pageParam(sp.page),
       }),
       gradebookStructure(ctx.db, courseId),
-      graderReport(ctx, courseId),
+      // the names for the filter, not the whole gradebook
+      reportLearnerNames(ctx, courseId),
       getFormatter(),
     ]);
     const shown = (v: number | null, item: (typeof h.rows)[number]['item']) =>
@@ -438,7 +440,7 @@ export default async function GradesPage({
               className="h-9 rounded-md border border-input bg-background px-2"
             >
               <option value="">{t('all')}</option>
-              {report.users.map((u) => (
+              {learners.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.name}
                 </option>
@@ -542,7 +544,7 @@ export default async function GradesPage({
 
   const group = uuidParam(sp.group);
   const [r, groups, tp, tc] = await Promise.all([
-    graderReport(ctx, courseId, { groupId: group }),
+    graderReport(ctx, courseId, { groupId: group, page: pageParam(sp.page) }),
     listGroupNames(ctx, courseId),
     getTranslations('participants'),
     getTranslations('common'),
@@ -585,7 +587,7 @@ export default async function GradesPage({
     <div className="grid gap-4">
       {nav}
       {groupFilter}
-      {r.users.length === 0 ? (
+      {r.total === 0 ? (
         <EmptyState title={t('noStudents')} />
       ) : (
         <>
@@ -727,6 +729,12 @@ export default async function GradesPage({
               </tbody>
             </table>
           </div>
+          <Pagination
+            page={r.page}
+            pageSize={r.pageSize}
+            total={r.total}
+            params={{ group: group ?? undefined }}
+          />
         </>
       )}
     </div>

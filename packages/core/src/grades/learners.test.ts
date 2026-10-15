@@ -39,6 +39,15 @@ describe('learners in the course reports', () => {
     const teacher = await ctxFor(t.db, f.users.teacher!);
     expect(await ids(await graderReport(teacher, f.courseId))).toEqual(learners);
     expect(await ids(await completionReport(teacher, f.courseId))).toEqual(learners);
+    // a page of them at a time, with how many there are
+    const pages = await Promise.all(
+      [1, 2].map((page) => graderReport(teacher, f.courseId, { page, pageSize: 3 })),
+    );
+    expect(pages.map((p) => [p.total, p.users.length])).toEqual([
+      [4, 3],
+      [4, 1],
+    ]);
+    expect(pages.flatMap((p) => p.users.map((u) => u.id)).sort()).toEqual(learners);
 
     // separate groups: a teacher without access to all groups sees their group's
     const group = await t.db.group.create({ data: { courseId: f.courseId, name: 'Группа 1' } });

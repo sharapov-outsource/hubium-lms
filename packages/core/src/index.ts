@@ -42,6 +42,7 @@ export * from './enrol/participants.ts';
 export * from './env.ts';
 export * from './errors.ts';
 export * from './events/actor-scope.ts';
+export * from './events/course-log.ts';
 export * from './events/log.ts';
 export * from './events/prune.ts';
 export * from './files/text.ts';
