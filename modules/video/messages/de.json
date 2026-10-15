@@ -11,6 +11,7 @@
     "embedHint": "Zum Beispiel https://youtu.be/… oder https://rutube.ru/video/…",
     "uploadAfterSave": "Laden Sie die Datei nach dem Speichern auf der Videoseite hoch.",
     "deleteSource": "Quelldatei nach dem Transkodieren löschen",
+    "deleteSourceHint": "Sicherungen und Kurskopien enthalten die Quelldatei: ohne sie fehlt das Video darin und muss neu hochgeladen werden.",
     "noSeekAhead": "Vorspulen über den bereits angesehenen Teil hinaus verhindern",
     "minPercent": "Mindestens angesehen, %",
     "minPercentHint": "Zum Beispiel 90",

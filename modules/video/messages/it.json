@@ -11,6 +11,7 @@
     "embedHint": "Ad esempio, https://youtu.be/… o https://rutube.ru/video/…",
     "uploadAfterSave": "Il file si carica nella pagina del video dopo il salvataggio.",
     "deleteSource": "Elimina il file originale dopo la transcodifica",
+    "deleteSourceHint": "Backup e copie del corso conservano il file sorgente: senza di esso il video non c’è e va caricato di nuovo.",
     "noSeekAhead": "Impedisci di avanzare oltre la parte già vista",
     "minPercent": "Visto almeno, %",
     "minPercentHint": "Ad esempio, 90",

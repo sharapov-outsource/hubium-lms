@@ -63,6 +63,16 @@ const FFPROBE = process.env.FFPROBE_PATH ?? 'ffprobe';
 
 const storageKey = (assetId: string, file: string) => `mod/video/${assetId}/${file}`;
 
+/** What a backup keeps of the video besides its files. */
+const BackupData = z.object({
+  uploaded: z.boolean().default(false),
+  captions: z
+    .array(z.object({ lang: z.string(), label: z.string(), fileId: z.string() }))
+    .default([]),
+});
+const NO_SOURCE =
+  'The backup holds no source file of this video: it was deleted after processing. Upload the video again.';
+
 function uid(ctx: ModuleCtx): string {
   if (ctx.actor.kind !== 'user') throw new Error('Sign in required');
   return ctx.actor.userId;
@@ -339,15 +349,49 @@ export const video = defineModule<VideoSettingsT>({
     },
   },
   backup: {
+    // the caption files travel as files of the activity; which language each is, here
+    async export(ctx, a) {
+      const asset = await ctx.db.videoAsset.findUnique({
+        where: { activityId: a.id },
+        include: { captions: true },
+      });
+      return {
+        uploaded: !!asset,
+        captions: (asset?.captions ?? []).map((c) => ({
+          lang: c.lang,
+          label: c.label,
+          fileId: c.fileId,
+        })),
+      };
+    },
     // generated HLS files are rebuilt from the restored source file
-    async import(ctx, a) {
+    async import(ctx, a, data, map) {
+      const exported = BackupData.safeParse(data);
       const [source] = await ctx.files.list(a.id, 'source');
-      if (!source) return;
+      if (!source) {
+        // processed with "delete the source": the backup has nothing to build the video from
+        if (exported.success && exported.data.uploaded)
+          await ctx.db.videoAsset.upsert({
+            where: { activityId: a.id },
+            create: { activityId: a.id, status: 'FAILED', error: NO_SOURCE },
+            update: { status: 'FAILED', error: NO_SOURCE },
+          });
+        return;
+      }
       const asset = await ctx.db.videoAsset.upsert({
         where: { activityId: a.id },
         create: { activityId: a.id, sourceFileId: source.id },
         update: { sourceFileId: source.id, status: 'UPLOADED' },
       });
+      for (const c of exported.success ? exported.data.captions : []) {
+        const fileId = map(c.fileId);
+        if (fileId)
+          await ctx.db.videoCaption.upsert({
+            where: { assetId_lang: { assetId: asset.id, lang: c.lang } },
+            create: { assetId: asset.id, lang: c.lang, label: c.label, fileId },
+            update: { label: c.label, fileId },
+          });
+      }
       // A restored or duplicated course may bring dozens of videos: they wait behind
       // uploads people are watching the progress of.
       await ctx.jobs.enqueue(

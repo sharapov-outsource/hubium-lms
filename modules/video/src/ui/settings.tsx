@@ -58,6 +58,7 @@ export function VideoSettingsFields({ settings }: SettingsFieldsProps<VideoSetti
           <input type="hidden" name="settings.embedUrl" value="" />
           <p className="text-sm text-muted-foreground">{t('uploadAfterSave')}</p>
           <Bool name="deleteSource" label={t('deleteSource')} checked={settings.deleteSource} />
+          <p className="-mt-2 text-xs text-muted-foreground">{t('deleteSourceHint')}</p>
         </>
       )}
       <Bool name="noSeekAhead" label={t('noSeekAhead')} checked={settings.noSeekAhead} />

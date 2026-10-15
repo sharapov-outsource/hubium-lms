@@ -652,6 +652,60 @@ describe('.hubium backup and restore', () => {
     expect(copy.bookChapters[0]!.content).not.toContain(pic.id);
   });
 
+  it("carries a video's captions, and says when it has no source to rebuild it from", async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const src = await courseFixture(t.db, 'VIDEOBK');
+    const store = (activityId: string, area: string, name: string, data: string) =>
+      storeFile(t.db, {
+        contextId: activityId,
+        component: 'mod.video',
+        area,
+        name,
+        mimeType: area === 'source' ? 'video/mp4' : 'text/vtt',
+        data: Buffer.from(data),
+      });
+    const { id: withSource } = await src.addActivity('video', 'С исходником', {});
+    const source = await store(withSource, 'source', 'clip.mp4', 'not really a video');
+    const vtt = await store(
+      withSource,
+      'captions',
+      'ru.vtt',
+      'WEBVTT\n\n00:00.000 --> 00:01.000\nПривет',
+    );
+    const asset = await t.db.videoAsset.create({
+      data: { activityId: withSource, sourceFileId: source.id, status: 'READY' },
+    });
+    await t.db.videoCaption.create({
+      data: { assetId: asset.id, lang: 'ru', label: 'Русский', fileId: vtt.id },
+    });
+    // processed with the source deleted afterwards
+    const { id: noSource } = await src.addActivity('video', 'Без исходника', {
+      deleteSource: true,
+    });
+    await t.db.videoAsset.create({ data: { activityId: noSource, status: 'READY' } });
+
+    const course = await t.db.course.findUniqueOrThrow({ where: { id: src.courseId } });
+    const r = await restoreCourse(admin, await exportCourse(admin, src.courseId), {
+      categoryId: course.categoryId,
+    });
+    const copyOf = (name: string) =>
+      t.db.activity.findFirstOrThrow({
+        where: { courseId: r.courseId, name },
+        include: { videoAsset: { include: { captions: true } } },
+      });
+    const copy = await copyOf('С исходником');
+    const newVtt = await t.db.file.findFirstOrThrow({
+      where: { contextId: copy.id, area: 'captions' },
+    });
+    expect(copy.videoAsset?.captions).toMatchObject([
+      { lang: 'ru', label: 'Русский', fileId: newVtt.id },
+    ]);
+    expect((await copyOf('Без исходника')).videoAsset).toMatchObject({
+      status: 'FAILED',
+      error: expect.stringMatching(/no source file/),
+    });
+  });
+
   it('carries subsections in their places among the activities; an import flattens them', async () => {
     const admin = await ctxFor(t.db, 'admin@test.local');
     const src = await courseFixture(t.db, 'SUBBK');
