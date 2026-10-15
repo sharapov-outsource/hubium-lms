@@ -170,7 +170,9 @@ function parseBlock(raw: string, category: string | undefined): ParsedQuestion {
     };
   }
 
-  const weighted = answers.some((a) => a.mark === '~' && /^%-?\d/.test(a.text.trim()));
+  // As in Moodle: a question with an "=" answer takes one answer (the others may give
+  // partial credit); only a question without one takes several.
+  const single = answers.some((a) => a.mark === '=');
   const choices = answers.map((a, i) => {
     const [w, rest] = parseWeight(a.text);
     const [t, fb] = splitFeedback(rest);
@@ -184,7 +186,7 @@ function parseBlock(raw: string, category: string | undefined): ParsedQuestion {
   return {
     ...base,
     type: 'MULTICHOICE',
-    data: { single: !weighted, shuffleAnswers: true, answers: choices },
+    data: { single, shuffleAnswers: true, answers: choices },
   };
 }
 

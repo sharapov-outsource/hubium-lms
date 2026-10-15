@@ -132,6 +132,14 @@ describe('grading', () => {
     expect(gradeResponse(mcSingle, { selected: ['b'] }).fraction).toBe(0);
     expect(gradeResponse(mcSingle, {}).fraction).toBe(0);
   });
+  it('multichoice single gives nothing for a response that picks several', () => {
+    // a forged response with every option must not earn the first one stored
+    expect(gradeResponse(mcSingle, { selected: ['a', 'b'] })).toMatchObject({
+      fraction: 0,
+      feedback: [],
+    });
+    expect(gradeResponse(mcSingle, { selected: ['b', 'a'] }).fraction).toBe(0);
+  });
   it('multichoice multiple with penalties clamps to 0..1', () => {
     const q = {
       type: 'MULTICHOICE' as const,
@@ -280,6 +288,16 @@ $CATEGORY: $course$/Литература
     const match = r.questions[4]!;
     expect((match.data as { distractors: string[] }).distractors).toEqual(['Берлин']);
     expect(gradeResponse(r.questions[3]!, { text: '3.141' }).fraction).toBe(1);
+  });
+  it('keeps a question with "=" one-answer, with partial credit, as Moodle does', () => {
+    const [q] = parseGift('::Почти::Выберите {=верно ~%50%почти ~неверно}').questions;
+    expect(q!.type).toBe('MULTICHOICE');
+    expect((q!.data as { single: boolean }).single).toBe(true);
+    expect(gradeResponse(q!, { selected: ['a2'] }).fraction).toBe(0.5);
+    expect(gradeResponse(q!, { selected: ['a1', 'a2', 'a3'] }).fraction).toBe(0);
+    const gift = toGift(q!)!;
+    expect(gift).toContain('~%50%почти');
+    expect(parseGift(gift).questions[0]!.data).toEqual(q!.data);
   });
   it('handles escapes and reports errors per block', () => {
     const r = parseGift('::A:: 2 \\= 2? {T}\n\n::B:: broken {=x');

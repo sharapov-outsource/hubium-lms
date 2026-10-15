@@ -51,6 +51,8 @@ describe('Cloze (embedded answers)', () => {
       'Feedback for half credit answer in the nearby region of the correct answer',
     );
     expect(gradeResponse(q, { parts: { 5: '3' } }).fraction).toBeCloseTo(3 / 8);
+    // a menu gap takes one answer: sending every option earns nothing
+    expect(gradeResponse(q, { parts: { 1: ['a1', 'a2', 'a3', 'a4'] } }).fraction).toBe(0);
     expect(checkQuestionText('MULTIANSWER', MOODLE_EXAMPLE, q.data)).toBeNull();
   });
 

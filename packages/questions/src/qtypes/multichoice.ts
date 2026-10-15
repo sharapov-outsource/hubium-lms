@@ -13,6 +13,9 @@ export const multichoice: QuestionTypeDef<'MULTICHOICE'> = {
     const selected = new Set(r.selected);
     const chosen = d.answers.filter((a) => selected.has(a.id));
     if (d.single) {
+      // One answer is allowed: a response that picks several earns nothing, whatever
+      // order the options were stored in.
+      if (chosen.length > 1) return { fraction: 0, needsGrading: false, feedback: [] };
       const a = chosen[0];
       return {
         fraction: a ? Math.max(0, a.fraction) : 0,
@@ -55,6 +58,7 @@ export const multichoice: QuestionTypeDef<'MULTICHOICE'> = {
   },
   parts(q, r) {
     const right = q.data.answers.filter((a) => a.fraction > 0).map((a) => a.id);
+    if (q.data.single && r.selected.length > 1) return { right: 0, total: 1 };
     return {
       right: r.selected.filter((id) => right.includes(id)).length,
       total: q.data.single ? 1 : right.length,
@@ -66,10 +70,12 @@ export const multichoice: QuestionTypeDef<'MULTICHOICE'> = {
     ),
   }),
   gift(d, { head, gf, fb, esc }) {
-    const items = d.answers.map((a) =>
-      d.single
-        ? `${a.fraction >= 1 ? '=' : '~'}${esc(a.text)}${fb(a.feedback)}`
-        : `~%${Math.round(a.fraction * 100)}%${esc(a.text)}${fb(a.feedback)}`,
+    // As Moodle writes it: "=" marks the full-credit answer of a one-answer question,
+    // any other credit goes as "~%n%".
+    const weight = (f: number) => (f === 0 ? '~' : `~%${Math.round(f * 1e5) / 1e3}%`);
+    const items = d.answers.map(
+      (a) =>
+        `${d.single ? (a.fraction >= 1 ? '=' : weight(a.fraction)) : `~%${Math.round(a.fraction * 1e5) / 1e3}%`}${esc(a.text)}${fb(a.feedback)}`,
     );
     return `${head} {\n  ${items.join('\n  ')}${gf}\n}`;
   },
