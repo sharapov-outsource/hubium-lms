@@ -60,6 +60,7 @@
     "lastModified": "Dernière modification",
     "gradeAction": "Évaluer",
     "gradingTitle": "Évaluation : {name}",
+    "reopenedNotHandedIn": "La tentative {n} est ouverte, mais rien n’a encore été remis. Ci-dessous, la tentative {earlier}, à laquelle la note s’applique.",
     "noSubmission": "Rien n’a encore été remis",
     "reopenAttempt": "Ouvrir une nouvelle tentative",
     "saveGrade": "Enregistrer la note",

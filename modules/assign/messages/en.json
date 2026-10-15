@@ -60,6 +60,7 @@
     "lastModified": "Last modified",
     "gradeAction": "Grade",
     "gradingTitle": "Grading: {name}",
+    "reopenedNotHandedIn": "Attempt {n} is open but nothing has been handed in yet. Below is attempt {earlier}, which the grade is for.",
     "noSubmission": "Nothing submitted yet",
     "reopenAttempt": "Open a new attempt",
     "saveGrade": "Save grade",

@@ -30,6 +30,7 @@ import {
   assignScale,
   effectiveDates,
   flagsFor,
+  gradedAttempt,
   gradeRange,
   gradingForm,
   hidesNames,
@@ -43,6 +44,7 @@ import {
   teamMembers,
   teamOf,
 } from '../server.ts';
+import { ownerOf } from '../team.ts';
 import {
   ExtensionForm,
   GradeForm,
@@ -777,14 +779,22 @@ async function GradingPanel({ activity: a, ctx, userId }: Props & { userId: stri
       </Alert>
     );
   const team = await teamOf(ctx.db, a, userId);
-  const sub = await latestFor(ctx.db, a, userId, team);
+  const latest = await latestFor(ctx.db, a, userId, team);
+  // reopened with nothing handed in yet: the attempt before it is the one graded
+  const attempt = gradedAttempt(latest);
+  const earlier = !!latest && attempt !== latest.attemptNumber && team.kind !== 'blocked';
+  const sub = earlier
+    ? await ctx.db.assignSubmission.findFirst({
+        where: { activityId: a.id, attemptNumber: attempt, ...ownerOf(userId, team) },
+      })
+    : latest;
   const members = team.kind === 'team' ? await teamMembers(ctx, a, team.groupId) : [];
   const files = sub ? await ctx.files.list(a.id, 'submission', sub.id) : [];
-  const grade = await ctx.db.assignGrade.findFirst({
-    where: { activityId: a.id, userId },
-    orderBy: { attemptNumber: 'desc' },
+  const current = await ctx.db.assignGrade.findUnique({
+    where: {
+      activityId_userId_attemptNumber: { activityId: a.id, userId, attemptNumber: attempt },
+    },
   });
-  const current = grade && sub && grade.attemptNumber === sub.attemptNumber ? grade : null;
   const override = await ctx.db.assignOverride.findUnique({
     where: { activityId_userId: { activityId: a.id, userId } },
   });
@@ -849,6 +859,9 @@ async function GradingPanel({ activity: a, ctx, userId }: Props & { userId: stri
         ) : null}
       </div>
       <h3 className="text-lg font-semibold">{t('gradingTitle', { name: user.label })}</h3>
+      {earlier ? (
+        <Alert>{t('reopenedNotHandedIn', { n: attempt + 2, earlier: attempt + 1 })}</Alert>
+      ) : null}
       {team.kind === 'blocked' ? (
         <Alert variant="warning">{t(`team.teacherBlocked.${team.reason}`)}</Alert>
       ) : null}
@@ -921,7 +934,8 @@ async function GradingPanel({ activity: a, ctx, userId }: Props & { userId: stri
               current?.grade === null || current?.grade === undefined ? null : Number(current.grade)
             }
             feedback={current?.feedback ?? ''}
-            canReopen={a.settings.reopen !== 'none' && !!sub}
+            attemptNumber={attempt}
+            canReopen={a.settings.reopen !== 'none' && !earlier && sub?.status === 'SUBMITTED'}
             nextUrl={next ? `${base}?grade=${next.id}` : base}
             team={team.kind === 'team' ? { name: team.name, size: members.length } : null}
             form={fill}

@@ -115,6 +115,19 @@ export async function teamMembers(ctx: ModuleCtx, a: Assign, groupId: string) {
   });
 }
 
+/**
+ * The attempt a grade goes to by default: the latest, or while it is reopened with nothing
+ * handed in yet, the one before it (a grade given then corrects the work graded).
+ */
+export function gradedAttempt(
+  latest: { attemptNumber: number; status: string } | null | undefined,
+): number {
+  if (!latest) return 0;
+  return latest.status === 'REOPENED' && latest.attemptNumber > 0
+    ? latest.attemptNumber - 1
+    : latest.attemptNumber;
+}
+
 /** Everyone whose grade follows a submission: its student, or the members of its team. */
 async function ownersOf(ctx: ModuleCtx, a: Assign, userId: string, team: Team) {
   return team.kind === 'team'
@@ -1004,6 +1017,11 @@ export const assign = defineModule<AssignSettingsT>({
         feedback: z.string().max(200_000).default(''),
         files: z.array(FileInput).max(20).default([]),
         reopen: z.boolean().default(false),
+        /**
+         * The attempt graded (from 0): by default the latest, or the one before it while the
+         * latest is reopened with nothing handed in yet.
+         */
+        attemptNumber: z.number().int().min(0).optional(),
         applyToTeam: z.boolean().default(false),
         workflowState: z.enum(workflowStates).optional(),
         allocatedMarkerId: z.string().uuid().nullable().optional(),
@@ -1042,8 +1060,14 @@ export const assign = defineModule<AssignSettingsT>({
         });
         if (!enrolled) throw new Error('User is not enrolled');
         const team = await teamOf(ctx.db, a, input.userId);
-        const sub = await latestFor(ctx.db, a, input.userId, team);
-        const attemptNumber = sub?.attemptNumber ?? 0;
+        const latest = await latestFor(ctx.db, a, input.userId, team);
+        const attemptNumber = input.attemptNumber ?? gradedAttempt(latest);
+        if (attemptNumber > (latest?.attemptNumber ?? 0))
+          throw new Error('There is no such attempt');
+        // reopening follows a grade of the work last handed in, not of an earlier attempt nor
+        // of a reopened one with nothing in it (which would open attempt after attempt)
+        const sub =
+          latest?.attemptNumber === attemptNumber && latest.status === 'SUBMITTED' ? latest : null;
         const feedback = sanitizeRichText(input.feedback);
         const graderId = ctx.actor.kind === 'user' ? ctx.actor.userId : null;
         const targets =

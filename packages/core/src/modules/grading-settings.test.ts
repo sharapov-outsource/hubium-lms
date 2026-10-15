@@ -127,4 +127,41 @@ describe('grading settings changed after grades were given', () => {
     await runModuleAction(teacher, id, 'gradeQuestion', { questionAttemptId: qa.id, mark: 1 });
     expect(await gradeOf(id, f.users.student1!)).toBeNull();
   });
+
+  it('an assignment reopened until pass takes a corrected grade for the work graded', async () => {
+    const f = await courseFixture(t.db, 'GSREOPEN');
+    const teacher = await ctxFor(t.db, f.users.teacher!);
+    const s1 = await ctxFor(t.db, f.users.student1!);
+    const { id } = await f.addActivity('assign', 'Эссе', {
+      gradeMax: 10,
+      gradePass: 6,
+      reopen: 'untilpass',
+    });
+    const handIn = (text: string) =>
+      runModuleAction(s1, id, 'saveSubmission', { text: `<p>${text}</p>`, submit: true });
+    const attempts = () =>
+      t.db.assignSubmission.count({ where: { activityId: id, userId: f.users.student1! } });
+    const grade = (g: number) =>
+      runModuleAction(teacher, id, 'grade', { userId: f.users.student1, grade: g });
+    await handIn('Первая');
+    await grade(4);
+    // failed: a second attempt is open
+    expect(await attempts()).toBe(2);
+    // a typo: 7 was meant; it goes to the work graded, and opens nothing more
+    await grade(7);
+    expect(await attempts()).toBe(2);
+    expect(await gradeOf(id, f.users.student1!)).toBe(7);
+    await grade(5);
+    expect(await attempts()).toBe(2);
+    const rows = await t.db.assignGrade.findMany({
+      where: { activityId: id, userId: f.users.student1! },
+      select: { attemptNumber: true, grade: true },
+    });
+    expect(rows.map((r) => [r.attemptNumber, Number(r.grade)])).toEqual([[0, 5]]);
+    // the second attempt handed in is graded as itself
+    await handIn('Вторая');
+    await grade(8);
+    expect(await attempts()).toBe(2);
+    expect(await gradeOf(id, f.users.student1!)).toBe(8);
+  });
 });

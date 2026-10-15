@@ -60,6 +60,7 @@
     "lastModified": "Ultima modifica",
     "gradeAction": "Valuta",
     "gradingTitle": "Valutazione: {name}",
+    "reopenedNotHandedIn": "Il tentativo {n} è aperto ma non è stato ancora consegnato nulla. Sotto c’è il tentativo {earlier}, a cui si riferisce la valutazione.",
     "noSubmission": "Ancora nessuna consegna",
     "reopenAttempt": "Apri un nuovo tentativo",
     "saveGrade": "Salva valutazione",

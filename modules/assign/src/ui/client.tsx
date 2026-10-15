@@ -224,6 +224,7 @@ export function WithdrawButton({ activityId }: { activityId: string }) {
 export function GradeForm({
   activityId,
   userId,
+  attemptNumber,
   gradeMax,
   scale = null,
   grade,
@@ -240,6 +241,8 @@ export function GradeForm({
   activityId: string;
   courseId: string;
   userId: string;
+  /** The attempt graded (from 0). */
+  attemptNumber: number;
   /** Team submissions: the student's team, whose members can be graded alike. */
   team?: { name: string; size: number } | null;
   gradeMax: number;
@@ -324,6 +327,7 @@ export function GradeForm({
       'grade',
       {
         userId,
+        attemptNumber,
         grade: fill ? null : raw === '' ? null : Number(raw),
         ...(fill && filled ? { [fill.method]: fill.filling } : {}),
         feedback: String(fd.get('feedback') ?? ''),

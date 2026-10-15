@@ -60,6 +60,7 @@
     "lastModified": "Изменено",
     "gradeAction": "Оценить",
     "gradingTitle": "Проверка: {name}",
+    "reopenedNotHandedIn": "Попытка {n} открыта, но работа ещё не сдана. Ниже — попытка {earlier}: оценка относится к ней.",
     "noSubmission": "Студент ещё ничего не отправил",
     "reopenAttempt": "Открыть новую попытку",
     "saveGrade": "Сохранить оценку",

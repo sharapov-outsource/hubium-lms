@@ -60,6 +60,7 @@
     "lastModified": "Zuletzt geändert",
     "gradeAction": "Bewerten",
     "gradingTitle": "Bewertung: {name}",
+    "reopenedNotHandedIn": "Versuch {n} ist geöffnet, aber noch nichts abgegeben. Unten steht Versuch {earlier}, für den die Bewertung gilt.",
     "noSubmission": "Noch nichts abgegeben",
     "reopenAttempt": "Neuen Versuch öffnen",
     "saveGrade": "Bewertung speichern",
