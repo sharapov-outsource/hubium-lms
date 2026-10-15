@@ -31,6 +31,7 @@ import {
   overrideCompletion,
   profileValuesFromForm,
   purgeActivity,
+  purgeCourse,
   type RequestContext,
   removeEnrolmentMethod,
   resetCourse,
@@ -180,6 +181,14 @@ export async function deleteCourseAction(id: string) {
   const res = await runAction(async () => deleteCourse.run(await getContext(), { id }));
   if (res.ok) redirect('/my-courses');
   return res;
+}
+
+export async function purgeCourseAction(id: string) {
+  return runAction(async () => {
+    const r = await purgeCourse.run(await getContext(), { id });
+    revalidatePath('/admin/courses');
+    return r;
+  });
 }
 
 export async function restoreCourseAction(id: string) {

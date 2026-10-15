@@ -29,6 +29,8 @@ export const CORE_SCHEDULE = {
   'notifications.prune': '41 4 * * *',
   'webhooks.prune': '29 4 * * *',
   'files.gc': '17 3 * * *',
+  // courses and activities kept in the recycle bin long enough
+  'recyclebin.purge': '7 3 * * *',
   'auth.ldapSync': '47 2 * * *',
   'auth.sessions.cleanup': '23 * * * *',
 } as const;

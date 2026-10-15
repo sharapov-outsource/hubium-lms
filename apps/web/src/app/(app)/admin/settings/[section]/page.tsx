@@ -112,6 +112,15 @@ export default async function SettingsSectionPage({
               ))}
             </Select>
           </FormField>
+          <FormField
+            name="recyclebinDays"
+            type="number"
+            min={0}
+            max={3650}
+            label={t('settings.recyclebinDays')}
+            hint={t('settings.recyclebinDaysHint')}
+            defaultValue={s['recyclebin.days']}
+          />
           <Toggle
             name="mentorsEnabled"
             label={t('settings.mentorsEnabled')}

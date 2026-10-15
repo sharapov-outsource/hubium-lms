@@ -410,6 +410,8 @@
       "testEmailSent": "E-mail de test mis en file d’attente",
       "creatorRole": "Rôle attribué à l’auteur d’un nouveau cours",
       "creatorRoleMissing": "Ce rôle n’existe plus : les créateurs de cours reçoivent « Enseignant ». Choisissez un rôle.",
+      "recyclebinDays": "Jours de conservation de la corbeille",
+      "recyclebinDaysHint": "Les cours et activités supprimés sont supprimés définitivement après ce nombre de jours. 0 les garde jusqu’à leur suppression manuelle.",
       "mentorsEnabled": "Mentors et parents",
       "mentorsHint": "Les administrateurs associent mentors et parents aux apprenants depuis la fiche utilisateur ou par import CSV ; ils suivent ensuite les cours, la progression, les notes et les échéances des apprenants.",
       "passwordPolicy": "Politique de mots de passe",
@@ -1019,6 +1021,10 @@
     "empty": "Aucune catégorie pour l’instant"
   },
   "adminCourses": {
+    "purge": "Supprimer définitivement",
+    "purgeConfirm": "Supprimer définitivement le cours « {name} », avec toutes ses activités, notes et fichiers ? C’est irréversible.",
+    "binHint": "Les cours sont supprimés définitivement d’ici {days} jours après leur suppression (réglage « Jours de conservation de la corbeille »).",
+    "binKeep": "Les cours restent dans la corbeille jusqu’à leur suppression manuelle.",
     "title": "Cours",
     "new": "Créer un cours",
     "bin": "Corbeille des cours",
@@ -2189,6 +2195,7 @@
       "notifications_prune": "Purge des anciennes notifications",
       "webhooks_prune": "Purge du journal des webhooks",
       "files_gc": "Suppression des fichiers inutilisés",
+      "recyclebin_purge": "Vidage de la corbeille",
       "auth_ldapSync": "Synchronisation LDAP",
       "auth_sessions_cleanup": "Suppression des sessions expirées",
       "assign_due_reminder": "Rappels d’échéance des devoirs",

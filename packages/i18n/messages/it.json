@@ -410,6 +410,8 @@
       "testEmailSent": "Email di prova messa in coda",
       "creatorRole": "Ruolo assegnato all’autore di un nuovo corso",
       "creatorRoleMissing": "Questo ruolo non esiste più: chi crea un corso riceve «Docente». Scegli un ruolo.",
+      "recyclebinDays": "Giorni di conservazione del cestino",
+      "recyclebinDaysHint": "Corsi e attività eliminati vengono eliminati definitivamente dopo questi giorni. 0 li conserva finché non vengono eliminati a mano.",
       "mentorsEnabled": "Mentori e genitori",
       "mentorsHint": "Gli amministratori collegano mentori e genitori ai partecipanti dalla scheda utente o con un file CSV; questi seguono poi corsi, avanzamento, valutazioni e scadenze dei partecipanti.",
       "passwordPolicy": "Criteri per le password",
@@ -1019,6 +1021,10 @@
     "empty": "Ancora nessuna categoria"
   },
   "adminCourses": {
+    "purge": "Elimina definitivamente",
+    "purgeConfirm": "Eliminare definitivamente il corso «{name}», con tutte le attività, i voti e i file? Non si può annullare.",
+    "binHint": "I corsi vengono eliminati definitivamente da qui {days} giorni dopo l’eliminazione (impostazione «Giorni di conservazione del cestino»).",
+    "binKeep": "I corsi restano nel cestino finché non vengono eliminati a mano.",
     "title": "Corsi",
     "new": "Crea corso",
     "bin": "Cestino dei corsi",
@@ -2189,6 +2195,7 @@
       "notifications_prune": "Pulizia delle notifiche vecchie",
       "webhooks_prune": "Pulizia del registro dei webhook",
       "files_gc": "Eliminazione dei file inutilizzati",
+      "recyclebin_purge": "Svuotamento del cestino",
       "auth_ldapSync": "Sincronizzazione LDAP",
       "auth_sessions_cleanup": "Eliminazione delle sessioni scadute",
       "assign_due_reminder": "Promemoria delle scadenze dei compiti",

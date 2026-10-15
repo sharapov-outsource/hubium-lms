@@ -217,6 +217,7 @@ export async function saveSettingsAction(fd: FormData) {
           'site.name': v.siteName,
           'site.defaultTimezone': v.defaultTimezone,
           'course.creatorRole': v.creatorRole,
+          'recyclebin.days': Number(v.recyclebinDays ?? 30),
           'mentors.enabled': bool(fd.get('mentorsEnabled')),
         });
         break;

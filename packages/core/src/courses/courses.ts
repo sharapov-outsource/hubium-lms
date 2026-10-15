@@ -13,6 +13,7 @@ import { localeCode, optionalText } from '../lib/zod.ts';
 import { defineOperation } from '../operation.ts';
 import { getAllSettings } from '../settings/settings.ts';
 import { checkCourseValues, courseFieldFilters } from './course-fields.ts';
+import { purgeCourseRecord } from './recyclebin.ts';
 import { rankAtEnd, rankForStep, sectionItems } from './section-items.ts';
 
 type Tx = Prisma.TransactionClient | Db;
@@ -59,9 +60,7 @@ export const createCourse = defineOperation({
   input: CourseInput,
   authorize: (ctx, i) => ctx.perm.require('course:create', i.categoryId),
   async handler(ctx, input) {
-    if (await ctx.tx.course.findUnique({ where: { shortName: input.shortName } })) {
-      throw new ValidationError({ shortName: ['Short name is already used by another course'] });
-    }
+    await shortNameFree(ctx.tx, input.shortName);
     if (
       input.idNumber &&
       (await ctx.tx.course.findUnique({ where: { idNumber: input.idNumber } }))
@@ -161,11 +160,7 @@ export const updateCourse = defineOperation({
   async handler(ctx, input) {
     const course = await ctx.tx.course.findUnique({ where: { id: input.id } });
     if (!course || course.deletedAt) throw new NotFoundError('Course');
-    if (input.shortName.toLowerCase() !== course.shortName.toLowerCase()) {
-      if (await ctx.tx.course.findUnique({ where: { shortName: input.shortName } })) {
-        throw new ValidationError({ shortName: ['Short name is already used by another course'] });
-      }
-    }
+    await shortNameFree(ctx.tx, input.shortName, course.id);
     if (input.startDate && input.endDate && input.endDate <= input.startDate) {
       throw new ValidationError({ endDate: ['End date must be after the start date'] });
     }
@@ -225,6 +220,23 @@ export const setCourseImage = async (
   await ctx.db.course.update({ where: { id: courseId }, data: { imageFileId: fileId } });
 };
 
+/** Refuses a short name another course has, saying when that course is in the recycle bin:
+ *  the name is free once it is deleted for good there. */
+async function shortNameFree(tx: Prisma.TransactionClient, shortName: string, id?: string) {
+  const other = await tx.course.findUnique({
+    where: { shortName },
+    select: { id: true, deletedAt: true },
+  });
+  if (!other || other.id === id) return;
+  throw new ValidationError({
+    shortName: [
+      other.deletedAt
+        ? 'A course in the recycle bin has this short name: restore it or delete it for good'
+        : 'Short name is already used by another course',
+    ],
+  });
+}
+
 /** Moves the course to the recycle bin (soft delete). */
 export const deleteCourse = defineOperation({
   name: 'course.delete',
@@ -236,6 +248,31 @@ export const deleteCourse = defineOperation({
       name: 'course.deleted',
       actorId: ctx.perm.userId,
       courseId: id,
+      origin: ctx.origin,
+    });
+    return { id };
+  },
+});
+
+/** Deletes a course in the recycle bin for good, with everything in it. */
+export const purgeCourse = defineOperation({
+  name: 'course.purge',
+  input: z.object({ id: z.string().uuid() }),
+  authorize: (ctx, i) => ctx.perm.require('course:delete', i.id),
+  async handler(ctx, { id }) {
+    const c = await ctx.tx.course.findUnique({ where: { id } });
+    if (!c) throw new NotFoundError('Course');
+    if (!c.deletedAt)
+      throw new ValidationError({
+        id: ['Only courses in the recycle bin can be deleted for good'],
+      });
+    await purgeCourseRecord(ctx, ctx.tx, id);
+    await logEvent(ctx.tx, {
+      name: 'course.purged',
+      actorId: ctx.perm.userId,
+      objectType: 'course',
+      objectId: id,
+      data: { shortName: c.shortName, fullName: c.fullName },
       origin: ctx.origin,
     });
     return { id };

@@ -1,9 +1,10 @@
+import { getAllSettings } from '@hubium/core';
 import { Badge, Button, Input, PageHeader, Table, TBody, Td, THead, Th, Tr } from '@hubium/ui';
 import { Plus, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { CommandButton } from '@/components/confirm-button';
-import { restoreCourseAction } from '@/server/actions/courses';
+import { purgeCourseAction, restoreCourseAction } from '@/server/actions/courses';
 import { db } from '@/server/db';
 import { titled } from '@/server/page-title';
 import { requireCapability } from '@/server/session';
@@ -25,6 +26,7 @@ export default async function AdminCoursesPage({
     getTranslations('backup'),
   ]);
   const bin = sp.bin === '1';
+  const keepDays = (await getAllSettings(db))['recyclebin.days'];
   const courses = await db.course.findMany({
     where: {
       deletedAt: bin ? { not: null } : null,
@@ -67,6 +69,11 @@ export default async function AdminCoursesPage({
           </>
         }
       />
+      {bin ? (
+        <p className="mb-4 text-sm text-muted-foreground">
+          {keepDays ? t('binHint', { days: keepDays }) : t('binKeep')}
+        </p>
+      ) : null}
       <form className="mb-4 flex max-w-md gap-2">
         {bin ? <input type="hidden" name="bin" value="1" /> : null}
         <label htmlFor="cq" className="sr-only">
@@ -108,13 +115,23 @@ export default async function AdminCoursesPage({
               </Td>
               {bin ? (
                 <Td className="text-right">
-                  <CommandButton
-                    size="sm"
-                    variant="secondary"
-                    run={restoreCourseAction.bind(null, c.id)}
-                  >
-                    {t('restore')}
-                  </CommandButton>
+                  <div className="flex justify-end gap-2">
+                    <CommandButton
+                      size="sm"
+                      variant="secondary"
+                      run={restoreCourseAction.bind(null, c.id)}
+                    >
+                      {t('restore')}
+                    </CommandButton>
+                    <CommandButton
+                      size="sm"
+                      variant="destructive"
+                      run={purgeCourseAction.bind(null, c.id)}
+                      confirm={t('purgeConfirm', { name: c.fullName })}
+                    >
+                      {t('purge')}
+                    </CommandButton>
+                  </div>
                 </Td>
               ) : null}
             </Tr>

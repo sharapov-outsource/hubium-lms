@@ -62,6 +62,9 @@ export const settingDefs = {
   'maintenance.until': z.string().datetime({ offset: true }).nullable().default(null),
   'email.fromName': z.string().default('Hubium LMS'),
   'course.creatorRole': z.string().default('editingteacher'),
+  /** Days a course or an activity stays in the recycle bin before it is deleted for good;
+   *  0 keeps them until deleted by hand. */
+  'recyclebin.days': z.number().int().min(0).max(3650).default(30),
   'mentors.enabled': z.boolean().default(false),
   'ai.enabled': z.boolean().default(false),
   /** Privacy notice users accept before their first AI request (Markdown). */

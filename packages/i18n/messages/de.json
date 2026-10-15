@@ -410,6 +410,8 @@
       "testEmailSent": "Test-E-Mail in die Warteschlange gestellt",
       "creatorRole": "Rolle für Ersteller/innen neuer Kurse",
       "creatorRoleMissing": "Diese Rolle gibt es nicht mehr: Kursersteller erhalten „Trainer/in“. Wählen Sie eine Rolle.",
+      "recyclebinDays": "Tage im Papierkorb",
+      "recyclebinDaysHint": "Gelöschte Kurse und Aktivitäten werden nach so vielen Tagen endgültig gelöscht. 0 behält sie, bis sie von Hand gelöscht werden.",
       "mentorsEnabled": "Mentor/innen und Eltern",
       "mentorsHint": "Administrator/innen verknüpfen Mentor/innen und Eltern mit Lernenden auf der Nutzerkarte oder per CSV-Upload; diese verfolgen dann Kurse, Fortschritt, Bewertungen und Fristen der Lernenden.",
       "passwordPolicy": "Passwortrichtlinie",
@@ -1019,6 +1021,10 @@
     "empty": "Noch keine Kursbereiche"
   },
   "adminCourses": {
+    "purge": "Endgültig löschen",
+    "purgeConfirm": "Kurs „{name}“ mit allen Aktivitäten, Bewertungen und Dateien endgültig löschen? Das lässt sich nicht rückgängig machen.",
+    "binHint": "Kurse werden hier {days} Tage nach dem Löschen endgültig gelöscht (Einstellung „Tage im Papierkorb“).",
+    "binKeep": "Kurse bleiben im Papierkorb, bis sie von Hand gelöscht werden.",
     "title": "Kurse",
     "new": "Kurs anlegen",
     "bin": "Papierkorb für Kurse",
@@ -2189,6 +2195,7 @@
       "notifications_prune": "Alte Benachrichtigungen bereinigen",
       "webhooks_prune": "Webhook-Protokoll bereinigen",
       "files_gc": "Unbenutzte Dateien löschen",
+      "recyclebin_purge": "Papierkorb leeren",
       "auth_ldapSync": "LDAP-Synchronisierung",
       "auth_sessions_cleanup": "Abgelaufene Sitzungen löschen",
       "assign_due_reminder": "Erinnerungen an Aufgabenfristen",

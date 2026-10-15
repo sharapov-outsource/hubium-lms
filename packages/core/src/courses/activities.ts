@@ -24,8 +24,8 @@ import {
   evaluateAvailability,
   parseAvailability,
 } from './availability.ts';
-import { dropAvailabilityRefs, namesActivity } from './availability-refs.ts';
 import { getCourseAccess } from './courses.ts';
+import { purgeActivityRecord } from './recyclebin.ts';
 import { rankAtEnd, rankForStep, sectionItems } from './section-items.ts';
 
 const CompletionRules = z
@@ -458,13 +458,8 @@ export const purgeActivity = defineOperation({
       throw new ValidationError({
         id: ['Only activities in the recycle bin can be deleted for good'],
       });
-    const m = requireModule(a.moduleKey);
-    await m.lifecycle?.onDelete?.(buildModuleCtx(ctx, ctx.tx), toActivityRef(a));
-    await ctx.tx.calendarEvent.deleteMany({ where: { activityId: id } });
-    await ctx.tx.activity.delete({ where: { id } });
-    await ctx.tx.context.delete({ where: { id } });
-    // what depended on it opens as if the condition were met
-    await dropAvailabilityRefs(ctx.tx, a.courseId, namesActivity(id));
+    requireModule(a.moduleKey);
+    await purgeActivityRecord(ctx, ctx.tx, a);
     return { id };
   },
 });

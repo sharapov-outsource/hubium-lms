@@ -411,6 +411,8 @@
       "testEmailSent": "Test email queued",
       "creatorRole": "Role given to a new course's author",
       "creatorRoleMissing": "This role no longer exists: course creators get Teacher. Choose a role.",
+      "recyclebinDays": "Days to keep the recycle bin",
+      "recyclebinDaysHint": "Deleted courses and activities are deleted for good after this many days. 0 keeps them until deleted by hand.",
       "mentorsEnabled": "Mentors and parents",
       "mentorsHint": "Administrators link mentors and parents to learners on the user card or by CSV upload; they then follow the learners’ courses, progress, grades and deadlines.",
       "passwordPolicy": "Password policy",
@@ -1020,6 +1022,10 @@
     "empty": "No categories yet"
   },
   "adminCourses": {
+    "purge": "Delete for good",
+    "purgeConfirm": "Delete the course “{name}” for good, with all its activities, grades and files? This cannot be undone.",
+    "binHint": "Courses are deleted from here for good {days} days after they were deleted (the “Days to keep the recycle bin” setting).",
+    "binKeep": "Courses stay in the recycle bin until deleted by hand.",
     "title": "Courses",
     "new": "Create course",
     "bin": "Course recycle bin",
@@ -2190,6 +2196,7 @@
       "notifications_prune": "Prune old notifications",
       "webhooks_prune": "Prune the webhook log",
       "files_gc": "Delete unused files",
+      "recyclebin_purge": "Empty the recycle bin",
       "auth_ldapSync": "LDAP synchronisation",
       "auth_sessions_cleanup": "Delete expired sessions",
       "assign_due_reminder": "Assignment due reminders",

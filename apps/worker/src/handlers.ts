@@ -29,6 +29,7 @@ import { sendCalendarReminders } from '@hubium/core/calendar/calendar';
 import { syncDueSubscriptions } from '@hubium/core/calendar/subscriptions';
 import { CERTIFICATES_REVIEW_JOB, reviewCertificate } from '@hubium/core/certificates/certificates';
 import { syncTemplateCohorts } from '@hubium/core/competencies/plans';
+import { purgeRecycleBin } from '@hubium/core/courses/recyclebin';
 import { garbageCollectBlobs } from '@hubium/core/files/files';
 import { cleanupUploads } from '@hubium/core/files/uploads';
 import { deliverMail } from '@hubium/core/mail/mail';
@@ -225,6 +226,13 @@ export const coreHandlers: JobHandlerDef[] = [
     cron: CORE_SCHEDULE['webhooks.prune'],
     async handler(_data: never, { db }) {
       return { deleted: await pruneWebhookDeliveries(db) };
+    },
+  },
+  {
+    name: 'recyclebin.purge',
+    cron: CORE_SCHEDULE['recyclebin.purge'],
+    async handler(_data: never, { db }) {
+      return purgeRecycleBin(db);
     },
   },
   {
