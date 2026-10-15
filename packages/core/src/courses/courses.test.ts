@@ -149,6 +149,16 @@ describe('courses domain', () => {
         settings: { url: 'javascript:1' },
       }),
     ).rejects.toMatchObject({ fieldErrors: { 'settings.url': expect.any(Array) } });
+    // a date that is no date is the form's mistake, not a server error
+    await expect(
+      createActivity.run(ctx, {
+        courseId: ids.course!,
+        sectionId: ids.s1!,
+        moduleKey: 'assign',
+        name: 'Bad date',
+        settings: { dueAt: 'next Friday-ish' },
+      }),
+    ).rejects.toMatchObject({ fieldErrors: { 'settings.dueAt': ['Invalid date'] } });
     const p = await createActivity.run(ctx, {
       courseId: ids.course!,
       sectionId: ids.s1!,

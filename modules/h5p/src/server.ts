@@ -7,7 +7,13 @@ import path from 'node:path';
 import { finished, pipeline } from 'node:stream/promises';
 import type { Prisma } from '@hubium/db';
 import { log } from '@hubium/log';
-import { type ActivityRef, defineAction, defineModule, type ModuleCtx } from '@hubium/module-sdk';
+import {
+  type ActivityRef,
+  defineAction,
+  defineModule,
+  type ModuleCtx,
+  parseSettings,
+} from '@hubium/module-sdk';
 import { bool, optionalNumber } from '@hubium/module-sdk/fields';
 import { contentTypeFor, extractZip } from '@hubium/module-sdk/zip';
 import { z } from 'zod';
@@ -451,7 +457,7 @@ export const h5p = defineModule<H5pSettingsT>({
     const app = ctx.content.appOrigin();
     const act = await ctx.db.activity.findUnique({ where: { id: grant.activityId } });
     if (!act) return new Response('Not found', { status: 404 });
-    const a = { ...act, settings: H5pSettings.parse(act.settings ?? {}) } as unknown as H5p;
+    const a = { ...act, settings: parseSettings(h5p, act.settings) } as unknown as H5p;
     const pkg = await ctx.db.h5pPackage.findUnique({ where: { activityId: act.id } });
     if (pkg?.status !== 'READY') return new Response('Package not ready', { status: 404 });
     const [kind, ...rest] = p;

@@ -2,12 +2,13 @@ import { z } from 'zod';
 
 // Zod helpers for module settings submitted from HTML forms (strings, "on", empty inputs).
 
-/** ISO date string or null; empty input means "not set". */
+/** ISO date string or null; empty input means "not set". Checked before it is converted:
+ *  converting a string that is no date throws, which would be a server error. */
 export const isoDate = z
   .union([z.string(), z.null()])
   .optional()
-  .transform((v) => (v ? new Date(v).toISOString() : null))
-  .refine((v) => v === null || !Number.isNaN(Date.parse(v)), 'Invalid date');
+  .refine((v) => !v || !Number.isNaN(Date.parse(v)), 'Invalid date')
+  .transform((v) => (v ? new Date(v).toISOString() : null));
 
 /** Checkbox value: true, "on", "true" → true. */
 export const bool = (d: boolean) =>

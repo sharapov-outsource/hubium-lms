@@ -438,16 +438,29 @@ export function defineModule<S>(m: ActivityModule<S>): ActivityModule<S> {
   return m;
 }
 
-/** Parses raw settings with the module schema, falling back to defaults per field. */
+/** Parses raw settings with the module schema, falling back to defaults per field: a stored
+ *  field the schema no longer takes gets its default, and the other fields are kept. */
 export function parseSettings<S>(m: ActivityModule<S>, raw: unknown): S {
   const r = m.settings.schema.safeParse(raw);
   if (r.success) return r.data;
-  const merged = {
-    ...(m.settings.defaults() as object),
-    ...((raw && typeof raw === 'object' ? raw : {}) as object),
+  const defaults = m.settings.defaults() as Record<string, unknown>;
+  const merged: Record<string, unknown> = {
+    ...defaults,
+    ...((raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) as object),
   };
-  const r2 = m.settings.schema.safeParse(merged);
-  return r2.success ? r2.data : m.settings.defaults();
+  const reset = new Set<string>();
+  for (;;) {
+    const r2 = m.settings.schema.safeParse(merged);
+    if (r2.success) return r2.data;
+    // an issue on the whole object, or on a field already at its default, names nothing to drop
+    const bad = r2.error.issues.map((i) => i.path[0]);
+    if (bad.some((k) => typeof k !== 'string' || reset.has(k))) return m.settings.defaults();
+    for (const k of bad as string[]) {
+      reset.add(k);
+      if (k in defaults) merged[k] = defaults[k];
+      else delete merged[k];
+    }
+  }
 }
 
 /** Typed helper so action handlers infer their input from the zod schema. */
