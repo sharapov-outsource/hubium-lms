@@ -49,12 +49,33 @@ describe('toICal', () => {
     expect(ics).toContain('UID:e1@lms.example');
     expect(ics).toContain('DTSTART:20260501T090000Z');
     expect(ics).toContain('DTSTART;VALUE=DATE:20260509');
+    // the end of a date is exclusive: a one-day event ends the next day
+    expect(ics).toContain('DTEND;VALUE=DATE:20260510');
     expect(ics).toContain('SUMMARY:Эссе (История)');
     expect(ics).toContain('DESCRIPTION:Line 1\\nLine\\, 2\\; done');
     expect(ics).toContain('LOCATION:Дача\\, 2 км');
     expect(ics).toContain('URL:https://lms.example/course/c1/a/a1');
     expect(ics.endsWith('END:VCALENDAR\r\n')).toBe(true);
   });
+  it('gives a multi-day event without a time its last day', () => {
+    const ics = toICal(
+      [
+        {
+          ...base,
+          id: 'e4',
+          activityId: null,
+          title: 'Конференция',
+          allDay: true,
+          startsAt: new Date('2026-06-01T00:00:00Z'),
+          endsAt: new Date('2026-06-03T00:00:00Z'),
+        },
+      ],
+      { name: 'x', host: 'h', baseUrl: 'https://h' },
+    );
+    expect(ics).toContain('DTSTART;VALUE=DATE:20260601');
+    expect(ics).toContain('DTEND;VALUE=DATE:20260604');
+  });
+
   it('folds long lines at 75 octets', () => {
     const ics = toICal(
       [

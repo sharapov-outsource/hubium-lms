@@ -493,7 +493,7 @@ export function parseIcs(text: string, opts: IcsOptions): IcsResult {
     const rule = rruleProp ? parseRule(rruleProp.value, fallback) : null;
     if (rruleProp && !rule) simplified++;
     // occurrences as instants, from the rule in the event's own wall time
-    const occurrences = new Set<number>([instant(start.wall, start.zone, start.allDay)]);
+    const ruled = new Set<number>([instant(start.wall, start.zone, start.allDay)]);
     if (rule) {
       const untilMs = rule.until
         ? rule.until.allDay && !start.allDay
@@ -507,12 +507,14 @@ export function parseIcs(text: string, opts: IcsOptions): IcsResult {
       });
       for (const d of days) {
         const t = instant({ day: d, sec: start.wall.sec }, start.zone, start.allDay);
-        if (t <= untilMs) occurrences.add(t);
+        if (t <= untilMs) ruled.add(t);
       }
     }
+    // COUNT limits the rule's occurrences; RDATE adds to them (RFC 5545, 3.8.5.2)
+    const counted = [...ruled].sort((a, b) => a - b);
+    const occurrences = new Set(rule?.count ? counted.slice(0, rule.count) : counted);
     for (const r of rdates) occurrences.add(instant(r.wall, r.zone, r.allDay));
-    const counted = [...occurrences].sort((a, b) => a - b);
-    const kept = rule?.count ? counted.slice(0, rule.count) : counted;
+    const kept = [...occurrences].sort((a, b) => a - b);
     const excluded = new Set(
       timesOf(v, 'EXDATE', fallback).map((x) => instant(x.wall, x.zone, x.allDay)),
     );

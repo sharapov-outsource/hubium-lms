@@ -191,7 +191,11 @@ async function applyFeed(tx: Tx, sub: CalendarSubscription, text: string, now: D
   });
   const byUid = new Map(old.map((e) => [e.uid, e]));
   const fresh = [];
+  // a feed that repeats a UID (not as a recurrence) keeps its first event of it
+  const seen = new Set<string>();
   for (const e of parsed.events) {
+    if (seen.has(e.uid)) continue;
+    seen.add(e.uid);
     const data = {
       title: e.summary,
       description: e.description,
@@ -224,7 +228,7 @@ async function applyFeed(tx: Tx, sub: CalendarSubscription, text: string, now: D
       had.allDay === data.allDay;
     if (!same) await tx.calendarEvent.update({ where: { id: had.id }, data });
   }
-  if (fresh.length) await tx.calendarEvent.createMany({ data: fresh });
+  if (fresh.length) await tx.calendarEvent.createMany({ data: fresh, skipDuplicates: true });
   // gone from the feed
   if (byUid.size)
     await tx.calendarEvent.deleteMany({

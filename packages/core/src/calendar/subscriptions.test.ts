@@ -80,6 +80,17 @@ describe('calendar imports and subscriptions', () => {
     await expect(
       deleteEvent.run(student, { id: mine.find((e) => e.subscriptionId === r.id)!.id }),
     ).rejects.toBeInstanceOf(ForbiddenError);
+    // a UID repeated outside a recurrence: the first event of it is kept
+    const twice = await importCalendarFile.run(student, {
+      scope: 'USER',
+      name: 'Дубли',
+      content: ics([ev('dup', soon(4), 'Первое'), ev('dup', soon(5), 'Второе')]),
+    });
+    expect(
+      (await t.db.calendarEvent.findMany({ where: { subscriptionId: twice.id } })).map(
+        (e) => e.title,
+      ),
+    ).toEqual(['Первое']);
     await expect(
       importCalendarFile.run(student, { scope: 'USER', name: 'x', content: 'not a calendar' }),
     ).rejects.toMatchObject({ fieldErrors: { content: [expect.stringMatching(/iCalendar/)] } });

@@ -162,6 +162,26 @@ describe('iCalendar', () => {
     expect(many.truncated).toBe(true);
   });
 
+  it('limits a rule by COUNT before adding its RDATEs', () => {
+    const r = parseIcs(
+      wrap(
+        vevent([
+          'UID:r@x',
+          'DTSTART:20260105T090000Z',
+          'RRULE:FREQ=WEEKLY;COUNT=2',
+          // earlier than the rule's second occurrence: it does not take its place
+          'RDATE:20260107T090000Z',
+        ]),
+      ),
+      opts,
+    );
+    expect(r.events.map((e) => iso(e.start))).toEqual([
+      '2026-01-05T09:00:00.000Z',
+      '2026-01-07T09:00:00.000Z',
+      '2026-01-12T09:00:00.000Z',
+    ]);
+  });
+
   it('zones and durations', () => {
     expect(resolveZone('Europe/Paris', 'UTC')).toBe('Europe/Paris');
     expect(resolveZone('Russian Standard Time', 'UTC')).toBe('Europe/Moscow');

@@ -258,7 +258,10 @@ export function toICal(
     lines.push(`UID:${e.id}@${opts.host}`);
     lines.push(`DTSTAMP:${stamp}`);
     if (e.allDay) {
+      // the end of a date is exclusive in iCalendar: the day after the last one
+      const last = e.endsAt && e.endsAt > e.startsAt ? e.endsAt : e.startsAt;
       lines.push(`DTSTART;VALUE=DATE:${icsDate(e.startsAt, true)}`);
+      lines.push(`DTEND;VALUE=DATE:${icsDate(new Date(last.getTime() + 86_400_000), true)}`);
     } else {
       lines.push(`DTSTART:${icsDate(e.startsAt)}`);
       lines.push(`DTEND:${icsDate(e.endsAt ?? e.startsAt)}`);
