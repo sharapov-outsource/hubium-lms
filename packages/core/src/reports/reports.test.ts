@@ -476,6 +476,26 @@ describe('custom reports', () => {
     );
   });
 
+  it('runs on the day the clocks go forward, late in the evening too', () => {
+    const tz = 'Europe/Berlin';
+    const daily = { frequency: 'DAILY' as const, hour: 23, day: 1 };
+    // sent on Saturday 28 March 2026 at 23:00 (CET); summer time starts that night
+    expect(nextRunAt(daily, tz, new Date('2026-03-28T22:00:00Z')).toISOString()).toBe(
+      '2026-03-29T21:00:00.000Z',
+    );
+    // and back in autumn: Sunday 25 October is 25 hours long
+    expect(nextRunAt(daily, tz, new Date('2026-10-24T21:00:00Z')).toISOString()).toBe(
+      '2026-10-25T22:00:00.000Z',
+    );
+    expect(
+      nextRunAt(
+        { frequency: 'DAILY', hour: 0, day: 1 },
+        tz,
+        new Date('2026-10-24T22:00:00Z'),
+      ).toISOString(),
+    ).toBe('2026-10-25T23:00:00.000Z');
+  });
+
   it('works out the next run in the site time zone', () => {
     // Thursday 15 October 2026, 10:00 in Moscow (07:00 UTC)
     const now = new Date('2026-10-15T07:00:00Z');

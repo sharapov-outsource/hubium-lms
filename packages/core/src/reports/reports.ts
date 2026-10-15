@@ -429,13 +429,17 @@ export function nextRunAt(
   tz: string,
   after: Date,
 ): Date {
+  // calendar days of the zone, from the day `after` falls on: adding 24 hours would skip a
+  // day of 23 hours (the clocks going forward) late in the evening
+  const [y0, m0, d0] = toZonedValue(after.toISOString(), tz)
+    .slice(0, 10)
+    .split('-')
+    .map(Number) as [number, number, number];
   for (let i = 0; i < 400; i++) {
-    const wall = toZonedValue(new Date(after.getTime() + i * 86_400_000).toISOString(), tz).slice(
-      0,
-      10,
-    );
-    const [y, m, d] = wall.split('-').map(Number) as [number, number, number];
-    const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay() || 7;
+    const day = new Date(Date.UTC(y0, m0 - 1, d0 + i));
+    const wall = day.toISOString().slice(0, 10);
+    const d = day.getUTCDate();
+    const weekday = day.getUTCDay() || 7;
     const fits =
       s.frequency === 'DAILY' ||
       (s.frequency === 'WEEKDAYS' && weekday <= 5) ||
