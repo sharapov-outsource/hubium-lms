@@ -268,6 +268,8 @@ export function SectionMenu({
   section: {
     id: string;
     title: string;
+    /** The title as shown ("Section 2" for one without its own): names the menu. */
+    label: string;
     summary: string;
     visible: boolean;
     isFirst: boolean;
@@ -296,7 +298,7 @@ export function SectionMenu({
           <Button
             variant="ghost"
             size="icon"
-            aria-label={`${tc('actions')}: ${section.title || t(sub ? 'editSubsection' : 'editSection')}`}
+            aria-label={`${tc('actions')}: ${section.label}`}
             disabled={pending}
           >
             <MoreVertical />

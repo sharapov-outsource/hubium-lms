@@ -216,6 +216,7 @@ export default async function CoursePage({
               section={{
                 id: c.id,
                 title: c.title,
+                label: sectionTitle(c),
                 summary: c.summary,
                 visible: c.visible,
                 isFirst: false,
@@ -303,6 +304,7 @@ export default async function CoursePage({
                   section={{
                     id: s.id,
                     title: s.title,
+                    label: sectionTitle(s),
                     summary: s.summary,
                     visible: s.visible,
                     isFirst: s.index === 0,
