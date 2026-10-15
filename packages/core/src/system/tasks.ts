@@ -19,6 +19,8 @@ export const CORE_SCHEDULE = {
   'calendar.reminders': '10 * * * *',
   // each subscription is refreshed when its own interval has passed
   'calendar.subscriptions': '25 * * * *',
+  // badges earned by grades and cohorts, which completion events do not cover
+  'badges.review': '35 * * * *',
   'enrol.expire': '5 * * * *',
   'notifications.prune': '41 4 * * *',
   'webhooks.prune': '29 4 * * *',

@@ -101,7 +101,8 @@
     "settings": "Settings",
     "signOut": "Sign out",
     "openMenu": "Open menu",
-    "userMenu": "User menu"
+    "userMenu": "User menu",
+    "badges": "My badges"
   },
   "auth": {
     "signIn": "Sign in",
@@ -516,7 +517,8 @@
     "maintenance": "Maintenance",
     "maintenanceOn": "Maintenance mode is on: only administrators can use the site.",
     "maintenanceSettings": "Maintenance settings",
-    "tasks": "Tasks"
+    "tasks": "Tasks",
+    "badges": "Badges"
   },
   "email": {
     "footer": "You received this email because you have an account on this site.",
@@ -660,7 +662,8 @@
       "questionBank": "Question bank",
       "stream": "Stream",
       "tutor": "AI tutor",
-      "permissions": "Permissions"
+      "permissions": "Permissions",
+      "badges": "Badges"
     },
     "editMode": "Edit mode",
     "editOn": "Edit",
@@ -1407,13 +1410,15 @@
       "message_new": "New direct messages",
       "calendar_reminder": "Calendar reminders",
       "auth_newSignIn": "Sign-in from a new device",
-      "admin_bulkDone": "Bulk user actions"
+      "admin_bulkDone": "Bulk user actions",
+      "badge_awarded": "Badges earned"
     },
     "text": {
       "enrolled": "You were enrolled in “{course}”",
       "announcementCourse": "{course}: {title}",
       "messageNew": "New message from {name}",
-      "calendarReminder": "Tomorrow: {title}"
+      "calendarReminder": "Tomorrow: {title}",
+      "badgeAwarded": "You have earned the badge “{name}”"
     },
     "email": {
       "open": "Open",
@@ -2167,7 +2172,111 @@
       "quiz_overdue_sweep": "Close overdue quiz attempts",
       "lesson_overdue_sweep": "Close overdue lesson attempts",
       "workshop_phase_switch": "Switch workshop phases",
-      "livesession_remind": "Webinar reminders"
+      "livesession_remind": "Webinar reminders",
+      "badges_review": "Review and award badges"
+    }
+  },
+  "badges": {
+    "title": "Badges",
+    "courseTitle": "Course badges",
+    "siteTitle": "Site badges",
+    "myTitle": "My badges",
+    "myIntro": "The badges you have earned. Each can be checked at its public address and downloaded with the assertion baked in (Open Badges 2.0).",
+    "myEmpty": "You have no badges yet",
+    "siteBadge": "Site badge",
+    "new": "New badge",
+    "empty": "No badges yet",
+    "name": "Name",
+    "description": "Description",
+    "image": "Image",
+    "imageHint": "PNG or SVG up to 1 MB, preferably square",
+    "criteria": "Criteria",
+    "locked": "The badge has been awarded: its criteria and expiry stay as they are.",
+    "criteriaMethod": "To be met",
+    "criteriaAll": "all criteria",
+    "criteriaAny": "any of the criteria",
+    "rules": {
+      "courseCompletion": "Course completion",
+      "activities": "Activity completion",
+      "courseGrade": "Course total grade",
+      "courses": "Completion of courses",
+      "cohort": "Cohort membership",
+      "manual": "Awarded by hand by roles"
+    },
+    "minPercent": "At least, %",
+    "ruleMethod": "Condition",
+    "methodAll": "all selected",
+    "methodAny": "any selected",
+    "noOptions": "Nothing to choose from",
+    "expiry": "Expiry",
+    "expiryChoice": {
+      "never": "Never expires",
+      "days": "This many days after it is awarded",
+      "date": "Until a date"
+    },
+    "expiresAfterDays": "Days",
+    "expiresAt": "Date",
+    "status": {
+      "DRAFT": "Draft",
+      "ACTIVE": "Awarded",
+      "ARCHIVED": "Archived"
+    },
+    "activate": "Start awarding",
+    "reactivate": "Award again",
+    "activated": "The badge is being awarded",
+    "archive": "Archive",
+    "archiveConfirm": "The badge will no longer be awarded; awards already given stay valid.",
+    "toDraft": "Back to draft",
+    "publicPage": "Public badge page",
+    "earnedOn": "Earned {date}",
+    "awardedCount": "{count, plural, one {Awarded once} other {Awarded # times}}",
+    "issuerTitle": "Issuer",
+    "issuerName": "Issuer name",
+    "issuerNameHint": "Empty: the site name",
+    "issuerEmail": "Issuer email",
+    "awards": "Recipients",
+    "noAwards": "The badge has not been awarded yet",
+    "state": "State",
+    "awardByHand": "Award by hand",
+    "awardByHandHint": "The award is recorded for each of your roles in the criterion; the badge is issued once all its criteria are met.",
+    "learner": "Learner",
+    "award": "Award",
+    "marked": "Recorded",
+    "revoke": "Revoke",
+    "revokeReason": "Reason (shown to whoever checks it)",
+    "revokedDone": "Badge revoked",
+    "revoked": "Revoked",
+    "expired": "Expired",
+    "valid": "Valid",
+    "recipient": "Recipient",
+    "issuer": "Issuer",
+    "issuedOn": "Issued",
+    "expires": "Expires",
+    "never": "Never",
+    "revokedOn": "Revoked on",
+    "verify": "Verify (Open Badges)",
+    "download": "Download badge",
+    "narrative": {
+      "courseCompletion": "complete the course",
+      "courseGrade": "get at least {percent}% for the course",
+      "activities": {
+        "all": "complete the activities: {list}",
+        "any": "complete any of the activities: {list}"
+      },
+      "courses": {
+        "all": "complete the courses: {list}",
+        "any": "complete any of the courses: {list}"
+      },
+      "cohort": {
+        "all": "be a member of all the cohorts: {list}",
+        "any": "be a member of any of the cohorts: {list}"
+      },
+      "manual": {
+        "all": "be awarded the badge by hand by the roles: {list}",
+        "any": "be awarded the badge by hand by any of the roles: {list}"
+      },
+      "and": "; and ",
+      "or": "; or "
     }
   }
 }

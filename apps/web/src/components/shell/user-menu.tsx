@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@hubium/ui/dropdown';
-import { LogOut, Settings, User } from 'lucide-react';
+import { Award, LogOut, Settings, User } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { authClient } from '@/lib/auth-client';
@@ -35,6 +35,12 @@ export function UserMenu({
           <Link href={`/profile/${user.id}`}>
             <User />
             {t('profile')}
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/badges">
+            <Award />
+            {t('badges')}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>

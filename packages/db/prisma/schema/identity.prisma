@@ -82,6 +82,8 @@ model User {
   courseCompletions     CourseCompletion[]
   calendarEvents        CalendarEvent[]
   calendarSubscriptions CalendarSubscription[]
+  badgeAwards           BadgeAward[]
+  badgeMarks            BadgeMark[]
   calendarFeedToken     CalendarFeedToken?
   grades                Grade[]
   assignSubmissions     AssignSubmission[]

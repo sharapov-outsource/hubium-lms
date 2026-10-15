@@ -85,6 +85,7 @@ model Course {
   courseCompletions     CourseCompletion[]
   calendarEvents        CalendarEvent[]
   calendarSubscriptions CalendarSubscription[]
+  badges                Badge[]
   gradeCategories       GradeCategory[]
   gradeItems            GradeItem[]
   notifications         Notification[]

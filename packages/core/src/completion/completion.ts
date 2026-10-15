@@ -1,6 +1,7 @@
 import type { CompletionState, Db, Prisma } from '@hubium/db';
 import { z } from 'zod';
 import { Permissions } from '../access/permissions.ts';
+import { checkCourseBadges } from '../badges/badges.ts';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
@@ -52,6 +53,8 @@ export async function recomputeCourseProgress(
       courseId,
       extra: { completedAt: completedAt.toISOString() },
     });
+  // badges earned by completing activities or the course
+  await checkCourseBadges(tx, courseId, userId);
   return percent;
 }
 

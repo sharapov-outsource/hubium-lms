@@ -1,0 +1,71 @@
+// Badges (Open Badges 2.0, hosted verification): badge classes of the site or a course,
+// their awards, and awards given by hand by people in a badge's roles.
+
+enum BadgeStatus {
+  /// Being set up: not awarded.
+  DRAFT
+  ACTIVE
+  /// Not awarded any more; awards given stay valid.
+  ARCHIVED
+}
+
+model Badge {
+  id               String      @id @default(uuid(7)) @db.Uuid
+  /// Null for a site badge.
+  courseId         String?     @db.Uuid
+  name             String
+  description      String      @default("")
+  /// PNG or SVG (component "badge", area "image", item the badge).
+  imageFileId      String?     @db.Uuid
+  /// { method, rules } (see core badges/criteria.ts).
+  criteria         Json        @default("{}")
+  /// An award is valid this many days, or until a date; neither: it does not expire.
+  expiresAfterDays Int?
+  expiresAt        DateTime?   @db.Timestamptz(3)
+  status           BadgeStatus @default(DRAFT)
+  createdById      String?     @db.Uuid
+  createdAt        DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime    @updatedAt @db.Timestamptz(3)
+
+  course Course?      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  awards BadgeAward[]
+  marks  BadgeMark[]
+
+  @@index([courseId])
+}
+
+model BadgeAward {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  badgeId           String    @db.Uuid
+  userId            String    @db.Uuid
+  issuedAt          DateTime  @default(now()) @db.Timestamptz(3)
+  expiresAt         DateTime? @db.Timestamptz(3)
+  /// The recipient as the assertion names them (hashed with the salt): email or id.
+  recipientType     String
+  recipientIdentity String
+  salt              String
+  /// Who awarded it by hand (the last of those whose awards completed the criteria).
+  awardedById       String?   @db.Uuid
+  revokedAt         DateTime? @db.Timestamptz(3)
+  revokedReason     String?
+
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([badgeId, userId])
+  @@index([userId])
+}
+
+/// Someone in one of a badge's roles awarded it to a learner by hand.
+model BadgeMark {
+  badgeId    String   @db.Uuid
+  userId     String   @db.Uuid
+  roleId     String   @db.Uuid
+  markedById String?  @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([badgeId, userId, roleId])
+}

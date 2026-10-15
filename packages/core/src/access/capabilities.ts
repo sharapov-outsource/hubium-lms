@@ -173,6 +173,12 @@ export const coreCapabilities = {
   'mod.h5p:submit': { level: 'ACTIVITY', archetypes: [S], excludeAdmin: true },
   'mod.h5p:viewreports': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.lti:launch': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },
+  // badges: course badges set up by editing teachers, awarded by hand by teachers; site
+  // badges by managers
+  'badge:manage': { level: 'COURSE', archetypes: [M, ET] },
+  'badge:award': { level: 'COURSE', archetypes: [M, ET, T] },
+  'badge:viewawards': { level: 'COURSE', archetypes: [M, ET, T], risk: ['personal'] },
+  'badge:managesite': { level: 'SYSTEM', archetypes: [M] },
   'mod.lti:manage': { level: 'COURSE', archetypes: [M, ET], risk: ['config'] },
 } as const satisfies Record<string, CapabilityDef>;
 

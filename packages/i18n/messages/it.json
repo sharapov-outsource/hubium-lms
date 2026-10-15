@@ -100,7 +100,8 @@
     "settings": "Impostazioni",
     "signOut": "Esci",
     "openMenu": "Apri menu",
-    "userMenu": "Menu utente"
+    "userMenu": "Menu utente",
+    "badges": "I miei badge"
   },
   "auth": {
     "signIn": "Accedi",
@@ -515,7 +516,8 @@
     "maintenance": "Manutenzione",
     "maintenanceOn": "La modalità manutenzione è attiva: solo gli amministratori possono usare il sito.",
     "maintenanceSettings": "Impostazioni della manutenzione",
-    "tasks": "Attività"
+    "tasks": "Attività",
+    "badges": "Badge"
   },
   "email": {
     "footer": "Questa email è stata inviata perché l’indirizzo è associato a un account su questo sito.",
@@ -659,7 +661,8 @@
       "questionBank": "Deposito delle domande",
       "stream": "Bacheca",
       "tutor": "Tutor IA",
-      "permissions": "Permessi"
+      "permissions": "Permessi",
+      "badges": "Badge"
     },
     "editMode": "Modalità modifica",
     "editOn": "Modifica",
@@ -1406,13 +1409,15 @@
       "message_new": "Nuovi messaggi privati",
       "calendar_reminder": "Promemoria del calendario",
       "auth_newSignIn": "Accesso da un nuovo dispositivo",
-      "admin_bulkDone": "Azioni di massa sugli utenti"
+      "admin_bulkDone": "Azioni di massa sugli utenti",
+      "badge_awarded": "Badge ottenuti"
     },
     "text": {
       "enrolled": "Iscrizione al corso «{course}» effettuata",
       "announcementCourse": "{course}: {title}",
       "messageNew": "Nuovo messaggio da {name}",
-      "calendarReminder": "Domani: {title}"
+      "calendarReminder": "Domani: {title}",
+      "badgeAwarded": "Hai ottenuto il badge «{name}»"
     },
     "email": {
       "open": "Apri",
@@ -2166,7 +2171,111 @@
       "quiz_overdue_sweep": "Chiusura dei tentativi di quiz scaduti",
       "lesson_overdue_sweep": "Chiusura dei tentativi di lezione scaduti",
       "workshop_phase_switch": "Cambio di fase dei workshop",
-      "livesession_remind": "Promemoria dei webinar"
+      "livesession_remind": "Promemoria dei webinar",
+      "badges_review": "Verifica e assegnazione dei badge"
+    }
+  },
+  "badges": {
+    "title": "Badge",
+    "courseTitle": "Badge del corso",
+    "siteTitle": "Badge del sito",
+    "myTitle": "I miei badge",
+    "myIntro": "I badge che hai ottenuto. Ognuno si può verificare al suo indirizzo pubblico e scaricare con l’attestazione incorporata (Open Badges 2.0).",
+    "myEmpty": "Non hai ancora badge",
+    "siteBadge": "Badge del sito",
+    "new": "Nuovo badge",
+    "empty": "Ancora nessun badge",
+    "name": "Nome",
+    "description": "Descrizione",
+    "image": "Immagine",
+    "imageHint": "PNG o SVG fino a 1 MB, meglio quadrata",
+    "criteria": "Criteri",
+    "locked": "Il badge è già stato assegnato: criteri e validità restano invariati.",
+    "criteriaMethod": "Da soddisfare",
+    "criteriaAll": "tutti i criteri",
+    "criteriaAny": "uno qualsiasi dei criteri",
+    "rules": {
+      "courseCompletion": "Completamento del corso",
+      "activities": "Completamento di attività",
+      "courseGrade": "Valutazione finale del corso",
+      "courses": "Completamento di corsi",
+      "cohort": "Appartenenza a coorti",
+      "manual": "Assegnato manualmente da ruoli"
+    },
+    "minPercent": "Almeno, %",
+    "ruleMethod": "Condizione",
+    "methodAll": "tutti i selezionati",
+    "methodAny": "uno qualsiasi dei selezionati",
+    "noOptions": "Niente da scegliere",
+    "expiry": "Validità",
+    "expiryChoice": {
+      "never": "Senza scadenza",
+      "days": "Questi giorni dopo l’assegnazione",
+      "date": "Fino a una data"
+    },
+    "expiresAfterDays": "Giorni",
+    "expiresAt": "Data",
+    "status": {
+      "DRAFT": "Bozza",
+      "ACTIVE": "Assegnato",
+      "ARCHIVED": "Archiviato"
+    },
+    "activate": "Inizia ad assegnare",
+    "reactivate": "Assegna di nuovo",
+    "activated": "Il badge viene assegnato",
+    "archive": "Archivia",
+    "archiveConfirm": "Il badge non verrà più assegnato; quelli già assegnati restano validi.",
+    "toDraft": "Torna a bozza",
+    "publicPage": "Pagina pubblica del badge",
+    "earnedOn": "Ottenuto il {date}",
+    "awardedCount": "{count, plural, one {Assegnato una volta} other {Assegnato # volte}}",
+    "issuerTitle": "Emittente",
+    "issuerName": "Nome dell’emittente",
+    "issuerNameHint": "Vuoto: il nome del sito",
+    "issuerEmail": "Email dell’emittente",
+    "awards": "Destinatari",
+    "noAwards": "Il badge non è ancora stato assegnato",
+    "state": "Stato",
+    "awardByHand": "Assegna manualmente",
+    "awardByHandHint": "L’assegnazione è registrata per ognuno dei tuoi ruoli nel criterio; il badge è rilasciato quando tutti i criteri sono soddisfatti.",
+    "learner": "Studente",
+    "award": "Assegna",
+    "marked": "Registrato",
+    "revoke": "Revoca",
+    "revokeReason": "Motivo (visibile a chi lo verifica)",
+    "revokedDone": "Badge revocato",
+    "revoked": "Revocato",
+    "expired": "Scaduto",
+    "valid": "Valido",
+    "recipient": "Destinatario",
+    "issuer": "Emittente",
+    "issuedOn": "Assegnato il",
+    "expires": "Valido fino al",
+    "never": "Senza scadenza",
+    "revokedOn": "Revocato il",
+    "verify": "Verifica (Open Badges)",
+    "download": "Scarica il badge",
+    "narrative": {
+      "courseCompletion": "completare il corso",
+      "courseGrade": "ottenere almeno il {percent}% nel corso",
+      "activities": {
+        "all": "completare le attività: {list}",
+        "any": "completare una qualsiasi delle attività: {list}"
+      },
+      "courses": {
+        "all": "completare i corsi: {list}",
+        "any": "completare uno qualsiasi dei corsi: {list}"
+      },
+      "cohort": {
+        "all": "essere membro di tutte le coorti: {list}",
+        "any": "essere membro di una qualsiasi delle coorti: {list}"
+      },
+      "manual": {
+        "all": "ricevere il badge manualmente dai ruoli: {list}",
+        "any": "ricevere il badge manualmente da uno qualsiasi dei ruoli: {list}"
+      },
+      "and": "; e ",
+      "or": "; oppure "
     }
   }
 }

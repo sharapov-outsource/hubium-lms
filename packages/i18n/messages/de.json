@@ -100,7 +100,8 @@
     "settings": "Einstellungen",
     "signOut": "Abmelden",
     "openMenu": "Menü öffnen",
-    "userMenu": "Nutzermenü"
+    "userMenu": "Nutzermenü",
+    "badges": "Meine Auszeichnungen"
   },
   "auth": {
     "signIn": "Anmelden",
@@ -515,7 +516,8 @@
     "maintenance": "Wartung",
     "maintenanceOn": "Der Wartungsmodus ist an: Nur Administratoren können die Website nutzen.",
     "maintenanceSettings": "Wartungseinstellungen",
-    "tasks": "Aufgaben"
+    "tasks": "Aufgaben",
+    "badges": "Auszeichnungen"
   },
   "email": {
     "footer": "Sie erhalten diese E-Mail, weil Sie ein Konto auf dieser Website haben.",
@@ -659,7 +661,8 @@
       "questionBank": "Fragensammlung",
       "stream": "Stream",
       "tutor": "KI-Tutor",
-      "permissions": "Rechte"
+      "permissions": "Rechte",
+      "badges": "Auszeichnungen"
     },
     "editMode": "Bearbeitungsmodus",
     "editOn": "Bearbeiten",
@@ -1406,13 +1409,15 @@
       "message_new": "Neue Direktnachrichten",
       "calendar_reminder": "Kalendererinnerungen",
       "auth_newSignIn": "Anmeldung von einem neuen Gerät",
-      "admin_bulkDone": "Massenaktionen für Benutzer"
+      "admin_bulkDone": "Massenaktionen für Benutzer",
+      "badge_awarded": "Erhaltene Auszeichnungen"
     },
     "text": {
       "enrolled": "Sie wurden in „{course}“ eingeschrieben",
       "announcementCourse": "{course}: {title}",
       "messageNew": "Neue Nachricht von {name}",
-      "calendarReminder": "Morgen: {title}"
+      "calendarReminder": "Morgen: {title}",
+      "badgeAwarded": "Sie haben die Auszeichnung „{name}“ erhalten"
     },
     "email": {
       "open": "Öffnen",
@@ -2166,7 +2171,111 @@
       "quiz_overdue_sweep": "Überfällige Testversuche abschließen",
       "lesson_overdue_sweep": "Überfällige Lektionsversuche abschließen",
       "workshop_phase_switch": "Workshop-Phasen wechseln",
-      "livesession_remind": "Webinar-Erinnerungen"
+      "livesession_remind": "Webinar-Erinnerungen",
+      "badges_review": "Auszeichnungen prüfen und verleihen"
+    }
+  },
+  "badges": {
+    "title": "Auszeichnungen",
+    "courseTitle": "Kursauszeichnungen",
+    "siteTitle": "Website-Auszeichnungen",
+    "myTitle": "Meine Auszeichnungen",
+    "myIntro": "Ihre erhaltenen Auszeichnungen. Jede lässt sich unter ihrer öffentlichen Adresse prüfen und mit eingebetteter Bestätigung herunterladen (Open Badges 2.0).",
+    "myEmpty": "Sie haben noch keine Auszeichnungen",
+    "siteBadge": "Website-Auszeichnung",
+    "new": "Neue Auszeichnung",
+    "empty": "Noch keine Auszeichnungen",
+    "name": "Name",
+    "description": "Beschreibung",
+    "image": "Bild",
+    "imageHint": "PNG oder SVG bis 1 MB, möglichst quadratisch",
+    "criteria": "Kriterien",
+    "locked": "Die Auszeichnung wurde bereits verliehen: Kriterien und Gültigkeit bleiben unverändert.",
+    "criteriaMethod": "Zu erfüllen",
+    "criteriaAll": "alle Kriterien",
+    "criteriaAny": "eines der Kriterien",
+    "rules": {
+      "courseCompletion": "Kursabschluss",
+      "activities": "Abschluss von Aktivitäten",
+      "courseGrade": "Kurs-Gesamtbewertung",
+      "courses": "Abschluss von Kursen",
+      "cohort": "Mitgliedschaft in globalen Gruppen",
+      "manual": "Manuelle Verleihung durch Rollen"
+    },
+    "minPercent": "Mindestens, %",
+    "ruleMethod": "Bedingung",
+    "methodAll": "alle ausgewählten",
+    "methodAny": "eine der ausgewählten",
+    "noOptions": "Keine Auswahl vorhanden",
+    "expiry": "Gültigkeit",
+    "expiryChoice": {
+      "never": "Unbegrenzt",
+      "days": "So viele Tage nach der Verleihung",
+      "date": "Bis zu einem Datum"
+    },
+    "expiresAfterDays": "Tage",
+    "expiresAt": "Datum",
+    "status": {
+      "DRAFT": "Entwurf",
+      "ACTIVE": "Wird verliehen",
+      "ARCHIVED": "Archiviert"
+    },
+    "activate": "Verleihung starten",
+    "reactivate": "Wieder verleihen",
+    "activated": "Die Auszeichnung wird verliehen",
+    "archive": "Archivieren",
+    "archiveConfirm": "Die Auszeichnung wird nicht mehr verliehen; bereits verliehene bleiben gültig.",
+    "toDraft": "Zurück zum Entwurf",
+    "publicPage": "Öffentliche Seite der Auszeichnung",
+    "earnedOn": "Erhalten am {date}",
+    "awardedCount": "{count, plural, one {Einmal verliehen} other {# Mal verliehen}}",
+    "issuerTitle": "Aussteller",
+    "issuerName": "Name des Ausstellers",
+    "issuerNameHint": "Leer: der Name der Website",
+    "issuerEmail": "E-Mail des Ausstellers",
+    "awards": "Empfänger",
+    "noAwards": "Die Auszeichnung wurde noch nicht verliehen",
+    "state": "Status",
+    "awardByHand": "Manuell verleihen",
+    "awardByHandHint": "Die Verleihung wird für jede Ihrer Rollen im Kriterium vermerkt; die Auszeichnung wird ausgestellt, sobald alle Kriterien erfüllt sind.",
+    "learner": "Teilnehmer/in",
+    "award": "Verleihen",
+    "marked": "Vermerkt",
+    "revoke": "Widerrufen",
+    "revokeReason": "Grund (für Prüfende sichtbar)",
+    "revokedDone": "Auszeichnung widerrufen",
+    "revoked": "Widerrufen",
+    "expired": "Abgelaufen",
+    "valid": "Gültig",
+    "recipient": "Empfänger/in",
+    "issuer": "Aussteller",
+    "issuedOn": "Verliehen",
+    "expires": "Gültig bis",
+    "never": "Unbegrenzt",
+    "revokedOn": "Widerrufen am",
+    "verify": "Prüfen (Open Badges)",
+    "download": "Auszeichnung herunterladen",
+    "narrative": {
+      "courseCompletion": "den Kurs abschließen",
+      "courseGrade": "mindestens {percent}% im Kurs erreichen",
+      "activities": {
+        "all": "die Aktivitäten abschließen: {list}",
+        "any": "eine der Aktivitäten abschließen: {list}"
+      },
+      "courses": {
+        "all": "die Kurse abschließen: {list}",
+        "any": "einen der Kurse abschließen: {list}"
+      },
+      "cohort": {
+        "all": "Mitglied aller globalen Gruppen sein: {list}",
+        "any": "Mitglied einer der globalen Gruppen sein: {list}"
+      },
+      "manual": {
+        "all": "die Auszeichnung manuell von den Rollen erhalten: {list}",
+        "any": "die Auszeichnung manuell von einer der Rollen erhalten: {list}"
+      },
+      "and": "; und ",
+      "or": "; oder "
     }
   }
 }

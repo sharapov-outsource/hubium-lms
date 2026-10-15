@@ -38,6 +38,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 - Groups and groupings (an activity can be limited to one), site-wide cohorts, and a participants page with filters and bulk actions.
 - A dashboard with "continue", a to-do list and upcoming deadlines, plus a course stream like Google Classroom.
 - Course reports: participation and an event log.
+- Badges (Open Badges 2.0) of the site and of courses: earned by completing the course, activities or other courses, by a course grade, by cohort membership or awarded by hand by chosen roles; each award can be verified at public addresses, downloaded with the assertion baked into its image, and revoked with a reason.
 - Mentors and parents (optional): an administrator links them to learners, and they follow the learners' courses, progress, grades and deadlines without acting for them.
 
 ### Activities

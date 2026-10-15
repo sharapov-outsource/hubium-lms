@@ -14,14 +14,15 @@ export async function generateMetadata() {
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   await requireUser();
   const ctx = await getContext();
-  const [users, roles, config, categories, cohorts] = await Promise.all([
+  const [users, roles, config, categories, cohorts, badges] = await Promise.all([
     ctx.perm.can('user:update'),
     ctx.perm.can('role:manage'),
     ctx.perm.can('site:config'),
     ctx.perm.can('category:manage'),
     ctx.perm.can('cohort:manage'),
+    ctx.perm.can('badge:managesite'),
   ]);
-  if (!users && !roles && !config && !categories && !cohorts) forbidden();
+  if (!users && !roles && !config && !categories && !cohorts && !badges) forbidden();
   const t = await getTranslations('admin');
   const lti = isModuleEnabled(await getAllSettings(db), 'lti');
   const items = [
@@ -30,6 +31,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     { key: 'categories', href: '/admin/categories', label: t('categories'), show: categories },
     { key: 'courses', href: '/admin/courses', label: t('courses'), show: categories },
     { key: 'cohorts', href: '/admin/cohorts', label: t('cohorts'), show: cohorts },
+    { key: 'badges', href: '/admin/badges', label: t('badges'), show: badges },
     {
       key: 'profileFields',
       href: '/admin/profile-fields',

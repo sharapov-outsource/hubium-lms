@@ -1,6 +1,9 @@
 import {
   addSection,
+  type BadgeCriteriaT,
+  type BadgeRuleT,
   buildModuleCtx,
+  checkCriteria,
   compareRank,
   createCourse,
   disabledTypesIn,
@@ -154,6 +157,20 @@ const CourseJson = z.object({
   }),
   sections: z.array(Section),
   activities: z.array(ActivityRow),
+  /** Course badges, without their awards; absent in older archives. */
+  badges: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        description: z.string(),
+        imageFileId: z.string().nullable(),
+        criteria: z.unknown(),
+        expiresAfterDays: z.number().int().nullable(),
+        expiresAt: z.string().nullable(),
+      }),
+    )
+    .default([]),
   groups: z.array(
     z.object({
       id: z.string(),
@@ -370,6 +387,17 @@ export async function exportCourse(
       availability: s.availability ?? null,
     })),
     activities: actRows,
+    badges: opts.activityIds
+      ? []
+      : (await db.badge.findMany({ where: { courseId } })).map((x) => ({
+          id: x.id,
+          name: x.name,
+          description: x.description,
+          imageFileId: x.imageFileId,
+          criteria: x.criteria,
+          expiresAfterDays: x.expiresAfterDays,
+          expiresAt: x.expiresAt?.toISOString() ?? null,
+        })),
     groups: groups.map((g) => ({
       id: g.id,
       name: g.name,
@@ -890,6 +918,47 @@ async function restoreInto(
       }
     }
 
+    // course badges, as drafts to look over: their rules keep what they still point to
+    const roles = new Set((await db.role.findMany({ select: { id: true } })).map((r) => r.id));
+    const badges: { id: string; imageFileId: string | null }[] = [];
+    for (const x of scope.fresh ? b.course.badges : []) {
+      const id = uuidv7();
+      map.set(x.id, id);
+      const rules = ((rewriteJson(x.criteria, map) as { rules?: BadgeRuleT[] })?.rules ?? [])
+        .map((r) =>
+          r.kind === 'activities'
+            ? { ...r, activityIds: r.activityIds.filter((a) => created.some((c) => c.id === a)) }
+            : r.kind === 'manual'
+              ? { ...r, roleIds: r.roleIds.filter((role) => roles.has(role)) }
+              : r,
+        )
+        .filter((r) => !('activityIds' in r && !r.activityIds.length))
+        .filter((r) => !('roleIds' in r && !r.roleIds.length));
+      let criteria: BadgeCriteriaT = { method: 'all', rules: [] };
+      try {
+        criteria = checkCriteria(
+          { method: (x.criteria as { method?: string })?.method, rules },
+          false,
+        );
+      } catch {
+        warnings.push(`The criteria of the badge "${x.name}" could not be restored`);
+      }
+      await db.badge.create({
+        data: {
+          id,
+          courseId,
+          name: x.name.slice(0, 255),
+          description: x.description.slice(0, 5000),
+          criteria: criteria as unknown as Prisma.InputJsonValue,
+          expiresAfterDays: x.expiresAfterDays,
+          expiresAt: x.expiresAt ? new Date(x.expiresAt) : null,
+          status: 'DRAFT',
+          createdById: ctx.perm.userId ?? null,
+        },
+      });
+      badges.push({ id, imageFileId: x.imageFileId });
+    }
+
     let fileCount = 0;
     for (const f of b.files) {
       const contextId = map.get(f.contextId);
@@ -909,6 +978,13 @@ async function restoreInto(
       map.set(f.id, nf.id);
       fileCount++;
     }
+
+    for (const x of badges)
+      if (x.imageFileId && map.has(x.imageFileId))
+        await db.badge.update({
+          where: { id: x.id },
+          data: { imageFileId: map.get(x.imageFileId)! },
+        });
 
     // second pass: references to activities, files and groups
     if (scope.fresh)

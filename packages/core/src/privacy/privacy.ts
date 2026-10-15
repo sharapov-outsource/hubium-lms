@@ -175,6 +175,16 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
     where: { userId, scope: 'USER' },
     select: { name: true, url: true, pollSeconds: true, createdAt: true },
   });
+  const badges = await db.badgeAward.findMany({
+    where: { userId },
+    select: {
+      badge: { select: { name: true, courseId: true } },
+      issuedAt: true,
+      expiresAt: true,
+      revokedAt: true,
+      revokedReason: true,
+    },
+  });
   return JSON.parse(
     JSON.stringify({
       exportedAt: ctx.now.toISOString(),
@@ -185,6 +195,7 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
       completions,
       calendar: events,
       calendarSubscriptions,
+      badges,
       messages,
       notifications,
       notificationPreferences: preferences,
@@ -223,6 +234,9 @@ export async function erasePersonalData(
   await tx.notificationPreference.deleteMany({ where: { userId } });
   await tx.calendarEvent.deleteMany({ where: { userId, scope: 'USER' } });
   await tx.calendarSubscription.deleteMany({ where: { userId, scope: 'USER' } });
+  // awards name the person in their public assertions
+  await tx.badgeAward.deleteMany({ where: { userId } });
+  await tx.badgeMark.deleteMany({ where: { userId } });
   // Webhook deliveries carry the person's name and email until they are pruned.
   await tx.$executeRaw`DELETE FROM "WebhookDelivery" WHERE payload -> 'user' ->> 'id' = ${userId}`;
   await tx.message.updateMany({

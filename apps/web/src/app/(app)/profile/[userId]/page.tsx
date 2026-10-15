@@ -1,8 +1,9 @@
-import { listProfileFields, profileFieldLabel } from '@hubium/core';
+import { listProfileFields, profileFieldLabel, userBadges } from '@hubium/core';
 import { Avatar, Button, Card, CardContent } from '@hubium/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
+import { BadgeImage } from '@/components/badges/badge-image';
 import { MessageUserButton } from '@/components/comms/message-buttons';
 import { db } from '@/server/db';
 import { getContext, getCurrentUser, requireUser } from '@/server/session';
@@ -44,6 +45,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ userId
       return { label: profileFieldLabel(f, locale), text };
     })
     .filter((d) => d.text !== '');
+  // the badges they hold now
+  const now = new Date();
+  const badges = (await userBadges(db, user.id)).filter(
+    (a) => !a.revokedAt && (!a.expiresAt || a.expiresAt > now),
+  );
   return (
     <Card className="max-w-2xl">
       <CardContent className="flex flex-wrap items-center gap-5 pt-6">
@@ -77,6 +83,20 @@ export default async function ProfilePage({ params }: { params: Promise<{ userId
               </div>
             ))}
           </dl>
+        ) : null}
+        {badges.length ? (
+          <section className="w-full border-t border-border pt-4">
+            <h2 className="mb-2 text-sm font-medium">{t('badges.title')}</h2>
+            <ul className="flex flex-wrap gap-3">
+              {badges.map((a) => (
+                <li key={a.id}>
+                  <Link href={`/badge/${a.id}`} title={a.badge.name} className="block">
+                    <BadgeImage badgeId={a.badgeId} name={a.badge.name} size={16} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
         ) : null}
       </CardContent>
     </Card>

@@ -22,6 +22,7 @@ import {
   WEBHOOK_JOB,
 } from '@hubium/core';
 import { publishDueAnnouncements } from '@hubium/core/announcements/announcements';
+import { BADGES_REVIEW_JOB, reviewAllBadges, reviewBadge } from '@hubium/core/badges/badges';
 import { sendCalendarReminders } from '@hubium/core/calendar/calendar';
 import { syncDueSubscriptions } from '@hubium/core/calendar/subscriptions';
 import { garbageCollectBlobs } from '@hubium/core/files/files';
@@ -111,6 +112,16 @@ export const coreHandlers: JobHandlerDef[] = [
     cron: CORE_SCHEDULE['calendar.reminders'],
     async handler(_data: never, { db }) {
       return { notified: await sendCalendarReminders(db) };
+    },
+  },
+  {
+    // hourly for every active badge; with a badge id when one is activated
+    name: BADGES_REVIEW_JOB,
+    cron: CORE_SCHEDULE['badges.review'],
+    async handler(data: { badgeId?: string } | null, { db }) {
+      return {
+        awarded: data?.badgeId ? await reviewBadge(db, data.badgeId) : await reviewAllBadges(db),
+      };
     },
   },
   {

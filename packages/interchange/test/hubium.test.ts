@@ -6,11 +6,15 @@ import {
   displayCalculations,
   getCourseOutline,
   importGift,
+  markBadge,
   runModuleAction,
+  saveBadge,
   saveCourseField,
   saveGradeCategory,
   saveLetters,
   saveScale,
+  setBadgeImage,
+  setBadgeStatus,
   setGradeCalculation,
   updateGradeItem,
   updateSection,
@@ -289,6 +293,54 @@ describe('.hubium backup and restore', () => {
       orderBy: { lowerBound: 'desc' },
     });
     expect(letters.map((l) => l.letter)).toEqual(['P', 'F']);
+  });
+
+  it('carries course badges as drafts with their image and criteria, without awards', async () => {
+    const teacher = await ctxFor(t.db, f.users.teacher!);
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const { id } = await saveBadge.run(teacher, {
+      courseId: f.courseId,
+      name: 'Читатель',
+      criteria: {
+        method: 'any',
+        rules: [
+          { kind: 'activities', activityIds: [pageId], method: 'all' },
+          { kind: 'manual', roleIds: [f.roles.editingteacher!], method: 'all' },
+        ],
+      },
+      expiry: 'days',
+      expiresAfterDays: 90,
+    });
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"/>';
+    await setBadgeImage.run(teacher, { id, name: 'reader.svg', data: strToU8(svg) });
+    await setBadgeStatus.run(teacher, { id, status: 'ACTIVE' });
+    await markBadge.run(teacher, { badgeId: id, userId: f.users.student1! });
+    expect(await t.db.badgeAward.count({ where: { badgeId: id } })).toBe(1);
+
+    const course = await t.db.course.findUniqueOrThrow({ where: { id: f.courseId } });
+    const r = await restoreCourse(admin, await exportCourse(teacher, f.courseId), {
+      categoryId: course.categoryId,
+    });
+    const copy = await t.db.badge.findFirstOrThrow({ where: { courseId: r.courseId } });
+    expect(copy).toMatchObject({ name: 'Читатель', status: 'DRAFT', expiresAfterDays: 90 });
+    const page = await t.db.activity.findFirstOrThrow({
+      where: { courseId: r.courseId, name: 'Введение' },
+    });
+    expect(copy.criteria).toMatchObject({
+      method: 'any',
+      rules: expect.arrayContaining([
+        expect.objectContaining({ kind: 'activities', activityIds: [page.id] }),
+        expect.objectContaining({ kind: 'manual', roleIds: [f.roles.editingteacher!] }),
+      ]),
+    });
+    const image = await t.db.file.findUniqueOrThrow({ where: { id: copy.imageFileId! } });
+    expect([image.contextId, image.component, image.itemId]).toEqual([
+      r.courseId,
+      'badge',
+      copy.id,
+    ]);
+    expect(await t.db.badgeAward.count({ where: { badgeId: copy.id } })).toBe(0);
+    await t.db.badge.delete({ where: { id } });
   });
 
   it('duplicates a course with a new name', async () => {

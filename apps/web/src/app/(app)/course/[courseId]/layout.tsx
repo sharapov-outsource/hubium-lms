@@ -88,6 +88,23 @@ export default async function CourseLayout({
             (await ctx.perm.can('completion:viewreports', courseId)),
         },
         {
+          key: 'badges',
+          href: `${base}/badges`,
+          label: t('tabs.badges'),
+          show:
+            !access.isGuest &&
+            ((await ctx.perm.can('badge:manage', courseId)) ||
+              (await db.badge.count({
+                where: {
+                  courseId,
+                  OR: [
+                    { status: 'ACTIVE' },
+                    { status: 'ARCHIVED', awards: { some: { userId: ctx.perm.userId ?? '' } } },
+                  ],
+                },
+              })) > 0),
+        },
+        {
           key: 'reports',
           href: `${base}/reports`,
           label: t('tabs.reports'),
