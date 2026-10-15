@@ -58,7 +58,9 @@ describe('hubium', () => {
     expect(list.find((m) => m.key === 'video')?.enabled).toBe(false);
     expect(list.find((m) => m.key === 'quiz')?.enabled).toBe(true);
     expect((await run('modules', 'disable', 'page')).err).toContain('cannot be turned off');
-    expect((await run('modules', 'disable', 'wiki')).err).toContain('Unknown activity type: wiki');
+    expect((await run('modules', 'disable', 'nosuchmodule')).err).toContain(
+      'Unknown activity type: nosuchmodule',
+    );
     expect(await run('modules', 'enable', 'video', 'livesession')).toMatchObject({
       code: 0,
       out: 'All activity types are on.',

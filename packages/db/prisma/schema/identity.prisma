@@ -91,9 +91,11 @@ model User {
   assignParticipants  AssignParticipant[]
   gradingInstances    GradingInstance[]
   forumRatings        ForumRating[]            @relation("ForumRatingRater")
-  glossaryEntries     GlossaryEntry[]     @relation("GlossaryEntryAuthor")
-  glossaryRatings     GlossaryRating[]    @relation("GlossaryRatingRater")
-  lessonAttempts      LessonAttempt[]     @relation("LessonAttemptUser")
+  glossaryEntries     GlossaryEntry[]          @relation("GlossaryEntryAuthor")
+  glossaryRatings     GlossaryRating[]         @relation("GlossaryRatingRater")
+  lessonAttempts      LessonAttempt[]          @relation("LessonAttemptUser")
+  wikiSubwikis        WikiSubwiki[]            @relation("WikiSubwikiUser")
+  wikiVersions        WikiVersion[]            @relation("WikiVersionAuthor")
   forumGrades         ForumGrade[]             @relation("ForumGradeUser")
   forumGraded         ForumGrade[]             @relation("ForumGradeGrader")
   quizAttempts        QuizAttempt[]

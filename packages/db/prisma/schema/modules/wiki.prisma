@@ -1,0 +1,55 @@
+// mod-wiki: pages that a course writes together, with their history.
+
+/// One wiki of the activity: shared, a group's, or a learner's own.
+model WikiSubwiki {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  activityId String   @db.Uuid
+  /// The group's wiki in group mode.
+  groupId    String?  @db.Uuid
+  /// The learner's wiki in an individual wiki.
+  userId     String?  @db.Uuid
+  /// "<groupId>/<userId>" with empty parts: one wiki per pair.
+  key        String
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  activity Activity   @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User?      @relation("WikiSubwikiUser", fields: [userId], references: [id], onDelete: Cascade)
+  pages    WikiPage[]
+
+  @@unique([activityId, key])
+  @@index([userId])
+}
+
+model WikiPage {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  subwikiId   String    @db.Uuid
+  title       String
+  content     String    @default("")
+  /// The latest version's number.
+  version     Int       @default(0)
+  /// Who is changing the page, until when (renewed while the editor is open).
+  lockedById  String?   @db.Uuid
+  lockedUntil DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  subwiki  WikiSubwiki   @relation(fields: [subwikiId], references: [id], onDelete: Cascade)
+  versions WikiVersion[]
+
+  @@unique([subwikiId, title])
+}
+
+model WikiVersion {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  pageId    String   @db.Uuid
+  version   Int
+  content   String
+  authorId  String?  @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  page   WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  author User?    @relation("WikiVersionAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@unique([pageId, version])
+  @@index([authorId])
+}

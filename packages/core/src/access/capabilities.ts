@@ -139,6 +139,10 @@ export const coreCapabilities = {
   'mod.lesson:edit': { level: 'ACTIVITY', archetypes: [M, ET], risk: ['xss'] },
   'mod.lesson:viewreports': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.lesson:grade': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  // wiki: writing pages, taking over another's edit, managing every wiki of the activity
+  'mod.wiki:edit': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },
+  'mod.wiki:overridelock': { level: 'ACTIVITY', archetypes: [M, ET] },
+  'mod.wiki:manage': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   // video / live
   'mod.video:viewprogress': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.livesession:join': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },

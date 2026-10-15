@@ -172,6 +172,7 @@ model Activity {
   glossaryEntries    GlossaryEntry[]
   lessonPages        LessonPage[]
   lessonAttempts     LessonAttempt[]
+  wikiSubwikis       WikiSubwiki[]
   liveMeeting        LiveMeeting?
   liveAttendance     LiveAttendance[]
   liveRecordings     LiveRecording[]

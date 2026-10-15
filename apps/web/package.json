@@ -34,6 +34,7 @@
     "@hubium/mod-quiz": "workspace:*",
     "@hubium/mod-scorm": "workspace:*",
     "@hubium/mod-video": "workspace:*",
+    "@hubium/mod-wiki": "workspace:*",
     "@hubium/module-sdk": "workspace:*",
     "@hubium/modules": "workspace:*",
     "@hubium/questions": "workspace:*",

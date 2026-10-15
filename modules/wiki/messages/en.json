@@ -1,0 +1,51 @@
+{
+  "wiki": {
+    "name": "Wiki",
+    "description": "Pages a course writes together, linked with [[Title]], with the history of every change",
+    "settings": {
+      "mode": "Wiki mode",
+      "modeHint": "In group mode each group has its own wiki",
+      "modes": {
+        "collaborative": "Collaborative: one wiki for everyone",
+        "individual": "Individual: each learner's own"
+      },
+      "firstPageTitle": "First page",
+      "firstPageHint": "A new title starts a new first page; existing pages keep theirs",
+      "firstPageDefault": "Home",
+      "completionEdits": "Changes the learner must save"
+    },
+    "learners": "Learners' wikis",
+    "groups": "Groups' wikis",
+    "allPages": "All pages",
+    "versionShort": "version {n}",
+    "noPages": "The wiki has no pages yet.",
+    "orphans": "Orphaned pages",
+    "orphansHint": "No page links to these.",
+    "view": "View",
+    "edit": "Edit",
+    "history": "History",
+    "pageTabs": "Page",
+    "notFound": "The page is not in this wiki.",
+    "notWritten": "The page “{title}” is not written yet.",
+    "create": "Write the page",
+    "comparing": "Changes from version {from} to version {to}",
+    "changes": "Changes",
+    "backToHistory": "Back to the history",
+    "oldVersion": "Version {n} of {time} by {name}",
+    "formerUser": "Former user",
+    "compareWithPrevious": "Compare with the previous",
+    "beingEdited": "{name} is changing this page now.",
+    "lastChange": "Version {n}, {time}, {name}",
+    "locking": "Opening the editor…",
+    "lockedBy": "{name} is changing this page (until {time} unless they go on). Try again later.",
+    "override": "Take over the editing",
+    "saved": "Page saved",
+    "content": "Page",
+    "linkHint": "Link pages with [[Title]] or [[Title|text]]; a link to a page that does not exist yet lets you write it.",
+    "restoreConfirm": "Make version {version} the latest?",
+    "restored": "Version restored",
+    "restore": "Restore",
+    "deleteConfirm": "Delete the page “{title}” with its history?",
+    "deleted": "Page deleted"
+  }
+}

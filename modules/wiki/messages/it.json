@@ -1,0 +1,51 @@
+{
+  "wiki": {
+    "name": "Wiki",
+    "description": "Pagine che un corso scrive insieme, collegate con [[Titolo]], con la cronologia di ogni modifica",
+    "settings": {
+      "mode": "Modalità del wiki",
+      "modeHint": "In modalità gruppi ogni gruppo ha il proprio wiki",
+      "modes": {
+        "collaborative": "Collaborativo: un wiki per tutti",
+        "individual": "Individuale: ogni studente ha il proprio"
+      },
+      "firstPageTitle": "Prima pagina",
+      "firstPageHint": "Un nuovo titolo inizia una nuova prima pagina; le pagine esistenti restano",
+      "firstPageDefault": "Pagina iniziale",
+      "completionEdits": "Modifiche che lo studente deve salvare"
+    },
+    "learners": "Wiki degli studenti",
+    "groups": "Wiki dei gruppi",
+    "allPages": "Tutte le pagine",
+    "versionShort": "versione {n}",
+    "noPages": "Il wiki non ha ancora pagine.",
+    "orphans": "Pagine orfane",
+    "orphansHint": "Nessuna pagina vi rimanda.",
+    "view": "Visualizza",
+    "edit": "Modifica",
+    "history": "Cronologia",
+    "pageTabs": "Pagina",
+    "notFound": "La pagina non è in questo wiki.",
+    "notWritten": "La pagina «{title}» non è ancora scritta.",
+    "create": "Scrivi la pagina",
+    "comparing": "Modifiche dalla versione {from} alla versione {to}",
+    "changes": "Modifiche",
+    "backToHistory": "Torna alla cronologia",
+    "oldVersion": "Versione {n} del {time} di {name}",
+    "formerUser": "Ex utente",
+    "compareWithPrevious": "Confronta con la precedente",
+    "beingEdited": "{name} sta modificando questa pagina.",
+    "lastChange": "Versione {n}, {time}, {name}",
+    "locking": "Apertura dell'editor…",
+    "lockedBy": "{name} sta modificando questa pagina (fino alle {time} se non continua). Riprova più tardi.",
+    "override": "Prendi in carico la modifica",
+    "saved": "Pagina salvata",
+    "content": "Pagina",
+    "linkHint": "Collega le pagine con [[Titolo]] o [[Titolo|testo]]; un collegamento a una pagina non ancora scritta permette di scriverla.",
+    "restoreConfirm": "Rendere la versione {version} l'ultima?",
+    "restored": "Versione ripristinata",
+    "restore": "Ripristina",
+    "deleteConfirm": "Eliminare la pagina «{title}» con la sua cronologia?",
+    "deleted": "Pagina eliminata"
+  }
+}

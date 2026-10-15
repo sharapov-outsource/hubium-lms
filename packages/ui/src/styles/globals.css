@@ -236,6 +236,10 @@
     color: var(--color-accent);
     text-decoration: underline;
   }
+  /* wiki links to pages not written yet */
+  .prose-content a[data-new] {
+    color: var(--color-destructive);
+  }
   /* glossary concepts linked in course texts */
   .prose-content a[data-autolink] {
     text-decoration-style: dotted;

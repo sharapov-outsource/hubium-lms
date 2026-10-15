@@ -1744,6 +1744,24 @@ export async function importMbz(
             );
             break;
           }
+          case 'wiki': {
+            // the settings; pages are users' work (Moodle keeps them in subwikis)
+            const pages = arr(((data.subwikis ?? {}) as Node).subwiki as Node | Node[]).reduce(
+              (n, sw) => n + arr(((sw.pages ?? {}) as Node).page as Node | Node[]).length,
+              0,
+            );
+            if (pages)
+              warnings.push(`"${name}": pages are users' data and were left out (${pages})`);
+            await create({
+              ...base,
+              moduleKey: 'wiki',
+              settings: {
+                mode: txt(data.wikimode) === 'individual' ? 'individual' : 'collaborative',
+                firstPageTitle: plainText(txt(data.firstpagetitle)).slice(0, 255),
+              },
+            });
+            break;
+          }
           case 'glossary': {
             // the settings; entries are users' work and stay out like forum posts
             const grading = mbzForumGrading(data, scaleOf);

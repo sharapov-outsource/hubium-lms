@@ -1,0 +1,51 @@
+{
+  "wiki": {
+    "name": "Wiki",
+    "description": "Seiten, die ein Kurs gemeinsam schreibt, verlinkt mit [[Titel]], mit dem Verlauf jeder Änderung",
+    "settings": {
+      "mode": "Wiki-Modus",
+      "modeHint": "Im Gruppenmodus hat jede Gruppe ihr eigenes Wiki",
+      "modes": {
+        "collaborative": "Gemeinsam: ein Wiki für alle",
+        "individual": "Persönlich: jede/r Studierende ein eigenes"
+      },
+      "firstPageTitle": "Erste Seite",
+      "firstPageHint": "Ein neuer Titel beginnt eine neue erste Seite; bestehende Seiten bleiben",
+      "firstPageDefault": "Startseite",
+      "completionEdits": "Zu speichernde Änderungen"
+    },
+    "learners": "Wikis der Studierenden",
+    "groups": "Wikis der Gruppen",
+    "allPages": "Alle Seiten",
+    "versionShort": "Version {n}",
+    "noPages": "Das Wiki hat noch keine Seiten.",
+    "orphans": "Verwaiste Seiten",
+    "orphansHint": "Keine Seite verlinkt auf diese.",
+    "view": "Ansehen",
+    "edit": "Bearbeiten",
+    "history": "Verlauf",
+    "pageTabs": "Seite",
+    "notFound": "Die Seite ist nicht in diesem Wiki.",
+    "notWritten": "Die Seite „{title}“ ist noch nicht geschrieben.",
+    "create": "Seite schreiben",
+    "comparing": "Änderungen von Version {from} zu Version {to}",
+    "changes": "Änderungen",
+    "backToHistory": "Zurück zum Verlauf",
+    "oldVersion": "Version {n} vom {time} von {name}",
+    "formerUser": "Ehemalige/r Nutzer/in",
+    "compareWithPrevious": "Mit der vorigen vergleichen",
+    "beingEdited": "{name} bearbeitet diese Seite gerade.",
+    "lastChange": "Version {n}, {time}, {name}",
+    "locking": "Editor wird geöffnet…",
+    "lockedBy": "{name} bearbeitet diese Seite (bis {time}, falls nicht fortgesetzt). Versuchen Sie es später.",
+    "override": "Bearbeitung übernehmen",
+    "saved": "Seite gespeichert",
+    "content": "Seite",
+    "linkHint": "Seiten verlinken mit [[Titel]] oder [[Titel|Text]]; über einen Link zu einer noch fehlenden Seite können Sie sie schreiben.",
+    "restoreConfirm": "Version {version} zur aktuellen machen?",
+    "restored": "Version wiederhergestellt",
+    "restore": "Wiederherstellen",
+    "deleteConfirm": "Die Seite „{title}“ samt Verlauf löschen?",
+    "deleted": "Seite gelöscht"
+  }
+}

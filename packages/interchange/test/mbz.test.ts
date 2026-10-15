@@ -28,12 +28,15 @@ describe('.mbz import', () => {
     expect(report).toMatchObject({
       moodleRelease: '4.5 (Build: 20241007)',
       sections: 2,
-      activities: 12,
+      activities: 13,
       questions: 6,
     });
     expect(report.warnings.join('\n')).toContain('Формула');
     expect(report.warnings.join('\n')).toContain('Новости');
-    expect(report.warnings.join('\n')).toContain('"Вики" (wiki)');
+    expect(report.warnings.join('\n')).toContain('"Пакет" (imscp)');
+    expect(report.warnings.join('\n')).toContain(
+      `"Вики": pages are users' data and were left out (1)`,
+    );
     expect(report.warnings.join('\n')).toContain(
       '"Отзыв": questions of type captcha were left out',
     );
@@ -72,13 +75,18 @@ describe('.mbz import', () => {
       'assign:Задание',
       'file:Методичка',
       'forum:Вопросы',
-      'label:Вики',
+      'wiki:Вики',
       'book:Учебник',
       'choice:Тема проекта',
       'feedback:Отзыв',
       'glossary:Словарь',
       'lesson:Маршрут',
+      'label:Пакет',
     ]);
+    expect(acts.find((a) => a.moduleKey === 'wiki')!.settings).toEqual({
+      mode: 'individual',
+      firstPageTitle: 'Начало',
+    });
     const lesson = acts.find((a) => a.moduleKey === 'lesson')!;
     expect(lesson.settings).toMatchObject({
       gradeMax: 20,
