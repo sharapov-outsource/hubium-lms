@@ -32,10 +32,13 @@ export interface StorageDriver {
   head(key: string): Promise<StoredObject | null>;
   delete(key: string): Promise<void>;
   copy(from: string, to: string): Promise<void>;
-  /** Short-lived URL a browser can GET. FS driver returns a signed app route. */
+  /**
+   * Short-lived URL a browser can GET. FS driver returns a signed app route. `contentType`
+   * is the type the answer carries (S3), whatever the object was stored with.
+   */
   signedReadUrl(
     key: string,
-    opts: { ttlSeconds: number; filename?: string; inline?: boolean },
+    opts: { ttlSeconds: number; filename?: string; inline?: boolean; contentType?: string },
   ): Promise<string>;
 }
 
@@ -180,7 +183,7 @@ export class S3Storage implements StorageDriver {
   }
   async signedReadUrl(
     key: string,
-    opts: { ttlSeconds: number; filename?: string; inline?: boolean },
+    opts: { ttlSeconds: number; filename?: string; inline?: boolean; contentType?: string },
   ) {
     const disposition = `${opts.inline ? 'inline' : 'attachment'}${
       opts.filename ? `; filename*=UTF-8''${encodeURIComponent(opts.filename)}` : ''
@@ -191,6 +194,7 @@ export class S3Storage implements StorageDriver {
         Bucket: this.cfg.bucket,
         Key: key,
         ResponseContentDisposition: disposition,
+        ...(opts.contentType ? { ResponseContentType: opts.contentType } : {}),
       }),
       { expiresIn: opts.ttlSeconds },
     );

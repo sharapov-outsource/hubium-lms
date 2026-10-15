@@ -94,6 +94,15 @@ export function isInlineSafe(mime: string): boolean {
   );
 }
 
+/**
+ * Whether a file of this type opens in the browser rather than downloads. SVG can run
+ * scripts: only where the answer carries a sandbox CSP (`sandboxed`, the app serving local
+ * storage), never from S3, where nothing adds one.
+ */
+export function servesInline(mime: string, opts: { sandboxed: boolean }): boolean {
+  return isInlineSafe(mime) && (opts.sandboxed || mime !== 'image/svg+xml');
+}
+
 export function sanitizeFilename(name: string): string {
   const base = name
     .replace(/[\\/]/g, '_')

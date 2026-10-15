@@ -12,6 +12,7 @@ import {
   listFiles,
   normalizeMimeType,
   sanitizeFilename,
+  servesInline,
   sniffMimeType,
   storeFile,
 } from './files.ts';
@@ -43,6 +44,12 @@ describe('file helpers', () => {
   it('only marks safe types inline', () => {
     expect(isInlineSafe('image/png')).toBe(true);
     expect(isInlineSafe('text/html')).toBe(false);
+    // SVG runs scripts: inline only where the app sends it with a sandbox (local storage),
+    // never straight from S3, where nothing adds one
+    expect(servesInline('image/svg+xml', { sandboxed: true })).toBe(true);
+    expect(servesInline('image/svg+xml', { sandboxed: false })).toBe(false);
+    expect(servesInline('image/png', { sandboxed: false })).toBe(true);
+    expect(servesInline('text/html', { sandboxed: true })).toBe(false);
     expect(isInlineSafe('application/zip')).toBe(false);
     // browsers take the last type of a list: such values must never pass as "text/plain"
     expect(isInlineSafe('text/plain,text/html')).toBe(false);

@@ -41,6 +41,13 @@ describe.skipIf(!endpoint)('S3Storage', () => {
     expect(res.status).toBe(200);
     expect(await res.text()).toBe('hello');
     expect(res.headers.get('content-disposition')).toContain("filename*=UTF-8''");
+    // the type the app decided on, not whatever the object was stored with
+    const typed = await s.signedReadUrl('blobs/a', {
+      ttlSeconds: 60,
+      filename: 'a.txt',
+      contentType: 'text/plain; charset=utf-8',
+    });
+    expect((await fetch(typed)).headers.get('content-type')).toBe('text/plain; charset=utf-8');
 
     await s.delete('blobs/a');
     expect(await s.head('blobs/a')).toBeNull();

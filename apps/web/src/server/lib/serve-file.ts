@@ -1,6 +1,6 @@
 import 'server-only';
 import { Readable } from 'node:stream';
-import { isInlineSafe, normalizeMimeType } from '@hubium/core/files/files';
+import { normalizeMimeType, servesInline } from '@hubium/core/files/files';
 import { getStorage } from '@hubium/core/files/storage';
 import type { File, FileBlob } from '@hubium/db';
 
@@ -12,15 +12,17 @@ export async function serveFile(
   const storage = getStorage();
   // Older rows may hold a raw client-declared type: never serve anything but a clean one.
   const mime = normalizeMimeType(file.mimeType);
-  const inline = !opts.download && isInlineSafe(mime);
   if (storage.kind === 's3') {
+    // straight from the bucket: no sandbox CSP comes with it, so no SVG opens inline
     const url = await storage.signedReadUrl(file.blob.storageKey, {
       ttlSeconds: 60,
       filename: file.name,
-      inline,
+      inline: !opts.download && servesInline(mime, { sandboxed: false }),
+      contentType: mime,
     });
     return Response.redirect(url, 302);
   }
+  const inline = !opts.download && servesInline(mime, { sandboxed: true });
   const stream = await storage.getStream(file.blob.storageKey);
   const disposition = `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(file.name)}`;
   const headers: Record<string, string> = {
