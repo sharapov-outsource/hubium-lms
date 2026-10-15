@@ -162,8 +162,9 @@ export function bakeSvg(svg: string, assertionUrl: string, assertion: string): s
   const open = /<svg\b[^>]*>/i.exec(clean);
   if (!open) throw new Error('Not an SVG image');
   let tag = open[0];
+  // the namespace of the Open Badges baking specification is http://, not https://
   if (!/xmlns:openbadges=/.test(tag))
-    tag = tag.replace(/^<svg\b/i, '<svg xmlns:openbadges="https://openbadges.org"');
+    tag = tag.replace(/^<svg\b/i, '<svg xmlns:openbadges="http://openbadges.org"');
   const url = assertionUrl.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   const body = assertion.replace(/]]>/g, ']]]]><![CDATA[>');
   const element = `<openbadges:assertion verify="${url}"><![CDATA[${body}]]></openbadges:assertion>`;

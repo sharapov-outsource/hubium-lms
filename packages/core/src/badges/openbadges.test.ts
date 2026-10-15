@@ -50,7 +50,7 @@ describe('Open Badges 2.0', () => {
     const svg =
       '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="10"><circle r="4"/></svg>';
     const baked = bakeSvg(svg, 'https://lms/api/badges/assertions/1?x=1&y=2', '{"a":"]]>"}');
-    expect(baked).toContain('xmlns:openbadges="https://openbadges.org"');
+    expect(baked).toContain('xmlns:openbadges="http://openbadges.org"');
     expect(baked).toContain('verify="https://lms/api/badges/assertions/1?x=1&amp;y=2"');
     expect(baked).toContain('<![CDATA[{"a":"]]]]><![CDATA[>"}]]>');
     expect(bakeSvg(baked, 'https://x', '{}').match(/openbadges:assertion /g)).toHaveLength(1);
