@@ -1,4 +1,4 @@
-import { isAppError, ValidationError } from '@hubium/core/errors';
+import { describeError, isAppError, ValidationError } from '@hubium/core/errors';
 import { fileUrl, storeFile } from '@hubium/core/files/files';
 import { db } from '@/server/db';
 import { getContext } from '@/server/session';
@@ -32,15 +32,8 @@ export async function POST(req: Request) {
   } catch (e) {
     // a rejected file (size, type, malware) is 422; an unreachable virus scanner is 503
     if (e instanceof ValidationError)
-      return new Response(
-        Object.values(e.fieldErrors ?? {})
-          .flat()
-          .join('; ') || e.message,
-        {
-          status: 422,
-        },
-      );
-    if (isAppError(e)) return new Response(e.message, { status: e.status });
+      return new Response(describeError(e, ctx.locale), { status: 422 });
+    if (isAppError(e)) return new Response(describeError(e, ctx.locale), { status: e.status });
     throw e;
   }
 }

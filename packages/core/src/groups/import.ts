@@ -1,7 +1,7 @@
 import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
-import { AppError, ValidationError } from '../errors.ts';
+import { describeError, ValidationError } from '../errors.ts';
 import { defineOperation } from '../operation.ts';
 import { parseCsv } from '../users/users.ts';
 import {
@@ -65,11 +65,6 @@ async function usersByLogin(ctx: RequestContext, logins: string[]) {
     out.set(r.email.toLowerCase(), r);
   }
   return out;
-}
-
-function errorText(e: unknown): string {
-  if (e instanceof AppError) return Object.values(e.fieldErrors ?? {}).flat()[0] ?? e.message;
-  return e instanceof Error ? e.message : String(e);
 }
 
 function readRows(csv: string, names: Record<string, string[]>, required: string) {
@@ -284,7 +279,8 @@ export const importCohorts = defineOperation({
         });
         ids.set(key, id);
       } catch (e) {
-        for (const l of plan.lines) if (lineKey.get(l) === key) l.error ??= errorText(e);
+        for (const l of plan.lines)
+          if (lineKey.get(l) === key) l.error ??= describeError(e, ctx.locale);
       }
     }
     for (const [key, add] of members) {
