@@ -5,6 +5,7 @@ import { createTranslator } from '@hubium/i18n/packs';
 import { z } from 'zod';
 import { roleName } from '../access/roles.ts';
 import type { RequestContext } from '../context.ts';
+import { requireCourseView } from '../courses/courses.ts';
 import { activeCourseUserIds } from '../enrol/participants.ts';
 import { getEnv } from '../env.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
@@ -544,6 +545,8 @@ export const revokeBadgeAward = defineOperation({
 
 /** The badges of a course (or the site): all for managers; for the others what is awarded and what they have. */
 export async function listBadges(ctx: RequestContext, courseId: string | null) {
+  // a course's badges are for those who may see the course
+  if (courseId) await requireCourseView(ctx, courseId);
   const manage = courseId
     ? await ctx.perm.can('badge:manage', courseId)
     : await ctx.perm.can('badge:managesite');

@@ -24,6 +24,7 @@ import {
   setCourseCompetencySettingsAction,
 } from '@/server/actions/competencies';
 import { db } from '@/server/db';
+import { forbiddenOnDenied } from '@/server/forbidden';
 import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
 
@@ -39,7 +40,7 @@ export default async function CourseCompetenciesPage({
   const { courseId } = await params;
   const ctx = await getContext();
   const [data, t, tc] = await Promise.all([
-    courseCompetencies(ctx, courseId),
+    courseCompetencies(ctx, courseId).catch(forbiddenOnDenied),
     getTranslations('competencies'),
     getTranslations('common'),
   ]);

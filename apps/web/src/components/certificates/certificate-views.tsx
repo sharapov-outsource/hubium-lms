@@ -38,6 +38,7 @@ import {
   setCertificateStatusAction,
 } from '@/server/actions/certificates';
 import { db } from '@/server/db';
+import { forbiddenOnDenied } from '@/server/forbidden';
 import { getContext, requireUser } from '@/server/session';
 import { CertificateEditor, type EditorField } from './certificate-editor';
 
@@ -55,7 +56,7 @@ async function StatusBadge({ status }: { status: 'DRAFT' | 'ACTIVE' | 'ARCHIVED'
 export async function CertificateList({ courseId }: { courseId: string }) {
   const ctx = await getContext();
   const [data, t, format] = await Promise.all([
-    listCertificates(ctx, courseId),
+    listCertificates(ctx, courseId).catch(forbiddenOnDenied),
     getTranslations('certificates'),
     getFormatter(),
   ]);

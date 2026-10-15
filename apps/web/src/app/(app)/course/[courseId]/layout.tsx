@@ -34,6 +34,9 @@ export default async function CourseLayout({
   const ctx = await getContext();
   const access = await getCourseAccess(ctx, courseId).catch(() => null);
   if (!access || (access.course.deletedAt && !ctx.perm.isSiteAdmin)) notFound();
+  // a hidden course does not exist for those who may not see hidden courses: no name,
+  // description or enrolment form
+  if (!access.course.visible && !access.canViewHidden) notFound();
   const [t, locale, path, switched] = await Promise.all([
     getTranslations('course'),
     getLocale(),

@@ -38,6 +38,7 @@ import {
   setBadgeStatusAction,
 } from '@/server/actions/badges';
 import { db } from '@/server/db';
+import { forbiddenOnDenied } from '@/server/forbidden';
 import { getContext } from '@/server/session';
 import { BadgeEditor, type BadgeEditorOptions } from './badge-editor';
 import { BadgeImage } from './badge-image';
@@ -58,7 +59,7 @@ async function StatusBadge({ status }: { status: 'DRAFT' | 'ACTIVE' | 'ARCHIVED'
 export async function BadgeList({ courseId }: { courseId: string | null }) {
   const ctx = await getContext();
   const [data, t, locale, format] = await Promise.all([
-    listBadges(ctx, courseId),
+    listBadges(ctx, courseId).catch(forbiddenOnDenied),
     getTranslations('badges'),
     getLocale(),
     getFormatter(),

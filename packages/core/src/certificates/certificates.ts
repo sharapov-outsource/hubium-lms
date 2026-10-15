@@ -3,6 +3,7 @@ import { buffer } from 'node:stream/consumers';
 import type { Certificate, Db, Prisma } from '@hubium/db';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
+import { requireCourseView } from '../courses/courses.ts';
 import { activeCourseUserIds } from '../enrol/participants.ts';
 import { getEnv } from '../env.ts';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
@@ -428,6 +429,7 @@ export const revokeCertificateIssue = defineOperation({
 
 /** A course's certificates: all for those who manage them, the issued kinds for the others. */
 export async function listCertificates(ctx: RequestContext, courseId: string) {
+  await requireCourseView(ctx, courseId);
   const [manage, viewIssues] = await Promise.all([
     ctx.perm.can('certificate:manage', courseId),
     ctx.perm.can('certificate:viewissues', courseId),

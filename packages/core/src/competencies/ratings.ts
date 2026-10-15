@@ -1,6 +1,7 @@
 import { type Competency, type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
+import { requireCourseView } from '../courses/courses.ts';
 import { activeCourseUserIds } from '../enrol/participants.ts';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
@@ -500,6 +501,7 @@ export async function canViewUserCompetencies(ctx: RequestContext, userId: strin
 
 /** A course's competencies, with the activities linked to each and the viewer's ratings. */
 export async function courseCompetencies(ctx: RequestContext, courseId: string) {
+  await requireCourseView(ctx, courseId);
   const [manage, rate, viewRatings, settings] = await Promise.all([
     ctx.perm.can('competency:coursemanage', courseId),
     ctx.perm.can('competency:rate', courseId),
@@ -516,7 +518,11 @@ export async function courseCompetencies(ctx: RequestContext, courseId: string) 
   const ids = links.map((l) => l.competencyId);
   const [activities, mine] = await Promise.all([
     ctx.db.activityCompetency.findMany({
-      where: { competencyId: { in: ids }, activity: { courseId, deletedAt: null } },
+      where: {
+        competencyId: { in: ids },
+        // learners see the activities they can see
+        activity: { courseId, deletedAt: null, ...(manage ? {} : { visibility: 'SHOWN' }) },
+      },
       include: { activity: { select: { id: true, name: true, moduleKey: true } } },
     }),
     ctx.perm.userId
