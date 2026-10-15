@@ -23,6 +23,7 @@ export interface ModuleServices {
   recomputeCompletion: ModuleCtx['completion']['recompute'];
   notify: ModuleCtx['notify']['send'];
   activityAccess: ModuleCtx['activities']['get'];
+  openableBy: ModuleCtx['activities']['openableBy'];
   ai: ModuleCtx['ai'];
 }
 
@@ -39,7 +40,8 @@ export function provideModuleServices(
   Object.assign(services, s);
 }
 
-function service<K extends keyof ModuleServices>(
+/** A late-bound service, for core code that would otherwise import in a cycle. */
+export function service<K extends keyof ModuleServices>(
   name: K,
   ctx: RequestContext,
   tx: Prisma.TransactionClient,
@@ -231,6 +233,7 @@ export function buildModuleCtx(
     },
     activities: {
       get: (activityId) => service('activityAccess', ctx, tx)(activityId),
+      openableBy: (activityId, userIds) => service('openableBy', ctx, tx)(activityId, userIds),
     },
     get ai() {
       return services.ai

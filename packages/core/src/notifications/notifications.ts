@@ -7,7 +7,7 @@ import { sign, verifySignature } from '../crypto.ts';
 import { getEnv } from '../env.ts';
 import { enqueue } from '../jobs/jobs.ts';
 import { deliverMail, renderActionEmail, renderDigestEmail } from '../mail/mail.ts';
-import { provideModuleServices } from '../modules/module-ctx.ts';
+import { provideModuleServices, service } from '../modules/module-ctx.ts';
 import { getModule } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
 import { publishRealtime } from '../realtime.ts';
@@ -183,11 +183,11 @@ provideModuleServices({
     const { anonymous, ...rest } = n;
     const actorId = ctx.actor.kind === 'user' ? ctx.actor.userId : null;
     // the acting user is never notified; an anonymous notification just does not say who
-    await notifyUsers(
-      tx,
-      userIds.filter((id) => id !== actorId),
-      { ...rest, actorId: anonymous ? null : actorId },
-    );
+    let to = userIds.filter((id) => id !== actorId);
+    // about an activity: only those who may open it (hidden, restricted to some)
+    if (n.contextId && (await tx.activity.count({ where: { id: n.contextId } })))
+      to = await service('openableBy', ctx, tx)(n.contextId, to);
+    await notifyUsers(tx, to, { ...rest, actorId: anonymous ? null : actorId });
   },
 });
 

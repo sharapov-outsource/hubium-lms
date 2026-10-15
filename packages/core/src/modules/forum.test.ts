@@ -10,7 +10,7 @@ import { userGroupIds } from '@hubium/module-sdk/groups';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
-import { getActivityAccess, updateActivity } from '../courses/activities.ts';
+import { getActivityAccess, setActivityVisibility, updateActivity } from '../courses/activities.ts';
 import {
   createGroup,
   createGrouping,
@@ -294,5 +294,26 @@ describe('mod-forum', () => {
     const before = await notified(f.users.student3!);
     await run(f.users.teacher!, 'startDiscussion', { title: 'Важно', message: '<p>Всем</p>' });
     expect(await notified(f.users.student3!)).toBe(before + 1);
+  });
+
+  it('tells nobody of a forum they cannot open', async () => {
+    // a forum the teacher is still preparing: students would get the post by email
+    await setActivityVisibility.run(await as(f.users.teacher!), {
+      id: forumId,
+      visibility: 'HIDDEN',
+    });
+    try {
+      const before = await notified(f.users.student3!);
+      await run(f.users.teacher!, 'startDiscussion', {
+        title: 'Черновик',
+        message: '<p>Ответы</p>',
+      });
+      expect(await notified(f.users.student3!)).toBe(before);
+    } finally {
+      await setActivityVisibility.run(await as(f.users.teacher!), {
+        id: forumId,
+        visibility: 'SHOWN',
+      });
+    }
   });
 });

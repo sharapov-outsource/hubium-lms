@@ -132,6 +132,8 @@ export interface ModuleActivities {
     canOpen: boolean;
     canManage: boolean;
   } | null>;
+  /** Those of `userIds` who may open the activity now (for notifications and reminders). */
+  openableBy(activityId: string, userIds: string[]): Promise<string[]>;
 }
 
 export interface ModuleGrades {
