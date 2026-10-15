@@ -22,6 +22,7 @@ import {
   rubricGrade,
   sameStructure,
 } from '@hubium/module-sdk/grading';
+import { FileInput } from '@hubium/module-sdk/inputs';
 import { z } from 'zod';
 import { AssignSettings, type AssignSettingsT } from './config.ts';
 import { type EffectiveDates, effectiveDates } from './dates.ts';
@@ -134,12 +135,6 @@ async function ownersOf(ctx: ModuleCtx, a: Assign, userId: string, team: Team) {
     ? (await teamMembers(ctx, a, team.groupId)).map((m) => m.id)
     : [userId];
 }
-
-const FileInput = z.object({
-  name: z.string().min(1).max(255),
-  mimeType: z.string().default('application/octet-stream'),
-  data: z.instanceof(Buffer),
-});
 
 function userId(ctx: ModuleCtx): string {
   if (ctx.actor.kind !== 'user') throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));

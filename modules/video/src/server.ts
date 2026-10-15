@@ -15,6 +15,7 @@ import {
   msg,
 } from '@hubium/module-sdk';
 import { bool } from '@hubium/module-sdk/fields';
+import { FileInput } from '@hubium/module-sdk/inputs';
 import { permanent } from '@hubium/module-sdk/zip';
 import { z } from 'zod';
 import {
@@ -335,12 +336,6 @@ export async function recordProgress(
 }
 
 const IntervalInput = z.tuple([z.number().min(0), z.number().min(0)]);
-
-const FileInput = z.object({
-  name: z.string().min(1).max(255),
-  mimeType: z.string().default('application/octet-stream'),
-  data: z.instanceof(Buffer),
-});
 
 export const video = defineModule<VideoSettingsT>({
   key: 'video',

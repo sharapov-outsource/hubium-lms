@@ -12,6 +12,7 @@ import {
 } from '@hubium/module-sdk';
 import { bool, isoDate, optionalNumber } from '@hubium/module-sdk/fields';
 import { groupsWhere } from '@hubium/module-sdk/groups';
+import { FileInput } from '@hubium/module-sdk/inputs';
 import { z } from 'zod';
 import {
   assessmentGrade,
@@ -381,12 +382,6 @@ export async function calculateGrades(ctx: ModuleCtx, a: Ws, comparison: number)
 }
 
 // ── the module ──
-
-const FileInput = z.object({
-  name: z.string().min(1).max(255),
-  mimeType: z.string().default('application/octet-stream'),
-  data: z.instanceof(Buffer),
-});
 
 async function submissionOf(ctx: ModuleCtx, a: ActivityRef, id: string) {
   const s = await ctx.db.workshopSubmission.findFirst({ where: { id, activityId: a.id } });

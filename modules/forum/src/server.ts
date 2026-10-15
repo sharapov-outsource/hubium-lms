@@ -12,6 +12,7 @@ import {
 } from '@hubium/module-sdk';
 import { bool, optionalNumber } from '@hubium/module-sdk/fields';
 import { groupsWhere, userGroupIds, visibleGroupFilter } from '@hubium/module-sdk/groups';
+import { FileInput } from '@hubium/module-sdk/inputs';
 import {
   aggregateRatings,
   scaleItems as courseScaleItems,
@@ -67,12 +68,6 @@ export type ForumSettingsT = z.output<typeof ForumSettings>;
 
 type Db = Prisma.TransactionClient;
 type Forum = ActivityRef<ForumSettingsT>;
-
-const FileInput = z.object({
-  name: z.string().min(1).max(255),
-  mimeType: z.string().default('application/octet-stream'),
-  data: z.instanceof(Buffer),
-});
 
 function uid(ctx: ModuleCtx): string {
   if (ctx.actor.kind !== 'user') throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));

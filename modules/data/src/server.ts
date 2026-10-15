@@ -12,6 +12,7 @@ import {
 import { csvFile, parseCsv } from '@hubium/module-sdk/csv';
 import { bool, isoDate } from '@hubium/module-sdk/fields';
 import { groupsWhere, userGroupIds, visibleGroupFilter } from '@hubium/module-sdk/groups';
+import { FileInput } from '@hubium/module-sdk/inputs';
 import {
   aggregateRatings,
   inRatingWindow,
@@ -429,12 +430,6 @@ async function writeContents(
       update: { value },
     });
 }
-
-const FileInput = z.object({
-  name: z.string().min(1).max(255),
-  mimeType: z.string().default('application/octet-stream'),
-  data: z.instanceof(Buffer),
-});
 
 /** Spreadsheet rows of the entries the user may see: a column per field, then who and when. */
 export async function recordSheet(ctx: ModuleCtx, a: ActivityRef) {

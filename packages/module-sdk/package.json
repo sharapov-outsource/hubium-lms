@@ -19,7 +19,8 @@
     "./ratings": "./src/ratings.ts",
     "./ratings-ui": "./src/ratings-ui.tsx",
     "./csv": "./src/csv.ts",
-    "./zip": "./src/zip.ts"
+    "./zip": "./src/zip.ts",
+    "./inputs": "./src/inputs.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
