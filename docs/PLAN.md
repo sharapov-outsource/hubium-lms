@@ -101,7 +101,7 @@ hubium/
 - **course:** Category, Course, CourseSection (дробный rank), Activity (`moduleKey`, settings Json, availability Json, completion), CourseAccess
 - **enrol:** EnrolmentMethod (manual/self/cohort/guest, ключ, сроки), Enrolment, Group, GroupMember, Grouping, Cohort
 - **completion / calendar:** ActivityCompletion, CourseCompletion, CalendarEvent, CalendarFeedToken
-- **files:** FileBlob, File, FileVariant, UploadSession
+- **files:** FileBlob, File, UploadSession
 - **grades:** GradeCategory (агрегации), GradeItem, Grade, GradeHistory, Scale, GradeLetter
 - **comms:** Announcement, Conversation, ConversationMember, Message, Notification, NotificationPreference
 - **questions:** QuestionCategory, Question (типы: multichoice, truefalse, shortanswer, numerical, match, essay, description)

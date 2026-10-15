@@ -17,9 +17,8 @@ model FileBlob {
   scannedAt  DateTime? @db.Timestamptz(3)
   createdAt  DateTime  @default(now()) @db.Timestamptz(3)
 
-  files    File[]
-  variants FileVariant[]
-  text     FileBlobText?
+  files File[]
+  text  FileBlobText?
 
   @@index([sha256])
 }
@@ -52,47 +51,31 @@ model File {
   uploadedById String?    @db.Uuid
   status       FileStatus @default(READY)
   sortOrder    Int        @default(0)
-  license      String?
-  author       String?
   createdAt    DateTime   @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime   @updatedAt @db.Timestamptz(3)
 
-  blob       FileBlob      @relation(fields: [blobId], references: [id], onDelete: Restrict)
-  context    Context       @relation(fields: [contextId], references: [id], onDelete: Cascade)
-  uploadedBy User?         @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
-  variants   FileVariant[]
+  blob       FileBlob @relation(fields: [blobId], references: [id], onDelete: Restrict)
+  context    Context  @relation(fields: [contextId], references: [id], onDelete: Cascade)
+  uploadedBy User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@unique([contextId, component, area, itemId, path, name])
   @@index([blobId])
 }
 
-model FileVariant {
-  id      String @id @default(uuid(7)) @db.Uuid
-  fileId  String @db.Uuid
-  variant String
-  blobId  String @db.Uuid
-
-  file File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
-  blob FileBlob @relation(fields: [blobId], references: [id], onDelete: Restrict)
-
-  @@unique([fileId, variant])
-}
-
 model UploadSession {
-  id                String    @id @default(uuid(7)) @db.Uuid
-  userId            String    @db.Uuid
-  storageKey        String    @unique
-  multipartUploadId String?
-  size              BigInt
+  id          String    @id @default(uuid(7)) @db.Uuid
+  userId      String    @db.Uuid
+  storageKey  String    @unique
+  size        BigInt
   /**
    * Bytes received so far (chunks are appended in order).
    */
-  received          BigInt    @default(0)
-  name              String    @default("")
-  mimeType          String
-  expiresAt         DateTime  @db.Timestamptz(3)
-  completedAt       DateTime? @db.Timestamptz(3)
-  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+  received    BigInt    @default(0)
+  name        String    @default("")
+  mimeType    String
+  expiresAt   DateTime  @db.Timestamptz(3)
+  completedAt DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

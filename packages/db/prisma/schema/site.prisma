@@ -69,26 +69,6 @@ model EventLog {
   @@index([relatedUserId, name, createdAt])
 }
 
-model Tag {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  name      String   @unique @db.Citext
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
-
-  instances TagInstance[]
-}
-
-model TagInstance {
-  id       String @id @default(uuid(7)) @db.Uuid
-  tagId    String @db.Uuid
-  itemType String
-  itemId   String @db.Uuid
-
-  tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@unique([tagId, itemType, itemId])
-  @@index([itemType, itemId])
-}
-
 model BackgroundTask {
   id           String               @id @default(uuid(7)) @db.Uuid
   type         BackgroundTaskType
@@ -101,7 +81,6 @@ model BackgroundTask {
   resultFileId String?              @db.Uuid
   log          Json                 @default("[]")
   error        String?
-  pgBossJobId  String?
   startedAt    DateTime?            @db.Timestamptz(3)
   finishedAt   DateTime?            @db.Timestamptz(3)
   createdAt    DateTime             @default(now()) @db.Timestamptz(3)

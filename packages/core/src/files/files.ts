@@ -368,7 +368,7 @@ export async function reconcileBlobObjects(db: Db, olderThanMs = 24 * 3600_000):
 }
 
 /**
- * Deletes blobs no File/FileVariant references, older than the grace period: 500 at a time
+ * Deletes blobs no File references, older than the grace period: 500 at a time
  * until none are left or `budgetMs` has passed (a reset course can leave thousands, which
  * the next run goes on with).
  */
@@ -387,7 +387,6 @@ export async function garbageCollectBlobs(
       where: {
         createdAt: { lt: cutoff },
         files: { none: {} },
-        variants: { none: {} },
         ...(after ? { id: { gt: after } } : {}),
       },
       orderBy: { id: 'asc' },
@@ -399,7 +398,7 @@ export async function garbageCollectBlobs(
       // The row goes first and only if still unreferenced: an upload of the same content may
       // have reused the blob since the query above. Only then is the stored object removed.
       const r = await db.fileBlob.deleteMany({
-        where: { id: b.id, files: { none: {} }, variants: { none: {} } },
+        where: { id: b.id, files: { none: {} } },
       });
       if (!r.count) continue;
       await getStorage()

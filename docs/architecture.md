@@ -354,9 +354,8 @@ Policy · PolicyVersion(content Json, mandatory) · PolicyAcceptance(userId, ver
 SiteSetting       key(PK) value Json updatedById                       // branding, registration, email, modules, security…
 EventLog          id BigInt autoincrement · name actorId realActorId contextId courseId objectType objectId
                   relatedUserId data Json origin(WEB|API|WORKER|CLI) ip createdAt   — BRIN(createdAt), (courseId,createdAt), (actorId,createdAt)
-Tag · TagInstance(tagId, itemType, itemId)
 BackgroundTask    type(BACKUP|RESTORE|DUPLICATE|IMPORT_MBZ|IMPORT_QUESTIONS|EXPORT_REPORT|BULK_USERS) status progress
-                  contextId createdById input Json result Json resultFileId log Json error startedAt finishedAt pgBossJobId
+                  contextId createdById input Json result Json resultFileId log Json error startedAt finishedAt
 
 // ── core/access.prisma
 Context           id level(SYSTEM|CATEGORY|COURSE|ACTIVITY) parentId ancestorIds uuid[] (GIN) depth
@@ -394,9 +393,8 @@ CalendarFeedToken userId tokenHash scope
 // ── core/files.prisma
 FileBlob          storageKey(uniq) size BigInt mimeType sha256? scannedAt? createdAt      // refcount by query, GC'd; scannedAt: passed ClamAV
 File              blobId contextId component area itemId? path name mimeType size uploadedById status(PENDING|READY|QUARANTINED)
-                  sortOrder license? author?      @@unique(contextId,component,area,itemId,path,name)
-FileVariant       fileId variant('thumb@256'|…) blobId
-UploadSession     userId storageKey multipartUploadId size mime expiresAt completedAt
+                  sortOrder      @@unique(contextId,component,area,itemId,path,name)
+UploadSession     userId storageKey size received name mime expiresAt completedAt
 
 // ── core/grades.prisma
 Scale(courseId?, name, items[]) · GradeLetter(contextId, lowerBound, letter)
