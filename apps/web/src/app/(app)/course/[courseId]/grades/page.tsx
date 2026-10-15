@@ -11,6 +11,7 @@ import {
   graderReport,
   hasOwnLetters,
   hiddenFromLearner,
+  listGroupNames,
   listScales,
 } from '@hubium/core';
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
@@ -23,6 +24,7 @@ import {
   CardHeader,
   CardTitle,
   EmptyState,
+  Select,
   Table,
   TBody,
   Td,
@@ -523,7 +525,29 @@ export default async function GradesPage({
     );
   }
 
-  const r = await graderReport(ctx, courseId);
+  const group = sp.group && /^[0-9a-f-]{36}$/.test(sp.group) ? sp.group : undefined;
+  const [r, groups, tp, tc] = await Promise.all([
+    graderReport(ctx, courseId, { groupId: group }),
+    listGroupNames(ctx, courseId),
+    getTranslations('participants'),
+    getTranslations('common'),
+  ]);
+  // in separate groups, a teacher's own groups are the choice
+  const groupFilter = groups.length ? (
+    <form className="flex flex-wrap items-end gap-2">
+      <Select name="group" defaultValue={group ?? ''} aria-label={tp('groups')} className="w-56">
+        <option value="">{tp('allGroups')}</option>
+        {groups.map((g) => (
+          <option key={g.id} value={g.id}>
+            {g.name}
+          </option>
+        ))}
+      </Select>
+      <Button type="submit" variant="secondary">
+        {tc('apply')}
+      </Button>
+    </form>
+  ) : null;
   // columns in tree order: a category's items, its subcategories, then its total
   const root = r.categories.find((c) => !c.parentId);
   type Column = { kind: 'item'; item: Item } | { kind: 'category'; category: Category };
@@ -545,6 +569,7 @@ export default async function GradesPage({
   return (
     <div className="grid gap-4">
       {nav}
+      {groupFilter}
       {r.users.length === 0 ? (
         <EmptyState title={t('noStudents')} />
       ) : (

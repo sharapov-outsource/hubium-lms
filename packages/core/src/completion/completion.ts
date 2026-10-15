@@ -8,6 +8,7 @@ import type { RequestContext } from '../context.ts';
 import { getActivityAccess } from '../courses/activities.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { reportLearners } from '../grades/gradebook.ts';
 import { buildModuleCtx, provideModuleServices, toActivityRef } from '../modules/module-ctx.ts';
 import { getModule } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
@@ -298,22 +299,19 @@ export const overrideCompletion = defineOperation({
 /** Completion matrix: learners × tracked activities. */
 export async function completionReport(ctx: RequestContext, courseId: string) {
   await ctx.perm.require('completion:viewreports', courseId);
-  const studentRole = await ctx.db.role.findUnique({ where: { shortName: 'student' } });
   const [activities, learners] = await Promise.all([
     ctx.db.activity.findMany({
       where: { courseId, deletedAt: null, completionMode: { not: 'NONE' } },
       orderBy: [{ section: { rank: 'asc' } }, { rank: 'asc' }],
       select: { id: true, name: true, moduleKey: true, completionMode: true },
     }),
-    ctx.db.user.findMany({
-      where: {
-        deletedAt: null,
-        enrolments: { some: { courseId, status: 'ACTIVE' } },
-        roleAssignments: { some: { contextId: courseId, roleId: studentRole?.id } },
-      },
-      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-      select: { id: true, name: true },
-    }),
+    reportLearners(ctx, courseId).then((ids) =>
+      ctx.db.user.findMany({
+        where: { id: { in: ids }, deletedAt: null },
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+        select: { id: true, name: true },
+      }),
+    ),
   ]);
   const [rows, courseRows] = await Promise.all([
     ctx.db.activityCompletion.findMany({

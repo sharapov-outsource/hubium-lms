@@ -4,9 +4,11 @@ import { isLocale } from '@hubium/i18n';
 import { createTranslator } from '@hubium/i18n/packs';
 import { csvFile } from '@hubium/module-sdk/csv';
 import { z } from 'zod';
+import { usersWithCap } from '../access/permissions.ts';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { separateGroupsOf } from '../groups/visibility.ts';
 import { writeOds } from '../lib/sheets.ts';
 import { writeXlsx } from '../lib/xlsx.ts';
 import { optionalText } from '../lib/zod.ts';
@@ -1026,6 +1028,27 @@ export async function gradebookStructure(db: Tx, courseId: string) {
 }
 
 /** Grader report: every learner × every item, plus the course total. */
+/**
+ * The learners a course report shows the viewer: those graded in the course (grade:view),
+ * whatever their role is called, with an active enrolment; in separate groups, the
+ * viewer's groups' members only, unless they see all groups. With `groupId`, that group's.
+ */
+export async function reportLearners(
+  ctx: RequestContext,
+  courseId: string,
+  opts: { groupId?: string } = {},
+): Promise<string[]> {
+  const learners = await usersWithCap(ctx.db, 'grade:view', courseId);
+  const own = await separateGroupsOf(ctx, courseId);
+  const groups = opts.groupId ? (own ?? [opts.groupId]).filter((g) => g === opts.groupId) : own;
+  if (!groups) return learners;
+  const members = await ctx.db.groupMember.findMany({
+    where: { groupId: { in: groups }, userId: { in: learners } },
+    select: { userId: true },
+  });
+  return [...new Set(members.map((m) => m.userId))];
+}
+
 export async function graderReport(
   ctx: RequestContext,
   courseId: string,
@@ -1033,14 +1056,8 @@ export async function graderReport(
 ) {
   await ctx.perm.require('grade:viewall', courseId);
   const { categories, items } = await gradebookStructure(ctx.db, courseId);
-  const student = await ctx.db.role.findUnique({ where: { shortName: 'student' } });
   const users = await ctx.db.user.findMany({
-    where: {
-      deletedAt: null,
-      enrolments: { some: { courseId } },
-      roleAssignments: { some: { contextId: courseId, roleId: student?.id } },
-      ...(opts.groupId ? { groupMembers: { some: { groupId: opts.groupId } } } : {}),
-    },
+    where: { id: { in: await reportLearners(ctx, courseId, opts) }, deletedAt: null },
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     select: { id: true, name: true, email: true, username: true, emailPlaceholder: true },
   });
