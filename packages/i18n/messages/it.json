@@ -707,6 +707,7 @@
     "duplicate": "Duplica",
     "delete": "Elimina",
     "deleteConfirm": "Spostare «{name}» nel cestino?",
+    "deleteDependents": "Le restrizioni di accesso di altre attività e sezioni fanno riferimento a questa: {names}. Finché è nel cestino, queste condizioni non si applicano; una volta eliminata definitivamente, vengono rimosse.",
     "empty": "Questo corso non ha ancora contenuti",
     "emptyEdit": "Aggiungere il primo elemento con il pulsante «Aggiungi attività»",
     "recycleBin": "Cestino",

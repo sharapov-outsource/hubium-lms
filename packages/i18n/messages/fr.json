@@ -707,6 +707,7 @@
     "duplicate": "Dupliquer",
     "delete": "Supprimer",
     "deleteConfirm": "Placer « {name} » dans la corbeille ?",
+    "deleteDependents": "Des restrictions d’accès d’autres activités et sections font référence à celle-ci : {names}. Tant qu’elle est dans la corbeille, ces conditions ne s’appliquent pas ; une fois supprimée définitivement, elles sont retirées.",
     "empty": "Ce cours n’a encore aucun contenu",
     "emptyEdit": "Ajoutez le premier élément avec le bouton « Ajouter une activité »",
     "recycleBin": "Corbeille",

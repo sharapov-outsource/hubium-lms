@@ -9,6 +9,7 @@ import { buildModuleCtx, toActivityRef } from '../modules/module-ctx.ts';
 import { getModule } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
 import { syncCalendar } from './activities.ts';
+import { dropAvailabilityRefs, namesGroupings, namesGroups } from './availability-refs.ts';
 
 // Course reset, as in Moodle: the course, its activities and settings stay; learners'
 // data goes as chosen, and every date can move to a new start (a new term).
@@ -175,10 +176,17 @@ export const resetCourse = defineOperation({
       }
     }
 
-    if (input.groups) report.groups = (await tx.group.deleteMany({ where: { courseId } })).count;
-    else if (input.groupMembers)
+    if (input.groups) {
+      const ids = await tx.group.findMany({ where: { courseId }, select: { id: true } });
+      report.groups = (await tx.group.deleteMany({ where: { courseId } })).count;
+      await dropAvailabilityRefs(tx, courseId, namesGroups(new Set(ids.map((g) => g.id))));
+    } else if (input.groupMembers)
       await tx.groupMember.deleteMany({ where: { group: { courseId } } });
-    if (input.groupings) await tx.grouping.deleteMany({ where: { courseId } });
+    if (input.groupings) {
+      const ids = await tx.grouping.findMany({ where: { courseId }, select: { id: true } });
+      await tx.grouping.deleteMany({ where: { courseId } });
+      await dropAvailabilityRefs(tx, courseId, namesGroupings(new Set(ids.map((g) => g.id))));
+    }
 
     if (input.events) {
       report.events = (

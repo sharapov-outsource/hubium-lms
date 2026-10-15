@@ -1,6 +1,7 @@
 import { type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
+import { dropAvailabilityRefs, namesGroupings, namesGroups } from '../courses/availability-refs.ts';
 import { assertCourseRole, enrolUserRecord, removeCourseMembership } from '../enrol/enrol.ts';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
@@ -75,7 +76,9 @@ export const deleteGroup = defineOperation({
     await ctx.perm.require('group:manage', g.courseId);
   },
   async handler(ctx, { id }) {
-    await ctx.tx.group.delete({ where: { id } });
+    const g = await ctx.tx.group.delete({ where: { id } });
+    // restrictions to this group no longer lock anything
+    await dropAvailabilityRefs(ctx.tx, g.courseId, namesGroups(new Set([id])));
     return { id };
   },
 });
@@ -194,7 +197,8 @@ export const deleteGrouping = defineOperation({
   authorize: (ctx, i) => requireGroupingManager(ctx, i.id),
   async handler(ctx, { id }) {
     // activities limited to it go back to all groups (Activity.groupingId is SET NULL)
-    await ctx.tx.grouping.delete({ where: { id } });
+    const g = await ctx.tx.grouping.delete({ where: { id } });
+    await dropAvailabilityRefs(ctx.tx, g.courseId, namesGroupings(new Set([id])));
     return { id };
   },
 });

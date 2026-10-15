@@ -65,6 +65,15 @@ export interface AvailabilityFacts {
   grades: ReadonlyMap<string, number>;
   /** Standard fields by name and custom ones as `cf:<shortName>`, all as text. */
   profile: Partial<Record<string, string>>;
+  /**
+   * The course's activities (not in the recycle bin), groups and groupings. A condition on
+   * one that is gone is left out, as met, so deleting it does not lock what depended on it.
+   */
+  exists?: {
+    activityIds: ReadonlySet<string>;
+    groupIds: ReadonlySet<string>;
+    groupingIds: ReadonlySet<string>;
+  };
 }
 
 export interface AvailabilityResult {
@@ -134,7 +143,52 @@ export function evaluateCondition(c: Condition, f: AvailabilityFacts): boolean {
   }
 }
 
+/** Whether a condition names an activity, group or grouping that is gone. */
+function namesGone(c: Condition, exists: NonNullable<AvailabilityFacts['exists']>): boolean {
+  switch (c.type) {
+    case 'completion':
+    case 'grade':
+      return !exists.activityIds.has(c.activityId);
+    case 'group':
+      return !!c.groupId && !exists.groupIds.has(c.groupId);
+    case 'grouping':
+      return !exists.groupingIds.has(c.groupingId);
+    default:
+      return false;
+  }
+}
+
+/**
+ * The tree without the conditions `drop` picks, and without the groups of conditions left
+ * empty; null when nothing is left.
+ */
+export function pruneAvailability(
+  tree: AvailabilityTree | null,
+  drop: (c: Condition) => boolean,
+): AvailabilityTree | null {
+  if (!tree) return null;
+  const c: AvailabilityTree['c'] = [];
+  for (const node of tree.c) {
+    if (isTree(node)) {
+      const sub = pruneAvailability(node, drop);
+      if (sub) c.push(sub);
+    } else if (!drop(node)) c.push(node);
+  }
+  return c.length ? { ...tree, c } : null;
+}
+
 export function evaluateAvailability(
+  tree: AvailabilityTree | null | undefined,
+  f: AvailabilityFacts,
+): AvailabilityResult {
+  const { exists } = f;
+  return evaluateTree(
+    exists && tree ? pruneAvailability(tree, (c) => namesGone(c, exists)) : tree,
+    f,
+  );
+}
+
+function evaluateTree(
   tree: AvailabilityTree | null | undefined,
   f: AvailabilityFacts,
 ): AvailabilityResult {
@@ -142,7 +196,7 @@ export function evaluateAvailability(
   const missing: Condition[] = [];
   const results = tree.c.map((node) => {
     if (isTree(node)) {
-      const r = evaluateAvailability(node, f);
+      const r = evaluateTree(node, f);
       if (!r.available) missing.push(...r.missing);
       return r.available;
     }

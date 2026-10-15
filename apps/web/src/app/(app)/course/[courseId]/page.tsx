@@ -4,7 +4,9 @@ import {
   getCourseAccess,
   getCourseOutline,
   getModule,
+  parseAvailability,
   recordCourseAccess,
+  referencedActivities,
   toActivityRef,
 } from '@hubium/core';
 import { RichText } from '@hubium/editor/client';
@@ -86,6 +88,18 @@ export default async function CoursePage({
     if (!s.available && s.availabilityMissing.length)
       sectionRestricted.set(s.id, await describeConditions(s.availabilityMissing));
   }
+  // whose restrictions name each activity: deleting it is shown to set those conditions aside
+  const dependents = new Map<string, string[]>();
+  if (editing) {
+    const note = (raw: unknown, name: string) => {
+      for (const id of new Set(referencedActivities(parseAvailability(raw))))
+        dependents.set(id, [...(dependents.get(id) ?? []), name]);
+    };
+    for (const s of outline) {
+      note(s.availability, sectionTitle(s));
+      for (const x of s.activities) note(x.activity.availability, x.activity.name);
+    }
+  }
   const top = outline.filter((s) => !s.parentId);
   const subsectionsOf = (id: string) => outline.filter((x) => x.parentId === id);
   const topForMove = top.map((s) => ({ id: s.id, title: sectionTitle(s) }));
@@ -125,6 +139,7 @@ export default async function CoursePage({
           visibility: a.visibility,
           disabled: moduleDisabled,
         }}
+        dependents={dependents.get(a.id) ?? []}
         sections={sectionsForMove}
       />
     ) : null;

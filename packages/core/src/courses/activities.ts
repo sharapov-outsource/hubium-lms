@@ -24,6 +24,7 @@ import {
   evaluateAvailability,
   parseAvailability,
 } from './availability.ts';
+import { dropAvailabilityRefs, namesActivity } from './availability-refs.ts';
 import { getCourseAccess } from './courses.ts';
 import { rankAtEnd, rankForStep, sectionItems } from './section-items.ts';
 
@@ -454,6 +455,8 @@ export const purgeActivity = defineOperation({
     await ctx.tx.calendarEvent.deleteMany({ where: { activityId: id } });
     await ctx.tx.activity.delete({ where: { id } });
     await ctx.tx.context.delete({ where: { id } });
+    // what depended on it opens as if the condition were met
+    await dropAvailabilityRefs(ctx.tx, a.courseId, namesActivity(id));
     return { id };
   },
 });
@@ -520,6 +523,8 @@ export interface OutlineSection {
   summary: string;
   visible: boolean;
   available: boolean;
+  /** Its restrictions as stored. */
+  availability: Prisma.JsonValue;
   availabilityMissing: import('./availability.ts').Condition[];
   /** Number of the section in the course (0 is the general one); a subsection has its parent's. */
   index: number;
@@ -531,6 +536,16 @@ export async function loadAvailabilityFacts(
   courseId: string,
   userId: string | undefined,
 ): Promise<AvailabilityFacts> {
+  const [liveActivities, courseGroups, courseGroupings] = await Promise.all([
+    ctx.db.activity.findMany({ where: { courseId, deletedAt: null }, select: { id: true } }),
+    ctx.db.group.findMany({ where: { courseId }, select: { id: true } }),
+    ctx.db.grouping.findMany({ where: { courseId }, select: { id: true } }),
+  ]);
+  const exists = {
+    activityIds: new Set(liveActivities.map((a) => a.id)),
+    groupIds: new Set(courseGroups.map((g) => g.id)),
+    groupingIds: new Set(courseGroupings.map((g) => g.id)),
+  };
   if (!userId) {
     return {
       now: ctx.now,
@@ -538,6 +553,7 @@ export async function loadAvailabilityFacts(
       groupIds: new Set(),
       grades: new Map(),
       profile: {},
+      exists,
     };
   }
   const [completions, groups, groupings, user] = await Promise.all([
@@ -580,6 +596,7 @@ export async function loadAvailabilityFacts(
   );
   for (const r of gradeRows) grades.set(r.activityId, Number(r.pct));
   return {
+    exists,
     now: ctx.now,
     completion: new Map(completions.map((c) => [c.activityId, toFact(c.state)])),
     groupIds: new Set(groups.map((g) => g.groupId)),
@@ -667,6 +684,7 @@ export async function getCourseOutline(
       summary: s.summary,
       visible: s.visible,
       available: manage || sAvail.available,
+      availability: s.availability,
       availabilityMissing: sAvail.missing,
       index,
       activities: acts,

@@ -101,11 +101,14 @@ export function CompletionToggle({
 export function ActivityMenu({
   courseId,
   activity,
+  dependents = [],
   sections,
 }: {
   courseId: string;
   /** `disabled`: its type is turned off, so it can be moved and deleted but not edited. */
   activity: { id: string; name: string; visibility: string; disabled?: boolean };
+  /** Activities and sections whose restrictions name this one. */
+  dependents?: string[];
   sections: { id: string; title: string }[];
 }) {
   const t = useTranslations('course');
@@ -220,6 +223,11 @@ export function ActivityMenu({
           description={t('deleteConfirm', { name: activity.name })}
           closeLabel={tc('close')}
         >
+          {dependents.length ? (
+            <p className="text-sm text-warning">
+              {t('deleteDependents', { names: dependents.join(', ') })}
+            </p>
+          ) : null}
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline">{tc('cancel')}</Button>

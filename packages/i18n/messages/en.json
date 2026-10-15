@@ -708,6 +708,7 @@
     "duplicate": "Duplicate",
     "delete": "Delete",
     "deleteConfirm": "Move “{name}” to the recycle bin?",
+    "deleteDependents": "Access restrictions of other activities and sections refer to this one: {names}. While it is in the recycle bin, these conditions do not apply; once it is deleted for good, they are removed.",
     "empty": "This course has no content yet",
     "emptyEdit": "Add the first item with the “Add activity” button",
     "recycleBin": "Recycle bin",

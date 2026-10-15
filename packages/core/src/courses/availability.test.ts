@@ -4,6 +4,7 @@ import {
   type AvailabilityTree,
   evaluateAvailability,
   parseAvailability,
+  pruneAvailability,
   referencedActivities,
 } from './availability.ts';
 
@@ -123,5 +124,44 @@ describe('evaluateAvailability', () => {
       t('&', { type: 'grade', activityId: A2, min: 1 }),
     );
     expect(referencedActivities(tree)).toEqual([A1, A2]);
+  });
+  it('leaves out conditions on what is gone, as met', () => {
+    const tree = t(
+      '&',
+      { type: 'completion', activityId: A1, state: 'complete' },
+      t('|', { type: 'group', groupId: G1 }, { type: 'grade', activityId: A2, min: 50 }),
+    );
+    const exists = (p: Partial<NonNullable<AvailabilityFacts['exists']>> = {}) => ({
+      activityIds: new Set([A1, A2]),
+      groupIds: new Set([G1]),
+      groupingIds: new Set<string>(),
+      ...p,
+    });
+    expect(evaluateAvailability(tree, facts({ exists: exists() })).available).toBe(false);
+    // the activity was deleted: only the alternatives are left
+    const noA1 = facts({ exists: exists({ activityIds: new Set([A2]) }) });
+    expect(evaluateAvailability(tree, noA1).missing).toHaveLength(2);
+    expect(evaluateAvailability(tree, { ...noA1, grades: new Map([[A2, 60]]) }).available).toBe(
+      true,
+    );
+    // nothing it names is left
+    expect(
+      evaluateAvailability(
+        tree,
+        facts({ exists: exists({ activityIds: new Set(), groupIds: new Set() }) }),
+      ),
+    ).toEqual({ available: true, hidden: false, missing: [] });
+
+    expect(pruneAvailability(tree, (c) => c.type === 'group')).toEqual(
+      t(
+        '&',
+        { type: 'completion', activityId: A1, state: 'complete' },
+        t('|', { type: 'grade', activityId: A2, min: 50 }),
+      ),
+    );
+    expect(pruneAvailability(tree, () => true)).toBeNull();
+    expect(pruneAvailability({ ...tree, hidden: true }, (c) => c.type === 'grade')).toMatchObject({
+      hidden: true,
+    });
   });
 });

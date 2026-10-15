@@ -707,6 +707,7 @@
     "duplicate": "Duplizieren",
     "delete": "Löschen",
     "deleteConfirm": "„{name}“ in den Papierkorb verschieben?",
+    "deleteDependents": "Zugriffsbeschränkungen anderer Aktivitäten und Abschnitte beziehen sich auf diese: {names}. Solange sie im Papierkorb ist, gelten diese Bedingungen nicht; wird sie endgültig gelöscht, werden sie entfernt.",
     "empty": "Dieser Kurs hat noch keine Inhalte",
     "emptyEdit": "Fügen Sie das erste Element über die Schaltfläche „Aktivität hinzufügen“ hinzu",
     "recycleBin": "Papierkorb",
