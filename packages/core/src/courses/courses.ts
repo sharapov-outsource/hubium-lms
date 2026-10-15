@@ -2,6 +2,7 @@ import { type Course, type Db, Prisma, uuidv7 } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { z } from 'zod';
 import { createContext } from '../access/contexts.ts';
+import { loadUserAccess, Permissions } from '../access/permissions.ts';
 import { scheduleCourseProgress } from '../completion/schedule.ts';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
@@ -550,9 +551,13 @@ export interface MyCourse {
   customFields: unknown;
 }
 
-/** Courses the user is actively enrolled in, most recently accessed first. */
-export async function listMyCourses(db: Tx, userId: string, now = new Date()): Promise<MyCourse[]> {
-  const enrolments = await db.enrolment.findMany({
+/**
+ * Courses the user may open now through an active enrolment, most recently accessed first.
+ * Hidden courses only for those who see hidden courses (teachers preparing them), as the
+ * course page itself.
+ */
+export async function listMyCourses(db: Db, userId: string, now = new Date()): Promise<MyCourse[]> {
+  let enrolments = await db.enrolment.findMany({
     where: {
       userId,
       status: 'ACTIVE',
@@ -565,6 +570,18 @@ export async function listMyCourses(db: Tx, userId: string, now = new Date()): P
     },
     include: { course: { include: { category: { select: { name: true } } } } },
   });
+  const hidden = enrolments.filter((e) => !e.course.visible).map((e) => e.courseId);
+  if (hidden.length) {
+    const user = await db.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { id: true, isSiteAdmin: true },
+    });
+    const perm = new Permissions(db, await loadUserAccess(db, user, { now }));
+    const unseen = new Set<string>();
+    for (const id of new Set(hidden))
+      if (!(await perm.can('course:viewhidden', id))) unseen.add(id);
+    enrolments = enrolments.filter((e) => !unseen.has(e.courseId));
+  }
   const courseIds = [...new Set(enrolments.map((e) => e.courseId))];
   const [accesses, completions, roles] = await Promise.all([
     db.courseAccess.findMany({ where: { userId, courseId: { in: courseIds } } }),

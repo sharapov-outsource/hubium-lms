@@ -1,13 +1,14 @@
 import type { CalendarEvent, Db, Prisma } from '@hubium/db';
 import { z } from 'zod';
+import { userContext } from '../ai/user-ctx.ts';
 import type { RequestContext } from '../context.ts';
+import { getCourseOutline } from '../courses/activities.ts';
+import { getCourseAccess } from '../courses/courses.ts';
 import { randomToken, sha256Hex } from '../crypto.ts';
 import { activeCourseUserIds } from '../enrol/participants.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { notifyUsers } from '../notifications/notifications.ts';
 import { defineOperation } from '../operation.ts';
-import { isModuleEnabled } from '../settings/modules.ts';
-import { getAllSettings } from '../settings/settings.ts';
 
 type Tx = Prisma.TransactionClient | Db;
 
@@ -15,9 +16,14 @@ export interface CalendarItem extends CalendarEvent {
   courseName?: string | null;
 }
 
-/** Events visible to a user between `from` and `to`. */
+/**
+ * Events visible to a user between `from` and `to`. Course events come from the courses the
+ * user may open now, and an activity's events only when they may open the activity, as the
+ * course page decides: not those of hidden courses, sections or activities, nor of ones
+ * behind unmet restrictions, whose names and dates are not theirs to see.
+ */
 export async function listUserEvents(
-  db: Tx,
+  db: Db,
   userId: string,
   range: { from: Date; to: Date; courseId?: string },
 ): Promise<CalendarItem[]> {
@@ -26,6 +32,7 @@ export async function listUserEvents(
     where: {
       userId,
       status: 'ACTIVE',
+      method: { enabled: true },
       course: { deletedAt: null },
       AND: [
         { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
@@ -48,11 +55,7 @@ export async function listUserEvents(
             ...(range.courseId
               ? []
               : [{ scope: 'SITE' as const }, { scope: 'USER' as const, userId }]),
-            {
-              scope: 'COURSE',
-              courseId: { in: courseIds },
-              OR: [{ activityId: null }, { activityId: { not: null } }],
-            },
+            { scope: 'COURSE', courseId: { in: courseIds } },
             { scope: 'GROUP', groupId: { in: groups.map((g) => g.groupId) } },
           ],
         },
@@ -61,24 +64,32 @@ export async function listUserEvents(
     orderBy: { startsAt: 'asc' },
     include: { course: { select: { fullName: true } } },
   });
-  // Hide events of deleted or hidden activities and of activity types that are turned off.
-  const actIds = events.map((e) => e.activityId).filter((x): x is string => !!x);
-  const acts = actIds.length
-    ? await db.activity.findMany({
-        where: { id: { in: actIds } },
-        select: { id: true, deletedAt: true, visibility: true, moduleKey: true },
-      })
-    : [];
-  const settings = await getAllSettings(db);
-  const hidden = new Set(
-    acts
-      .filter(
-        (a) => a.deletedAt || a.visibility !== 'SHOWN' || !isModuleEnabled(settings, a.moduleKey),
-      )
-      .map((a) => a.id),
-  );
+  // per course with events: whether the user sees it, and the activities they may open
+  const courses = new Map<string, { activities: boolean }>();
+  for (const e of events)
+    if (e.courseId)
+      courses.set(e.courseId, {
+        activities: !!e.activityId || !!courses.get(e.courseId)?.activities,
+      });
+  const seen = new Set<string>();
+  const openable = new Set<string>();
+  if (courses.size) {
+    const ctx = await userContext(db, userId);
+    for (const [courseId, { activities }] of courses) {
+      if (!activities) {
+        if ((await getCourseAccess(ctx, courseId)).canView) seen.add(courseId);
+        continue;
+      }
+      const outline = await getCourseOutline(ctx, courseId).catch(() => null);
+      if (!outline) continue;
+      seen.add(courseId);
+      for (const section of outline)
+        for (const a of section.activities) if (a.available) openable.add(a.activity.id);
+    }
+  }
   return events
-    .filter((e) => !e.activityId || !hidden.has(e.activityId))
+    .filter((e) => !e.courseId || seen.has(e.courseId))
+    .filter((e) => !e.activityId || openable.has(e.activityId))
     .map(({ course, ...e }) => ({ ...e, courseName: course?.fullName ?? null }));
 }
 
