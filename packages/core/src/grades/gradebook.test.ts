@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
+import { updateActivity } from '../courses/activities.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { runModuleAction } from '../modules/actions.ts';
 import {
@@ -162,6 +163,35 @@ describe('gradebook', () => {
     await expect(userReport(s1, f.courseId, f.users.student2!)).rejects.toBeInstanceOf(
       ForbiddenError,
     );
+  });
+
+  it('a hidden item stays hidden through activity edits, and the learner total leaves it out', async () => {
+    const g = await courseFixture(t.db, 'GRADES5');
+    const teacher = await ctxFor(t.db, g.users.teacher!);
+    const quiz = (await g.addActivity('assign', 'Тест', { gradeMax: 10 })).id;
+    const exam = (await g.addActivity('assign', 'Экзамен', { gradeMax: 100 })).id;
+    await runModuleAction(teacher, quiz, 'grade', { userId: g.users.student1, grade: 10 });
+    await runModuleAction(teacher, exam, 'grade', { userId: g.users.student1, grade: 80 });
+    const stored = (90 / 110) * 100;
+    expect(await total(t.db, g.courseId, g.users.student1!)).toBeCloseTo(stored);
+    const examItem = await t.db.gradeItem.findFirstOrThrow({ where: { activityId: exam } });
+    await updateGradeItem.run(teacher, { id: examItem.id, hidden: true });
+    // editing the activity keeps the teacher's choice
+    await updateActivity.run(teacher, {
+      id: exam,
+      name: 'Экзамен (итог)',
+      settings: { gradeMax: 100 },
+    });
+    expect((await t.db.gradeItem.findUniqueOrThrow({ where: { id: examItem.id } })).hidden).toBe(
+      true,
+    );
+    // the learner's total is over what they see (10 of 10), not a figure that gives the exam away
+    const s1 = await ctxFor(t.db, g.users.student1!);
+    const mine = await userReport(s1, g.courseId, g.users.student1!);
+    const totalId = mine.items.find((i) => i.kind === 'COURSE')!.id;
+    expect(Number(mine.grades.get(totalId)?.finalGrade)).toBeCloseTo(100);
+    const theirs = await userReport(teacher, g.courseId, g.users.student1!);
+    expect(Number(theirs.grades.get(totalId)?.finalGrade)).toBeCloseTo(stored);
   });
 
   it('CSV import fills manual items and reports bad rows; export includes totals', async () => {

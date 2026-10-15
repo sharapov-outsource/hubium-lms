@@ -5,6 +5,7 @@ import { listMyCourses } from '../courses/courses.ts';
 import { collectTodo } from '../dashboard/todo.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { learnerCourseTotal } from '../grades/gradebook.ts';
 import { defineOperation } from '../operation.ts';
 import { getAllSettings } from '../settings/settings.ts';
 import { isMentorOf, learnerPermissions } from './mentors.ts';
@@ -297,10 +298,12 @@ export async function menteeOverview(ctx: RequestContext, menteeId: string) {
         fullName: c.fullName,
         progress: c.progress,
         lastAccessAt: c.lastAccessAt,
-        grade:
-          visible && g?.finalGrade !== null && g?.finalGrade !== undefined
-            ? { value: Number(g.finalGrade), max: Number(item.gradeMax) }
-            : null,
+        grade: await (async () => {
+          if (!visible) return null;
+          // without what is hidden from the learner, as they see it themselves
+          const value = await learnerCourseTotal(ctx.db, c.id, menteeId);
+          return value === null ? null : { value: Number(value), max: Number(item.gradeMax) };
+        })(),
       };
     }),
   );

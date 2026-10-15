@@ -1,4 +1,4 @@
-import type { Db, GradeCategory, GradeItem, Prisma } from '@hubium/db';
+import { type Db, type GradeCategory, type GradeItem, Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { isLocale } from '@hubium/i18n';
 import { createTranslator } from '@hubium/i18n/packs';
@@ -94,14 +94,10 @@ export async function syncGradeItemsFor(tx: Tx, activityId: string): Promise<voi
       gradeMin: scale ? 1 : 0,
       gradeMax: scale ? scale.items.length : spec.gradeMax,
       gradePass: spec.gradePass ?? null,
-      hidden: a.visibility === 'HIDDEN' || !!a.deletedAt,
     };
-    if (
-      cur &&
-      (num(cur.gradeMax) !== data.gradeMax ||
-        num(cur.gradeMin) !== data.gradeMin ||
-        cur.hidden !== data.hidden)
-    )
+    // `hidden` is the teacher's choice in the gradebook; a hidden activity hides its items
+    // by itself (see hiddenFromLearner), so a sync never touches the flag
+    if (cur && (num(cur.gradeMax) !== data.gradeMax || num(cur.gradeMin) !== data.gradeMin))
       totalsChanged = true;
     if (cur) await tx.gradeItem.update({ where: { id: cur.id }, data });
     else
@@ -1071,18 +1067,69 @@ export async function userReport(ctx: RequestContext, courseId: string, userId: 
   }
   const { categories, items } = await gradebookStructure(ctx.db, courseId);
   const now = new Date();
-  const visible = !viewAll
-    ? items.filter(
-        (i) =>
-          !i.hidden &&
-          (!i.hiddenUntil || i.hiddenUntil <= now) &&
-          i.activity?.visibility !== 'HIDDEN',
-      )
-    : items;
+  const visible = !viewAll ? items.filter((i) => !hiddenFromLearner(i, now)) : items;
   const grades = await ctx.db.grade.findMany({
     where: { userId, gradeItemId: { in: visible.map((i) => i.id) } },
   });
-  return { categories, items: visible, grades: new Map(grades.map((g) => [g.gradeItemId, g])) };
+  const byItem = new Map(grades.map((g) => [g.gradeItemId, g]));
+  if (!viewAll) totalWithoutHidden(categories, items, visible, byItem, now);
+  return { categories, items: visible, grades: byItem };
+}
+
+type LearnerItem = Pick<GradeItem, 'hidden' | 'hiddenUntil'> & {
+  activity?: { visibility: string } | null;
+};
+
+/** Hidden from learners (and their mentors): by the teacher, until a date, or with its activity. */
+export function hiddenFromLearner(i: LearnerItem, now = new Date()): boolean {
+  return (
+    i.hidden || (!!i.hiddenUntil && i.hiddenUntil > now) || i.activity?.visibility === 'HIDDEN'
+  );
+}
+
+/**
+ * With items hidden from the learner, the course total they see is worked out again over the
+ * items they do see, as Moodle shows totals by default, so it does not give the hidden grades
+ * away. Replaces the total in `grades`; does nothing when nothing is hidden.
+ */
+function totalWithoutHidden(
+  categories: TreeCategory[],
+  items: (TreeItem & LearnerItem & Pick<GradeItem, 'kind' | 'gradeType'>)[],
+  visible: typeof items,
+  grades: Map<string, Prisma.GradeGetPayload<object>>,
+  now: Date,
+) {
+  const scored = (i: (typeof items)[number]) =>
+    (i.kind === 'MODULE' || i.kind === 'MANUAL') &&
+    (i.gradeType === 'VALUE' || i.gradeType === 'SCALE');
+  if (!items.some((i) => scored(i) && hiddenFromLearner(i, now))) return;
+  const total = visible.find((i) => i.kind === 'COURSE');
+  const stored = total && grades.get(total.id);
+  if (!total || !stored) return;
+  const rows = [...grades.values()].map((g) => ({
+    gradeItemId: g.gradeItemId,
+    finalGrade: g.finalGrade,
+    excluded: g.excluded,
+  }));
+  const fraction = categoryFraction(null, categories, visible.filter(scored), rows);
+  grades.set(total.id, {
+    ...stored,
+    finalGrade: fraction === null ? null : new Prisma.Decimal(fraction * num(total.gradeMax)!),
+  });
+}
+
+/** The course total a learner sees (see totalWithoutHidden); null when none. */
+export async function learnerCourseTotal(db: Tx, courseId: string, userId: string) {
+  const { categories, items } = await gradebookStructure(db, courseId);
+  const now = new Date();
+  const visible = items.filter((i) => !hiddenFromLearner(i, now));
+  const grades = await db.grade.findMany({
+    where: { userId, gradeItemId: { in: visible.map((i) => i.id) } },
+  });
+  const byItem = new Map(grades.map((g) => [g.gradeItemId, g]));
+  totalWithoutHidden(categories, items, visible, byItem, now);
+  const total = visible.find((i) => i.kind === 'COURSE');
+  return total ? (byItem.get(total.id)?.finalGrade ?? null) : null;
 }
 
 export function csvEscape(v: string): string {

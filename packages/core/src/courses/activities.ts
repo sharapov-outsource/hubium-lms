@@ -6,7 +6,7 @@ import { createContext } from '../access/contexts.ts';
 import type { MutationContext, RequestContext } from '../context.ts';
 import { NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
-import { requireActivityIdNumber } from '../grades/gradebook.ts';
+import { recomputeAllTotals, requireActivityIdNumber } from '../grades/gradebook.ts';
 import { enqueue } from '../jobs/jobs.ts';
 import { rankBetween } from '../lib/rank.ts';
 import { optionalText } from '../lib/zod.ts';
@@ -392,7 +392,11 @@ export const moveActivityStep = defineOperation({
 
 /** Grade items follow the activity into and out of the recycle bin (and the totals with them). */
 async function syncGrades(ctx: RequestContext & { tx: Prisma.TransactionClient }, a: Activity) {
-  if (requireModule(a.moduleKey).grading) await buildModuleCtx(ctx, ctx.tx).grades.syncItems(a.id);
+  if (!requireModule(a.moduleKey).grading) return;
+  await buildModuleCtx(ctx, ctx.tx).grades.syncItems(a.id);
+  // items in the recycle bin do not count towards the totals
+  if (await ctx.tx.gradeItem.count({ where: { activityId: a.id } }))
+    await recomputeAllTotals(ctx.tx, a.courseId);
 }
 
 export const deleteActivity = defineOperation({

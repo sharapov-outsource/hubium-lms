@@ -10,6 +10,7 @@ import {
   gradeHistory,
   graderReport,
   hasOwnLetters,
+  hiddenFromLearner,
   listScales,
 } from '@hubium/core';
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
@@ -584,7 +585,7 @@ export default async function GradesPage({
                         <span className="font-normal text-muted-foreground">
                           {t(`kind.${col.item.kind}`)} ·{' '}
                           {col.item.scale ? col.item.scale.name : n(col.item.gradeMax)}
-                          {col.item.hidden ? ' · 👁‍🗨' : ''}
+                          {hiddenFromLearner(col.item) ? ' · 👁‍🗨' : ''}
                         </span>
                       </th>
                     ),
