@@ -85,3 +85,8 @@ test('addresses with values a page cannot use open it with its defaults', async 
   // a stray % in a certificate code is not an escape
   expect(await status('/verify/ABC%25')).toBe(200);
 });
+
+test('a page the core refuses is the 403 page, not an error', async ({ page }) => {
+  await login(page, 'student1', DEMO_PASSWORD);
+  expect((await page.goto('/admin/announcements'))?.status()).toBe(403);
+});

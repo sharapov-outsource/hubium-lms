@@ -4,7 +4,7 @@ import { AnnouncementComposer } from '@/components/comms/announcement-composer';
 import { AnnouncementList } from '@/components/comms/announcement-list';
 import { db } from '@/server/db';
 import { titled } from '@/server/page-title';
-import { getContext } from '@/server/session';
+import { getContext, orRefused } from '@/server/session';
 
 export const generateMetadata = titled('course', 'tabs.stream');
 
@@ -17,7 +17,7 @@ export default async function CourseStreamPage({
   const ctx = await getContext();
   const [t, { items, canPost }] = await Promise.all([
     getTranslations('announcements'),
-    listCourseAnnouncements(ctx, courseId),
+    orRefused(listCourseAnnouncements(ctx, courseId)),
   ]);
   const groups = canPost
     ? await db.group.findMany({

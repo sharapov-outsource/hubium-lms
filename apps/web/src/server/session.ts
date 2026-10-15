@@ -5,16 +5,18 @@ import {
   anonymousAccess,
   type Capability,
   clientIp,
+  ForbiddenError,
   gateError,
   isSwitchableRole,
   loadUserAccess,
+  NotFoundError,
   noteUserAccess,
   Permissions,
   type RequestContext,
 } from '@hubium/core';
 import { log } from '@hubium/log';
 import { cookies, headers } from 'next/headers';
-import { forbidden, redirect } from 'next/navigation';
+import { forbidden, notFound, redirect } from 'next/navigation';
 import { getLocale } from 'next-intl/server';
 import { cache } from 'react';
 import { auth } from './auth';
@@ -130,6 +132,20 @@ export async function requireCapability(cap: Capability, contextId?: string) {
   const ctx = await getContext();
   if (!(await ctx.perm.can(cap, contextId))) forbidden();
   return { user, ctx };
+}
+
+/**
+ * For pages: what the core gives, its refusals shown as the 403 and 404 pages rather than
+ * as an error (a link from an old email to a course one has left).
+ */
+export async function orRefused<T>(data: Promise<T>): Promise<T> {
+  try {
+    return await data;
+  } catch (e) {
+    if (e instanceof ForbiddenError) forbidden();
+    if (e instanceof NotFoundError) notFound();
+    throw e;
+  }
 }
 
 export async function requireSiteAdmin() {
