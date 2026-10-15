@@ -196,7 +196,8 @@ describe('mod-lesson', () => {
     await runModuleAction(s1, id, 'start', { password: 'секрет' });
     await t.db.lessonAttempt.updateMany({
       where: { activityId: id, finishedAt: null },
-      data: { dueAt: new Date(Date.now() - 1000) },
+      // a second before the student's own now, however long the test has run
+      data: { dueAt: new Date(s1.now.getTime() - 1000) },
     });
     // reading the lesson shows it over and writes nothing; the sweep ends it
     const late = await state(s1, id);
