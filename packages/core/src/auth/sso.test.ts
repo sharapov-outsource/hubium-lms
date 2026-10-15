@@ -25,10 +25,16 @@ describe('SSO providers', () => {
   const t = useTestDb();
   const allow = process.env.SSRF_ALLOW_HOSTS;
   let adminId: string;
+  let kiraId: string;
 
   beforeAll(async () => {
     process.env.SSRF_ALLOW_HOSTS = 'idp.internal';
     adminId = (await ctxFor(t.db, 'admin@test.local')).perm.userId!;
+    kiraId = (
+      await t.db.user.create({
+        data: { email: 'kira@school.test', name: 'Кира К', firstName: 'Кира', lastName: 'К' },
+      })
+    ).id;
     const base = { userId: adminId, protocol: 'oidc', issuer: 'x' };
     await t.db.ssoProvider.createMany({
       data: [
@@ -37,6 +43,7 @@ describe('SSO providers', () => {
           providerId: 'inside',
           name: 'Inside',
           autoCreate: false,
+          linkByEmail: true,
           oidcConfig: JSON.stringify({
             tokenEndpoint: 'http://idp.internal:8080/token',
             jwksEndpoint: 'http://idp.internal:8080/jwks',
@@ -52,6 +59,13 @@ describe('SSO providers', () => {
           oidcConfig: JSON.stringify({ tokenEndpoint: 'https://idp.example.org/token' }),
         },
         { ...base, providerId: 'off', name: 'Off', enabled: false },
+        {
+          ...base,
+          providerId: 'other-school',
+          name: 'Other school',
+          linkByEmail: true,
+          domain: 'other.test, partner.test',
+        },
       ],
     });
   });
@@ -65,21 +79,43 @@ describe('SSO providers', () => {
 
   it('links by email, creates or refuses as the provider says', async () => {
     const resolve = resolveSsoUser(t.db);
-    const input = (providerId: string, email: string) =>
+    const input = (
+      providerId: string,
+      email: string,
+      claims: Record<string, unknown> = { email_verified: true },
+      protocol = 'oidc',
+    ) =>
       ({
-        protocol: 'oidc',
+        protocol,
         providerId,
         accountKey: { issuer: 'x', accountId: `sub-${email}` },
-        providerUser: { email, emailVerified: true, name: 'N' },
+        providerUser: { email, emailVerified: false, name: 'N' },
         providerReference: {},
         providerClaims: {},
-        verifiedIdTokenClaims: {},
+        verifiedIdTokenClaims: claims,
+        providerAttributes: {},
       }) as never;
     const ctx = { database: {} } as never;
-    expect(await resolve(input('inside', 'ADMIN@test.local'), ctx)).toEqual({
+    expect(await resolve(input('inside', 'KIRA@school.test'), ctx)).toEqual({
       action: 'link',
-      userId: adminId,
+      userId: kiraId,
       profile: 'preserve',
+    });
+    // an address the provider does not vouch for could be anyone's
+    for (const claims of [{}, { email_verified: false }])
+      expect(await resolve(input('inside', 'kira@school.test', claims), ctx)).toMatchObject({
+        code: 'SSO_ACCOUNT_NOT_LINKED',
+      });
+    // a SAML assertion has no such claim: the identity provider answers for it
+    expect(await resolve(input('inside', 'kira@school.test', {}, 'saml'), ctx)).toMatchObject({
+      action: 'link',
+    });
+    // only the provider's own domains, and never an administrator
+    expect(await resolve(input('other-school', 'kira@school.test'), ctx)).toMatchObject({
+      code: 'SSO_ACCOUNT_NOT_LINKED',
+    });
+    expect(await resolve(input('inside', 'admin@test.local'), ctx)).toMatchObject({
+      code: 'SSO_ACCOUNT_NOT_LINKED',
     });
     expect(await resolve(input('inside', 'new@example.org'), ctx)).toMatchObject({
       action: 'reject',

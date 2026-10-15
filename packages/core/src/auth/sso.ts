@@ -69,7 +69,7 @@ export const SsoProviderInput = z.object({
   protocol: z.enum(SSO_PROTOCOLS),
   enabled: z.boolean().default(true),
   autoCreate: z.boolean().default(false),
-  linkByEmail: z.boolean().default(true),
+  linkByEmail: z.boolean().default(false),
   domain: z.string().trim().max(500).default(''),
   // OIDC
   issuer: optionalText(500),
@@ -486,14 +486,35 @@ export function resolveSsoUser(db: Db): Resolve {
     if (linked) return { action: 'continue' };
     const email = input.providerUser.email?.trim().toLowerCase();
     const user = email
-      ? await db.user.findUnique({ where: { email }, select: { id: true, deletedAt: true } })
+      ? await db.user.findUnique({
+          where: { email },
+          select: { id: true, deletedAt: true, isSiteAdmin: true },
+        })
       : null;
     if (user && !user.deletedAt)
-      return provider.linkByEmail
+      return provider.linkByEmail && !user.isSiteAdmin && vouchedFor(input, email!, provider.domain)
         ? { action: 'link', userId: user.id, profile: 'preserve' }
         : reject('SSO_ACCOUNT_NOT_LINKED');
     return provider.autoCreate ? { action: 'continue' } : reject('SSO_NO_ACCOUNT');
   };
+}
+
+/**
+ * Whether the provider answers for the address enough to sign in to the account that has
+ * it: in its domains (when it has any), and confirmed by the person (OIDC email_verified;
+ * a SAML assertion has no such claim, the identity provider answers for it).
+ */
+function vouchedFor(input: Parameters<Resolve>[0], email: string, domains: string): boolean {
+  const list = domains
+    .split(',')
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean);
+  const host = email.slice(email.lastIndexOf('@') + 1);
+  if (list.length && !list.some((d) => host === d || host.endsWith(`.${d}`))) return false;
+  if (input.protocol === 'saml') return true;
+  const verified =
+    input.verifiedIdTokenClaims.email_verified ?? input.providerClaims.email_verified;
+  return verified === true || verified === 'true';
 }
 
 /** Refreshes names and mapped profile fields from the provider at every sign-in. */

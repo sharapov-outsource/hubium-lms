@@ -277,7 +277,7 @@ model SsoProvider {
   /// Create a Hubium account for a person who has none yet
   autoCreate      Boolean  @default(false)
   /// Sign in to an existing Hubium account with the same email
-  linkByEmail     Boolean  @default(true)
+  linkByEmail     Boolean  @default(false)
   /// { email?, firstName?, lastName?, fields: { profileFieldShortName: attribute } }
   mapping         Json     @default("{}")
   sortOrder       Int      @default(0)
@@ -306,7 +306,7 @@ model LdapServer {
   /// { email, firstName, lastName, fields: { profileFieldShortName: attribute } }
   mapping         Json      @default("{}")
   autoCreate      Boolean   @default(false)
-  linkByEmail     Boolean   @default(true)
+  linkByEmail     Boolean   @default(false)
   /// The nightly sync suspends accounts the directory no longer has
   suspendMissing  Boolean   @default(false)
   lastSyncAt      DateTime? @db.Timestamptz(3)

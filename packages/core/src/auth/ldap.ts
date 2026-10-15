@@ -78,7 +78,7 @@ export const LdapInput = z.object({
   idAttribute: z.string().trim().max(100).default(''),
   mapping: LdapMapping,
   autoCreate: z.boolean().default(false),
-  linkByEmail: z.boolean().default(true),
+  linkByEmail: z.boolean().default(false),
   suspendMissing: z.boolean().default(false),
 });
 
@@ -169,14 +169,19 @@ function personOf(s: LdapServer, entry: Entry): LdapPerson {
 
 export type LdapCheck =
   | { status: 'unknown' }
+  | { status: 'refused'; person: LdapPerson }
   | { status: 'invalid'; person: LdapPerson }
   | { status: 'ok'; person: LdapPerson };
 
-/** Finds the login in the directory and checks the password with a bind as that entry. */
+/**
+ * Finds the login in the directory and checks the password with a bind as that entry.
+ * `refuse` sees the entry first: when it says so, the password is not tried at all.
+ */
 export async function checkLdapPassword(
   s: LdapServer,
   login: string,
   password: string,
+  refuse?: (person: LdapPerson) => Promise<boolean>,
 ): Promise<LdapCheck> {
   // an empty password would be an anonymous bind, which succeeds
   if (!login.trim() || !password) return { status: 'unknown' };
@@ -186,6 +191,7 @@ export async function checkLdapPassword(
     const entries = await findEntries(s, client, login.trim());
     if (entries.length !== 1) return { status: 'unknown' };
     const person = personOf(s, entries[0]!);
+    if (await refuse?.(person)) return { status: 'refused', person };
     try {
       await client.bind(person.dn, password);
       return { status: 'ok', person };
@@ -237,6 +243,30 @@ export type LdapSignIn =
   | { kind: 'refused'; code: string; message: string }
   | { kind: 'user'; userId: string };
 
+type AccountMatch = {
+  linked: boolean;
+  users: { id: string; status: string; lockedUntil: Date | null; isSiteAdmin: boolean }[];
+};
+
+/** The account linked to a directory entry, or those with its email or login. */
+async function accountsFor(db: Db, p: LdapPerson): Promise<AccountMatch> {
+  const select = { id: true, status: true, lockedUntil: true, isSiteAdmin: true } as const;
+  const link = await db.account.findFirst({
+    where: { providerId: LDAP_PROVIDER, accountId: p.accountId },
+    select: { user: { select } },
+  });
+  if (link) return { linked: true, users: [link.user] };
+  const users = await db.user.findMany({
+    where: {
+      deletedAt: null,
+      OR: [...(p.email ? [{ email: p.email }] : []), { username: p.login }],
+    },
+    select,
+    take: 2,
+  });
+  return { linked: false, users };
+}
+
 /**
  * The Hubium account for a directory login, or why there is none. "fallback" means the
  * directory cannot decide (unknown login, or a wrong password for someone who also has a
@@ -250,63 +280,59 @@ export async function signInWithLdap(
 ): Promise<LdapSignIn> {
   const s = await getLdapServer(db);
   if (!s?.enabled) return { kind: 'fallback' };
+  let match: AccountMatch = { linked: false, users: [] };
   let check: LdapCheck;
   try {
-    check = await checkLdapPassword(s, login, password);
+    check = await checkLdapPassword(s, login, password, async (p) => {
+      match = await accountsFor(db, p);
+      // Hubium's lockout first: a guessed password never reaches the directory, whose own
+      // lockout policy would otherwise lock the person out of everything
+      return match.users.length === 1 && isLocked(match.users[0]!);
+    });
   } catch (err) {
     logger.error({ err }, 'LDAP sign-in failed');
     return { kind: 'fallback' };
   }
   if (check.status === 'unknown') return { kind: 'fallback' };
-  const p = check.person;
-  const linked = await db.account.findFirst({
-    where: { providerId: LDAP_PROVIDER, accountId: p.accountId },
-    select: { userId: true },
-  });
-  const byLogin = linked
-    ? null
-    : await db.user.findFirst({
-        where: {
-          deletedAt: null,
-          OR: [...(p.email ? [{ email: p.email }] : []), { username: p.login }],
-        },
-        select: { id: true },
-      });
-  const userId = linked?.userId ?? byLogin?.id;
-  const user = userId
-    ? await db.user.findUnique({
-        where: { id: userId },
-        select: { id: true, status: true, lockedUntil: true },
-      })
-    : null;
-  if (user && isLocked(user))
+  if (check.status === 'refused')
     return {
       kind: 'refused',
       code: 'ACCOUNT_LOCKED',
       message: 'This account is locked after failed sign-ins',
     };
+  const p = check.person;
+  const { linked, users } = match;
+  const user = users.length === 1 ? users[0]! : null;
 
   if (check.status === 'invalid') {
-    const local = user
-      ? await db.account.count({ where: { userId: user.id, providerId: 'credential' } })
-      : 0;
+    const local = await db.account.count({
+      where: { userId: { in: users.map((u) => u.id) }, providerId: 'credential' },
+    });
     if (local) return { kind: 'fallback' };
     if (user) await recordFailedSignIn(db, user.id, opts);
     return { kind: 'refused', code: 'INVALID_LOGIN', message: 'Invalid login or password' };
   }
 
+  // the email belongs to one account and the login to another: neither is taken over
+  if (users.length > 1)
+    return {
+      kind: 'refused',
+      code: 'LDAP_ACCOUNT_AMBIGUOUS',
+      message: 'The email and the username belong to different accounts',
+    };
   if (user && user.status !== 'ACTIVE')
     return { kind: 'refused', code: 'ACCOUNT_SUSPENDED', message: 'This account is suspended' };
   let id = user?.id;
-  if (id && !linked) {
-    if (!s.linkByEmail)
+  if (user && !linked) {
+    // a directory entry never takes over an administrator's account
+    if (!s.linkByEmail || user.isSiteAdmin)
       return {
         kind: 'refused',
         code: 'LDAP_ACCOUNT_NOT_LINKED',
         message: 'An account with this email or username exists',
       };
     await db.account.create({
-      data: { userId: id, providerId: LDAP_PROVIDER, accountId: p.accountId },
+      data: { userId: user.id, providerId: LDAP_PROVIDER, accountId: p.accountId },
     });
   }
   if (!id) {

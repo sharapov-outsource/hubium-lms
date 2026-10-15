@@ -156,7 +156,7 @@ export function LdapForm({
       </fieldset>
       <fieldset className="grid gap-3">
         <legend className="mb-2 font-semibold">{t('accounts')}</legend>
-        <Toggle name="linkByEmail" label={t('linkByEmail')} checked={v?.linkByEmail ?? true} />
+        <Toggle name="linkByEmail" label={t('linkByEmail')} checked={v?.linkByEmail ?? false} />
         <Toggle name="autoCreate" label={t('autoCreate')} checked={v?.autoCreate ?? false} />
         <Toggle
           name="suspendMissing"

@@ -1,4 +1,5 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { Client } from 'ldapts';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { createUser } from '../users/users.ts';
 import { createAuth } from './auth.ts';
@@ -106,6 +107,56 @@ describe.skipIf(!URL)('LDAP sign-in', () => {
       kind: 'refused',
       code: 'INVALID_LOGIN',
     });
+  });
+
+  it('links no administrator, nobody ambiguous, and checks the lockout before the directory', async () => {
+    // the directory's "gone" has the email of one account and the login of another
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const byEmail = await createUser.run(admin, {
+      email: 'gone@example.org',
+      firstName: 'G',
+      lastName: 'E',
+      password: 'Local-pass-1',
+    });
+    const byLogin = await createUser.run(admin, {
+      email: 'someone@example.org',
+      username: 'gone',
+      firstName: 'G',
+      lastName: 'L',
+      password: 'Local-pass-1',
+    });
+    expect(await signInWithLdap(t.db, 'gone', 'Ldap-pass-123', opts)).toMatchObject({
+      kind: 'refused',
+      code: 'LDAP_ACCOUNT_AMBIGUOUS',
+    });
+    await t.db.user.delete({ where: { id: byLogin.id } });
+    await t.db.user.update({ where: { id: byEmail.id }, data: { isSiteAdmin: true } });
+    expect(await signInWithLdap(t.db, 'gone', 'Ldap-pass-123', opts)).toMatchObject({
+      kind: 'refused',
+      code: 'LDAP_ACCOUNT_NOT_LINKED',
+    });
+    expect(await t.db.account.count({ where: { userId: byEmail.id, providerId: 'ldap' } })).toBe(0);
+    await t.db.user.delete({ where: { id: byEmail.id } });
+
+    // a locked account: the directory is not asked, so its own lockout policy is not fed
+    const lena = await t.db.user.findUniqueOrThrow({ where: { email: 'lena@example.org' } });
+    await t.db.user.update({
+      where: { id: lena.id },
+      data: { lockedUntil: new Date(Date.now() + 3_600_000) },
+    });
+    const bind = vi.spyOn(Client.prototype, 'bind');
+    try {
+      expect(await signInWithLdap(t.db, 'lena', 'wrong', opts)).toMatchObject({
+        kind: 'refused',
+        code: 'ACCOUNT_LOCKED',
+      });
+      expect(bind.mock.calls.map(([dn]) => dn)).not.toContain(
+        'uid=lena,ou=people,dc=hubium,dc=test',
+      );
+    } finally {
+      bind.mockRestore();
+      await t.db.user.update({ where: { id: lena.id }, data: { lockedUntil: null } });
+    }
   });
 
   it('signs in through Better Auth, with the two-factor challenge when it is on', async () => {

@@ -199,7 +199,7 @@ export function SsoForm({
       <fieldset className="grid gap-3">
         <legend className="mb-2 font-semibold">{t('accounts')}</legend>
         <Toggle name="enabled" label={t('enabled')} checked={values.enabled ?? true} />
-        <Toggle name="linkByEmail" label={t('linkByEmail')} checked={values.linkByEmail ?? true} />
+        <Toggle name="linkByEmail" label={t('linkByEmail')} checked={values.linkByEmail ?? false} />
         <Toggle name="autoCreate" label={t('autoCreate')} checked={values.autoCreate ?? false} />
         <FormField
           name="domain"

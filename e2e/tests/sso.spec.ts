@@ -55,6 +55,8 @@ test('OIDC and SAML sign-in through Keycloak', async ({ page }) => {
       await page.getByLabel('Издатель (issuer)').fill(REALM);
       await page.getByLabel('Client ID').fill('hubium-oidc');
       await page.getByLabel('Client secret').fill('hubium-oidc-secret');
+      // off for a new provider: Kira's account is taken over only when asked
+      await page.getByLabel('Входить в существующую учётную запись с той же почтой').check();
       await page.getByLabel('Факультет').fill('department');
     });
     await expectAccessible(page);

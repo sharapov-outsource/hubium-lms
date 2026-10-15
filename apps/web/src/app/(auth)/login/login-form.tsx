@@ -57,7 +57,7 @@ export function LoginForm({
               ? t('accountSuspended')
               : code === 'LDAP_NO_ACCOUNT'
                 ? t('ssoNoAccount')
-                : code === 'LDAP_ACCOUNT_NOT_LINKED'
+                : code === 'LDAP_ACCOUNT_NOT_LINKED' || code === 'LDAP_ACCOUNT_AMBIGUOUS'
                   ? t('ssoNotLinked')
                   : r.error.status === 429
                     ? t('tooManyAttempts')
