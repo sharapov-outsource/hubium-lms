@@ -153,9 +153,16 @@ for (const root of ROOTS)
       if (nodes.has(m[1]!)) used.add(m[1]!);
   }
 
-const isUsed = (k: string) =>
-  [...used].some((u) => k === u || k.startsWith(`${u}.`)) ||
-  [...prefixes].some((p) => p && k.startsWith(p));
+/** Asked for as itself or a group above it, or under a prefix keys are built from. */
+const isUsed = (k: string) => {
+  // looked up in the sets by k's own groups and prefixes: comparing every key with every
+  // used key took seconds, more than a test is given on a busy CI runner
+  for (let i = k.length; i > 0; i = k.lastIndexOf('.', i - 1)) {
+    if (used.has(k.slice(0, i))) return true;
+  }
+  for (let i = 1; i <= k.length; i++) if (prefixes.has(k.slice(0, i))) return true;
+  return false;
+};
 
 describe('message keys', () => {
   it('every key the code asks for is in the English packs', () => {
