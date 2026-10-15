@@ -219,6 +219,8 @@ export async function runBackupTask(db: Db, taskId: string) {
       mimeType: 'application/zip',
       filePath: path,
       uploadedById: task.createdById,
+      // made of the course's files, each scanned when it was uploaded
+      scan: false,
     });
     const older = await db.file.findMany({
       where: { contextId: courseId, ...BACKUP_AREA },

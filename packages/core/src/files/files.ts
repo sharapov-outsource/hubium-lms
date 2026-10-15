@@ -136,12 +136,14 @@ async function storeBlob(
   db: Tx,
   content: { data: Buffer } | { filePath: string },
   meta: { name: string; size: number; sha256: string; mimeType: string },
+  /** false: content the site made of what it holds already, which was scanned on upload */
+  scan = true,
 ) {
   const existing = await db.fileBlob.findFirst({
     where: { sha256: meta.sha256, size: meta.size },
   });
-  if (existing?.scannedAt) return existing;
-  const scanned = await assertClean(content, meta);
+  if (existing?.scannedAt || (existing && !scan)) return existing;
+  const scanned = scan ? await assertClean(content, meta) : false;
   if (existing)
     return scanned
       ? db.fileBlob.update({ where: { id: existing.id }, data: { scannedAt: new Date() } })
@@ -229,7 +231,11 @@ export async function storeFile(db: Tx, input: StoreFileInput): Promise<File> {
  */
 export async function storeFileFromPath(
   db: Tx,
-  input: Omit<StoreFileInput, 'data'> & { filePath: string },
+  input: Omit<StoreFileInput, 'data'> & {
+    filePath: string;
+    /** false for a file the site made of content it holds, all of it scanned on upload */
+    scan?: boolean;
+  },
 ): Promise<File> {
   const name = sanitizeFilename(input.name);
   const { size } = await stat(input.filePath);
@@ -252,7 +258,12 @@ export async function storeFileFromPath(
   const hash = createHash('sha256');
   for await (const chunk of createReadStream(input.filePath)) hash.update(chunk as Buffer);
   const sha256 = hash.digest('hex');
-  const blob = await storeBlob(db, { filePath: input.filePath }, { name, size, sha256, mimeType });
+  const blob = await storeBlob(
+    db,
+    { filePath: input.filePath },
+    { name, size, sha256, mimeType },
+    input.scan !== false,
+  );
   const where = {
     contextId: input.contextId,
     component: input.component,

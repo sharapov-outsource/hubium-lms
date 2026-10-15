@@ -127,7 +127,12 @@ test.describe
       await login(page, ADMIN.login, ADMIN.password);
       await page.goto(`${courseUrl}/settings`);
       await page.getByRole('button', { name: 'Создать резервную копию' }).click();
-      await expect(page.getByText('Резервная копия готова')).toBeVisible({ timeout: 120_000 });
+      // done, or why not
+      const failed = page.getByText(/^Резервная копия не создана/);
+      await expect(page.getByText('Резервная копия готова').or(failed)).toBeVisible({
+        timeout: 120_000,
+      });
+      if (await failed.count()) throw new Error(await failed.innerText());
       const [download] = await Promise.all([
         page.waitForEvent('download'),
         page
