@@ -34,7 +34,8 @@ test('assignment: a team submits late, the teacher grades it and moves its dates
     ]);
     await sql(
       `DELETE FROM "AssignSubmission" WHERE "activityId" = $1
-         AND ("userId" IN ($2, $3) OR "groupId" IN (SELECT id FROM "Group" WHERE name = 'E2E команда'))`,
+         AND ("userId" IN ($2, $3) OR "groupId" IN (SELECT id FROM "Group" WHERE name = 'E2E команда')
+              OR ("userId" IS NULL AND "groupId" IS NULL))`,
       [assignId, s1, s2],
     );
     await sql(`DELETE FROM "AssignGrade" WHERE "activityId" = $1 AND "userId" IN ($2, $3)`, [
@@ -138,6 +139,17 @@ test('assignment: a team submits late, the teacher grades it and moves its dates
     await expect(page.getByRole('row').filter({ hasText: 'E2E команда' }).first()).toContainText(
       '8 / 10',
     );
+
+    // all the work in one archive; the team's, its group deleted, under "no_owner"
+    const download = async () => {
+      const r = await page.request.get(`/api/mod/assign/${assignId}/download`);
+      expect(r.status()).toBe(200);
+      expect(r.headers()['content-type']).toBe('application/zip');
+      return (await r.body()).toString('latin1');
+    };
+    expect(await download()).toContain('E2E');
+    await sql(`DELETE FROM "Group" WHERE "courseId" = $1 AND name = 'E2E команда'`, [courseId]);
+    expect(await download()).toContain('no_owner/submission_');
   } finally {
     await cleanup();
   }
