@@ -48,7 +48,7 @@
       "saved": "Formulaire enregistré",
       "about": {
         "accumulative": "Chaque critère reçoit des points ; la note est leur part pondérée du maximum.",
-        "comments": "Les évaluateurs commentent chaque aspect ; le formulaire ne note pas le travail.",
+        "comments": "Les évaluateurs commentent chaque aspect, sans points : chaque travail évalué reçoit la note maximale, c’est donc généralement l’enseignant qui fixe la note finale.",
         "numerrors": "Les évaluateurs indiquent si chaque assertion est vraie ; le nombre pondéré d'erreurs donne la note, d'après la table ou de façon régulière.",
         "rubric": "Chaque critère a des niveaux avec des points ; la note situe les points choisis entre le minimum et le maximum."
       },

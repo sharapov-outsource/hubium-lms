@@ -48,7 +48,7 @@
       "saved": "Formular gespeichert",
       "about": {
         "accumulative": "Jedes Kriterium erhält Punkte; die Bewertung ist ihr gewichteter Anteil am Höchstwert.",
-        "comments": "Beurteilende kommentieren jeden Aspekt; das Formular bewertet die Arbeit nicht.",
+        "comments": "Beurteilende kommentieren jeden Aspekt ohne Punkte: Jede beurteilte Arbeit erhält die Höchstbewertung, die endgültige Bewertung setzt daher meist die Lehrkraft.",
         "numerrors": "Beurteilende geben an, ob jede Aussage zutrifft; die gewichtete Fehlerzahl ergibt die Bewertung nach Tabelle oder gleichmäßig.",
         "rubric": "Jedes Kriterium hat Stufen mit Punkten; die Bewertung liegt zwischen den wenigsten und den meisten Punkten."
       },

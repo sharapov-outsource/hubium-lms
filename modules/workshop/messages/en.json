@@ -48,7 +48,7 @@
       "saved": "Form saved",
       "about": {
         "accumulative": "Each criterion gets points; the grade is their weighted share of the most.",
-        "comments": "Reviewers comment on each aspect; the work is not graded by the form.",
+        "comments": "Reviewers comment on each aspect, without points: every assessed work gets the highest grade, so the teacher usually sets the final one.",
         "numerrors": "Reviewers say whether each assertion holds; the weighted number of errors gives the grade, by the table or evenly.",
         "rubric": "Each criterion has levels with points; the grade is where the points chosen lie between the least and the most."
       },

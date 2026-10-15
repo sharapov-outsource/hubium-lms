@@ -48,7 +48,7 @@
       "saved": "Modulo salvato",
       "about": {
         "accumulative": "Ogni criterio riceve punti; il voto è la loro quota pesata del massimo.",
-        "comments": "I valutatori commentano ogni aspetto; il modulo non assegna un voto al lavoro.",
+        "comments": "I valutatori commentano ogni aspetto, senza punti: ogni lavoro valutato riceve il voto massimo, quindi di solito il voto finale lo assegna il docente.",
         "numerrors": "I valutatori indicano se ogni asserzione è vera; il numero pesato di errori dà il voto, secondo la tabella o in modo uniforme.",
         "rubric": "Ogni criterio ha livelli con punti; il voto colloca i punti scelti tra il minimo e il massimo."
       },
