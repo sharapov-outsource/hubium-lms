@@ -59,6 +59,18 @@ describe('course reset', () => {
       gradeMax: 10,
       dueAt: '2026-09-15T18:00:00.000Z',
     });
+    // a section that opens on a date, and an activity in the recycle bin with a due date
+    const week5 = { op: '&', c: [{ type: 'date', op: '>=', at: '2026-10-01T00:00:00.000Z' }] };
+    const section = await t.db.courseSection.findFirstOrThrow({
+      where: { courseId: f.courseId },
+      orderBy: { rank: 'desc' },
+    });
+    await t.db.courseSection.update({ where: { id: section.id }, data: { availability: week5 } });
+    const { id: binned } = await f.addActivity('assign', 'Черновик', {
+      gradeMax: 10,
+      dueAt: '2026-10-15T18:00:00.000Z',
+    });
+    await t.db.activity.update({ where: { id: binned }, data: { deletedAt: new Date() } });
     const s1 = await ctxFor(t.db, f.users.student1!);
     await runModuleAction(s1, assignId, 'saveSubmission', { text: '<p>Работа</p>', submit: true });
     await runModuleAction(await ctxFor(t.db, f.users.teacher!), assignId, 'grade', {
@@ -89,6 +101,12 @@ describe('course reset', () => {
     expect((a.settings as { dueAt: string }).dueAt).toBe('2027-02-15T18:00:00.000Z');
     const ev = await t.db.calendarEvent.findFirst({ where: { activityId: assignId } });
     if (ev) expect(ev.startsAt.toISOString()).toBe('2027-02-15T18:00:00.000Z');
+    expect(
+      (await t.db.courseSection.findUniqueOrThrow({ where: { id: section.id } })).availability,
+    ).toEqual({ op: '&', c: [{ type: 'date', op: '>=', at: '2027-03-03T00:00:00.000Z' }] });
+    // restored from the recycle bin, it belongs to the new term too
+    const restored = await t.db.activity.findUniqueOrThrow({ where: { id: binned } });
+    expect((restored.settings as { dueAt: string }).dueAt).toBe('2027-03-17T18:00:00.000Z');
   });
 
   it('needs course:reset', async () => {

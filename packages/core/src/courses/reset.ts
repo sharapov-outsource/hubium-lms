@@ -1,4 +1,4 @@
-import type { Prisma } from '@hubium/db';
+import { Prisma } from '@hubium/db';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { removeCourseMembership } from '../enrol/enrol.ts';
@@ -225,7 +225,10 @@ export const resetCourse = defineOperation({
   },
 });
 
-/** Moves the course, its activities' dates and access rules, and its events by `ms`. */
+/**
+ * Moves the course, its sections' and activities' dates and access rules, and its events by
+ * `ms`; activities in the recycle bin too, so restored they belong to the new term.
+ */
 async function shiftCourseDates(tx: Prisma.TransactionClient, courseId: string, ms: number) {
   const course = await tx.course.findUniqueOrThrow({ where: { id: courseId } });
   const at = (d: Date | null) => (d ? new Date(d.getTime() + ms) : null);
@@ -233,7 +236,14 @@ async function shiftCourseDates(tx: Prisma.TransactionClient, courseId: string, 
     where: { id: courseId },
     data: { startDate: at(course.startDate), endDate: at(course.endDate) },
   });
-  for (const a of await tx.activity.findMany({ where: { courseId, deletedAt: null } })) {
+  for (const s of await tx.courseSection.findMany({
+    where: { courseId, availability: { not: Prisma.AnyNull } },
+  }))
+    await tx.courseSection.update({
+      where: { id: s.id },
+      data: { availability: shiftIsoDates(s.availability, ms) as Prisma.InputJsonValue },
+    });
+  for (const a of await tx.activity.findMany({ where: { courseId } })) {
     const updated = await tx.activity.update({
       where: { id: a.id },
       data: {
