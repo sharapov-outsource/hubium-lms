@@ -587,8 +587,9 @@ export async function courseBreakdown(ctx: RequestContext, courseId: string) {
 /** One learner's competencies in a course: their ratings and the evidence given there. */
 export async function learnerInCourse(ctx: RequestContext, courseId: string, userId: string) {
   if (userId !== ctx.perm.userId) await ctx.perm.require('competency:viewratings', courseId);
-  const user = await ctx.db.user.findUnique({
-    where: { id: userId },
+  // someone enrolled in the course (now or before): not anyone on the site
+  const user = await ctx.db.user.findFirst({
+    where: { id: userId, enrolments: { some: { courseId } } },
     select: { id: true, name: true },
   });
   if (!user) throw new NotFoundError('User');

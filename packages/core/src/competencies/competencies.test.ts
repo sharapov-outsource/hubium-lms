@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { toggleManualCompletion } from '../completion/completion.ts';
-import { ConflictError, ForbiddenError } from '../errors.ts';
+import { ConflictError, ForbiddenError, NotFoundError } from '../errors.ts';
 import { saveScale } from '../grades/scales.ts';
 import {
   deleteCompetency,
@@ -35,6 +35,7 @@ import {
 import {
   addCourseCompetencies,
   courseBreakdown,
+  learnerInCourse,
   rateInCourse,
   rateUserCompetency,
   reviewUserCompetency,
@@ -311,5 +312,16 @@ describe('competencies', () => {
     const unlinked = await planDetail(student, fromTemplate.id);
     expect(unlinked.plan.templateId).toBeNull();
     expect(unlinked.competencies).toHaveLength(2);
+  });
+  it("shows a course's ratings of its own learners only", async () => {
+    const f = await courseFixture(t.db, 'COMP-OWN');
+    const teacher = await ctxFor(t.db, f.users.teacher!);
+    await expect(learnerInCourse(teacher, f.courseId, f.users.student1!)).resolves.toMatchObject({
+      user: { id: f.users.student1 },
+    });
+    // someone who never studied this course, from anywhere on the site
+    await expect(learnerInCourse(teacher, f.courseId, f.users.assistant!)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
   });
 });
