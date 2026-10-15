@@ -293,7 +293,9 @@ describe('.mbz import', () => {
       ['Глава 1', false, false],
       ['Подробности', true, true],
     ]);
-    expect(chapters[0]!.content).toMatch(/\/files\/[0-9a-f-]{36}\/fig\.png/);
+    // named like the page's picture, and a file of its own
+    const chapterPicture = /\/files\/([0-9a-f-]{36})\/diagram\.png/.exec(chapters[0]!.content);
+    expect(chapterPicture).not.toBeNull();
   });
 
   it("links the site's competencies to the course and its activities", async () => {
@@ -323,6 +325,16 @@ describe('.mbz import', () => {
     expect((get('Введение').settings as { content: string }).content).toMatch(
       /\/files\/[0-9a-f-]{36}\/diagram\.png/,
     );
+    // the page's and the book chapter's pictures share a name and are two files
+    const pictures = await t.db.file.findMany({
+      where: {
+        contextId: report.courseId,
+        component: 'course',
+        area: 'editor',
+        name: 'diagram.png',
+      },
+    });
+    expect(pictures).toHaveLength(2);
     expect(get('Документация').settings).toMatchObject({ url: 'https://docs.python.org/3/' });
     expect(get('Задание')).toMatchObject({ visibility: 'HIDDEN' });
     expect(get('Задание').settings).toMatchObject({

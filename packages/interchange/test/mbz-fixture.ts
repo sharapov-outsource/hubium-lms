@@ -166,7 +166,7 @@ export async function mbzFixture(): Promise<Buffer> {
       39,
       '<name>Учебник</name><intro></intro><numbering>3</numbering><navstyle>1</navstyle><customtitles>0</customtitles><chapters>' +
         '<chapter id="8"><pagenum>2</pagenum><subchapter>1</subchapter><title>Подробности</title><content>&lt;p&gt;Скрытая&lt;/p&gt;</content><contentformat>1</contentformat><hidden>1</hidden></chapter>' +
-        '<chapter id="7"><pagenum>1</pagenum><subchapter>0</subchapter><title>Глава 1</title><content><![CDATA[<p>Схема <img src="@@PLUGINFILE@@/fig.png" alt="f"></p>]]></content><contentformat>1</contentformat><hidden>0</hidden></chapter>' +
+        '<chapter id="7"><pagenum>1</pagenum><subchapter>0</subchapter><title>Глава 1</title><content><![CDATA[<p>Схема <img src="@@PLUGINFILE@@/diagram.png" alt="f"></p>]]></content><contentformat>1</contentformat><hidden>0</hidden></chapter>' +
         '</chapters>',
     ),
     'activities/choice_20/module.xml': moduleXml(20, 'choice', 2),
@@ -362,7 +362,8 @@ export async function mbzFixture(): Promise<Buffer> {
       component: 'mod_book',
       area: 'chapter',
       item: 7,
-      name: 'fig.png',
+      // the same name as the page's picture, as Moodle names pasted images
+      name: 'diagram.png',
       mime: 'image/png',
       data: Buffer.concat([PNG, Buffer.from([7])]),
     },

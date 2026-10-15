@@ -1108,6 +1108,8 @@ export async function importMbz(
     const db = ctx.db;
     let fileCount = 0;
 
+    /** Files already stored, by their place in the backup. */
+    const storedUrls = new Map<string, string>();
     /** Stores files of a Moodle file area into the course editor area; returns name → URL. */
     const storeArea = async (
       contextid: string,
@@ -1123,19 +1125,28 @@ export async function importMbz(
           x.filearea === filearea &&
           (itemid === undefined || x.itemid === itemid),
       )) {
-        const data = blob(f);
-        if (!data) continue;
-        const stored = await storeFile(db, {
-          contextId: courseId,
-          component: 'course',
-          area: 'editor',
-          name: f.filename,
-          mimeType: f.mimetype,
-          data,
-          uploadedById: ctx.perm.userId ?? null,
-        });
-        fileCount++;
-        urls.set(`${f.filepath.replace(/^\//, '')}${f.filename}`, fileUrl(stored));
+        // Moodle names every pasted picture image.png: each file keeps a folder of its own
+        // place in the backup, so two of the same name do not collide
+        const place = `/${f.contextid}/${f.component}/${f.filearea}/${f.itemid}${f.filepath}`;
+        let url = storedUrls.get(place + f.filename);
+        if (!url) {
+          const data = blob(f);
+          if (!data) continue;
+          const stored = await storeFile(db, {
+            contextId: courseId,
+            component: 'course',
+            area: 'editor',
+            path: place,
+            name: f.filename,
+            mimeType: f.mimetype,
+            data,
+            uploadedById: ctx.perm.userId ?? null,
+          });
+          fileCount++;
+          url = fileUrl(stored);
+          storedUrls.set(place + f.filename, url);
+        }
+        urls.set(`${f.filepath.replace(/^\//, '')}${f.filename}`, url);
       }
       return urls;
     };
@@ -1408,7 +1419,15 @@ export async function importMbz(
         subsectionCount++;
         continue;
       }
-      const introFiles = await storeArea(contextid, `mod_${modname}`, 'intro');
+      // a description whose pictures cannot be stored still comes, without them
+      let introFiles = new Map<string, string>();
+      try {
+        introFiles = await storeArea(contextid, `mod_${modname}`, 'intro');
+      } catch (e) {
+        warnings.push(
+          `"${name}": pictures of its description were left out (${e instanceof Error ? e.message : String(e)})`,
+        );
+      }
       const intro = rewrite(txt(data.intro), introFiles);
       const groupMode = ({ '1': 'SEPARATE', '2': 'VISIBLE' } as const)[txt(module.groupmode)];
       // an ID number already in the gradebook stays with the first (and is reported)
