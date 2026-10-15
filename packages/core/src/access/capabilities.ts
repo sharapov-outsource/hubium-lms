@@ -134,6 +134,11 @@ export const coreCapabilities = {
   'mod.glossary:rate': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.glossary:viewrating': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },
   'mod.glossary:viewallratings': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  // lesson: taking it, writing its pages, reports (and trying it out), grading essays
+  'mod.lesson:attempt': { level: 'ACTIVITY', archetypes: [S], excludeAdmin: true },
+  'mod.lesson:edit': { level: 'ACTIVITY', archetypes: [M, ET], risk: ['xss'] },
+  'mod.lesson:viewreports': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  'mod.lesson:grade': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   // video / live
   'mod.video:viewprogress': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.livesession:join': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },

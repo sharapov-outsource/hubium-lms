@@ -5,6 +5,7 @@ import { contentModuleUIs } from '@hubium/mod-content/ui';
 import { feedbackUI } from '@hubium/mod-feedback/ui';
 import { forumUI } from '@hubium/mod-forum/ui';
 import { glossaryUI } from '@hubium/mod-glossary/ui';
+import { lessonUI } from '@hubium/mod-lesson/ui';
 import { livesessionUI } from '@hubium/mod-livesession/ui';
 import { ltiUI } from '@hubium/mod-lti/ui';
 import { quizUI } from '@hubium/mod-quiz/ui';
@@ -19,6 +20,7 @@ for (const ui of [
   choiceUI,
   feedbackUI,
   glossaryUI,
+  lessonUI,
   assignUI,
   quizUI,
   forumUI,

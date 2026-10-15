@@ -6,7 +6,7 @@ import tar from 'tar-stream';
 // a page with an embedded image, a quiz using question bank entries and a random slot,
 // an assignment (teams, marking workflow, blind marking, a rubric, a group's dates), a
 // URL, a file resource, Q&A (rated) and news forums, a book with an image in a chapter, a choice, a feedback,
-// a rated glossary with an entry and an unsupported wiki; groups and a
+// a rated glossary with an entry, a lesson of four pages and an unsupported wiki; groups and a
 // grouping, a scale, and a gradebook with a category, a manual item and a formula.
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
@@ -48,6 +48,7 @@ export async function mbzFixture(): Promise<Buffer> {
       ${activity(20, 'choice', 'Тема проекта', 2)}
       ${activity(21, 'feedback', 'Отзыв', 2)}
       ${activity(22, 'glossary', 'Словарь', 2)}
+      ${activity(23, 'lesson', 'Маршрут', 2)}
     </activities>
     <sections>
       <section><sectionid>1</sectionid><title>0</title><directory>sections/section_1</directory></section>
@@ -58,7 +59,7 @@ export async function mbzFixture(): Promise<Buffer> {
 </information></moodle_backup>`,
     'course/course.xml': `<?xml version="1.0" encoding="UTF-8"?><course id="2" contextid="20"><shortname>MOODLE-PY</shortname><fullname>Python из Moodle</fullname><summary>&lt;p&gt;Курс &lt;img src="@@PLUGINFILE@@/logo.png"&gt;&lt;/p&gt;</summary><format>topics</format><startdate>1735689600</startdate><enddate>0</enddate><customfields><customfield id="1"><shortname>Level</shortname><type>select</type><value>2</value><valueformat>0</valueformat></customfield><customfield id="2"><shortname>starts</shortname><type>date</type><value>1767214800</value><valueformat>0</valueformat></customfield><customfield id="3"><shortname>about</shortname><type>textarea</type><value>&lt;p&gt;Для &lt;b&gt;всех&lt;/b&gt;&lt;/p&gt;</value><valueformat>1</valueformat></customfield><customfield id="4"><shortname>elsewhere</shortname><type>text</type><value>x</value><valueformat>0</valueformat></customfield></customfields></course>`,
     'sections/section_1/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="1"><number>0</number><name>$@NULL@$</name><summary></summary><sequence>11,14</sequence><visible>1</visible></section>`,
-    'sections/section_2/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="2"><number>1</number><name>Тема 1</name><summary>&lt;p&gt;Первая тема&lt;/p&gt;</summary><sequence>12,13,15,16,17,18,19,20,21,22</sequence><visible>1</visible></section>`,
+    'sections/section_2/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="2"><number>1</number><name>Тема 1</name><summary>&lt;p&gt;Первая тема&lt;/p&gt;</summary><sequence>12,13,15,16,17,18,19,20,21,22,23</sequence><visible>1</visible></section>`,
 
     'activities/page_11/module.xml': moduleXml(11, 'page', 1),
     'activities/page_11/page.xml': wrap(
@@ -182,6 +183,14 @@ export async function mbzFixture(): Promise<Buffer> {
       '<name>Словарь</name><intro></intro><allowduplicatedentries>0</allowduplicatedentries><displayformat>fullwithauthor</displayformat><mainglossary>0</mainglossary><showspecial>1</showspecial><showalphabet>1</showalphabet><showall>1</showall><allowcomments>0</allowcomments><usedynalink>1</usedynalink><defaultapproval>0</defaultapproval><globalglossary>0</globalglossary><entbypage>15</entbypage><editalways>0</editalways><assessed>1</assessed><assesstimestart>0</assesstimestart><assesstimefinish>0</assesstimefinish><scale>5</scale>' +
         '<entries><entry id="1"><userid>3</userid><concept>Список</concept><definition>&lt;p&gt;Изменяемая последовательность&lt;/p&gt;</definition><approved>1</approved><usedynalink>1</usedynalink><casesensitive>0</casesensitive><fullmatch>1</fullmatch></entry></entries>',
     ),
+    'activities/lesson_23/module.xml': moduleXml(23, 'lesson', 2),
+    'activities/lesson_23/lesson.xml': wrap(
+      23,
+      'lesson',
+      43,
+      '<name>Маршрут</name><intro></intro><practice>0</practice><modattempts>0</modattempts><usepassword>1</usepassword><password>5ebe2294ecd0e0f08eab7690d2a6ee69</password><dependency>0</dependency><grade>20</grade><custom>1</custom><ongoing>1</ongoing><usemaxgrade>1</usemaxgrade><maxanswers>4</maxanswers><maxattempts>3</maxattempts><review>1</review><nextpagedefault>0</nextpagedefault><feedback>0</feedback><minquestions>0</minquestions><maxpages>1</maxpages><timelimit>1200</timelimit><retake>1</retake><slideshow>0</slideshow><displayleft>1</displayleft><progressbar>1</progressbar><available>0</available><deadline>0</deadline>' +
+        '<pages><page id="4"><prevpageid>3</prevpageid><nextpageid>0</nextpageid><qtype>10</qtype><qoption>0</qoption><layout>0</layout><display>1</display><title>Эссе</title><contents>&lt;p&gt;Зачем?&lt;/p&gt;</contents><contentsformat>1</contentsformat><answers><answer id="44"><jumpto>-9</jumpto><grade>0</grade><score>3</score><flags>0</flags><answer_text></answer_text><response></response><answerformat>0</answerformat><responseformat>0</responseformat></answer></answers></page><page id="1"><prevpageid>0</prevpageid><nextpageid>2</nextpageid><qtype>20</qtype><qoption>0</qoption><layout>1</layout><display>1</display><title>Начало</title><contents>&lt;p&gt;Карта &lt;img src="@@PLUGINFILE@@/map.png"&gt;&lt;/p&gt;</contents><contentsformat>1</contentsformat><answers><answer id="11"><jumpto>-1</jumpto><grade>0</grade><score>0</score><flags>0</flags><answer_text>Дальше</answer_text><response></response><answerformat>0</answerformat><responseformat>0</responseformat></answer><answer id="12"><jumpto>3</jumpto><grade>0</grade><score>0</score><flags>0</flags><answer_text>К соответствию</answer_text><response></response><answerformat>0</answerformat><responseformat>0</responseformat></answer></answers></page><page id="2"><prevpageid>1</prevpageid><nextpageid>3</nextpageid><qtype>2</qtype><qoption>0</qoption><layout>0</layout><display>1</display><title>Истина</title><contents>&lt;p&gt;2+2=4?&lt;/p&gt;</contents><contentsformat>1</contentsformat><answers><answer id="21"><jumpto>-1</jumpto><grade>0</grade><score>1</score><flags>0</flags><answer_text>Верно</answer_text><response>&lt;p&gt;Да&lt;/p&gt;</response><answerformat>0</answerformat><responseformat>0</responseformat></answer><answer id="22"><jumpto>0</jumpto><grade>0</grade><score>0</score><flags>0</flags><answer_text>Неверно</answer_text><response></response><answerformat>0</answerformat><responseformat>0</responseformat></answer></answers></page><page id="3"><prevpageid>2</prevpageid><nextpageid>4</nextpageid><qtype>5</qtype><qoption>0</qoption><layout>0</layout><display>1</display><title>Пары</title><contents>&lt;p&gt;Сопоставьте&lt;/p&gt;</contents><contentsformat>1</contentsformat><answers><answer id="31"><jumpto>-1</jumpto><grade>0</grade><score>2</score><flags>0</flags><answer_text></answer_text><response>Отлично</response><answerformat>0</answerformat><responseformat>0</responseformat></answer><answer id="32"><jumpto>0</jumpto><grade>0</grade><score>0</score><flags>0</flags><answer_text></answer_text><response>Ошибка</response><answerformat>0</answerformat><responseformat>0</responseformat></answer><answer id="33"><jumpto>0</jumpto><grade>0</grade><score>0</score><flags>0</flags><answer_text>H2O</answer_text><response>вода</response><answerformat>0</answerformat><responseformat>0</responseformat></answer><answer id="34"><jumpto>0</jumpto><grade>0</grade><score>0</score><flags>0</flags><answer_text>NaCl</answer_text><response>соль</response><answerformat>0</answerformat><responseformat>0</responseformat></answer></answers></page></pages>',
+    ),
     'activities/wiki_18/module.xml': moduleXml(18, 'wiki', 2),
     'activities/wiki_18/wiki.xml': wrap(
       18,
@@ -297,6 +306,15 @@ export async function mbzFixture(): Promise<Buffer> {
       name: 'fig.png',
       mime: 'image/png',
       data: Buffer.concat([PNG, Buffer.from([7])]),
+    },
+    {
+      ctx: 43,
+      component: 'mod_lesson',
+      area: 'page_contents',
+      item: 1,
+      name: 'map.png',
+      mime: 'image/png',
+      data: Buffer.concat([PNG, Buffer.from([23])]),
     },
     {
       ctx: 35,

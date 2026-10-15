@@ -2114,6 +2114,7 @@
       "livesession_recordings_sync": "Webinaraufzeichnungen",
       "lti_cleanup": "LTI-Daten bereinigen",
       "quiz_overdue_sweep": "Überfällige Testversuche abschließen",
+      "lesson_overdue_sweep": "Überfällige Lektionsversuche abschließen",
       "livesession_remind": "Webinar-Erinnerungen"
     }
   }

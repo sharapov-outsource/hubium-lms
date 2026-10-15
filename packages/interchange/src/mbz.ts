@@ -449,6 +449,136 @@ export function mbzForumGrading(data: Node, scaleOf: (moodleId: string) => strin
   };
 }
 
+/** Moodle's lesson page kinds (qtype) as Hubium's. */
+const LESSON_QTYPES: Record<string, string> = {
+  '1': 'shortanswer',
+  '2': 'truefalse',
+  '3': 'multichoice',
+  '5': 'matching',
+  '8': 'numerical',
+  '10': 'essay',
+  '20': 'content',
+  '21': 'endofbranch',
+  '30': 'cluster',
+  '31': 'endofcluster',
+};
+/** Moodle's jump constants (positive numbers are page ids). */
+const LESSON_JUMPS: Record<string, string> = {
+  '0': 'this',
+  '-1': 'next',
+  '-9': 'end',
+  '-40': 'previous',
+  '-50': 'unseenBranch',
+  '-60': 'randomBranch',
+  '-70': 'randomContent',
+  '-80': 'unseenCluster',
+};
+
+/**
+ * A Moodle lesson's pages in reading order (they form a linked list), as the lesson
+ * module's backup takes them: jumps to pages name the pages' Moodle ids. `contents`
+ * gives a page's text with its files stored.
+ */
+export async function mbzLessonPages(
+  data: Node,
+  contents: (pageId: string, html: string) => Promise<string>,
+) {
+  const all = arr(((data.pages ?? {}) as Node).page as Node | Node[]);
+  const byId = new Map(all.map((p) => [String(p['@_id']), p]));
+  const ordered: Node[] = [];
+  let cur = all.find((p) => num(p.prevpageid) === 0);
+  while (cur && !ordered.includes(cur)) {
+    ordered.push(cur);
+    cur = byId.get(txt(cur.nextpageid));
+  }
+  // a broken chain: the rest in id order
+  for (const p of [...all].sort((x, y) => num(x['@_id']) - num(y['@_id'])))
+    if (!ordered.includes(p)) ordered.push(p);
+  const skipped = new Set<string>();
+  const pages = [];
+  for (const p of ordered) {
+    const type = LESSON_QTYPES[txt(p.qtype)];
+    if (!type) {
+      skipped.add(txt(p.qtype));
+      continue;
+    }
+    const answers = arr(((p.answers ?? {}) as Node).answer as Node | Node[]);
+    const jump = (a: Node) => {
+      const j = txt(a.jumpto);
+      return LESSON_JUMPS[j] ?? (num(j) > 0 && byId.has(j) ? j : 'next');
+    };
+    const row = (a: Node, text = plainText(txt(a.answer_text))) => ({
+      text: text.slice(0, 2000),
+      response: plainText(txt(a.response)).slice(0, 5000),
+      jump: jump(a),
+      score: num(a.score),
+    });
+    const id = String(p['@_id']);
+    const base = {
+      key: id,
+      type,
+      title: (plainText(txt(p.title)) || '—').slice(0, 255),
+      contents:
+        type.startsWith('endof') || type === 'cluster' ? '' : await contents(id, txt(p.contents)),
+    };
+    if (type === 'matching') {
+      const [ok, ko, ...rest] = answers;
+      pages.push({
+        ...base,
+        answers: [ok, ko].filter(Boolean).map((a) => row(a!, '')),
+        options: {
+          pairs: rest
+            .map((a) => ({
+              left: plainText(txt(a.answer_text)).slice(0, 2000),
+              right: plainText(txt(a.response)).slice(0, 2000),
+            }))
+            .filter((x) => x.left && x.right),
+        },
+      });
+      continue;
+    }
+    const single = type === 'essay' || type === 'endofbranch' || type.includes('cluster');
+    pages.push({
+      ...base,
+      answers: (single ? answers.slice(0, 1) : answers).map((a) =>
+        single ? { ...row(a, ''), response: type === 'essay' ? row(a).response : '' } : row(a),
+      ),
+      options:
+        type === 'content'
+          ? { horizontal: txt(p.layout) === '1', inMenu: txt(p.display) !== '0' }
+          : type === 'multichoice'
+            ? { multiple: txt(p.qoption) === '1' }
+            : type === 'shortanswer'
+              ? { caseSensitive: txt(p.qoption) === '1' }
+              : {},
+    });
+  }
+  return { pages, skipped: [...skipped] };
+}
+
+/** A Moodle lesson's settings as Hubium's lesson's. */
+export function mbzLessonSettings(data: Node) {
+  const grade = num(data.grade, 0);
+  const limit = num(data.timelimit);
+  return {
+    practice: txt(data.practice) === '1',
+    gradeMax: grade > 0 ? Math.min(1000, grade) : grade < 0 ? 100 : 0,
+    customScoring: txt(data.custom) !== '0',
+    retake: txt(data.retake) === '1',
+    useMaxGrade: txt(data.usemaxgrade) === '1',
+    maxAttempts: Math.min(10, Math.max(1, num(data.maxattempts, 1) || 1)),
+    minQuestions: Math.min(100, Math.max(0, num(data.minquestions))),
+    review: txt(data.review) === '1',
+    feedback: txt(data.feedback) === '1',
+    ongoing: txt(data.ongoing) === '1',
+    progressBar: txt(data.progressbar) === '1',
+    displayMenu: txt(data.displayleft) === '1',
+    timeLimitMin: limit > 0 ? Math.min(1440, Math.max(1, Math.round(limit / 60))) : undefined,
+    opensAt: date(data.available),
+    closesAt: date(data.deadline),
+  };
+}
+
 function mapCalculated(qtype: string, plugin: Node, answers: Node[]): Mapped {
   const records = arr(
     (plugin.calculated_records as Node | undefined)?.calculated_record as Node | Node[],
@@ -1587,6 +1717,31 @@ export async function importMbz(
               warnings.push(
                 `"${name}": questions of type ${[...skipped].join(', ')} were left out`,
               );
+            break;
+          }
+          case 'lesson': {
+            // the pages and their jumps; attempts are users' data
+            const settings = mbzLessonSettings(data);
+            const { pages, skipped } = await mbzLessonPages(data, async (pageId, html) =>
+              rewrite(html, await storeArea(contextid, 'mod_lesson', 'page_contents', pageId)),
+            );
+            const left: string[] = [];
+            if (num(data.grade) < 0) left.push('its scale (graded by points)');
+            if (txt(data.usepassword) === '1')
+              left.push('the password (Moodle keeps only its hash)');
+            if (num(data.nextpagedefault) !== 0) left.push('the action after a correct answer');
+            if (txt(data.slideshow) === '1') left.push('the slide show');
+            if (num(data.dependency) > 0) left.push('the dependency on another lesson');
+            if (skipped.length) left.push(`pages of type ${skipped.join(', ')}`);
+            if (left.length) warnings.push(`"${name}": left out ${left.join('; ')}`);
+            const { id } = await create({ ...base, moduleKey: 'lesson', settings });
+            const act = await db.activity.findUniqueOrThrow({ where: { id } });
+            await getModule('lesson')?.backup?.import?.(
+              buildModuleCtx(ctx),
+              toActivityRef(act) as never,
+              { pages },
+              () => undefined,
+            );
             break;
           }
           case 'glossary': {

@@ -28,7 +28,7 @@ describe('.mbz import', () => {
     expect(report).toMatchObject({
       moodleRelease: '4.5 (Build: 20241007)',
       sections: 2,
-      activities: 11,
+      activities: 12,
       questions: 6,
     });
     expect(report.warnings.join('\n')).toContain('Формула');
@@ -39,6 +39,9 @@ describe('.mbz import', () => {
     );
     expect(report.warnings.join('\n')).toContain(
       `"Словарь": entries are users' data and were left out (1)`,
+    );
+    expect(report.warnings.join('\n')).toContain(
+      '"Маршрут": left out the password (Moodle keeps only its hash)',
     );
   });
 
@@ -74,6 +77,51 @@ describe('.mbz import', () => {
       'choice:Тема проекта',
       'feedback:Отзыв',
       'glossary:Словарь',
+      'lesson:Маршрут',
+    ]);
+    const lesson = acts.find((a) => a.moduleKey === 'lesson')!;
+    expect(lesson.settings).toMatchObject({
+      gradeMax: 20,
+      customScoring: true,
+      retake: true,
+      useMaxGrade: true,
+      maxAttempts: 3,
+      review: true,
+      ongoing: true,
+      progressBar: true,
+      displayMenu: true,
+      timeLimitMin: 20,
+      password: '',
+    });
+    const pages = await t.db.lessonPage.findMany({
+      where: { activityId: lesson.id },
+      orderBy: { sortOrder: 'asc' },
+    });
+    // in reading order, jumps to pages pointing at the new pages
+    expect(pages.map((p) => `${p.type}:${p.title}`)).toEqual([
+      'content:Начало',
+      'truefalse:Истина',
+      'matching:Пары',
+      'essay:Эссе',
+    ]);
+    const jumps = (i: number) => (pages[i]!.answers as { jump: string }[]).map((a) => a.jump);
+    expect(jumps(0)).toEqual(['next', pages[2]!.id]);
+    expect(jumps(3)).toEqual(['end']);
+    expect(pages[0]!.contents).toMatch(/\/files\/[0-9a-f-]{36}\/map\.png/);
+    expect(pages[0]!.options).toMatchObject({ horizontal: true, inMenu: true });
+    expect(pages[1]!.answers).toMatchObject([
+      { text: 'Верно', response: 'Да', score: 1 },
+      { text: 'Неверно', jump: 'this' },
+    ]);
+    expect(pages[2]!.options).toEqual({
+      pairs: [
+        { left: 'H2O', right: 'вода' },
+        { left: 'NaCl', right: 'соль' },
+      ],
+    });
+    expect(pages[2]!.answers).toMatchObject([
+      { response: 'Отлично', score: 2, jump: 'next' },
+      { response: 'Ошибка', jump: 'this' },
     ]);
     const glossary = acts.find((a) => a.moduleKey === 'glossary')!;
     expect(glossary.settings).toMatchObject({

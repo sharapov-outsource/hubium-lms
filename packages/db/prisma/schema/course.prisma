@@ -170,6 +170,8 @@ model Activity {
   feedbackItems      FeedbackItem[]
   feedbackResponses  FeedbackResponse[]
   glossaryEntries    GlossaryEntry[]
+  lessonPages        LessonPage[]
+  lessonAttempts     LessonAttempt[]
   liveMeeting        LiveMeeting?
   liveAttendance     LiveAttendance[]
   liveRecordings     LiveRecording[]

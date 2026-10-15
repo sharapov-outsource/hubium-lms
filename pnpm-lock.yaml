@@ -265,6 +265,9 @@ importers:
       '@hubium/mod-glossary':
         specifier: workspace:*
         version: link:../../modules/glossary
+      '@hubium/mod-lesson':
+        specifier: workspace:*
+        version: link:../../modules/lesson
       '@hubium/mod-livesession':
         specifier: workspace:*
         version: link:../../modules/livesession
@@ -710,6 +713,52 @@ importers:
         version: 5.0.4(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
   modules/glossary:
+    dependencies:
+      '@hubium/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@hubium/editor':
+        specifier: workspace:*
+        version: link:../../packages/editor
+      '@hubium/module-sdk':
+        specifier: workspace:*
+        version: link:../../packages/module-sdk
+      '@hubium/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      lucide-react:
+        specifier: 1.55.0
+        version: 1.55.0(@types/react@19.3.0)(react@19.3.0)
+      next-intl:
+        specifier: 4.14.9
+        version: 4.14.9(@swc/helpers@0.5.23)(@types/react@19.3.0)(next@16.4.0(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@24.19.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@hubium/tooling':
+        specifier: workspace:*
+        version: link:../../packages/tooling
+      '@types/node':
+        specifier: ^24
+        version: 24.19.2
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+      next:
+        specifier: 16.4.0
+        version: 16.4.0(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@24.19.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.0.4
+        version: 5.0.4(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+
+  modules/lesson:
     dependencies:
       '@hubium/db':
         specifier: workspace:*
@@ -1203,6 +1252,9 @@ importers:
       '@hubium/mod-glossary':
         specifier: workspace:*
         version: link:../../modules/glossary
+      '@hubium/mod-lesson':
+        specifier: workspace:*
+        version: link:../../modules/lesson
       '@hubium/mod-livesession':
         specifier: workspace:*
         version: link:../../modules/livesession
@@ -1527,6 +1579,9 @@ importers:
       '@hubium/mod-glossary':
         specifier: workspace:*
         version: link:../../modules/glossary
+      '@hubium/mod-lesson':
+        specifier: workspace:*
+        version: link:../../modules/lesson
       '@hubium/mod-livesession':
         specifier: workspace:*
         version: link:../../modules/livesession

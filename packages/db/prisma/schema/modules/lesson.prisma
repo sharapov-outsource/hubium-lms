@@ -1,0 +1,79 @@
+// mod-lesson: pages of content and questions joined by jumps, as Moodle's lesson.
+
+model LessonPage {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  activityId String   @db.Uuid
+  sortOrder  Int
+  /// content | multichoice | truefalse | shortanswer | numerical | matching | essay |
+  /// endofbranch | cluster | endofcluster
+  type       String
+  title      String   @default("")
+  /// Rich text: the content, or the question.
+  contents   String   @default("")
+  /// [{ id, text, response, jump, score }]: buttons of a content page, answers of a
+  /// question, the one jump of a structural page; jump is a page id or a keyword
+  answers    Json     @default("[]")
+  /// multichoice: { multiple }; shortanswer: { caseSensitive }; content: { horizontal,
+  /// inMenu }; matching: { pairs: [{ left, right }] }
+  options    Json     @default("{}")
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  activity Activity     @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  steps    LessonStep[]
+
+  @@index([activityId, sortOrder])
+}
+
+/// One go through the lesson (a retake is another attempt).
+model LessonAttempt {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  activityId    String    @db.Uuid
+  userId        String    @db.Uuid
+  number        Int
+  /// A teacher trying the lesson out: never graded nor reported.
+  preview       Boolean   @default(false)
+  /// The page the learner is on; null once the lesson is over.
+  currentPageId String?   @db.Uuid
+  startedAt     DateTime  @default(now()) @db.Timestamptz(3)
+  /// The time limit ends the attempt here.
+  dueAt         DateTime? @db.Timestamptz(3)
+  finishedAt    DateTime? @db.Timestamptz(3)
+  /// 0..100 of the questions' points; null without questions.
+  percent       Float?
+
+  activity Activity     @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User         @relation("LessonAttemptUser", fields: [userId], references: [id], onDelete: Cascade)
+  steps    LessonStep[]
+
+  @@unique([activityId, userId, preview, number])
+  @@index([userId])
+  @@index([finishedAt, dueAt])
+}
+
+/// A page seen, or a question answered, in an attempt.
+model LessonStep {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  attemptId    String    @db.Uuid
+  /// Order within the attempt (several steps can share a moment).
+  seq          Int
+  pageId       String    @db.Uuid
+  /// view | answer
+  kind         String
+  answerId     String?
+  /// What the learner answered (choices, text, a number, matches).
+  response     Json?
+  correct      Boolean   @default(false)
+  score        Float     @default(0)
+  /// Essays: the teacher's points and comment.
+  essayScore   Float?
+  essayComment String    @default("")
+  gradedAt     DateTime? @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+
+  attempt LessonAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  page    LessonPage    @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, seq])
+  @@index([pageId])
+}
