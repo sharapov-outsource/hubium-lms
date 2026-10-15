@@ -1,4 +1,5 @@
 import { htmlToText } from '@hubium/ai';
+import type { Prisma } from '@hubium/db';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { NotFoundError, ValidationError } from '../errors.ts';
@@ -6,8 +7,8 @@ import { getStorage } from '../files/storage.ts';
 import { fileText, isTextDocument } from '../files/text.ts';
 import { provideModuleServices } from '../modules/module-ctx.ts';
 import { getSetting } from '../settings/settings.ts';
-import { featureEnabledForCourse } from './config.ts';
-import { acceptConsent, aiGate, consentStatus, runAi } from './usage.ts';
+import { featureEnabledForCourse, type ResolvedFeature } from './config.ts';
+import { acceptConsent, aiGate, consentStatus, dropReservation, runAi } from './usage.ts';
 
 // Grading assistant: suggests a grade, per-criterion notes and a feedback draft for one
 // assignment submission. The student is pseudonymised (no names, emails or usernames
@@ -53,16 +54,35 @@ async function readTextFile(storageKey: string): Promise<string> {
   return Buffer.concat(parts).subarray(0, MAX_FILE_BYTES).toString('utf8');
 }
 
-/** Replaces the student's identifying strings with a neutral label. */
+/** One word of a name this short ("Ким", "Лев") is an ordinary word too often to replace on
+ *  its own; it is replaced as part of the full name. */
+const MIN_SINGLE_WORD = 4;
+
+/** Replaces the student's identifying strings, as whole words, with a neutral label. */
 export function pseudonymise(text: string, identifiers: (string | null | undefined)[]): string {
   let out = text;
   const ids = identifiers
-    .filter((s): s is string => !!s && s.trim().length >= 2)
+    .map((s) => s?.trim() ?? '')
+    .filter((s) => s.length >= 2 && (/\s/.test(s) || s.length >= MIN_SINGLE_WORD))
     .sort((a, b) => b.length - a.length);
-  for (const id of ids)
-    out = out.replace(new RegExp(id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'giu'), '[student]');
+  for (const id of ids) {
+    const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // not inside a longer word: "Ким" is not replaced in "таким"
+    out = out.replace(
+      new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'giu'),
+      '[student]',
+    );
+  }
   return out.replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[email]');
 }
+
+const SUBMISSION = {
+  activity: true,
+  user: true,
+  // a team's work: every member's name is the author's
+  group: { include: { members: { include: { user: true } } } },
+} satisfies Prisma.AssignSubmissionInclude;
+type Submission = Prisma.AssignSubmissionGetPayload<{ include: typeof SUBMISSION }>;
 
 export async function suggestGrade(
   ctx: RequestContext,
@@ -70,16 +90,28 @@ export async function suggestGrade(
 ) {
   const sub = await ctx.db.assignSubmission.findUnique({
     where: { id: input.submissionId },
-    include: {
-      activity: true,
-      user: true,
-      // a team's work: every member's name is the author's
-      group: { include: { members: { include: { user: true } } } },
-    },
+    include: SUBMISSION,
   });
   if (!sub) throw new NotFoundError('Submission');
   const a = sub.activity;
   await ctx.perm.require('mod.assign:grade', a.id);
+  // whether the feature is on and within its limits is known before the work is read
+  const f = await aiGate(ctx, { feature: 'GRADING_ASSIST', courseId: a.courseId });
+  try {
+    return await suggestFor(ctx, f, sub, input);
+  } catch (err) {
+    await dropReservation(ctx.db, f);
+    throw err;
+  }
+}
+
+async function suggestFor(
+  ctx: RequestContext,
+  f: ResolvedFeature,
+  sub: Submission,
+  input: { criteria?: string; userId?: string },
+) {
+  const a = sub.activity;
   const settings = a.settings as { gradeMax?: number };
   const gradeMax = Number(settings.gradeMax ?? 100);
 
@@ -148,7 +180,6 @@ export async function suggestGrade(
     .filter(Boolean)
     .join('\n\n');
 
-  const f = await aiGate(ctx, { feature: 'GRADING_ASSIST', courseId: a.courseId });
   const r = await runAi(ctx, f, { courseId: a.courseId }, async () => {
     const res = await f.llm.generateObject({
       tag: 'grading',

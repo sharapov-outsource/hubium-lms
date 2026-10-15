@@ -92,6 +92,12 @@ export function takeReservation(f: ResolvedFeature): string | null {
   return id;
 }
 
+/** Gives back the gate's reservation when the call it was for is not made after all. */
+export async function dropReservation(db: Tx, f: ResolvedFeature): Promise<void> {
+  const id = takeReservation(f);
+  if (id) await db.aiUsage.deleteMany({ where: { id, status: 'PENDING' } });
+}
+
 async function sumTokens(db: Tx, where: object): Promise<number> {
   const agg = await db.aiUsage.aggregate({
     where,

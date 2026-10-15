@@ -5,6 +5,7 @@ import { courseFixture } from '../../test/course-fixture.ts';
 import { capturedJobs, ctxFor, useTestDb } from '../../test/helpers.ts';
 import { setActivityVisibility } from '../courses/activities.ts';
 import { storeFile } from '../files/files.ts';
+import { getStorage } from '../files/storage.ts';
 import { FILE_TEXT_VERSION, fileText } from '../files/text.ts';
 import { ensureDefaultQuestionCategory } from '../questions/bank.ts';
 import { setSettings } from '../settings/settings.ts';
@@ -16,7 +17,7 @@ import {
   saveEmbeddingConfig,
   setCourseAiFeature,
 } from './config.ts';
-import { suggestGrade } from './grading.ts';
+import { pseudonymise, suggestGrade } from './grading.ts';
 import { indexActivity, indexCourse, retrieveChunks } from './indexing.ts';
 import {
   getQuizGeneration,
@@ -467,6 +468,53 @@ describe('AI features', () => {
     expect(await t.db.assignGrade.count({ where: { activityId: assignId } })).toBe(0);
     const s1 = await ctxFor(t.db, f.users.student1!);
     await expect(suggestGrade(s1, { submissionId: sub.id })).rejects.toThrow();
+  });
+
+  it('pseudonymises whole words, and a short name only with the rest of it', () => {
+    const ids = ['Лев Ким', 'Ким Лев', 'Лев', 'Ким', 'Иванова', 'lev.kim'];
+    expect(pseudonymise('Таким образом, налево. Лев Ким, Ким Лев; lev.kim пишет.', ids)).toBe(
+      'Таким образом, налево. [student], [student]; [student] пишет.',
+    );
+    expect(pseudonymise('Иванова_эссе.pdf, Ивановой', ids)).toBe('[student]_эссе.pdf, Ивановой');
+  });
+
+  it('asks the gate before reading the work, and gives back what it held', async () => {
+    const teacher = await ctxFor(t.db, f.users.teacher!);
+    const sub = await t.db.assignSubmission.create({
+      data: { activityId: assignId, userId: f.users.student2!, status: 'SUBMITTED' },
+    });
+    await storeFile(t.db, {
+      contextId: assignId,
+      component: 'mod.assign',
+      area: 'submission',
+      itemId: sub.id,
+      name: 'ответ.txt',
+      mimeType: 'text/plain',
+      data: Buffer.from('Ответ: 42'),
+    });
+    const read = vi.spyOn(getStorage(), 'getStream');
+    await setSettings(t.db, { 'ai.enabled': false });
+    try {
+      await expect(suggestGrade(teacher, { submissionId: sub.id })).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      });
+      expect(read).not.toHaveBeenCalled();
+    } finally {
+      await setSettings(t.db, { 'ai.enabled': true });
+    }
+    await suggestGrade(teacher, { submissionId: sub.id });
+    expect(read).toHaveBeenCalled();
+    // nothing to grade: the usage the gate held for the call is not left behind
+    const empty = await t.db.assignSubmission.create({
+      data: { activityId: assignId, userId: f.users.student3!, status: 'SUBMITTED' },
+    });
+    await expect(suggestGrade(teacher, { submissionId: empty.id })).rejects.toMatchObject({
+      fieldErrors: { submission: ['The submission is empty'] },
+    });
+    expect(
+      await t.db.aiUsage.count({ where: { feature: 'GRADING_ASSIST', status: 'PENDING' } }),
+    ).toBe(0);
+    read.mockRestore();
   });
 
   it('is invisible when AI is disabled site-wide', async () => {
