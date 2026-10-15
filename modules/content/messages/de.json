@@ -29,6 +29,7 @@
     "displayList": "Dateiliste",
     "displayDownload": "Einzelne Datei direkt herunterladen",
     "empty": "Noch keine Dateien hochgeladen",
-    "downloadFile": "{name} herunterladen"
+    "downloadFile": "{name} herunterladen",
+    "downloadsDirectly": "Lernende erhalten diese Datei direkt, wenn sie die Aktivität öffnen."
   }
 }

@@ -29,6 +29,7 @@
     "displayList": "Liste des fichiers",
     "displayDownload": "Télécharger directement le fichier unique",
     "empty": "Aucun fichier déposé pour l’instant",
-    "downloadFile": "Télécharger {name}"
+    "downloadFile": "Télécharger {name}",
+    "downloadsDirectly": "Les apprenants obtiennent ce fichier directement en ouvrant l’activité."
   }
 }

@@ -2,6 +2,7 @@ import { RichText } from '@hubium/editor/client';
 import type { ViewProps } from '@hubium/module-sdk/ui';
 import { Button, EmptyState } from '@hubium/ui';
 import { Download, ExternalLink, FileIcon } from 'lucide-react';
+import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { embedFor } from '../server.ts';
 
@@ -46,34 +47,44 @@ export async function UrlView({
   );
 }
 
-export async function FileView({ activity, ctx }: ViewProps<{ display: 'list' | 'download' }>) {
+export async function FileView({
+  activity,
+  ctx,
+  canManage,
+}: ViewProps<{ display: 'list' | 'download' }>) {
   const t = await getTranslations('mod.file');
   const files = await ctx.files.list(activity.id, 'content');
   if (!files.length) return <EmptyState icon={<FileIcon />} title={t('empty')} />;
+  // "download the only file straight away": learners get it, those who manage see the page
+  const direct = activity.settings.display === 'download' && files.length === 1;
+  if (direct && !canManage) redirect(`${files[0]!.url}?download`);
   return (
-    <ul className="grid max-w-2xl gap-2">
-      {files.map((f) => (
-        <li
-          key={f.id}
-          className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3"
-        >
-          <a href={f.url} className="flex min-w-0 items-center gap-3 font-medium hover:underline">
-            <FileIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-            <span className="truncate">{f.name}</span>
-          </a>
-          <span className="flex items-center gap-3 text-xs text-muted-foreground">
-            {formatSize(Number(f.size))}
-            <a
-              href={`${f.url}?download`}
-              aria-label={t('downloadFile', { name: f.name })}
-              className="hover:text-foreground"
-            >
-              <Download className="size-4" />
+    <div className="grid max-w-2xl gap-3">
+      {direct ? <p className="text-sm text-muted-foreground">{t('downloadsDirectly')}</p> : null}
+      <ul className="grid gap-2">
+        {files.map((f) => (
+          <li
+            key={f.id}
+            className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3"
+          >
+            <a href={f.url} className="flex min-w-0 items-center gap-3 font-medium hover:underline">
+              <FileIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+              <span className="truncate">{f.name}</span>
             </a>
-          </span>
-        </li>
-      ))}
-    </ul>
+            <span className="flex items-center gap-3 text-xs text-muted-foreground">
+              {formatSize(Number(f.size))}
+              <a
+                href={`${f.url}?download`}
+                aria-label={t('downloadFile', { name: f.name })}
+                className="hover:text-foreground"
+              >
+                <Download className="size-4" />
+              </a>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

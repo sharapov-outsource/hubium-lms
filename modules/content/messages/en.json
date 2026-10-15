@@ -29,6 +29,7 @@
     "displayList": "File list",
     "displayDownload": "Download the single file directly",
     "empty": "No files uploaded yet",
-    "downloadFile": "Download {name}"
+    "downloadFile": "Download {name}",
+    "downloadsDirectly": "Learners get this file straight away when they open the activity."
   }
 }

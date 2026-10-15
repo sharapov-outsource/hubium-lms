@@ -29,6 +29,7 @@
     "displayList": "Список файлов",
     "displayDownload": "Сразу скачивать единственный файл",
     "empty": "Файлы ещё не загружены",
-    "downloadFile": "Скачать {name}"
+    "downloadFile": "Скачать {name}",
+    "downloadsDirectly": "Учащиеся сразу скачивают этот файл, когда открывают элемент."
   }
 }
