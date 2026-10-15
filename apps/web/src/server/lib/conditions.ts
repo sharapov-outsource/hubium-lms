@@ -77,3 +77,28 @@ export async function describeConditions(conditions: Condition[]): Promise<strin
   };
   return conditions.map(one).join('; ');
 }
+
+/** What a section's access conditions can name: tracked activities, groups, groupings and
+ *  custom profile fields of the course. */
+export async function restrictionOptions(courseId: string) {
+  const byName = { orderBy: { name: 'asc' as const }, select: { id: true, name: true } };
+  const [activities, groups, groupings, fields, locale] = await Promise.all([
+    db.activity.findMany({
+      where: { courseId, deletedAt: null, completionMode: { not: 'NONE' } },
+      ...byName,
+    }),
+    db.group.findMany({ where: { courseId }, ...byName }),
+    db.grouping.findMany({ where: { courseId }, ...byName }),
+    listProfileFields(db),
+    getLocale(),
+  ]);
+  return {
+    activities,
+    groups,
+    groupings,
+    profileFields: fields.map((f) => ({
+      key: `cf:${f.shortName}`,
+      label: profileFieldLabel(f, locale),
+    })),
+  };
+}

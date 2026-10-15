@@ -31,6 +31,11 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState, useTransition } from 'react';
 import { ActionForm, SubmitButton } from '@/components/action-form';
+import {
+  AvailabilityEditor,
+  type AvailabilityOptions,
+  type AvailabilityValue,
+} from '@/components/availability-editor';
 import { ModuleIcon } from '@/components/module-icon';
 import {
   activityCommandAction,
@@ -257,6 +262,7 @@ export function SectionMenu({
   courseId,
   section,
   sections = [],
+  restrictions,
 }: {
   courseId: string;
   section: {
@@ -266,10 +272,14 @@ export function SectionMenu({
     visible: boolean;
     isFirst: boolean;
     parentId?: string | null;
+    availability?: AvailabilityValue | null;
   };
   sections?: { id: string; title: string }[];
+  /** What access conditions can name; without it the dialog leaves them as they are. */
+  restrictions?: AvailabilityOptions;
 }) {
   const t = useTranslations('course');
+  const ta = useTranslations('activity');
   const tc = useTranslations('common');
   const { pending, run } = useRun();
   const [editOpen, setEditOpen] = useState(false);
@@ -400,6 +410,12 @@ export function SectionMenu({
               courseId={courseId}
               minHeight={100}
             />
+            {restrictions ? (
+              <fieldset className="grid gap-2">
+                <legend className="mb-1 text-sm font-medium">{ta('access')}</legend>
+                <AvailabilityEditor initial={section.availability} {...restrictions} />
+              </fieldset>
+            ) : null}
             <DialogFooter>
               <SubmitButton>{tc('save')}</SubmitButton>
             </DialogFooter>

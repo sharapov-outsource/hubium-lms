@@ -17,7 +17,7 @@ import { getFormatter, getTranslations } from 'next-intl/server';
 import { ModuleIcon } from '@/components/module-icon';
 import { getModuleUI } from '@/modules/ui';
 import { db } from '@/server/db';
-import { describeConditions } from '@/server/lib/conditions';
+import { describeConditions, restrictionOptions } from '@/server/lib/conditions';
 import { getContext } from '@/server/session';
 import { CourseLanding } from './landing';
 import {
@@ -100,6 +100,8 @@ export default async function CoursePage({
       for (const x of s.activities) note(x.activity.availability, x.activity.name);
     }
   }
+  // what a section's access conditions can name, for its edit dialog
+  const restrictions = editing ? await restrictionOptions(courseId) : undefined;
   const top = outline.filter((s) => !s.parentId);
   const subsectionsOf = (id: string) => outline.filter((x) => x.parentId === id);
   const topForMove = top.map((s) => ({ id: s.id, title: sectionTitle(s) }));
@@ -218,8 +220,10 @@ export default async function CoursePage({
                 visible: c.visible,
                 isFirst: false,
                 parentId: c.parentId,
+                availability: parseAvailability(c.availability) as never,
               }}
               sections={topForMove}
+              restrictions={restrictions}
             />
           ) : null
         }
@@ -302,7 +306,9 @@ export default async function CoursePage({
                     summary: s.summary,
                     visible: s.visible,
                     isFirst: s.index === 0,
+                    availability: parseAvailability(s.availability) as never,
                   }}
+                  restrictions={restrictions}
                 />
               ) : null}
             </div>

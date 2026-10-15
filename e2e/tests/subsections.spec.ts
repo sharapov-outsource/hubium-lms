@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { newCourse, openSelfEnrolment, selfEnrol } from './courses';
-import { deleteCourse } from './db';
+import { deleteCourse, sql } from './db';
 import {
   ADMIN,
   chooseOption,
@@ -81,6 +81,61 @@ test('subsections: added to a section, hold activities, move and collapse', asyn
     await expect(learner.getByRole('link', { name: 'Задача' })).toBeVisible();
     await page.setViewportSize({ width: 375, height: 800 });
     await expectNoSideScroll(page, url);
+  } finally {
+    if (courseId) await deleteCourse(courseId);
+  }
+});
+
+test('section restrictions: set in its dialog, any of them, kept by a plain edit', async ({
+  page,
+}) => {
+  let courseId = '';
+  try {
+    await login(page, ADMIN.login, ADMIN.password);
+    courseId = await newCourse(page, `Условия раздела ${stamp}`, `SACC-${stamp}`);
+    await page.goto(`/course/${courseId}?edit=1`);
+    const stored = async () =>
+      (
+        await sql<{ availability: { op: string; c: { type: string }[] } | null }>(
+          `SELECT availability FROM "CourseSection" WHERE "courseId" = $1 AND title = $2`,
+          [courseId, 'Тема 1'],
+        )
+      )[0]?.availability;
+    const edit = async () => {
+      await page.getByRole('button', { name: /^Действия: (Раздел 1|Тема 1)$/ }).click();
+      await page.getByRole('menuitem', { name: 'Изменить раздел' }).click();
+    };
+
+    // a date and a profile condition, either of them enough
+    await edit();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Название раздела').fill('Тема 1');
+    await dialog.getByRole('button', { name: 'Дата', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Профиль', exact: true }).click();
+    await chooseOption(dialog.getByLabel('Нужно выполнить'), { label: 'любое из условий' });
+    await dialog.getByRole('button', { name: 'Сохранить' }).click();
+    await expect(dialog).toBeHidden();
+    await expect.poll(async () => (await stored())?.op).toBe('|');
+    expect((await stored())?.c.map((c) => c.type)).toEqual(['date', 'profile']);
+
+    // a set within the set (as a backup brings it) is shown and kept by an edit of the title
+    await sql(
+      `UPDATE "CourseSection" SET availability = jsonb_set(availability, '{c}',
+         availability->'c' || '[{"op":"&","c":[{"type":"group"}]}]'::jsonb)
+       WHERE "courseId" = $1 AND title = 'Тема 1'`,
+      [courseId],
+    );
+    await page.reload();
+    await edit();
+    await expect(
+      dialog.getByText('Набор условий, все из которых нужно выполнить: 1'),
+    ).toBeVisible();
+    await dialog.getByLabel('Название раздела').fill('Тема 1');
+    await dialog.getByRole('button', { name: 'Сохранить' }).click();
+    await expect(dialog).toBeHidden();
+    await expect.poll(async () => (await stored())?.c.length).toBe(3);
+    expect((await stored())?.op).toBe('|');
+    await expectAccessible(page);
   } finally {
     if (courseId) await deleteCourse(courseId);
   }

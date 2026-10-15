@@ -190,7 +190,8 @@ export async function updateSectionAction(fd: FormData) {
       id: v.id,
       title: v.title ?? '',
       summary: v.summary ?? '',
-      availability: v.availability ?? null,
+      // a form without the restrictions editor leaves them as they are
+      availability: fd.has('availability') ? (v.availability ?? null) : undefined,
     });
     revalidatePath(`/course/${v.courseId}`);
     return r;
