@@ -269,7 +269,8 @@
       "notFound": "Non trovato",
       "otherGroup": "Questo tentativo è di un altro gruppo",
       "notFinished": "Il tentativo non è terminato",
-      "markTooHigh": "Il punteggio deve essere al massimo {max}"
+      "markTooHigh": "Il punteggio deve essere al massimo {max}",
+      "closeAfterOpen": "La data di chiusura deve seguire la data di apertura"
     }
   }
 }

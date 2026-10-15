@@ -110,11 +110,11 @@ export const QuizSettings = z
     duringRightAnswer: bool(false),
   })
   .refine((s) => !s.closeAt || !s.openAt || s.closeAt > s.openAt, {
-    message: 'Close date must be after open date',
+    message: 'mod.quiz.errors.closeAfterOpen',
     path: ['closeAt'],
   })
   .refine((s) => s.gradePass === undefined || s.gradePass <= s.gradeMax, {
-    message: 'Pass grade exceeds maximum',
+    message: 'errors.common.passGradeAboveMax',
     path: ['gradePass'],
   });
 
@@ -1837,7 +1837,7 @@ export const quiz = defineModule<QuizSettingsT>({
         )
         .refine(
           (v) => !v.openAt || !v.closeAt || new Date(v.closeAt) > new Date(v.openAt),
-          'Close date must be after open date',
+          'mod.quiz.errors.closeAfterOpen',
         ),
       async handler(ctx, a, input) {
         if (input.userId) {

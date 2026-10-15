@@ -64,15 +64,15 @@ export const DataSettings = z
     ...ratingFields,
   })
   .refine((s) => !s.opensAt || !s.closesAt || s.closesAt > s.opensAt, {
-    message: 'The database must close after it opens',
+    message: 'mod.data.errors.closeAfterOpen',
     path: ['closesAt'],
   })
   .refine((s) => !s.ratingFrom || !s.ratingTo || s.ratingTo > s.ratingFrom, {
-    message: 'The end of the rating window must be after its start',
+    message: 'errors.common.ratingWindow',
     path: ['ratingTo'],
   })
   .refine((s) => s.ratingPass === undefined || s.ratingPass <= s.ratingMax, {
-    message: 'Pass grade exceeds maximum',
+    message: 'errors.common.passGradeAboveMax',
     path: ['ratingPass'],
   });
 export type DataSettingsT = z.output<typeof DataSettings>;

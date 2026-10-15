@@ -86,7 +86,8 @@
       "closed": "Le questionnaire est fermé",
       "answeredAlready": "Vous avez déjà répondu",
       "noQuestions": "Le questionnaire n’a pas encore de questions",
-      "noResponse": "Réponse introuvable"
+      "noResponse": "Réponse introuvable",
+      "twoOptions": "Indiquez au moins deux options"
     }
   }
 }

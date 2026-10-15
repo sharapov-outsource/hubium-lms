@@ -187,7 +187,8 @@
       "answerFirst": "Beantworten Sie zuerst die Frage",
       "noEssay": "Aufsatz nicht gefunden",
       "essayPoints": "Ein Aufsatz erhält 0 bis {max} Punkte",
-      "noAttempt": "Versuch nicht gefunden"
+      "noAttempt": "Versuch nicht gefunden",
+      "closeAfterOpen": "Die Lektion muss nach ihrer Öffnung schließen"
     }
   }
 }

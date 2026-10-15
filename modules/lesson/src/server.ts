@@ -69,11 +69,11 @@ export const LessonSettings = z
     password: z.string().max(255).default(''),
   })
   .refine((s) => !s.opensAt || !s.closesAt || s.closesAt > s.opensAt, {
-    message: 'The lesson must close after it opens',
+    message: 'mod.lesson.errors.closeAfterOpen',
     path: ['closesAt'],
   })
   .refine((s) => s.gradePass === undefined || s.gradePass <= s.gradeMax, {
-    message: 'Pass grade exceeds maximum',
+    message: 'errors.common.passGradeAboveMax',
     path: ['gradePass'],
   });
 export type LessonSettingsT = z.output<typeof LessonSettings>;

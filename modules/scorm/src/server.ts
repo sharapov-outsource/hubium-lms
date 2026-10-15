@@ -51,7 +51,7 @@ export const ScormSettings = z
     newWindow: bool(false),
   })
   .refine((s) => s.gradePass === undefined || s.gradePass <= s.gradeMax, {
-    message: 'Pass grade exceeds maximum',
+    message: 'errors.common.passGradeAboveMax',
     path: ['gradePass'],
   });
 

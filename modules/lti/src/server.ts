@@ -48,7 +48,7 @@ const LineItem = z.object({
 });
 
 export const LtiSettings = z.object({
-  toolId: z.string().uuid({ message: 'Choose a tool' }),
+  toolId: z.string().uuid({ message: 'mod.lti.errors.chooseTool' }),
   customParams: z.string().max(5000).default(''),
   container: z.enum(['iframe', 'window']).default('iframe'),
   height: z.coerce.number().int().min(300).max(3000).default(700),
@@ -75,7 +75,7 @@ export const ToolInput = z.object({
   redirectUris: z
     .string()
     .transform((s) => s.split(/\s+/).filter(Boolean))
-    .pipe(z.array(z.string().url()).min(1, 'Add at least one redirect URI')),
+    .pipe(z.array(z.string().url()).min(1, 'mod.lti.errors.addRedirect')),
   jwksUrl: z
     .string()
     .trim()

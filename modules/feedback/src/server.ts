@@ -44,7 +44,7 @@ export const FeedbackSettings = z
     thankYou: z.string().trim().max(2000).default(''),
   })
   .refine((s) => !s.opensAt || !s.closesAt || s.closesAt > s.opensAt, {
-    message: 'Must be after the opening',
+    message: 'errors.common.afterOpening',
     path: ['closesAt'],
   });
 export type FeedbackSettingsT = z.output<typeof FeedbackSettings>;
@@ -63,11 +63,11 @@ export const ItemInput = z
   })
   .superRefine((v, c) => {
     if (v.type !== 'pagebreak' && !v.label)
-      c.addIssue({ code: 'custom', message: 'Required', path: ['label'] });
+      c.addIssue({ code: 'custom', message: 'errors.field.required', path: ['label'] });
     if (v.type === 'choice' && v.choices.length < 2)
-      c.addIssue({ code: 'custom', message: 'Give at least two options', path: ['choices'] });
+      c.addIssue({ code: 'custom', message: 'mod.feedback.errors.twoOptions', path: ['choices'] });
     if (v.type === 'number' && v.min !== null && v.max !== null && v.min > v.max)
-      c.addIssue({ code: 'custom', message: 'The minimum is above the maximum', path: ['max'] });
+      c.addIssue({ code: 'custom', message: 'errors.common.minAboveMax', path: ['max'] });
   });
 type ItemData = z.output<typeof ItemInput>;
 

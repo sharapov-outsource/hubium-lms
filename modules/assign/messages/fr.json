@@ -277,7 +277,9 @@
       "cutOffBeforeDue": "La date limite ne peut pas précéder la date de remise",
       "noGroup": "Ce groupe n’existe pas",
       "noOverride": "Cette dérogation n’existe pas",
-      "noGroupOverride": "Cette dérogation de groupe n’existe pas"
+      "noGroupOverride": "Cette dérogation de groupe n’existe pas",
+      "allowSomething": "Autorisez du texte ou des fichiers",
+      "dueAfterOpen": "La date de remise doit suivre la date d’ouverture"
     }
   }
 }

@@ -148,7 +148,7 @@ export const setRoleCapability = defineOperation({
   name: 'role.setCapability',
   input: z.object({
     roleId: z.string().uuid(),
-    capability: z.string().refine(isCapability, 'Unknown capability'),
+    capability: z.string().refine(isCapability, 'errors.access.unknownCapability'),
     permission: z.enum(['ALLOW', 'PROHIBIT', 'INHERIT']),
   }),
   authorize: (ctx) => ctx.perm.require('role:manage'),
@@ -231,7 +231,7 @@ export const setRoleOverride = defineOperation({
   input: z.object({
     contextId: z.string().uuid(),
     roleId: z.string().uuid(),
-    capability: z.string().refine(isCapability, 'Unknown capability'),
+    capability: z.string().refine(isCapability, 'errors.access.unknownCapability'),
     permission: z.enum(['ALLOW', 'DENY', 'PROHIBIT', 'INHERIT']),
   }),
   authorize: (ctx, i) => ctx.perm.require('role:override', i.contextId),

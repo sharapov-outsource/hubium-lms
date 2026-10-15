@@ -60,7 +60,9 @@
       "noOption": "No such option",
       "answeredAlready": "You have answered already",
       "full": "\"{text}\" is full",
-      "noChange": "Answers cannot be changed"
+      "noChange": "Answers cannot be changed",
+      "addOption": "Add at least one option",
+      "distinctOptions": "Options must differ"
     }
   }
 }

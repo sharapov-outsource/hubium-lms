@@ -320,7 +320,7 @@ export const autoCreateGroups = defineOperation({
       grouping: z.string().trim().max(255).default(''),
     })
     .refine((v) => v.pattern.includes('@') || v.pattern.includes('#'), {
-      message: 'The name needs @ or #',
+      message: 'errors.groups.namePattern',
       path: ['pattern'],
     }),
   mutation: false,

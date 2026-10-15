@@ -21,7 +21,7 @@ export function localizedText(max: number) {
     const out: Localized = {};
     for (const [code, text] of Object.entries(v)) if (isLocale(code) && text) out[code] = text;
     if (!Object.keys(out).length) {
-      ctx.addIssue({ code: 'custom', message: 'Enter the text in at least one language' });
+      ctx.addIssue({ code: 'custom', message: 'errors.field.anyLanguage' });
       return z.NEVER;
     }
     return out;

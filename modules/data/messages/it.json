@@ -163,7 +163,8 @@
         "invalid": "{name}: non valido",
         "tooLong": "{name}: troppo lungo",
         "picture": "{name}: serve un’immagine"
-      }
+      },
+      "closeAfterOpen": "Il database deve chiudere dopo l’apertura"
     }
   }
 }

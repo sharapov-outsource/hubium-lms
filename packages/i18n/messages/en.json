@@ -592,7 +592,15 @@
       "url": "Enter a web address",
       "option": "Choose one of the options",
       "yesNo": "Expected yes or no",
-      "date": "Expected a date (YYYY-MM-DD)"
+      "date": "Expected a date (YYYY-MM-DD)",
+      "noCommas": "No commas",
+      "shortName": "Latin letters, digits and _; starts with a letter",
+      "providerId": "Latin letters, digits and dashes, 2–49 characters",
+      "colour": "Expected a #rrggbb colour",
+      "invalidDate": "Invalid date",
+      "anyLanguage": "Enter the text in at least one language",
+      "slug": "Lowercase letters, digits and dashes",
+      "identifier": "Letters, digits and _ only"
     },
     "common": {
       "shortNameInUse": "Short name already in use",
@@ -606,7 +614,14 @@
       "chooseCsv": "Choose a CSV file",
       "notEnrolled": "User is not enrolled",
       "moduleDisabled": "This activity type is turned off by the administrator",
-      "unknownCategory": "Unknown category"
+      "unknownCategory": "Unknown category",
+      "passGradeAboveMax": "Pass grade exceeds maximum",
+      "ratingWindow": "The end of the rating window must be after its start",
+      "afterOpening": "Must be after the opening",
+      "minAboveMax": "The minimum is above the maximum",
+      "maxBelowMin": "The maximum is below the minimum",
+      "menuNeedsOption": "A menu needs at least one option",
+      "logUniformAboveZero": "A log-uniform range must be above 0"
     },
     "access": {
       "creatorRole": "Course creators get this role on their courses (site settings)",
@@ -615,7 +630,8 @@
       "creatorRoleChange": "Course creators get this role on their courses: choose another in the site settings first",
       "permissionFixed": "This permission cannot be changed here",
       "ownPermissionsOnly": "You can only allow permissions you have yourself",
-      "missingCapability": "Missing capability {cap}"
+      "missingCapability": "Missing capability {cap}",
+      "unknownCapability": "Unknown capability"
     },
     "apiTokens": {
       "tooMany": "At most 20 active tokens"
@@ -798,7 +814,8 @@
       "headerNeedsColumn": "The header must have a \"{column}\" column",
       "tooManyLines": "At most {n} lines",
       "nobodyWithRole": "Nobody has this role here",
-      "groupExists": "A group named \"{clash}\" already exists"
+      "groupExists": "A group named \"{clash}\" already exists",
+      "namePattern": "The name needs @ or #"
     },
     "messaging": {
       "onlySenderDeletes": "Only the sender can delete a message",
@@ -866,7 +883,8 @@
       "deleteSelf": "You cannot delete yourself",
       "adminBeforeDelete": "Remove admin rights before deleting",
       "roleNotForSite": "Role cannot be assigned at site level",
-      "usersHeader": "Header must include: firstname, lastname, password and email or username"
+      "usersHeader": "Header must include: firstname, lastname, password and email or username",
+      "emailOrUsername": "Email or username is required"
     },
     "ai": {
       "apiKeyRequired": "An API key is required",
@@ -903,6 +921,9 @@
     "admin": {
       "unknownSettingsSection": "Unknown section",
       "chooseLanguagePack": "Choose a .zip or .json language pack"
+    },
+    "webhooks": {
+      "chooseEvent": "Choose at least one event"
     }
   },
   "editor": {

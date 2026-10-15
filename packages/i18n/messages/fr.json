@@ -591,7 +591,15 @@
       "url": "Saisissez une adresse web",
       "option": "Choisissez l’une des options",
       "yesNo": "Oui ou non attendu",
-      "date": "Date attendue (AAAA-MM-JJ)"
+      "date": "Date attendue (AAAA-MM-JJ)",
+      "noCommas": "Sans virgules",
+      "shortName": "Lettres latines, chiffres et _ ; commence par une lettre",
+      "providerId": "Lettres latines, chiffres et tirets, de 2 à 49 caractères",
+      "colour": "Une couleur au format #rrggbb",
+      "invalidDate": "Date non valide",
+      "anyLanguage": "Saisissez le texte dans au moins une langue",
+      "slug": "Lettres minuscules, chiffres et tirets",
+      "identifier": "Lettres, chiffres et _ uniquement"
     },
     "common": {
       "shortNameInUse": "Ce nom abrégé est déjà utilisé",
@@ -605,7 +613,14 @@
       "chooseCsv": "Choisissez un fichier CSV",
       "notEnrolled": "L’utilisateur n’est pas inscrit",
       "moduleDisabled": "Ce type d’activité est désactivé par l’administrateur",
-      "unknownCategory": "Catégorie inconnue"
+      "unknownCategory": "Catégorie inconnue",
+      "passGradeAboveMax": "La note de passage dépasse le maximum",
+      "ratingWindow": "La fin de la période d’évaluation doit suivre son début",
+      "afterOpening": "Doit être postérieur à l’ouverture",
+      "minAboveMax": "Le minimum dépasse le maximum",
+      "maxBelowMin": "Le maximum est inférieur au minimum",
+      "menuNeedsOption": "Un menu doit avoir au moins une option",
+      "logUniformAboveZero": "Une plage log-uniforme doit être supérieure à 0"
     },
     "access": {
       "creatorRole": "Les créateurs de cours reçoivent ce rôle dans leurs cours (paramètres du site)",
@@ -614,7 +629,8 @@
       "creatorRoleChange": "Les créateurs de cours reçoivent ce rôle dans leurs cours : choisissez-en d’abord un autre dans les paramètres du site",
       "permissionFixed": "Cette autorisation ne peut pas être modifiée ici",
       "ownPermissionsOnly": "Vous ne pouvez accorder que les autorisations que vous avez vous-même",
-      "missingCapability": "Autorisation manquante : {cap}"
+      "missingCapability": "Autorisation manquante : {cap}",
+      "unknownCapability": "Autorisation inconnue"
     },
     "apiTokens": {
       "tooMany": "Au plus 20 jetons actifs"
@@ -797,7 +813,8 @@
       "headerNeedsColumn": "L’en-tête doit avoir une colonne « {column} »",
       "tooManyLines": "Au plus {n} lignes",
       "nobodyWithRole": "Personne n’a ce rôle ici",
-      "groupExists": "Un groupe « {clash} » existe déjà"
+      "groupExists": "Un groupe « {clash} » existe déjà",
+      "namePattern": "Le nom doit contenir @ ou #"
     },
     "messaging": {
       "onlySenderDeletes": "Seul l’expéditeur peut supprimer un message",
@@ -865,7 +882,8 @@
       "deleteSelf": "Vous ne pouvez pas vous supprimer vous-même",
       "adminBeforeDelete": "Retirez les droits d’administrateur avant la suppression",
       "roleNotForSite": "Ce rôle ne peut pas être attribué au niveau du site",
-      "usersHeader": "L’en-tête doit contenir : firstname, lastname, password et email ou username"
+      "usersHeader": "L’en-tête doit contenir : firstname, lastname, password et email ou username",
+      "emailOrUsername": "L’email ou le nom d’utilisateur est requis"
     },
     "ai": {
       "apiKeyRequired": "Une clé d’API est requise",
@@ -902,6 +920,9 @@
     "admin": {
       "unknownSettingsSection": "Section de paramètres inconnue",
       "chooseLanguagePack": "Choisissez un pack de langue .zip ou .json"
+    },
+    "webhooks": {
+      "chooseEvent": "Choisissez au moins un événement"
     }
   },
   "editor": {

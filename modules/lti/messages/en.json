@@ -24,7 +24,9 @@
     "errors": {
       "noAppSecret": "APP_SECRET is not set",
       "noToolKey": "The tool has no public key or JWKS URL",
-      "giveToolKey": "Provide a JWKS URL or a public key"
+      "giveToolKey": "Provide a JWKS URL or a public key",
+      "chooseTool": "Choose a tool",
+      "addRedirect": "Add at least one redirect URI"
     }
   }
 }

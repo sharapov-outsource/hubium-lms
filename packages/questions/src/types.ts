@@ -193,16 +193,16 @@ export const MultianswerData = z.object({
 /** Values a variable of a calculated question takes, one per variant (Moodle's dataset). */
 export const Dataset = z
   .object({
-    name: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'Letters, digits and _ only'),
+    name: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'errors.field.identifier'),
     min: z.number(),
     max: z.number(),
     decimals: z.number().int().min(0).max(10).default(1),
     distribution: z.enum(['uniform', 'loguniform']).default('uniform'),
     items: z.array(z.number()).max(100).default([]),
   })
-  .refine((d) => d.max >= d.min, { message: 'The maximum is below the minimum', path: ['max'] })
+  .refine((d) => d.max >= d.min, { message: 'errors.common.maxBelowMin', path: ['max'] })
   .refine((d) => d.distribution !== 'loguniform' || d.min > 0, {
-    message: 'A log-uniform range must be above 0',
+    message: 'errors.common.logUniformAboveZero',
     path: ['min'],
   });
 export type Dataset = z.output<typeof Dataset>;

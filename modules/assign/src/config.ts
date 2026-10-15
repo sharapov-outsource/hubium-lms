@@ -40,19 +40,19 @@ export const AssignSettings = z
     blindMarking: bool(false),
   })
   .refine((s) => s.allowText || s.allowFiles, {
-    message: 'Allow text or files',
+    message: 'mod.assign.errors.allowSomething',
     path: ['allowText'],
   })
   .refine((s) => !s.dueAt || !s.openAt || s.dueAt > s.openAt, {
-    message: 'Due date must be after the opening date',
+    message: 'mod.assign.errors.dueAfterOpen',
     path: ['dueAt'],
   })
   .refine((s) => !s.cutoffAt || !s.dueAt || s.cutoffAt >= s.dueAt, {
-    message: 'Cut-off must not be before the due date',
+    message: 'mod.assign.errors.cutOffBeforeDue',
     path: ['cutoffAt'],
   })
   .refine((s) => s.gradePass === undefined || s.gradePass <= s.gradeMax, {
-    message: 'Pass grade exceeds maximum',
+    message: 'errors.common.passGradeAboveMax',
     path: ['gradePass'],
   });
 

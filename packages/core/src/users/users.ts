@@ -60,7 +60,7 @@ export const UserCreateInput = z
     customFields: z.record(z.string(), z.unknown()).optional(),
   })
   .refine((v) => v.email || v.username, {
-    message: 'Email or username is required',
+    message: 'errors.users.emailOrUsername',
     path: ['email'],
   });
 

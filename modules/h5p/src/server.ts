@@ -47,7 +47,7 @@ export const H5pSettings = z
     showCopyright: bool(true),
   })
   .refine((s) => s.gradePass === undefined || s.gradePass <= s.gradeMax, {
-    message: 'Pass grade exceeds maximum',
+    message: 'errors.common.passGradeAboveMax',
     path: ['gradePass'],
   });
 

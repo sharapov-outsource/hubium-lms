@@ -60,7 +60,9 @@
       "noOption": "Diese Option gibt es nicht",
       "answeredAlready": "Sie haben bereits geantwortet",
       "full": "„{text}“ ist voll",
-      "noChange": "Antworten können nicht geändert werden"
+      "noChange": "Antworten können nicht geändert werden",
+      "addOption": "Fügen Sie mindestens eine Option hinzu",
+      "distinctOptions": "Die Optionen müssen sich unterscheiden"
     }
   }
 }

@@ -34,7 +34,7 @@ export const LiveSettings = z
     record: bool(false),
     welcome: z.string().trim().max(2000).default(''),
   })
-  .refine((s) => !!s.startsAt, { message: 'Set the start time', path: ['startsAt'] });
+  .refine((s) => !!s.startsAt, { message: 'mod.livesession.errors.setStart', path: ['startsAt'] });
 
 export type LiveSettingsT = z.output<typeof LiveSettings>;
 type Live = ActivityRef<LiveSettingsT>;

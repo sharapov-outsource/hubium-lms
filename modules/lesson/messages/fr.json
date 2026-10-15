@@ -187,7 +187,8 @@
       "answerFirst": "Répondez d’abord à la question",
       "noEssay": "Rédaction introuvable",
       "essayPoints": "Une rédaction obtient de 0 à {max} points",
-      "noAttempt": "Tentative introuvable"
+      "noAttempt": "Tentative introuvable",
+      "closeAfterOpen": "La leçon doit fermer après son ouverture"
     }
   }
 }

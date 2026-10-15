@@ -50,7 +50,8 @@
       "noVideoStream": "Нет видеопотока",
       "nothingToTranscode": "Перекодировать нечего",
       "sourceDeleted": "Исходный файл удалён: загрузите его снова",
-      "captionsTooLarge": "Файл субтитров слишком большой"
+      "captionsTooLarge": "Файл субтитров слишком большой",
+      "pasteLink": "Вставьте ссылку на YouTube, RuTube или VK Видео"
     }
   }
 }

@@ -208,7 +208,10 @@
       "attachFile": "Hängen Sie eine Datei an",
       "othersAssessment": "Dies ist die Beurteilung einer anderen Person",
       "notAssessing": "Sie beurteilen in diesem Workshop nicht",
-      "assessmentClosed": "Die Beurteilung ist nicht geöffnet"
+      "assessmentClosed": "Die Beurteilung ist nicht geöffnet",
+      "allowSomething": "Teilnehmende müssen etwas abgeben können",
+      "submissionsEnd": "Abgaben müssen nach ihrem Beginn enden",
+      "assessmentEnd": "Die Beurteilung muss nach ihrem Beginn enden"
     }
   }
 }

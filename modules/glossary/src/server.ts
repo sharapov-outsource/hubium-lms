@@ -40,11 +40,11 @@ export const GlossarySettings = z
     ...ratingFields,
   })
   .refine((s) => !s.ratingFrom || !s.ratingTo || s.ratingTo > s.ratingFrom, {
-    message: 'The end of the rating window must be after its start',
+    message: 'errors.common.ratingWindow',
     path: ['ratingTo'],
   })
   .refine((s) => s.ratingPass === undefined || s.ratingPass <= s.ratingMax, {
-    message: 'Pass grade exceeds maximum',
+    message: 'errors.common.passGradeAboveMax',
     path: ['ratingPass'],
   });
 export type GlossarySettingsT = z.output<typeof GlossarySettings>;
@@ -62,7 +62,7 @@ const words = z
   .default([]);
 
 export const EntryInput = z.object({
-  concept: z.string().trim().min(1, 'Required').max(255),
+  concept: z.string().trim().min(1, 'errors.field.required').max(255),
   definition: z.string().max(200_000).default(''),
   aliases: words,
   categories: words,

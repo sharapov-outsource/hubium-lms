@@ -187,7 +187,8 @@
       "answerFirst": "Answer the question first",
       "noEssay": "Essay not found",
       "essayPoints": "An essay gets 0 to {max} points",
-      "noAttempt": "Attempt not found"
+      "noAttempt": "Attempt not found",
+      "closeAfterOpen": "The lesson must close after it opens"
     }
   }
 }

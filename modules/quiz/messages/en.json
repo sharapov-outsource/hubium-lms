@@ -269,7 +269,8 @@
       "notFound": "Not found",
       "otherGroup": "This attempt is of another group",
       "notFinished": "The attempt is not finished",
-      "markTooHigh": "Mark must be at most {max}"
+      "markTooHigh": "Mark must be at most {max}",
+      "closeAfterOpen": "Close date must be after open date"
     }
   }
 }

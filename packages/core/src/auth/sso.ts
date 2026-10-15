@@ -63,7 +63,7 @@ export const SsoProviderInput = z.object({
     .string()
     .trim()
     .toLowerCase()
-    .regex(/^[a-z0-9][a-z0-9-]{1,48}$/, 'Latin letters, digits and dashes, 2–49 characters'),
+    .regex(/^[a-z0-9][a-z0-9-]{1,48}$/, 'errors.field.providerId'),
   name: z.string().trim().min(1).max(100),
   protocol: z.enum(SSO_PROTOCOLS),
   enabled: z.boolean().default(true),

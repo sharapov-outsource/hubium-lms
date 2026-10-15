@@ -86,7 +86,8 @@
       "closed": "The survey is closed",
       "answeredAlready": "You have answered already",
       "noQuestions": "The survey has no questions yet",
-      "noResponse": "Response not found"
+      "noResponse": "Response not found",
+      "twoOptions": "Give at least two options"
     }
   }
 }

@@ -12,7 +12,7 @@ export function optionalText(max: number) {
 }
 
 /** The code of an installed language (see @hubium/i18n). */
-export const localeCode = z.string().trim().refine(isLocale, 'Unknown language');
+export const localeCode = z.string().trim().refine(isLocale, 'errors.settings.unknownLanguage');
 
 /** An optional language where an empty form value means "not set" (undefined). */
 export const optionalLocale = localeCode.optional().or(z.literal('').transform(() => undefined));
@@ -30,7 +30,7 @@ export function isTimeZone(tz: string): boolean {
 
 /** An IANA time zone: dates are formatted in it, and a name the runtime does not know breaks
  *  every page that shows one. */
-export const timeZone = z.string().trim().refine(isTimeZone, 'Unknown time zone');
+export const timeZone = z.string().trim().refine(isTimeZone, 'errors.account.unknownTimeZone');
 
 /** The zone when it is one, else the fallback: for zones stored before they were checked. */
 export const zoneOr = (tz: string | null | undefined, fallback: string): string =>

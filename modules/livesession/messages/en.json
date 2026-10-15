@@ -45,7 +45,8 @@
       "bbbNotConfigured": "BigBlueButton is not configured (BBB_URL, BBB_SECRET)",
       "notOpenYet": "The session has not opened yet",
       "over": "The session is over",
-      "waitingForTeacher": "Waiting for the teacher to start the session"
+      "waitingForTeacher": "Waiting for the teacher to start the session",
+      "setStart": "Set the start time"
     }
   }
 }

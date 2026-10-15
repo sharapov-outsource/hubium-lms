@@ -50,7 +50,8 @@
       "noVideoStream": "Kein Videostream",
       "nothingToTranscode": "Nichts zu transkodieren",
       "sourceDeleted": "Die Quelldatei wurde gelöscht: Laden Sie sie erneut hoch",
-      "captionsTooLarge": "Die Untertiteldatei ist zu groß"
+      "captionsTooLarge": "Die Untertiteldatei ist zu groß",
+      "pasteLink": "Fügen Sie einen Link zu YouTube, RuTube oder VK Video ein"
     }
   }
 }

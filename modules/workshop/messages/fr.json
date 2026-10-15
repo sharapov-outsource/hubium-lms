@@ -208,7 +208,10 @@
       "attachFile": "Joignez un fichier",
       "othersAssessment": "C’est l’évaluation de quelqu’un d’autre",
       "notAssessing": "Vous n’évaluez pas dans cet atelier",
-      "assessmentClosed": "L’évaluation n’est pas ouverte"
+      "assessmentClosed": "L’évaluation n’est pas ouverte",
+      "allowSomething": "Les apprenants doivent pouvoir remettre quelque chose",
+      "submissionsEnd": "Les remises doivent se terminer après leur début",
+      "assessmentEnd": "L’évaluation doit se terminer après son début"
     }
   }
 }

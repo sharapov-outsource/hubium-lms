@@ -277,7 +277,9 @@
       "cutOffBeforeDue": "Cut-off must not be before the due date",
       "noGroup": "No such group",
       "noOverride": "No such override",
-      "noGroupOverride": "No such group override"
+      "noGroupOverride": "No such group override",
+      "allowSomething": "Allow text or files",
+      "dueAfterOpen": "Due date must be after the opening date"
     }
   }
 }

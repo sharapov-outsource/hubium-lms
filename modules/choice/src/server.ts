@@ -20,7 +20,7 @@ import { z } from 'zod';
 
 const ChoiceOption = z.object({
   id: z.string().max(64).optional(),
-  text: z.string().trim().min(1, 'Required').max(255),
+  text: z.string().trim().min(1, 'errors.field.required').max(255),
   /** Most answers the option takes when answers are limited (0 = no limit). */
   limit: z.coerce.number().int().min(0).max(100_000).default(0),
 });
@@ -37,7 +37,7 @@ const Options = z.preprocess(
   },
   z
     .array(ChoiceOption)
-    .min(1, 'Add at least one option')
+    .min(1, 'mod.choice.errors.addOption')
     .max(100)
     .transform((list) => list.map((o) => ({ ...o, id: o.id || randomUUID() }))),
 );
@@ -59,11 +59,11 @@ export const ChoiceSettings = z
     showPreview: bool(false),
   })
   .refine((s) => !s.opensAt || !s.closesAt || s.closesAt > s.opensAt, {
-    message: 'Must be after the opening',
+    message: 'errors.common.afterOpening',
     path: ['closesAt'],
   })
   .refine((s) => new Set(s.options.map((o) => o.id)).size === s.options.length, {
-    message: 'Options must differ',
+    message: 'mod.choice.errors.distinctOptions',
     path: ['options'],
   });
 

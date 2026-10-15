@@ -28,7 +28,7 @@ const idNumber = z
   .trim()
   .min(1)
   .max(100)
-  .regex(/^[^,]+$/, 'No commas');
+  .regex(/^[^,]+$/, 'errors.field.noCommas');
 
 async function loadFramework(db: Tx, id: string) {
   const f = await db.competencyFramework.findUnique({ where: { id } });

@@ -45,7 +45,8 @@
       "bbbNotConfigured": "BigBlueButton не настроен (BBB_URL, BBB_SECRET)",
       "notOpenYet": "Вебинар ещё не открыт",
       "over": "Вебинар окончен",
-      "waitingForTeacher": "Ждём, пока преподаватель начнёт вебинар"
+      "waitingForTeacher": "Ждём, пока преподаватель начнёт вебинар",
+      "setStart": "Укажите время начала"
     }
   }
 }

@@ -172,7 +172,7 @@ export const ProfileFieldInput = z
       .string()
       .trim()
       .toLowerCase()
-      .regex(/^[a-z][a-z0-9_]{1,49}$/, 'Latin letters, digits and _; starts with a letter'),
+      .regex(/^[a-z][a-z0-9_]{1,49}$/, 'errors.field.shortName'),
     name: LocalisedName,
     type: z.enum(PROFILE_FIELD_TYPES),
     choices: z.array(z.string().trim().min(1).max(100)).max(100).default([]),
@@ -181,7 +181,7 @@ export const ProfileFieldInput = z
     visibleToOthers: z.boolean().default(false),
   })
   .refine((v) => v.type !== 'menu' || v.choices.length > 0, {
-    message: 'A menu needs at least one option',
+    message: 'errors.common.menuNeedsOption',
     path: ['choices'],
   });
 

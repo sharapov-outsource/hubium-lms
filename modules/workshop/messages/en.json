@@ -208,7 +208,10 @@
       "attachFile": "Attach a file",
       "othersAssessment": "This is someone else’s assessment",
       "notAssessing": "You do not assess in this workshop",
-      "assessmentClosed": "Assessment is not open"
+      "assessmentClosed": "Assessment is not open",
+      "allowSomething": "Learners must be able to hand in something",
+      "submissionsEnd": "Submissions must end after they start",
+      "assessmentEnd": "Assessment must end after it starts"
     }
   }
 }

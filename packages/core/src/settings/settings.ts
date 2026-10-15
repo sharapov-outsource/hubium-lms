@@ -19,13 +19,13 @@ import { ensureLanguagePacks } from './language-packs.ts';
 // Typed site settings. Each setting is declared once with a zod schema and a default;
 // values are stored in SiteSetting(key, value Json) and cached in memory.
 
-const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Expected a #rrggbb colour');
+const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'errors.field.colour');
 
 export const settingDefs = {
   'site.name': z.string().min(1).max(100).default('Hubium LMS'),
   'site.defaultLocale': z
     .string()
-    .refine(isLocale, 'Unknown language')
+    .refine(isLocale, 'errors.settings.unknownLanguage')
     .default(isLocale(DEFAULT_SITE_LOCALE) ? DEFAULT_SITE_LOCALE : BASE_LOCALE),
   /** Installed languages users may not choose; new languages are enabled by default. */
   'i18n.disabledLocales': z.array(z.string()).default([]),

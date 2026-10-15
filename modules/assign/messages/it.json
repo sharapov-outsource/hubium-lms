@@ -277,7 +277,9 @@
       "cutOffBeforeDue": "La scadenza ultima non può precedere la data di consegna",
       "noGroup": "Questo gruppo non esiste",
       "noOverride": "Questa eccezione non esiste",
-      "noGroupOverride": "Questa eccezione di gruppo non esiste"
+      "noGroupOverride": "Questa eccezione di gruppo non esiste",
+      "allowSomething": "Consenti testo o file",
+      "dueAfterOpen": "La data di consegna deve seguire la data di apertura"
     }
   }
 }

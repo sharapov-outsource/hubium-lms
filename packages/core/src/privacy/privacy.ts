@@ -365,7 +365,7 @@ export const savePolicy = defineOperation({
     key: z
       .string()
       .trim()
-      .regex(/^[a-z][a-z0-9-]{1,40}$/, 'Lowercase letters, digits and dashes'),
+      .regex(/^[a-z][a-z0-9-]{1,40}$/, 'errors.field.slug'),
     name: localizedText(200),
   }),
   authorize: (ctx) => ctx.perm.require('site:config'),

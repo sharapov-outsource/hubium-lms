@@ -26,7 +26,7 @@ const dateish = z
     if (v === undefined || v === null || v === '') return null;
     const d = v instanceof Date ? v : new Date(v);
     if (Number.isNaN(d.getTime())) {
-      ctx.addIssue({ code: 'custom', message: 'Invalid date' });
+      ctx.addIssue({ code: 'custom', message: 'errors.field.invalidDate' });
       return z.NEVER;
     }
     return d;

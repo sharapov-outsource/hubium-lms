@@ -57,15 +57,15 @@ export const ForumSettings = z
     gradePass: optionalNumber(0, 10_000),
   })
   .refine((s) => !s.ratingFrom || !s.ratingTo || s.ratingTo > s.ratingFrom, {
-    message: 'The end of the rating window must be after its start',
+    message: 'errors.common.ratingWindow',
     path: ['ratingTo'],
   })
   .refine((s) => s.ratingPass === undefined || s.ratingPass <= s.ratingMax, {
-    message: 'Pass grade exceeds maximum',
+    message: 'errors.common.passGradeAboveMax',
     path: ['ratingPass'],
   })
   .refine((s) => s.gradePass === undefined || s.gradePass <= s.gradeMax, {
-    message: 'Pass grade exceeds maximum',
+    message: 'errors.common.passGradeAboveMax',
     path: ['gradePass'],
   });
 

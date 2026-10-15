@@ -208,7 +208,10 @@
       "attachFile": "Allega un file",
       "othersAssessment": "Questa è la valutazione di qualcun altro",
       "notAssessing": "Non valuti in questo workshop",
-      "assessmentClosed": "La valutazione non è aperta"
+      "assessmentClosed": "La valutazione non è aperta",
+      "allowSomething": "Gli studenti devono poter consegnare qualcosa",
+      "submissionsEnd": "Le consegne devono terminare dopo l’inizio",
+      "assessmentEnd": "La valutazione deve terminare dopo l’inizio"
     }
   }
 }

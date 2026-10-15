@@ -591,7 +591,15 @@
       "url": "Inserisci un indirizzo web",
       "option": "Scegli una delle opzioni",
       "yesNo": "Atteso sì o no",
-      "date": "Attesa una data (AAAA-MM-GG)"
+      "date": "Attesa una data (AAAA-MM-GG)",
+      "noCommas": "Senza virgole",
+      "shortName": "Lettere latine, cifre e _; inizia con una lettera",
+      "providerId": "Lettere latine, cifre e trattini, da 2 a 49 caratteri",
+      "colour": "Un colore nel formato #rrggbb",
+      "invalidDate": "Data non valida",
+      "anyLanguage": "Inserisci il testo in almeno una lingua",
+      "slug": "Lettere minuscole, cifre e trattini",
+      "identifier": "Solo lettere, cifre e _"
     },
     "common": {
       "shortNameInUse": "Questo nome breve è già in uso",
@@ -605,7 +613,14 @@
       "chooseCsv": "Scegli un file CSV",
       "notEnrolled": "L’utente non è iscritto",
       "moduleDisabled": "Questo tipo di attività è disattivato dall’amministratore",
-      "unknownCategory": "Categoria sconosciuta"
+      "unknownCategory": "Categoria sconosciuta",
+      "passGradeAboveMax": "Il voto di sufficienza supera il massimo",
+      "ratingWindow": "La fine del periodo di valutazione deve seguire l’inizio",
+      "afterOpening": "Deve essere successivo all’apertura",
+      "minAboveMax": "Il minimo supera il massimo",
+      "maxBelowMin": "Il massimo è inferiore al minimo",
+      "menuNeedsOption": "Un menu richiede almeno un’opzione",
+      "logUniformAboveZero": "Un intervallo log-uniforme deve essere maggiore di 0"
     },
     "access": {
       "creatorRole": "I creatori di corsi ricevono questo ruolo nei propri corsi (impostazioni del sito)",
@@ -614,7 +629,8 @@
       "creatorRoleChange": "I creatori di corsi ricevono questo ruolo nei propri corsi: scegline prima un altro nelle impostazioni del sito",
       "permissionFixed": "Questo permesso non può essere modificato qui",
       "ownPermissionsOnly": "Puoi concedere solo i permessi che hai tu stesso",
-      "missingCapability": "Permesso mancante: {cap}"
+      "missingCapability": "Permesso mancante: {cap}",
+      "unknownCapability": "Permesso sconosciuto"
     },
     "apiTokens": {
       "tooMany": "Al massimo 20 token attivi"
@@ -797,7 +813,8 @@
       "headerNeedsColumn": "L’intestazione deve avere una colonna \"{column}\"",
       "tooManyLines": "Al massimo {n} righe",
       "nobodyWithRole": "Nessuno ha questo ruolo qui",
-      "groupExists": "Esiste già un gruppo \"{clash}\""
+      "groupExists": "Esiste già un gruppo \"{clash}\"",
+      "namePattern": "Il nome deve contenere @ o #"
     },
     "messaging": {
       "onlySenderDeletes": "Solo il mittente può eliminare un messaggio",
@@ -865,7 +882,8 @@
       "deleteSelf": "Non puoi eliminare te stesso",
       "adminBeforeDelete": "Rimuovi i diritti di amministratore prima di eliminare",
       "roleNotForSite": "Questo ruolo non può essere assegnato a livello di sito",
-      "usersHeader": "L’intestazione deve contenere: firstname, lastname, password e email o username"
+      "usersHeader": "L’intestazione deve contenere: firstname, lastname, password e email o username",
+      "emailOrUsername": "Serve l’email o il nome utente"
     },
     "ai": {
       "apiKeyRequired": "È richiesta una chiave API",
@@ -902,6 +920,9 @@
     "admin": {
       "unknownSettingsSection": "Sezione delle impostazioni sconosciuta",
       "chooseLanguagePack": "Scegli un pacchetto di lingua .zip o .json"
+    },
+    "webhooks": {
+      "chooseEvent": "Scegli almeno un evento"
     }
   },
   "editor": {

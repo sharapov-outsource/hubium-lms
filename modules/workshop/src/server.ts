@@ -77,23 +77,23 @@ export const WorkshopSettings = z
       .default(5),
   })
   .refine((s) => s.submissionText !== 'off' || s.submissionFiles !== 'off', {
-    message: 'Learners must be able to hand in something',
+    message: 'mod.workshop.errors.allowSomething',
     path: ['submissionText'],
   })
   .refine((s) => !s.submissionStart || !s.submissionEnd || s.submissionEnd > s.submissionStart, {
-    message: 'Submissions must end after they start',
+    message: 'mod.workshop.errors.submissionsEnd',
     path: ['submissionEnd'],
   })
   .refine((s) => !s.assessmentStart || !s.assessmentEnd || s.assessmentEnd > s.assessmentStart, {
-    message: 'Assessment must end after it starts',
+    message: 'mod.workshop.errors.assessmentEnd',
     path: ['assessmentEnd'],
   })
   .refine((s) => s.gradePass === undefined || s.gradePass <= s.gradeMax, {
-    message: 'Pass grade exceeds maximum',
+    message: 'errors.common.passGradeAboveMax',
     path: ['gradePass'],
   })
   .refine((s) => s.gradingGradePass === undefined || s.gradingGradePass <= s.gradingGradeMax, {
-    message: 'Pass grade exceeds maximum',
+    message: 'errors.common.passGradeAboveMax',
     path: ['gradingGradePass'],
   });
 export type WorkshopSettingsT = z.output<typeof WorkshopSettings>;

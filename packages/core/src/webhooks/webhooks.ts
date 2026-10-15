@@ -68,7 +68,7 @@ const UrlField = z
   });
 const EventsField = z
   .array(z.enum(WEBHOOK_EVENTS))
-  .min(1, 'Choose at least one event')
+  .min(1, 'errors.webhooks.chooseEvent')
   .transform((list) => [...new Set(list)]);
 
 const WebhookInput = z.object({

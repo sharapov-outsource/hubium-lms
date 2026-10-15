@@ -49,7 +49,7 @@ export const VideoSettings = z
     deleteSource: bool(false),
   })
   .refine((s) => s.source !== 'embed' || s.embedUrl, {
-    message: 'Paste a YouTube, RuTube or VK Video link',
+    message: 'mod.video.errors.pasteLink',
     path: ['embedUrl'],
   });
 

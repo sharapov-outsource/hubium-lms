@@ -27,7 +27,7 @@ const SUMMARY_THRESHOLD = 12_000;
 export const QuizGenInput = z.object({
   courseId: z.string().uuid(),
   categoryId: z.string().uuid(),
-  activityIds: z.array(z.string().uuid()).min(1, 'Choose at least one activity').max(20),
+  activityIds: z.array(z.string().uuid()).min(1, 'errors.interchange.chooseActivity').max(20),
   types: z.array(z.enum(draftTypes)).min(1).default(['MULTICHOICE']),
   count: z.coerce.number().int().min(1).max(20).default(5),
   difficulty: z.enum(['easy', 'medium', 'hard']).default('medium'),

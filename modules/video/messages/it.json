@@ -50,7 +50,8 @@
       "noVideoStream": "Nessun flusso video",
       "nothingToTranscode": "Niente da transcodificare",
       "sourceDeleted": "Il file sorgente è stato eliminato: caricalo di nuovo",
-      "captionsTooLarge": "Il file dei sottotitoli è troppo grande"
+      "captionsTooLarge": "Il file dei sottotitoli è troppo grande",
+      "pasteLink": "Incolla un link di YouTube, RuTube o VK Video"
     }
   }
 }

@@ -86,7 +86,8 @@
       "closed": "Das Feedback ist geschlossen",
       "answeredAlready": "Sie haben bereits geantwortet",
       "noQuestions": "Das Feedback hat noch keine Fragen",
-      "noResponse": "Antwort nicht gefunden"
+      "noResponse": "Antwort nicht gefunden",
+      "twoOptions": "Geben Sie mindestens zwei Optionen an"
     }
   }
 }

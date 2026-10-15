@@ -277,7 +277,9 @@
       "cutOffBeforeDue": "Der letzte Abgabetermin darf nicht vor dem Fälligkeitsdatum liegen",
       "noGroup": "Diese Gruppe gibt es nicht",
       "noOverride": "Diese Ausnahme gibt es nicht",
-      "noGroupOverride": "Diese Gruppenausnahme gibt es nicht"
+      "noGroupOverride": "Diese Gruppenausnahme gibt es nicht",
+      "allowSomething": "Erlauben Sie Text oder Dateien",
+      "dueAfterOpen": "Das Fälligkeitsdatum muss nach dem Öffnungsdatum liegen"
     }
   }
 }
