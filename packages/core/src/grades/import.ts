@@ -7,7 +7,12 @@ import { logEvent } from '../events/log.ts';
 import { readSheet } from '../lib/sheets.ts';
 import { defineOperation } from '../operation.ts';
 import { parseCsv } from '../users/users.ts';
-import { decimalToNumber as num, recomputeCourseTotals, writeGrade } from './gradebook.ts';
+import {
+  gradeLocked,
+  decimalToNumber as num,
+  recomputeCourseTotals,
+  writeGrade,
+} from './gradebook.ts';
 import { scaleValue } from './scales.ts';
 
 // Importing grades from a spreadsheet (CSV, XLSX or ODS), as Moodle's import: the first
@@ -231,10 +236,16 @@ async function applyRows(
   const changedById = ctx.perm.userId;
   let updated = 0;
   const touched = new Set<string>();
+  // locked grades keep their value: said for each, rather than counted as updated
+  const locked: { line: number; message: string }[] = [];
   for (const r of plan.rows) {
     if (!r.user) continue;
     for (const c of r.changes) {
       const item = items.find((i) => i.id === c.itemId)!;
+      if (await gradeLocked(tx, item, r.user.id)) {
+        locked.push({ line: r.line, message: `The grade of “${item.name}” is locked` });
+        continue;
+      }
       const feedback = c.feedback === undefined ? undefined : sanitizeRichText(c.feedback);
       // a manual item takes the grade; an activity's item an override of it
       const values =
@@ -257,7 +268,10 @@ async function applyRows(
   });
   return {
     updated,
-    errors: plan.rows.flatMap((r) => r.errors.map((message) => ({ line: r.line, message }))),
+    errors: [
+      ...plan.rows.flatMap((r) => r.errors.map((message) => ({ line: r.line, message }))),
+      ...locked,
+    ].sort((a, b) => a.line - b.line),
   };
 }
 

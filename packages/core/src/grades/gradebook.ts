@@ -165,6 +165,20 @@ export async function recomputeAllTotals(tx: Tx, courseId: string): Promise<void
 }
 
 /** Writes one grade (respecting locks and overrides) and records it in the history. */
+/** A locked item or grade keeps its value: writeGrade leaves it as it is. */
+export async function gradeLocked(
+  tx: Tx,
+  item: Pick<GradeItem, 'id' | 'locked'>,
+  userId: string,
+): Promise<boolean> {
+  if (item.locked) return true;
+  const g = await tx.grade.findUnique({
+    where: { gradeItemId_userId: { gradeItemId: item.id, userId } },
+    select: { locked: true },
+  });
+  return !!g?.locked;
+}
+
 export async function writeGrade(
   tx: Tx,
   item: GradeItem,
@@ -492,6 +506,9 @@ export const overrideGrade = defineOperation({
       where: { courseId: item.courseId, userId },
     });
     if (!enrolled) throw new ValidationError({ userId: ['User is not enrolled'] });
+    // said, rather than answered "saved" with the grade unchanged
+    if (await gradeLocked(ctx.tx, item, userId))
+      throw new ValidationError({ value: ['This grade is locked'] });
     if (item.kind === 'MANUAL' && !item.calculation) {
       await writeGrade(
         ctx.tx,
@@ -616,6 +633,12 @@ export const ManualItemInput = z.object({
     .or(z.literal('').transform(() => undefined)),
 });
 
+/** A pass mark above the maximum could never be reached. */
+function requirePassWithin(gradePass: number | null | undefined, gradeMax: number) {
+  if (gradePass != null && gradePass > gradeMax)
+    throw new ValidationError({ gradePass: ['The pass mark cannot be above the maximum grade'] });
+}
+
 /** Grade categories are addressed by id from forms: they must belong to the same course. */
 async function requireGradeCategory(tx: Tx, courseId: string, categoryId: string) {
   const c = await tx.gradeCategory.findFirst({ where: { id: categoryId, courseId } });
@@ -634,6 +657,7 @@ export const createManualItem = defineOperation({
       ? await requireScaleFor(ctx.tx, input.courseId, input.scaleId)
       : null;
     await requireFreeIdNumber(ctx.tx, input.courseId, input.idNumber);
+    requirePassWithin(input.gradePass, scale ? scale.items.length : input.gradeMax);
     const count = await ctx.tx.gradeItem.count({ where: { courseId: input.courseId } });
     const item = await ctx.tx.gradeItem.create({
       data: {
@@ -685,6 +709,7 @@ export const updateGradeItem = defineOperation({
     const item = await ctx.tx.gradeItem.findUniqueOrThrow({ where: { id } });
     if (item.kind === 'MODULE') delete data.name; // module items follow the activity name
     if (data.categoryId) await requireGradeCategory(ctx.tx, item.courseId, data.categoryId);
+    requirePassWithin(data.gradePass, num(item.gradeMax)!);
     if (data.idNumber !== undefined && data.idNumber !== item.idNumber) {
       if (
         data.idNumber === null &&
