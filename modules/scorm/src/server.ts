@@ -23,6 +23,9 @@ import {
 
 const logger = log('scorm');
 
+/** The largest commit the runtime may send, in characters. */
+const MAX_COMMIT = 1024 * 1024;
+
 export * from './package.ts';
 
 // mod-scorm: SCORM 1.2 / 2004 packages. Files are served from the content origin
@@ -452,10 +455,22 @@ export const scorm = defineModule<ScormSettingsT>({
       });
       if (!attempts.length) return 'incomplete';
       const finished = attempts.some((x) => x.finishedAt);
+      // passed: every SCO of the package passed in one attempt, not only those opened
+      const pkg = await ctx.db.scormPackage.findUnique({
+        where: { activityId: a.id },
+        select: { scos: { select: { id: true } } },
+      });
+      const scos = pkg?.scos ?? [];
       const passed = attempts.some(
         (x) =>
-          x.tracks.length &&
-          x.tracks.every((t) => t.successStatus === 'passed' || t.completionStatus === 'passed'),
+          scos.length > 0 &&
+          scos.every((s) =>
+            x.tracks.some(
+              (t) =>
+                t.scoId === s.id &&
+                (t.successStatus === 'passed' || t.completionStatus === 'passed'),
+            ),
+          ),
       );
       const best = Math.max(...attempts.map((x) => x.score ?? 0));
       if (r.completed && !finished) return 'incomplete';
@@ -588,9 +603,15 @@ export const scorm = defineModule<ScormSettingsT>({
 
     if (kind === 'commit' && req.method === 'POST') {
       if (grant.data.review) return ok({ result: true, errorCode: 0 });
+      // what a package keeps is far smaller (suspend_data is 64 000 characters at most):
+      // a larger body is refused rather than stored with every autocommit
+      if (Number(req.headers.get('content-length') ?? 0) > MAX_COMMIT)
+        return ok({ result: false, errorCode: 101 });
       let body: unknown;
       try {
-        body = JSON.parse(await req.text());
+        const text = await req.text();
+        if (text.length > MAX_COMMIT) return ok({ result: false, errorCode: 101 });
+        body = JSON.parse(text);
       } catch {
         return ok({ result: false, errorCode: 101 });
       }

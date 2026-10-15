@@ -196,6 +196,54 @@ describe('mod-scorm', () => {
       { method: 'POST', body: JSON.stringify({ cmi: { core: { lesson_status: 'failed' } } }) },
     );
     expect(await foreign.json()).toEqual({ result: false, errorCode: 101 });
+    // a commit far larger than any package keeps, to an open attempt
+    const open = await t.db.scormAttempt.create({
+      data: { activityId: scormId, userId: f.users.student3!, attemptNumber: 1 },
+    });
+    const huge = await content(
+      { userId: f.users.student3!, data: { attempt: open.id, sco: sco.id } },
+      ['commit'],
+      {
+        method: 'POST',
+        body: JSON.stringify({ cmi: { suspend_data: 'x'.repeat(1_100_000) } }),
+      },
+    );
+    expect(await huge.json()).toEqual({ result: false, errorCode: 101 });
+    expect(await t.db.scormTrack.count({ where: { attemptId: open.id } })).toBe(0);
+    await t.db.scormAttempt.delete({ where: { id: open.id } });
+  });
+
+  it('is passed when every SCO of the package is, not the first alone', async () => {
+    const scorm = getModule('scorm')!;
+    const rules = { completed: false, passed: true, minScore: 0 };
+    const act = await t.db.activity.findUniqueOrThrow({ where: { id: scormId } });
+    const evaluate = async () =>
+      scorm.completion!.evaluate(
+        buildModuleCtx(await ctxFor(t.db, 'system')),
+        { ...act, settings: act.settings } as never,
+        f.users.student1!,
+        rules,
+      );
+    expect(await evaluate()).toBe('pass');
+    const second = await t.db.scormSco.create({
+      data: {
+        packageId,
+        identifier: 'SCO-2',
+        title: 'Тест 2',
+        href: 'sco/index.html',
+        sortOrder: 1,
+      },
+    });
+    expect(await evaluate()).toBe('incomplete');
+    const attempt = await t.db.scormAttempt.findFirstOrThrow({
+      where: { activityId: scormId, userId: f.users.student1 },
+      orderBy: { attemptNumber: 'asc' },
+    });
+    await t.db.scormTrack.create({
+      data: { attemptId: attempt.id, scoId: second.id, completionStatus: 'passed' },
+    });
+    expect(await evaluate()).toBe('pass');
+    await t.db.scormSco.delete({ where: { id: second.id } });
   });
 
   it("exports a learner's tracks and erases what they hold with the account", async () => {
