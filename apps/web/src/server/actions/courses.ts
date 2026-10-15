@@ -1,30 +1,16 @@
 'use server';
 
 import {
-  addCohortSync,
   addSection,
-  autoCreateGroups,
   buildModuleCtx,
   createActivity,
-  createCategory,
-  createCohort,
   createCourse,
-  createGroup,
-  createGrouping,
   deleteActivity,
-  deleteCategory,
-  deleteCohort,
   deleteCourse,
-  deleteGroup,
-  deleteGrouping,
   deleteSection,
-  enrolUsers,
-  importCohorts,
-  importCourseGroups,
   isSwitchableRole,
   moveActivity,
   moveActivityStep,
-  moveCategoryOrder,
   moveSection,
   moveSubsection,
   overrideCompletion,
@@ -32,37 +18,21 @@ import {
   purgeActivity,
   purgeCourse,
   type RequestContext,
-  removeEnrolmentMethod,
   resetCourse,
-  resolveLogins,
   restoreActivity,
   restoreCourse,
-  searchEnrollableUsers,
-  selfEnrol,
   setActivityVisibility,
-  setCohortMembers,
   setCourseImage,
-  setCourseRoles,
-  setEnrolmentStatus,
-  setGroupingGroups,
-  setGroupMembers,
   setSectionVisible,
   toggleManualCompletion,
-  unenrolSelf,
-  unenrolUser,
   updateActivity,
-  updateCategory,
   updateCourse,
-  updateGroup,
-  updateGrouping,
   updateSection,
-  updateSelfEnrolment,
   ValidationError,
 } from '@hubium/core';
 import { checkFile, storeFile } from '@hubium/core/files/files';
 import { checkUpload } from '@hubium/core/files/uploads';
 import { duplicateActivity } from '@hubium/interchange';
-import { msg } from '@hubium/module-sdk';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -478,294 +448,6 @@ export async function switchRoleAction(courseId: string, roleId: string | null) 
     });
   else jar.delete(VIEW_AS_COOKIE);
   revalidatePath(`/course/${courseId}`, 'layout');
-}
-
-// ── enrolment ─────────────────────────────────────────────────────────────────
-
-export async function searchUsersToEnrolAction(courseId: string, q: string) {
-  return runAction(async () => searchEnrollableUsers(await getContext(), courseId, q));
-}
-
-export async function enrolUsersAction(
-  courseId: string,
-  userIds: string[],
-  roleId: string,
-  endsAt?: string,
-) {
-  return runAction(async () => {
-    const r = await enrolUsers.run(await getContext(), { courseId, userIds, roleId, endsAt });
-    revalidatePath(`/course/${courseId}/participants`);
-    return r;
-  });
-}
-
-export async function participantCommandAction(
-  courseId: string,
-  userId: string,
-  cmd: 'unenrol' | 'suspend' | 'activate',
-) {
-  return runAction(async () => {
-    const ctx = await getContext();
-    if (cmd === 'unenrol') await unenrolUser.run(ctx, { courseId, userId });
-    else
-      await setEnrolmentStatus.run(ctx, {
-        courseId,
-        userId,
-        status: cmd === 'suspend' ? 'SUSPENDED' : 'ACTIVE',
-      });
-    revalidatePath(`/course/${courseId}/participants`);
-    return null;
-  });
-}
-
-export async function setRolesAction(courseId: string, userId: string, roleIds: string[]) {
-  return runAction(async () => {
-    await setCourseRoles.run(await getContext(), { courseId, userId, roleIds });
-    revalidatePath(`/course/${courseId}/participants`);
-    return null;
-  });
-}
-
-export async function saveSelfEnrolmentAction(fd: FormData) {
-  return runAction(async () => {
-    const v = formToObject(fd);
-    const r = await updateSelfEnrolment.run(await getContext(), {
-      courseId: v.courseId,
-      enabled: formBool(fd.get('enabled')),
-      key: v.key,
-      useGroupKeys: formBool(fd.get('useGroupKeys')),
-      startsAt: v.startsAt,
-      endsAt: v.endsAt,
-      durationDays: v.durationDays,
-      maxEnrolled: v.maxEnrolled,
-      welcome: v.welcome ?? '',
-    });
-    revalidatePath(`/course/${v.courseId}/enrolment`);
-    return r;
-  });
-}
-
-export async function addCohortSyncAction(fd: FormData) {
-  return runAction(async () => {
-    const v = formToObject(fd);
-    const r = await addCohortSync.run(await getContext(), {
-      courseId: v.courseId,
-      cohortId: v.cohortId,
-      roleId: v.roleId,
-    });
-    revalidatePath(`/course/${v.courseId}/enrolment`);
-    return r;
-  });
-}
-
-export async function removeMethodAction(courseId: string, methodId: string) {
-  return runAction(async () => {
-    await removeEnrolmentMethod.run(await getContext(), { methodId });
-    revalidatePath(`/course/${courseId}/enrolment`);
-    return null;
-  });
-}
-
-export async function selfEnrolAction(fd: FormData) {
-  const v = formToObject(fd);
-  const res = await runAction(async () =>
-    selfEnrol.run(await getContext(), { courseId: v.courseId, key: v.key }),
-  );
-  if (res.ok) {
-    revalidatePath('/', 'layout');
-    redirect(`/course/${v.courseId}`);
-  }
-  return res;
-}
-
-export async function leaveCourseAction(courseId: string) {
-  const res = await runAction(async () => unenrolSelf.run(await getContext(), { courseId }));
-  if (res.ok) redirect('/my-courses');
-  return res;
-}
-
-// ── groups ────────────────────────────────────────────────────────────────────
-
-export async function saveGroupAction(fd: FormData) {
-  return runAction(async () => {
-    const v = formToObject(fd);
-    const ctx = await getContext();
-    const input = {
-      name: v.name,
-      description: v.description ?? '',
-      enrolmentKey: v.enrolmentKey,
-      idNumber: v.idNumber,
-    };
-    const r = v.id
-      ? await updateGroup.run(ctx, { id: v.id, ...input })
-      : await createGroup.run(ctx, { courseId: v.courseId, ...input });
-    revalidatePath(`/course/${v.courseId}/groups`);
-    return r;
-  });
-}
-
-export async function deleteGroupAction(courseId: string, id: string) {
-  return runAction(async () => {
-    await deleteGroup.run(await getContext(), { id });
-    revalidatePath(`/course/${courseId}/groups`);
-    return null;
-  });
-}
-
-export async function groupMembersAction(
-  courseId: string,
-  groupId: string,
-  add: string[],
-  remove: string[],
-) {
-  return runAction(async () => {
-    await setGroupMembers.run(await getContext(), { groupId, add, remove });
-    revalidatePath(`/course/${courseId}/groups`);
-    return null;
-  });
-}
-
-export async function saveGroupingAction(fd: FormData) {
-  return runAction(async () => {
-    const v = formToObject(fd);
-    const ctx = await getContext();
-    const input = { name: v.name, description: v.description ?? '' };
-    const r = v.id
-      ? await updateGrouping.run(ctx, { id: v.id, ...input })
-      : await createGrouping.run(ctx, { courseId: v.courseId, ...input });
-    revalidatePath(`/course/${v.courseId}/groups`);
-    return r;
-  });
-}
-
-export async function deleteGroupingAction(courseId: string, id: string) {
-  return runAction(async () => {
-    await deleteGrouping.run(await getContext(), { id });
-    revalidatePath(`/course/${courseId}/groups`);
-    return null;
-  });
-}
-
-export async function groupingGroupsAction(
-  courseId: string,
-  groupingId: string,
-  groupIds: string[],
-) {
-  return runAction(async () => {
-    await setGroupingGroups.run(await getContext(), { groupingId, groupIds });
-    revalidatePath(`/course/${courseId}/groups`);
-    return null;
-  });
-}
-
-// ── categories & cohorts (admin) ──────────────────────────────────────────────
-
-export async function saveCategoryAction(fd: FormData) {
-  return runAction(async () => {
-    const v = formToObject(fd);
-    const ctx = await getContext();
-    const input = {
-      name: v.name,
-      description: v.description ?? '',
-      idNumber: v.idNumber,
-      parentId: v.parentId || null,
-      visible: formBool(fd.get('visible')),
-    };
-    const r = v.id
-      ? await updateCategory.run(ctx, { id: v.id, ...input })
-      : await createCategory.run(ctx, input);
-    revalidatePath('/admin/categories');
-    return r;
-  });
-}
-
-export async function categoryCommandAction(id: string, cmd: 'up' | 'down' | 'delete') {
-  return runAction(async () => {
-    const ctx = await getContext();
-    if (cmd === 'delete') await deleteCategory.run(ctx, { id });
-    else await moveCategoryOrder.run(ctx, { id, direction: cmd });
-    revalidatePath('/admin/categories');
-    return null;
-  });
-}
-
-export async function saveCohortAction(fd: FormData) {
-  return runAction(async () => {
-    const v = formToObject(fd);
-    const r = await createCohort.run(await getContext(), {
-      name: v.name,
-      idNumber: v.idNumber,
-      description: v.description ?? '',
-    });
-    revalidatePath('/admin/cohorts');
-    return r;
-  });
-}
-
-export async function cohortMembersAction(cohortId: string, add: string[], remove: string[]) {
-  return runAction(async () => {
-    await setCohortMembers.run(await getContext(), { cohortId, add, remove });
-    revalidatePath('/admin/cohorts', 'layout');
-    return null;
-  });
-}
-
-export async function addCohortMemberByLoginAction(fd: FormData) {
-  return runAction(async () => {
-    const v = formToObject(fd);
-    const ctx = await getContext();
-    const add = await resolveLogins(ctx, v.login, {
-      allowed: () => ctx.perm.require('cohort:manage'),
-      field: 'login',
-    });
-    if (!add.length) throw new ValidationError({ login: [msg('errors.common.userNotFound')] });
-    await setCohortMembers.run(ctx, { cohortId: v.cohortId, add, remove: [] });
-    revalidatePath('/admin/cohorts', 'layout');
-    return null;
-  });
-}
-
-export async function deleteCohortAction(id: string) {
-  return runAction(async () => {
-    await deleteCohort.run(await getContext(), { id });
-    revalidatePath('/admin/cohorts', 'layout');
-    return null;
-  });
-}
-
-/** Course groups from a CSV file; `apply` false only checks it. */
-export async function importGroupsAction(courseId: string, csv: string, apply: boolean) {
-  return runAction(async () => {
-    const r = await importCourseGroups.run(await getContext(), { courseId, csv, apply });
-    if (apply) revalidatePath(`/course/${courseId}/groups`);
-    return r;
-  });
-}
-
-/** Cohorts from a CSV file; `apply` false only checks it. */
-export async function importCohortsAction(csv: string, apply: boolean) {
-  return runAction(async () => {
-    const r = await importCohorts.run(await getContext(), { csv, apply });
-    if (apply) revalidatePath('/admin/cohorts');
-    return r;
-  });
-}
-
-export async function autoGroupsAction(fd: FormData) {
-  return runAction(async () => {
-    const v = formToObject(fd);
-    const r = await autoCreateGroups.run(await getContext(), {
-      courseId: v.courseId ?? '',
-      roleId: v.roleId ?? '',
-      by: v.by === 'size' ? 'size' : 'count',
-      number: Number(v.number),
-      pattern: v.pattern ?? '',
-      order: v.order === 'name' ? 'name' : 'random',
-      grouping: v.grouping ?? '',
-    });
-    revalidatePath(`/course/${v.courseId}/groups`);
-    return r;
-  });
 }
 
 /** Course → Reset. */

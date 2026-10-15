@@ -7,7 +7,7 @@ import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { CommandButton } from '@/components/confirm-button';
 import { Pagination } from '@/components/pagination';
 import { pageParam, textParam, uuidParam } from '@/lib/url-params';
-import { addCohortMemberByLoginAction, cohortMembersAction } from '@/server/actions/courses';
+import { addCohortMemberByLoginAction, cohortMembersAction } from '@/server/actions/cohorts';
 import { db } from '@/server/db';
 import { viewerCan } from '@/server/page-title';
 import { requireCapability } from '@/server/session';

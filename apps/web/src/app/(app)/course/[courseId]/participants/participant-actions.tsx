@@ -19,7 +19,7 @@ import {
   participantCommandAction,
   searchUsersToEnrolAction,
   setRolesAction,
-} from '@/server/actions/courses';
+} from '@/server/actions/enrolment';
 
 export function EnrolDialog({
   courseId,

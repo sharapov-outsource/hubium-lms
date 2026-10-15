@@ -1,7 +1,7 @@
 import { Alert } from '@hubium/ui';
 import { getTranslations } from 'next-intl/server';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
-import { selfEnrolAction } from '@/server/actions/courses';
+import { selfEnrolAction } from '@/server/actions/enrolment';
 import { db } from '@/server/db';
 
 /** The course's self enrolment, when it is open now; null otherwise. */

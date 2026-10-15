@@ -19,7 +19,7 @@ import {
   addCohortSyncAction,
   removeMethodAction,
   saveSelfEnrolmentAction,
-} from '@/server/actions/courses';
+} from '@/server/actions/enrolment';
 import { db } from '@/server/db';
 import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';

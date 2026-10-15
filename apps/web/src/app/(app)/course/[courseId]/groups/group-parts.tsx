@@ -9,7 +9,7 @@ import { useState, useTransition } from 'react';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { GroupChatButton } from '@/components/comms/message-buttons';
 import { CommandButton } from '@/components/confirm-button';
-import { deleteGroupAction, groupMembersAction, saveGroupAction } from '@/server/actions/courses';
+import { deleteGroupAction, groupMembersAction, saveGroupAction } from '@/server/actions/groups';
 
 export function NewGroupForm({ courseId }: { courseId: string }) {
   const t = useTranslations('groups');

@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useTransition } from 'react';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
-import { categoryCommandAction, saveCategoryAction } from '@/server/actions/courses';
+import { categoryCommandAction, saveCategoryAction } from '@/server/actions/categories';
 
 export function CategoryForm({
   options,

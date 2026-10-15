@@ -4,7 +4,7 @@ import { Select } from '@hubium/ui';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
-import { autoGroupsAction } from '@/server/actions/courses';
+import { autoGroupsAction } from '@/server/actions/groups';
 
 /** Groups made from the course's people: a number of groups, or groups of a size. */
 export function AutoGroupsForm({

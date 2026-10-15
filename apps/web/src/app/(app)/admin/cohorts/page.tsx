@@ -19,7 +19,7 @@ import {
   deleteCohortAction,
   importCohortsAction,
   saveCohortAction,
-} from '@/server/actions/courses';
+} from '@/server/actions/cohorts';
 import { db } from '@/server/db';
 import { titled } from '@/server/page-title';
 import { requireCapability } from '@/server/session';

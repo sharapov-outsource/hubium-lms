@@ -11,7 +11,7 @@ import {
   deleteGroupingAction,
   groupingGroupsAction,
   saveGroupingAction,
-} from '@/server/actions/courses';
+} from '@/server/actions/groups';
 
 export function NewGroupingForm({ courseId }: { courseId: string }) {
   const t = useTranslations('groups');

@@ -12,7 +12,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { AutoLinks } from '@/components/auto-links';
 import { CommandButton } from '@/components/confirm-button';
-import { leaveCourseAction } from '@/server/actions/courses';
+import { leaveCourseAction } from '@/server/actions/enrolment';
 import { db } from '@/server/db';
 import { courseName, sectionTitle } from '@/server/page-title';
 import { getContext, getSwitchedRole, requireUser } from '@/server/session';

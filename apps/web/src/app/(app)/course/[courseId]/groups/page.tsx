@@ -4,7 +4,7 @@ import { Users } from 'lucide-react';
 import { forbidden } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { CsvImport } from '@/components/csv-import';
-import { importGroupsAction } from '@/server/actions/courses';
+import { importGroupsAction } from '@/server/actions/groups';
 import { db } from '@/server/db';
 import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
