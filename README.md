@@ -28,7 +28,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 ### Courses and learning
 
 - Category tree, course formats (topics, weeks, single page), cover images, a catalog with full-text search (word forms, prefixes, typos) and a course landing page.
-- Sections and activities you can reorder by drag and drop or with the keyboard ("Move to…"). Items can be shown, hidden or stealth, and deleted ones go to a recycle bin with restore.
+- Sections and activities you can reorder by drag and drop or with the keyboard ("Move to…"). Subsections inside a section, among its activities, fold away. Items can be shown, hidden or stealth, and deleted ones go to a recycle bin with restore.
 - Access restrictions by date, completion, grade, group, grouping and profile field (custom fields included), for activities and sections.
 - Manual or automatic completion with a teacher override, a completion matrix and course progress.
 - Enrolment:

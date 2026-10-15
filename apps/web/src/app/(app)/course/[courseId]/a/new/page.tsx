@@ -43,7 +43,10 @@ export default async function NewActivityPage({
   if (!m || !ui || !isModuleEnabled(await getAllSettings(db), m.key)) notFound();
   const section = sp.section
     ? await db.courseSection.findFirst({ where: { id: sp.section, courseId } })
-    : await db.courseSection.findFirst({ where: { courseId }, orderBy: { rank: 'asc' } });
+    : await db.courseSection.findFirst({
+        where: { courseId, parentId: null },
+        orderBy: { rank: 'asc' },
+      });
   if (!section) notFound();
   const [t, tm, tc] = await Promise.all([
     getTranslations('activity'),

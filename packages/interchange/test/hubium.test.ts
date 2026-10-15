@@ -1,6 +1,10 @@
 import {
+  addSection,
+  compareRank,
+  createActivity,
   createManualItem,
   displayCalculations,
+  getCourseOutline,
   importGift,
   runModuleAction,
   saveCourseField,
@@ -9,6 +13,7 @@ import {
   saveScale,
   setGradeCalculation,
   updateGradeItem,
+  updateSection,
 } from '@hubium/core';
 import { enrolUsers } from '@hubium/core/enrol/enrol';
 import { fileUrl, storeFile } from '@hubium/core/files/files';
@@ -503,6 +508,70 @@ describe('.hubium backup and restore', () => {
     });
     expect(copy.bookChapters[0]!.content).toContain(newPic.id);
     expect(copy.bookChapters[0]!.content).not.toContain(pic.id);
+  });
+
+  it('carries subsections in their places among the activities; an import flattens them', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const src = await courseFixture(t.db, 'SUBBK');
+    const teacher = await ctxFor(t.db, src.users.teacher!);
+    const a = await src.addActivity('page', 'A', { content: '<p>A</p>' });
+    const section = (await t.db.activity.findUniqueOrThrow({ where: { id: a.id } })).sectionId;
+    const { id: sub } = await addSection.run(teacher, {
+      courseId: src.courseId,
+      parentId: section,
+      title: 'Практика',
+    });
+    await updateSection.run(teacher, {
+      id: sub,
+      title: 'Практика',
+      summary: '<p>Задачи</p>',
+      visible: false,
+      availability: { op: '&', c: [{ type: 'completion', activityId: a.id, state: 'complete' }] },
+    });
+    const page = (sectionId: string, name: string) =>
+      createActivity.run(teacher, {
+        courseId: src.courseId,
+        sectionId,
+        moduleKey: 'page',
+        name,
+        settings: { content: `<p>${name}</p>` },
+      });
+    const b = await page(sub, 'B');
+    await page(section, 'C');
+    const course = await t.db.course.findUniqueOrThrow({ where: { id: src.courseId } });
+    const r = await restoreCourse(admin, await exportCourse(admin, src.courseId), {
+      categoryId: course.categoryId,
+    });
+    expect(r.sections).toBe(2);
+    const outline = await getCourseOutline(admin, r.courseId);
+    const copySub = outline.find((s) => s.parentId)!;
+    expect(copySub).toMatchObject({ title: 'Практика', summary: '<p>Задачи</p>', visible: false });
+    expect(copySub.activities.map((x) => x.activity.name)).toEqual(['B']);
+    const copyA = outline.flatMap((s) => s.activities).find((x) => x.activity.name === 'A')!;
+    const row = await t.db.courseSection.findUniqueOrThrow({ where: { id: copySub.id } });
+    expect(row.availability).toMatchObject({ c: [{ activityId: copyA.activity.id }] });
+    // between A and C, as it was
+    const items = [
+      ...outline.find((s) => s.id === copySub.parentId)!.activities.map((x) => x.activity),
+      row,
+    ]
+      .sort(compareRank)
+      .map((x) => ('name' in x ? x.name : x.title));
+    expect(items).toEqual(['A', 'Практика', 'C']);
+
+    // an import into another course puts B in the section with the same number
+    const target = await courseFixture(t.db, 'SUBBK2');
+    await importActivities(admin, {
+      sourceCourseId: src.courseId,
+      targetCourseId: target.courseId,
+      activityIds: [b.id],
+    });
+    const imported = await t.db.activity.findFirstOrThrow({
+      where: { courseId: target.courseId, name: 'B' },
+      include: { section: true },
+    });
+    expect(imported.section.parentId).toBeNull();
+    expect(await t.db.courseSection.count({ where: { courseId: target.courseId } })).toBe(2);
   });
 
   it('carries the questions of a feedback, without its responses', async () => {

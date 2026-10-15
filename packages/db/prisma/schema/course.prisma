@@ -105,6 +105,9 @@ model Course {
 model CourseSection {
   id           String   @id @default(uuid(7)) @db.Uuid
   courseId     String   @db.Uuid
+  /// A subsection sits among its parent section's activities (one level, as in Moodle);
+  /// its rank is then in the same order as theirs.
+  parentId     String?  @db.Uuid
   rank         String
   title        String   @default("")
   summary      String   @default("")
@@ -113,10 +116,13 @@ model CourseSection {
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
 
-  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  activities Activity[]
+  course      Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  parent      CourseSection?  @relation("Subsections", fields: [parentId], references: [id], onDelete: Cascade)
+  subsections CourseSection[] @relation("Subsections")
+  activities  Activity[]
 
   @@index([courseId, rank])
+  @@index([parentId])
 }
 
 model Activity {

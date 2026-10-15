@@ -27,6 +27,7 @@ import {
   moveActivityStep,
   moveCategoryOrder,
   moveSection,
+  moveSubsection,
   overrideCompletion,
   profileValuesFromForm,
   purgeActivity,
@@ -161,11 +162,23 @@ export async function restoreCourseAction(id: string) {
 
 // ── sections ──────────────────────────────────────────────────────────────────
 
-export async function addSectionAction(courseId: string, afterSectionId?: string) {
+export async function addSectionAction(
+  courseId: string,
+  opts: { afterSectionId?: string; parentId?: string; title?: string } = {},
+) {
   return runAction(async () => {
-    const r = await addSection.run(await getContext(), { courseId, afterSectionId });
+    const r = await addSection.run(await getContext(), { courseId, ...opts });
     revalidatePath(`/course/${courseId}`);
     return r;
+  });
+}
+
+/** Moves a subsection to the end of another section. */
+export async function moveSubsectionAction(courseId: string, id: string, parentId: string) {
+  return runAction(async () => {
+    await moveSubsection.run(await getContext(), { id, parentId });
+    revalidatePath(`/course/${courseId}`);
+    return null;
   });
 }
 

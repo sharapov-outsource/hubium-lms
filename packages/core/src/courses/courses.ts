@@ -10,6 +10,7 @@ import { localeCode, optionalText } from '../lib/zod.ts';
 import { defineOperation } from '../operation.ts';
 import { getAllSettings } from '../settings/settings.ts';
 import { checkCourseValues, courseFieldFilters } from './course-fields.ts';
+import { rankAtEnd, rankForStep, sectionItems } from './section-items.ts';
 
 type Tx = Prisma.TransactionClient | Db;
 
@@ -334,17 +335,44 @@ export async function requireCourseView(
 
 // ── sections ──────────────────────────────────────────────────────────────────
 
+/** The section a subsection goes into: a section of this course, not itself a subsection. */
+async function parentSection(tx: Prisma.TransactionClient, courseId: string, parentId: string) {
+  const parent = await tx.courseSection.findUnique({ where: { id: parentId } });
+  if (!parent || parent.courseId !== courseId)
+    throw new ValidationError({ parentId: ['Unknown section'] });
+  if (parent.parentId)
+    throw new ValidationError({ parentId: ['A subsection cannot hold subsections'] });
+  return parent;
+}
+
+/**
+ * Adds a section to the course (after another one, or at the end), or with `parentId` a
+ * subsection at the end of that section.
+ */
 export const addSection = defineOperation({
   name: 'section.add',
   input: z.object({
     courseId: z.string().uuid(),
     afterSectionId: z.string().uuid().optional(),
-    title: z.string().max(255).default(''),
+    parentId: z.string().uuid().optional(),
+    title: z.string().trim().max(255).default(''),
   }),
   authorize: (ctx, i) => ctx.perm.require('course:manageactivities', i.courseId),
   async handler(ctx, input) {
+    if (input.parentId) {
+      const parent = await parentSection(ctx.tx, input.courseId, input.parentId);
+      const s = await ctx.tx.courseSection.create({
+        data: {
+          courseId: input.courseId,
+          parentId: parent.id,
+          rank: await rankAtEnd(ctx.tx, parent.id),
+          title: input.title,
+        },
+      });
+      return { id: s.id };
+    }
     const sections = await ctx.tx.courseSection.findMany({
-      where: { courseId: input.courseId },
+      where: { courseId: input.courseId, parentId: null },
       orderBy: { rank: 'asc' },
     });
     const idx = input.afterSectionId
@@ -415,6 +443,7 @@ export const setSectionVisible = defineOperation({
   },
 });
 
+/** Moves a section one place among the course's sections, a subsection among its section's items. */
 export const moveSection = defineOperation({
   name: 'section.move',
   input: z.object({ id: z.string().uuid(), direction: z.enum(['up', 'down']) }),
@@ -424,8 +453,13 @@ export const moveSection = defineOperation({
   },
   async handler(ctx, { id, direction }) {
     const s = await ctx.tx.courseSection.findUniqueOrThrow({ where: { id } });
+    if (s.parentId) {
+      const rank = rankForStep(await sectionItems(ctx.tx, s.parentId), id, direction);
+      if (rank) await ctx.tx.courseSection.update({ where: { id }, data: { rank } });
+      return { id };
+    }
     const all = await ctx.tx.courseSection.findMany({
-      where: { courseId: s.courseId },
+      where: { courseId: s.courseId, parentId: null },
       orderBy: { rank: 'asc' },
     });
     const i = all.findIndex((x) => x.id === id);
@@ -444,6 +478,27 @@ export const moveSection = defineOperation({
   },
 });
 
+/** Moves a subsection, with its activities, to the end of another section. */
+export const moveSubsection = defineOperation({
+  name: 'section.moveTo',
+  input: z.object({ id: z.string().uuid(), parentId: z.string().uuid() }),
+  async authorize(ctx, i) {
+    const s = await ctx.db.courseSection.findUniqueOrThrow({ where: { id: i.id } });
+    await ctx.perm.require('course:manageactivities', s.courseId);
+  },
+  async handler(ctx, { id, parentId }) {
+    const s = await ctx.tx.courseSection.findUniqueOrThrow({ where: { id } });
+    if (!s.parentId) throw new ValidationError({ id: ['Only a subsection moves into a section'] });
+    if (s.parentId === parentId) return { id };
+    const parent = await parentSection(ctx.tx, s.courseId, parentId);
+    await ctx.tx.courseSection.update({
+      where: { id },
+      data: { parentId: parent.id, rank: await rankAtEnd(ctx.tx, parent.id) },
+    });
+    return { id };
+  },
+});
+
 export const deleteSection = defineOperation({
   name: 'section.delete',
   input: z.object({ id: z.string().uuid() }),
@@ -454,7 +509,7 @@ export const deleteSection = defineOperation({
   async handler(ctx, { id }) {
     const s = await ctx.tx.courseSection.findUniqueOrThrow({ where: { id } });
     const first = await ctx.tx.courseSection.findFirst({
-      where: { courseId: s.courseId },
+      where: { courseId: s.courseId, parentId: null },
       orderBy: { rank: 'asc' },
     });
     if (first?.id === id)
@@ -462,6 +517,8 @@ export const deleteSection = defineOperation({
     const live = await ctx.tx.activity.count({ where: { sectionId: id, deletedAt: null } });
     if (live)
       throw new ValidationError({ id: ['Move or delete the activities in this section first'] });
+    if (await ctx.tx.courseSection.count({ where: { parentId: id } }))
+      throw new ValidationError({ id: ['Move or delete the subsections in this section first'] });
     await ctx.tx.activity.deleteMany({ where: { sectionId: id } });
     await ctx.tx.courseSection.delete({ where: { id } });
     return { id };

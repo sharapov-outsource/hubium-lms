@@ -179,8 +179,9 @@ describe('REST API v1', () => {
     expect(list.items.map((c) => c.id)).toContain(f.courseId);
     const r = await call(tokens.student!, `/courses/${f.courseId}/contents`);
     const { sections } = (await r.json()) as {
-      sections: { activities: { id: string; url: string }[] }[];
+      sections: { parentId: string | null; activities: { id: string; url: string }[] }[];
     };
+    expect(sections.every((s) => s.parentId === null)).toBe(true);
     const ids = sections.flatMap((s) => s.activities.map((a) => a.id));
     expect(ids).toContain(pageId);
     expect(ids).not.toContain(hiddenId);

@@ -1,5 +1,6 @@
 import { Readable } from 'node:stream';
 import {
+  addSection,
   buildModuleCtx,
   type CourseField,
   calculationOrder,
@@ -217,6 +218,7 @@ export interface MbzReport {
   courseId: string;
   moodleRelease: string;
   sections: number;
+  subsections: number;
   activities: number;
   questions: number;
   files: number;
@@ -1064,9 +1066,14 @@ export async function importMbz(
         summary: txt(x.summary),
         visible: txt(x.visible) !== '0',
         sequence: txt(x.sequence).split(',').filter(Boolean),
+        /** Moodle 4.5+: a subsection's own section belongs to its mod_subsection instance. */
+        component: txt(x.component),
+        itemid: txt(x.itemid),
       };
     })
     .sort((a, b) => a.number - b.number);
+  const delegated = sections.filter((s) => s.component === 'mod_subsection');
+  const topSections = sections.filter((s) => s.component !== 'mod_subsection');
 
   const fullName =
     target.fullName ??
@@ -1084,7 +1091,7 @@ export async function importMbz(
     fullName,
     shortName,
     format: txt(courseXml.format) === 'weeks' ? 'WEEKS' : 'TOPICS',
-    sections: Math.min(52, Math.max(0, sections.length - 1)),
+    sections: Math.min(52, Math.max(0, topSections.length - 1)),
     startDate: date(courseXml.startdate) ?? undefined,
     endDate: date(courseXml.enddate) ?? undefined,
   });
@@ -1097,7 +1104,7 @@ export async function importMbz(
   }
 
   async function fillCourse(courseId: string) {
-    await addMissingSections(ctx, courseId, sections.length - 1);
+    await addMissingSections(ctx, courseId, topSections.length - 1);
     const db = ctx.db;
     let fileCount = 0;
 
@@ -1152,11 +1159,11 @@ export async function importMbz(
     });
 
     const newSections = await db.courseSection.findMany({
-      where: { courseId },
+      where: { courseId, parentId: null },
       orderBy: { rank: 'asc' },
     });
     const sectionMap = new Map<string, string>();
-    for (const [i, s] of sections.entries()) {
+    for (const [i, s] of topSections.entries()) {
       const target = newSections[i] ?? newSections.at(-1)!;
       sectionMap.set(s.moodleId, target.id);
       await db.courseSection.update({
@@ -1342,10 +1349,23 @@ export async function importMbz(
     const groupCount = groupMap.size;
     if (groupCount) warnings.push(`${groupCount} groups were created without their members`);
 
-    // activities in section order
+    // activities in section order; a subsection's activities right after it
     const actInfo = new Map(activitiesInfo.map((a) => [txt(a.moduleid), a]));
-    const ordered = sections.flatMap((s) =>
-      s.sequence.filter((id) => actInfo.has(id)).map((id) => ({ section: s, a: actInfo.get(id)! })),
+    const inOrder = (s: (typeof sections)[number]) =>
+      s.sequence.filter((id) => actInfo.has(id)).map((id) => ({ section: s, a: actInfo.get(id)! }));
+    const subsectionOf = (a: Node) => {
+      const dir = txt(a.directory);
+      const instance = String(
+        root(xml(archive, `${dir}/subsection.xml`), 'activity')['@_id'] ?? '',
+      );
+      return delegated.find((d) => d.itemid === instance);
+    };
+    const ordered = topSections.flatMap((s) =>
+      inOrder(s).flatMap((x) => {
+        if (txt(x.a.modulename) !== 'subsection') return [x];
+        const own = subsectionOf(x.a);
+        return [x, ...(own ? inOrder(own) : [])];
+      }),
     );
     for (const a of activitiesInfo) {
       if (!ordered.some((o) => o.a === a)) {
@@ -1354,6 +1374,7 @@ export async function importMbz(
       }
     }
     let activityCount = 0;
+    let subsectionCount = 0;
     const createdActivities: { dir: string; id: string }[] = [];
     const idNumberTaken = async (idNumber: string) => {
       const where = { courseId, idNumber: { equals: idNumber, mode: 'insensitive' as const } };
@@ -1370,6 +1391,23 @@ export async function importMbz(
       const contextid = String(actRoot['@_contextid'] ?? '');
       const name = (txt(data.name) || txt(a.title) || modname).slice(0, 255);
       const sectionId = sectionMap.get(section.moodleId) ?? newSections[0]!.id;
+      if (modname === 'subsection') {
+        // a section among the activities, holding those of its own section
+        const own = subsectionOf(a);
+        const { id } = await addSection.run(ctx, { courseId, parentId: sectionId, title: name });
+        if (own) {
+          sectionMap.set(own.moodleId, id);
+          await db.courseSection.update({
+            where: { id },
+            data: {
+              summary: sanitizeRichText(own.summary),
+              visible: own.visible && txt(module.visible) !== '0',
+            },
+          });
+        }
+        subsectionCount++;
+        continue;
+      }
       const introFiles = await storeArea(contextid, `mod_${modname}`, 'intro');
       const intro = rewrite(txt(data.intro), introFiles);
       const groupMode = ({ '1': 'SEPARATE', '2': 'VISIBLE' } as const)[txt(module.groupmode)];
@@ -2056,7 +2094,8 @@ export async function importMbz(
     return {
       courseId,
       moodleRelease: txt(info.moodle_release),
-      sections: sections.length,
+      sections: topSections.length,
+      subsections: subsectionCount,
       activities: activityCount,
       questions: questionCount,
       files: fileCount,

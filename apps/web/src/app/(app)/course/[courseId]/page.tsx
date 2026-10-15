@@ -1,4 +1,5 @@
 import {
+  compareRank,
   enabledModules,
   getCourseAccess,
   getCourseOutline,
@@ -21,8 +22,10 @@ import {
   ActivityMenu,
   AddActivityButton,
   AddSectionButton,
+  AddSubsectionButton,
   CompletionToggle,
   SectionMenu,
+  SubsectionBlock,
 } from './outline-parts';
 
 export default async function CoursePage({
@@ -59,8 +62,10 @@ export default async function CoursePage({
     name: tm(`${m.key}.name` as never),
     description: tm(`${m.key}.description` as never),
   }));
-  const sectionTitle = (s: (typeof outline)[number]) => {
+  type Section = (typeof outline)[number];
+  const sectionTitle = (s: Section) => {
     if (s.title) return s.title;
+    if (s.parentId) return t('subsection');
     if (s.index === 0) return t('general');
     if (course.format === 'WEEKS' && course.startDate) {
       const start = new Date(course.startDate.getTime() + (s.index - 1) * 7 * 86_400_000);
@@ -81,8 +86,137 @@ export default async function CoursePage({
     if (!s.available && s.availabilityMissing.length)
       sectionRestricted.set(s.id, await describeConditions(s.availabilityMissing));
   }
-  const sectionsForMove = outline.map((s) => ({ id: s.id, title: sectionTitle(s) }));
+  const top = outline.filter((s) => !s.parentId);
+  const subsectionsOf = (id: string) => outline.filter((x) => x.parentId === id);
+  const topForMove = top.map((s) => ({ id: s.id, title: sectionTitle(s) }));
+  // activities move into sections and subsections alike
+  const sectionsForMove = top.flatMap((s) => [
+    { id: s.id, title: sectionTitle(s) },
+    ...subsectionsOf(s.id).map((c) => ({
+      id: c.id,
+      title: `${sectionTitle(s)} › ${sectionTitle(c)}`,
+    })),
+  ]);
   const isEmpty = outline.every((s) => s.activities.length === 0 && !s.summary);
+
+  const restrictedNote = (s: Section, className: string) =>
+    sectionRestricted.has(s.id) ? (
+      <p className={`flex items-center gap-2 text-sm text-muted-foreground ${className}`}>
+        <Lock className="size-4" aria-hidden />
+        {t('restricted', { conditions: sectionRestricted.get(s.id)! })}
+      </p>
+    ) : null;
+
+  const renderActivity = ({
+    activity: a,
+    available,
+    completion,
+    moduleDisabled,
+  }: Section['activities'][number]) => {
+    const m = getModule(a.moduleKey);
+    const ui = getModuleUI(a.moduleKey);
+    const ref = m ? toActivityRef(a) : null;
+    const menu = editing ? (
+      <ActivityMenu
+        courseId={courseId}
+        activity={{
+          id: a.id,
+          name: a.name,
+          visibility: a.visibility,
+          disabled: moduleDisabled,
+        }}
+        sections={sectionsForMove}
+      />
+    ) : null;
+    if (m?.archetype === 'inline' && ui?.Inline && ref && !moduleDisabled) {
+      const Inline = ui.Inline as (p: { activity: unknown }) => React.ReactNode;
+      return (
+        <li key={a.id} id={`a-${a.id}`} className="flex items-start gap-3 px-5 py-3">
+          <div className="min-w-0 flex-1">
+            <Inline activity={ref} />
+          </div>
+          {menu}
+        </li>
+      );
+    }
+    const reason = restricted.get(a.id);
+    return (
+      <li key={a.id} id={`a-${a.id}`} className="flex items-center gap-3 px-5 py-3">
+        <ModuleIcon icon={m?.icon ?? 'Box'} archetype={m?.archetype} />
+        <div className="min-w-0 flex-1">
+          {available ? (
+            <Link href={`/course/${courseId}/a/${a.id}`} className="font-medium hover:underline">
+              {a.name}
+            </Link>
+          ) : (
+            <span className="font-medium text-muted-foreground">{a.name}</span>
+          )}
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>{tm(`${a.moduleKey}.name` as never)}</span>
+            {a.visibility === 'HIDDEN' ? (
+              <Badge variant="warning">{t('hiddenFromStudents')}</Badge>
+            ) : null}
+            {a.visibility === 'STEALTH' ? <Badge>{t('stealthBadge')}</Badge> : null}
+            {moduleDisabled ? <Badge variant="warning">{t('moduleDisabledBadge')}</Badge> : null}
+            {reason ? (
+              <span className="flex items-center gap-1">
+                <Lock className="size-3" aria-hidden />
+                {t('restricted', { conditions: reason })}
+              </span>
+            ) : null}
+          </div>
+          {a.showIntro && a.intro ? <RichText html={a.intro} className="mt-1 text-sm" /> : null}
+        </div>
+        {completion !== null && access.isEnrolled && !access.canManageActivities && available ? (
+          <CompletionToggle
+            courseId={courseId}
+            activityId={a.id}
+            manual={a.completionMode === 'MANUAL'}
+            state={completion}
+            labels={{ mark: t('markDone'), done: t('done'), auto: t('completionAuto') }}
+          />
+        ) : null}
+        {menu}
+      </li>
+    );
+  };
+
+  const renderSubsection = (c: Section) => (
+    <li key={c.id} id={`s-${c.id}`} className="px-5 py-3">
+      <SubsectionBlock
+        id={c.id}
+        title={sectionTitle(c)}
+        badges={!c.visible ? <Badge variant="warning">{t('hiddenFromStudents')}</Badge> : null}
+        menu={
+          editing ? (
+            <SectionMenu
+              courseId={courseId}
+              section={{
+                id: c.id,
+                title: c.title,
+                summary: c.summary,
+                visible: c.visible,
+                isFirst: false,
+                parentId: c.parentId,
+              }}
+              sections={topForMove}
+            />
+          ) : null
+        }
+      >
+        {c.summary ? <RichText html={c.summary} className="px-4 pt-3 text-sm" /> : null}
+        {restrictedNote(c, 'px-4 pt-3')}
+        {c.activities.length ? (
+          <ul className="divide-y divide-border">{c.activities.map(renderActivity)}</ul>
+        ) : null}
+        {editing ? (
+          <div className="flex flex-wrap gap-2 border-t border-border px-4 py-2">
+            <AddActivityButton courseId={courseId} sectionId={c.id} modules={modules} />
+          </div>
+        ) : null}
+      </SubsectionBlock>
+    </li>
+  );
 
   return (
     <div className="grid gap-5">
@@ -119,9 +253,15 @@ export default async function CoursePage({
           description={access.canManageActivities ? t('emptyEdit') : undefined}
         />
       ) : null}
-      {outline.map((s) => {
-        if (!editing && s.index === 0 && s.activities.length === 0 && !s.summary) return null;
-        if (!editing && s.activities.length === 0 && !s.summary && !s.title) return null;
+      {top.map((s) => {
+        const subsections = subsectionsOf(s.id);
+        const empty = s.activities.length === 0 && subsections.length === 0 && !s.summary;
+        if (!editing && empty && (s.index === 0 || !s.title)) return null;
+        // activities and subsections in one order
+        const items = [
+          ...s.activities.map((e) => ({ rank: e.activity.rank, node: renderActivity(e) })),
+          ...subsections.map((c) => ({ rank: c.rank, node: renderSubsection(c) })),
+        ].sort(compareRank);
         return (
           <Card
             key={s.id}
@@ -147,105 +287,12 @@ export default async function CoursePage({
               ) : null}
             </div>
             {s.summary ? <RichText html={s.summary} className="px-5 pt-3 text-sm" /> : null}
-            {sectionRestricted.has(s.id) ? (
-              <p className="flex items-center gap-2 px-5 pt-3 text-sm text-muted-foreground">
-                <Lock className="size-4" aria-hidden />
-                {t('restricted', { conditions: sectionRestricted.get(s.id)! })}
-              </p>
-            ) : null}
-            <ul className="divide-y divide-border">
-              {s.activities.map(({ activity: a, available, completion, moduleDisabled }) => {
-                const m = getModule(a.moduleKey);
-                const ui = getModuleUI(a.moduleKey);
-                const ref = m ? toActivityRef(a) : null;
-                if (m?.archetype === 'inline' && ui?.Inline && ref && !moduleDisabled) {
-                  const Inline = ui.Inline as (p: { activity: unknown }) => React.ReactNode;
-                  return (
-                    <li key={a.id} id={`a-${a.id}`} className="flex items-start gap-3 px-5 py-3">
-                      <div className="min-w-0 flex-1">
-                        <Inline activity={ref} />
-                      </div>
-                      {editing ? (
-                        <ActivityMenu
-                          courseId={courseId}
-                          activity={{
-                            id: a.id,
-                            name: a.name,
-                            visibility: a.visibility,
-                            disabled: moduleDisabled,
-                          }}
-                          sections={sectionsForMove}
-                        />
-                      ) : null}
-                    </li>
-                  );
-                }
-                const reason = restricted.get(a.id);
-                return (
-                  <li key={a.id} id={`a-${a.id}`} className="flex items-center gap-3 px-5 py-3">
-                    <ModuleIcon icon={m?.icon ?? 'Box'} archetype={m?.archetype} />
-                    <div className="min-w-0 flex-1">
-                      {available ? (
-                        <Link
-                          href={`/course/${courseId}/a/${a.id}`}
-                          className="font-medium hover:underline"
-                        >
-                          {a.name}
-                        </Link>
-                      ) : (
-                        <span className="font-medium text-muted-foreground">{a.name}</span>
-                      )}
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <span>{tm(`${a.moduleKey}.name` as never)}</span>
-                        {a.visibility === 'HIDDEN' ? (
-                          <Badge variant="warning">{t('hiddenFromStudents')}</Badge>
-                        ) : null}
-                        {a.visibility === 'STEALTH' ? <Badge>{t('stealthBadge')}</Badge> : null}
-                        {moduleDisabled ? (
-                          <Badge variant="warning">{t('moduleDisabledBadge')}</Badge>
-                        ) : null}
-                        {reason ? (
-                          <span className="flex items-center gap-1">
-                            <Lock className="size-3" aria-hidden />
-                            {t('restricted', { conditions: reason })}
-                          </span>
-                        ) : null}
-                      </div>
-                      {a.showIntro && a.intro ? (
-                        <RichText html={a.intro} className="mt-1 text-sm" />
-                      ) : null}
-                    </div>
-                    {completion !== null &&
-                    access.isEnrolled &&
-                    !access.canManageActivities &&
-                    available ? (
-                      <CompletionToggle
-                        courseId={courseId}
-                        activityId={a.id}
-                        manual={a.completionMode === 'MANUAL'}
-                        state={completion}
-                        labels={{ mark: t('markDone'), done: t('done'), auto: t('completionAuto') }}
-                      />
-                    ) : null}
-                    {editing ? (
-                      <ActivityMenu
-                        courseId={courseId}
-                        activity={{
-                          id: a.id,
-                          name: a.name,
-                          visibility: a.visibility,
-                          disabled: moduleDisabled,
-                        }}
-                        sections={sectionsForMove}
-                      />
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
+            {restrictedNote(s, 'px-5 pt-3')}
+            <ul className="divide-y divide-border">{items.map((x) => x.node)}</ul>
             {editing ? (
               <div className="flex flex-wrap gap-2 border-t border-border px-5 py-3">
                 <AddActivityButton courseId={courseId} sectionId={s.id} modules={modules} />
+                <AddSubsectionButton courseId={courseId} parentId={s.id} />
               </div>
             ) : null}
           </Card>

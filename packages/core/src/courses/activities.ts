@@ -24,6 +24,7 @@ import {
   parseAvailability,
 } from './availability.ts';
 import { getCourseAccess } from './courses.ts';
+import { rankAtEnd, rankForStep, sectionItems } from './section-items.ts';
 
 const CompletionRules = z
   .object({
@@ -164,15 +165,6 @@ export async function syncCalendar(tx: Prisma.TransactionClient, a: Activity): P
       },
     });
   }
-}
-
-async function rankAtEnd(tx: Prisma.TransactionClient, sectionId: string): Promise<string> {
-  const last = await tx.activity.findFirst({
-    where: { sectionId },
-    orderBy: { rank: 'desc' },
-    select: { rank: true },
-  });
-  return rankBetween(last?.rank ?? null, null);
 }
 
 /** Re-index the activity for AI retrieval (debounced; no-op while AI is off). */
@@ -348,7 +340,7 @@ export const setActivityVisibility = defineOperation({
   },
 });
 
-/** Moves an activity to a section, before another activity (or to the end). */
+/** Moves an activity to a section, before another activity or subsection (or to the end). */
 export const moveActivity = defineOperation({
   name: 'activity.move',
   input: z.object({
@@ -362,11 +354,9 @@ export const moveActivity = defineOperation({
     const section = await ctx.tx.courseSection.findUnique({ where: { id: sectionId } });
     if (!section || section.courseId !== a.courseId)
       throw new ValidationError({ sectionId: ['Unknown section'] });
-    const siblings = await ctx.tx.activity.findMany({
-      where: { sectionId, id: { not: id } },
-      orderBy: { rank: 'asc' },
-      select: { id: true, rank: true },
-    });
+    const siblings = (await sectionItems(ctx.tx, sectionId, { withDeleted: true })).filter(
+      (x) => x.id !== id,
+    );
     let rank: string;
     if (beforeId) {
       const i = siblings.findIndex((s) => s.id === beforeId);
@@ -386,17 +376,8 @@ export const moveActivityStep = defineOperation({
   authorize: (ctx, i) => authorizeActivity(ctx, i.id),
   async handler(ctx, { id, direction }) {
     const a = await ctx.tx.activity.findUniqueOrThrow({ where: { id } });
-    const siblings = await ctx.tx.activity.findMany({
-      where: { sectionId: a.sectionId, deletedAt: null },
-      orderBy: { rank: 'asc' },
-      select: { id: true, rank: true },
-    });
-    const i = siblings.findIndex((s) => s.id === id);
-    let rank: string | null = null;
-    if (direction === 'up' && i > 0)
-      rank = rankBetween(siblings[i - 2]?.rank ?? null, siblings[i - 1]!.rank);
-    if (direction === 'down' && i < siblings.length - 1)
-      rank = rankBetween(siblings[i + 1]!.rank, siblings[i + 2]?.rank ?? null);
+    // past the neighbouring activity or subsection
+    const rank = rankForStep(await sectionItems(ctx.tx, a.sectionId), id, direction);
     if (rank) await ctx.tx.activity.update({ where: { id }, data: { rank } });
     return { id };
   },
@@ -462,11 +443,8 @@ export const duplicateActivity = defineOperation({
   authorize: (ctx, i) => authorizeActivity(ctx, i.id, { enabledType: true }),
   async handler(ctx, { id }) {
     const a = await ctx.tx.activity.findUniqueOrThrow({ where: { id } });
-    const next = await ctx.tx.activity.findFirst({
-      where: { sectionId: a.sectionId, rank: { gt: a.rank } },
-      orderBy: { rank: 'asc' },
-      select: { rank: true },
-    });
+    const items = await sectionItems(ctx.tx, a.sectionId, { withDeleted: true });
+    const next = items[items.findIndex((x) => x.id === id) + 1];
     const newId = uuidv7();
     await createContext(ctx.tx, newId, 'ACTIVITY', a.courseId);
     const copy = await ctx.tx.activity.create({
@@ -513,12 +491,16 @@ export interface OutlineActivity {
 
 export interface OutlineSection {
   id: string;
+  /** The section a subsection is in; null for a section of the course. */
+  parentId: string | null;
+  /** A subsection's rank is in its parent's order of activities and subsections. */
   rank: string;
   title: string;
   summary: string;
   visible: boolean;
   available: boolean;
   availabilityMissing: import('./availability.ts').Condition[];
+  /** Number of the section in the course (0 is the general one); a subsection has its parent's. */
   index: number;
   activities: OutlineActivity[];
 }
@@ -596,7 +578,10 @@ export async function loadAvailabilityFacts(
   };
 }
 
-/** Sections and activities as the viewer sees them (visibility, availability, completion). */
+/**
+ * Sections and activities as the viewer sees them (visibility, availability, completion).
+ * Each section is followed by its subsections, which are hidden and restricted with it.
+ */
 export async function getCourseOutline(
   ctx: RequestContext,
   courseId: string,
@@ -622,9 +607,17 @@ export async function getCourseOutline(
     for (const r of rows) completionMap.set(r.activityId, r.state);
   }
   const out: OutlineSection[] = [];
-  sections.forEach((s, index) => {
-    const sAvail = evaluateAvailability(parseAvailability(s.availability), facts);
-    if (!manage && (!s.visible || sAvail.hidden)) return;
+  const add = (
+    s: (typeof sections)[number],
+    index: number,
+    parent?: { available: boolean; missing: OutlineSection['availabilityMissing'] },
+  ) => {
+    const own = evaluateAvailability(parseAvailability(s.availability), facts);
+    if (!manage && (!s.visible || own.hidden)) return false;
+    const sAvail = {
+      available: own.available && (parent?.available ?? true),
+      missing: [...(parent?.missing ?? []), ...own.missing],
+    };
     const acts = activities
       .filter((a) => a.sectionId === s.id)
       .map((a): OutlineActivity => {
@@ -647,6 +640,7 @@ export async function getCourseOutline(
       .filter((x) => x.listed || opts.includeUnlisted);
     out.push({
       id: s.id,
+      parentId: s.parentId,
       rank: s.rank,
       title: s.title,
       summary: s.summary,
@@ -656,7 +650,15 @@ export async function getCourseOutline(
       index,
       activities: acts,
     });
-  });
+    return sAvail;
+  };
+  sections
+    .filter((s) => !s.parentId)
+    .forEach((s, index) => {
+      const shown = add(s, index);
+      if (!shown) return;
+      for (const sub of sections.filter((x) => x.parentId === s.id)) add(sub, index, shown);
+    });
   return out;
 }
 

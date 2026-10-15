@@ -28,7 +28,8 @@ describe('.mbz import', () => {
     expect(report).toMatchObject({
       moodleRelease: '4.5 (Build: 20241007)',
       sections: 2,
-      activities: 16,
+      subsections: 1,
+      activities: 17,
       questions: 6,
     });
     expect(report.warnings.join('\n')).toContain('Формула');
@@ -68,10 +69,17 @@ describe('.mbz import', () => {
     });
     expect(course.summary).toMatch(/\/files\/[0-9a-f-]{36}\/logo\.png/);
     const sections = await t.db.courseSection.findMany({
-      where: { courseId: course.id },
+      where: { courseId: course.id, parentId: null },
       orderBy: { rank: 'asc' },
     });
     expect(sections[1]).toMatchObject({ title: 'Тема 1', summary: '<p>Первая тема</p>' });
+    // a Moodle 4.5 subsection: in its section after the H5P activity, with its link
+    const sub = await t.db.courseSection.findFirstOrThrow({
+      where: { parentId: sections[1]!.id },
+      include: { activities: true },
+    });
+    expect(sub).toMatchObject({ title: 'Практикум', summary: '<p>Задачи</p>', visible: true });
+    expect(sub.activities.map((a) => `${a.moduleKey}:${a.name}`)).toEqual(['url:Справочник']);
     const acts = await t.db.activity.findMany({
       where: { courseId: course.id },
       orderBy: { rank: 'asc' },

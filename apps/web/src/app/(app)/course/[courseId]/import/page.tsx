@@ -114,16 +114,15 @@ export default async function CourseImportPage({
   async function chosen(c: NonNullable<typeof source>) {
     const tc = await getTranslations('course');
     const tm = await getTranslations('mod');
+    const activities = {
+      where: { deletedAt: null },
+      orderBy: { rank: 'asc' as const },
+      select: { id: true, name: true, moduleKey: true },
+    };
     const sections = await ctx.db.courseSection.findMany({
-      where: { courseId: c.id },
+      where: { courseId: c.id, parentId: null },
       orderBy: { rank: 'asc' },
-      include: {
-        activities: {
-          where: { deletedAt: null },
-          orderBy: { rank: 'asc' },
-          select: { id: true, name: true, moduleKey: true },
-        },
-      },
+      include: { activities, subsections: { orderBy: { rank: 'asc' }, include: { activities } } },
     });
     const title = (s: { title: string }, i: number) =>
       s.title ||
@@ -137,9 +136,17 @@ export default async function CourseImportPage({
         targetCourseId={courseId}
         source={{ id: c.id, name: `${c.fullName} (${c.shortName})` }}
         sections={sections
-          .map((s, i) => ({
-            id: s.id,
-            title: title(s, i),
+          .flatMap((s, i) => [
+            { id: s.id, title: title(s, i), activities: s.activities },
+            // what is in a subsection lands in the section with the same number
+            ...s.subsections.map((c) => ({
+              id: c.id,
+              title: `${title(s, i)} › ${c.title || tc('subsection')}`,
+              activities: c.activities,
+            })),
+          ])
+          .map((s) => ({
+            ...s,
             activities: s.activities.map((a) => ({
               id: a.id,
               name: a.name,

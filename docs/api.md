@@ -62,7 +62,7 @@ Lists that can grow take `page` (from 1) and `pageSize` and answer `{ "items": [
 | GET | `/catalog?q&categoryId` | search the course catalog (word forms, prefixes, typos), best match first |
 | GET, POST | `/courses` | your courses; create a course |
 | GET | `/courses/{id}` | course details |
-| GET | `/courses/{id}/contents` | sections and the activities you can see |
+| GET | `/courses/{id}/contents` | sections and the activities you can see; a subsection follows its section and names it in `parentId` |
 | GET, POST | `/courses/{id}/enrolments` | participants; manual enrolment |
 | GET | `/courses/{id}/groups` | groups |
 | GET | `/courses/{id}/groupings` | groupings and their groups |

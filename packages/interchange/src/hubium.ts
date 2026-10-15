@@ -1,6 +1,7 @@
 import {
   addSection,
   buildModuleCtx,
+  compareRank,
   createCourse,
   disabledTypesIn,
   disabledTypesWarning,
@@ -13,6 +14,7 @@ import {
   NotFoundError,
   parseInput,
   type RequestContext,
+  rankBetween,
   syncGradeItemsFor,
   toActivityRef,
   ValidationError,
@@ -54,6 +56,10 @@ const Manifest = z.object({
 
 const Section = z.object({
   id: z.string(),
+  /** A subsection names its section (which comes before it); absent in older archives. */
+  parentId: z.string().nullable().default(null),
+  /** How many of its section's activities in the archive come before a subsection. */
+  position: z.number().int().min(0).default(0),
   title: z.string(),
   summary: z.string(),
   visible: z.boolean(),
@@ -232,10 +238,14 @@ export async function exportCourse(
   await ctx.perm.require('backup:create', courseId);
   const db = ctx.db;
   const course = await db.course.findUniqueOrThrow({ where: { id: courseId } });
-  const sections = await db.courseSection.findMany({
+  const allSections = await db.courseSection.findMany({
     where: { courseId },
     orderBy: { rank: 'asc' },
   });
+  // each section of the course followed by its subsections
+  const sections = allSections
+    .filter((s) => !s.parentId)
+    .flatMap((s) => [s, ...allSections.filter((x) => x.parentId === s.id)]);
   const activities = await db.activity.findMany({
     where: {
       courseId,
@@ -350,6 +360,10 @@ export async function exportCourse(
     },
     sections: sections.map((s) => ({
       id: s.id,
+      parentId: s.parentId,
+      position: s.parentId
+        ? activities.filter((a) => a.sectionId === s.parentId && compareRank(a, s) < 0).length
+        : 0,
       title: s.title,
       summary: s.summary,
       visible: s.visible,
@@ -520,8 +534,20 @@ const MAX_NEW_SECTIONS = 52;
 
 /** Adds sections until the course has `wanted` besides the general one. */
 export async function addMissingSections(ctx: RequestContext, courseId: string, wanted: number) {
-  const have = (await ctx.db.courseSection.count({ where: { courseId } })) - 1;
+  const have = (await ctx.db.courseSection.count({ where: { courseId, parentId: null } })) - 1;
   for (let i = have; i < wanted; i++) await addSection.run(ctx, { courseId });
+}
+
+/**
+ * The archive's sections of the course and its subsections. A subsection whose section is
+ * not one of the course's (an altered archive) counts as a section of the course.
+ */
+function splitSections(sections: z.infer<typeof Section>[]) {
+  const ids = new Set(sections.filter((s) => !s.parentId).map((s) => s.id));
+  return {
+    top: sections.filter((s) => !s.parentId || !ids.has(s.parentId)),
+    subs: sections.filter((s) => s.parentId && ids.has(s.parentId)),
+  };
 }
 
 /** Restores a .hubium archive into a new course in `categoryId`. */
@@ -538,7 +564,7 @@ export async function restoreCourse(
     for (let i = 1; await ctx.db.course.findUnique({ where: { shortName } }); i++)
       shortName = `${src.shortName}-${i}`;
   }
-  const sectionsCount = Math.max(0, b.course.sections.length - 1);
+  const sectionsCount = Math.max(0, splitSections(b.course.sections).top.length - 1);
   const { id: courseId } = await createCourse.run(ctx, {
     categoryId: target.categoryId,
     fullName: target.fullName ?? src.fullName,
@@ -619,21 +645,45 @@ async function restoreInto(
   // what an import into an existing course made, removed again if it fails
   const made = { activities: [] as string[], categories: [] as string[] };
   try {
-    // sections: the one with the same number, added when the course has fewer
-    const sectionIndex = new Map(b.course.sections.map((s, i) => [s.id, i]));
+    // sections: the one with the same number, added when the course has fewer; an import
+    // puts what was in a subsection into its section
+    const { top, subs } = splitSections(b.course.sections);
+    const sectionIndex = new Map(top.map((s, i) => [s.id, i]));
+    for (const s of subs) sectionIndex.set(s.id, sectionIndex.get(s.parentId!)!);
     const needed = scope.fresh
-      ? Math.max(0, b.course.sections.length - 1)
+      ? Math.max(0, top.length - 1)
       : Math.max(0, ...activities.map((a) => sectionIndex.get(a.sectionId) ?? 0));
-    const before = await db.courseSection.count({ where: { courseId } });
+    const before = await db.courseSection.count({ where: { courseId, parentId: null } });
     if (target.format !== 'SINGLE') await addMissingSections(ctx, courseId, needed);
     const newSections = await db.courseSection.findMany({
-      where: { courseId },
+      where: { courseId, parentId: null },
       orderBy: { rank: 'asc' },
     });
-    b.course.sections.forEach((s, i) => {
+    top.forEach((s, i) => {
       const t = newSections[i] ?? newSections.at(-1)!;
       map.set(s.id, t.id);
     });
+    // a restored course gets its subsections back (placed among the activities below)
+    const newSubs = new Map<string, string>();
+    for (const s of subs) {
+      if (!scope.fresh || target.format === 'SINGLE') {
+        map.set(s.id, map.get(s.parentId!)!);
+        continue;
+      }
+      const id = uuidv7();
+      map.set(s.id, id);
+      newSubs.set(s.id, id);
+      await db.courseSection.create({
+        data: {
+          id,
+          courseId,
+          parentId: map.get(s.parentId!)!,
+          rank: rankBetween(null, null),
+          title: s.title.slice(0, 255),
+          visible: s.visible,
+        },
+      });
+    }
 
     if (scope.fresh)
       for (const g of b.course.groups) {
@@ -877,7 +927,7 @@ async function restoreInto(
       const kept = scope.fresh ? tree : pruneAvailability(tree, map);
       return kept ? (rewriteJson(kept, map) as Prisma.InputJsonValue) : undefined;
     };
-    for (const [i, s] of b.course.sections.entries()) {
+    for (const [i, s] of top.entries()) {
       const t = newSections[i];
       // an import names only the sections it added
       if (!t || (!scope.fresh && i < before)) continue;
@@ -887,6 +937,32 @@ async function restoreInto(
           title: s.title,
           summary: sanitizeRichText(rewriteIds(s.summary, map)),
           visible: s.visible,
+          availability: availability(s.availability),
+        },
+      });
+    }
+    // each subsection back in its place among its section's activities
+    const placed = new Map<string, { rank: string | null; position: number }>();
+    for (const s of subs) {
+      const id = newSubs.get(s.id);
+      if (!id) continue;
+      const parentId = map.get(s.parentId!)!;
+      const acts = await db.activity.findMany({
+        where: { sectionId: parentId, deletedAt: null },
+        orderBy: { rank: 'asc' },
+        select: { rank: true },
+      });
+      const last = placed.get(parentId) ?? { rank: null, position: 0 };
+      const position = Math.max(last.position, Math.min(s.position, acts.length));
+      const after = acts[position]?.rank ?? null;
+      const prev = acts[position - 1]?.rank ?? null;
+      const rank = rankBetween(last.rank && (!prev || last.rank > prev) ? last.rank : prev, after);
+      placed.set(parentId, { rank, position });
+      await db.courseSection.update({
+        where: { id },
+        data: {
+          rank,
+          summary: sanitizeRichText(rewriteIds(s.summary, map)),
           availability: availability(s.availability),
         },
       });
@@ -998,7 +1074,7 @@ async function restoreInto(
     }
     return {
       courseId,
-      sections: scope.fresh ? b.course.sections.length : newSections.length - before,
+      sections: scope.fresh ? top.length : newSections.length - before,
       activities: created.length,
       questions: withBank ? b.course.questions.length : 0,
       files: fileCount,

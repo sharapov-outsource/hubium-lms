@@ -293,6 +293,10 @@ const Activity = z
 const Section = z
   .object({
     id: Id,
+    parentId: Id.nullable().openapi({
+      description:
+        'The section a subsection is in (it follows its section in the list); null for a section of the course',
+    }),
     title: z.string(),
     summary: z.string(),
     visible: z.boolean(),
@@ -921,6 +925,7 @@ export function createApi(opts: ApiOptions) {
         {
           sections: outline.map((s) => ({
             id: s.id,
+            parentId: s.parentId,
             title: s.title,
             summary: s.summary,
             visible: s.visible,
