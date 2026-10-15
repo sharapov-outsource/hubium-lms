@@ -35,9 +35,13 @@ export default async function EditQuestionPage({
   if (sp.id && !q) notFound();
   const type = (q?.type ?? sp.type) as QuestionType;
   if (!questionTypes.includes(type)) notFound();
-  const categoryId = q?.categoryId ?? sp.category ?? categories[0]!.id;
+  // one of this course's categories, whatever the link says
+  const categoryId =
+    q?.categoryId ?? categories.find((c) => c.id === sp.category)?.id ?? categories[0]!.id;
   // datasets the category shares, for calculated questions
-  const shared = type.startsWith('CALCULATED') ? await sharedDatasets(db, categoryId) : [];
+  const shared = type.startsWith('CALCULATED')
+    ? await sharedDatasets(db, categoryId, courseId)
+    : [];
   return (
     <>
       <PageHeader

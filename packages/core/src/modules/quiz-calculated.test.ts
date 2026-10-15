@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { listQuestionCategories, saveQuestion } from '../questions/bank.ts';
+import { sharedDatasets } from '../questions/datasets.ts';
 import { runModuleAction, runModuleQuery } from './actions.ts';
 
 // Calculated questions: datasets checked when saved, shared datasets of a category,
@@ -88,6 +89,13 @@ describe('quiz: calculated questions', () => {
       },
     });
     expect(await t.db.questionDataset.count({ where: { categoryId: cat!.id } })).toBe(2);
+    expect((await sharedDatasets(t.db, cat!.id, f.courseId)).map((d) => d.name)).toEqual([
+      'a',
+      'b',
+    ]);
+    // a teacher of another course naming this category in a link sees nothing of it
+    const other = await courseFixture(t.db, 'QCALC2');
+    expect(await sharedDatasets(t.db, cat!.id, other.courseId)).toEqual([]);
 
     const quizId = (await f.addActivity('quiz', 'Числа', { attempts: 0, perPage: 0 })).id;
     await runModuleAction(teacher, quizId, 'addQuestions', { questionIds: [one.id, two.id] });

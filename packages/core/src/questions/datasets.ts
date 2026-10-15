@@ -13,10 +13,14 @@ export const calculatedTypes: QuestionType[] = [
 ];
 export const isCalculated = (t: string) => (calculatedTypes as string[]).includes(t);
 
-/** The datasets a category shares. */
-export async function sharedDatasets(db: Tx, categoryId: string): Promise<Dataset[]> {
+/** The datasets a category of the course (context) shares; none from another course's. */
+export async function sharedDatasets(
+  db: Tx,
+  categoryId: string,
+  contextId: string,
+): Promise<Dataset[]> {
   const rows = await db.questionDataset.findMany({
-    where: { categoryId },
+    where: { categoryId, category: { contextId } },
     orderBy: { name: 'asc' },
   });
   return rows.map(datasetFromRow);

@@ -182,7 +182,11 @@ export const saveQuestion = defineOperation({
         input.type as 'CALCULATED',
         text,
         data as never,
-        await sharedDatasets(ctx.tx, input.categoryId),
+        await sharedDatasets(
+          ctx.tx,
+          input.categoryId,
+          await categoryCourse(ctx.tx, input.categoryId),
+        ),
       );
       if (problem) throw new ValidationError({ data: [problem] });
     }
