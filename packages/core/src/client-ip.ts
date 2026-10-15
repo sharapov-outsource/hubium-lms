@@ -21,3 +21,20 @@ export function clientIp(
   const ip = chain[Math.max(0, chain.length - hops)]!.replace(/^\[|\]$/g, '');
   return isIP(ip) ? ip : null;
 }
+
+/**
+ * The request header that carries clientIp() to Better Auth, which reads the address from
+ * it. On its own Better Auth trusts X-Forwarded-For only when it holds one address: behind
+ * a CDN it saw none, so every sign-in on the site shared one rate-limit bucket and sessions
+ * had no address.
+ */
+export const CLIENT_IP_HEADER = 'x-hubium-client-ip';
+
+/** The headers with CLIENT_IP_HEADER set from X-Forwarded-For; a value the client sent goes. */
+export function withClientIp(headers: Headers, env: NodeJS.ProcessEnv = process.env): Headers {
+  const out = new Headers(headers);
+  out.delete(CLIENT_IP_HEADER);
+  const ip = clientIp(headers.get('x-forwarded-for'), env);
+  if (ip) out.set(CLIENT_IP_HEADER, ip);
+  return out;
+}

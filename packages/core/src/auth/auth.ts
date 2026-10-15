@@ -9,7 +9,7 @@ import {
   keycloak,
   yandex,
 } from 'better-auth/plugins/generic-oauth';
-import { clientIp } from '../client-ip.ts';
+import { CLIENT_IP_HEADER, clientIp } from '../client-ip.ts';
 import { ValidationError } from '../errors.ts';
 import { sendAuthEmail } from '../mail/mail.ts';
 import { getAllSettings, userLocale } from '../settings/settings.ts';
@@ -195,6 +195,8 @@ export function createAuth({
     advanced: {
       database: { generateId: () => uuidv7() },
       cookiePrefix: 'hubium',
+      // the client address proxy.ts works out from TRUSTED_PROXY_HOPS
+      ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
     },
     // On in production; AUTH_RATE_LIMIT=off for automated test runs from one IP.
     rateLimit: {

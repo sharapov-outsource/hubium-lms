@@ -1,3 +1,4 @@
+import { withClientIp } from '@hubium/core/client-ip';
 import { openDuringMaintenance } from '@hubium/core/system/maintenance';
 import { type NextRequest, NextResponse } from 'next/server';
 import { ltiOrigins } from './server/lti-origins';
@@ -38,8 +39,10 @@ export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (isContentHostMisuse({ pathname, headers: req.headers }))
     return new NextResponse('Not found', { status: 404 });
+  // the client's address, for Better Auth's rate limits and sessions
+  const headers = withClientIp(req.headers);
   // Untrusted content origin: its route sets its own sandboxing headers.
-  if (pathname.startsWith('/c/')) return NextResponse.next();
+  if (pathname.startsWith('/c/')) return NextResponse.next({ request: { headers } });
 
   // Maintenance mode: only site administrators get past this (signing in stays open).
   if (!openDuringMaintenance(pathname)) {
@@ -65,7 +68,7 @@ export async function proxy(req: NextRequest) {
     !/\.[a-z0-9]+$/i.test(pathname);
   let res: NextResponse;
   if (!isPage) {
-    res = NextResponse.next();
+    res = NextResponse.next({ request: { headers } });
   } else if (pathname !== '/' && !PUBLIC.some((p) => pathname.startsWith(p)) && !hasSession) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';
@@ -79,7 +82,6 @@ export async function proxy(req: NextRequest) {
       ltiOrigins: await ltiOrigins(),
     });
     // Next reads the nonce from the request CSP header and applies it to its scripts.
-    const headers = new Headers(req.headers);
     headers.set('x-nonce', nonce);
     // Layouts cannot see the path; the app layout needs it to avoid redirect loops.
     headers.set('x-hubium-path', pathname);

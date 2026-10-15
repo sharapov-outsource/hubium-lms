@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
+import { withClientIp } from '../client-ip.ts';
 import { setSettings } from '../settings/settings.ts';
 import { createUser } from '../users/users.ts';
 import { createAuth } from './auth.ts';
@@ -50,7 +51,8 @@ describe('new sign-in notices', () => {
   const signIn = (ua: string, ip: string) =>
     auth.api.signInEmail({
       body: { email: 'device@example.org', password: 'Device-pass-1' },
-      headers: new Headers({ 'user-agent': ua, 'x-forwarded-for': ip }),
+      // as proxy.ts hands the client's address on
+      headers: withClientIp(new Headers({ 'user-agent': ua, 'x-forwarded-for': ip }), {}),
     });
   const notices = () => t.db.notification.findMany({ where: { userId, type: NEW_SIGN_IN } });
 

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { useTestDb } from '../../test/helpers.ts';
+import { withClientIp } from '../client-ip.ts';
 import { setSettings } from '../settings/settings.ts';
 import { createAuth } from './auth.ts';
 
@@ -85,6 +86,42 @@ describe('auth', () => {
         'registration.requireEmailVerification': true,
       });
     }
+  });
+
+  it('knows the client address behind a CDN: sessions and rate limits use it', async () => {
+    // a CDN and Caddy in front: X-Forwarded-For holds the client, the CDN and Caddy's peer,
+    // and proxy.ts works out the client from TRUSTED_PROXY_HOPS
+    const via = (client: string) => {
+      const forwarded = new Headers({ 'x-forwarded-for': `6.6.6.6, ${client}, 198.51.100.4` });
+      return withClientIp(forwarded, { TRUSTED_PROXY_HOPS: '2' });
+    };
+    const signIn = await auth.api.signInEmail({
+      body: { email: 'student1@hubium.local', password: 'Demo12345!' },
+      headers: via('203.0.113.7'),
+    });
+    const session = await t.db.session.findFirstOrThrow({ where: { token: signIn.token } });
+    expect(session.ipAddress).toBe('203.0.113.7');
+
+    process.env.AUTH_RATE_LIMIT = 'on';
+    const limited = createAuth({ db: t.db, baseURL: 'http://lms.test', secret: 's'.repeat(40) });
+    delete process.env.AUTH_RATE_LIMIT;
+    const attempt = (client: string) => {
+      const headers = via(client);
+      headers.set('content-type', 'application/json');
+      headers.set('origin', 'http://lms.test');
+      return limited.handler(
+        new Request('http://lms.test/api/auth/sign-in/email', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ email: 'nobody@example.org', password: 'Wrong12345!' }),
+        }),
+      );
+    };
+    // three sign-ins in ten seconds from one address, as Better Auth allows
+    for (let i = 0; i < 3; i++) expect((await attempt('203.0.113.20')).status).toBe(401);
+    expect((await attempt('203.0.113.20')).status).toBe(429);
+    // someone else at the same school is not held back by them
+    expect((await attempt('203.0.113.21')).status).toBe(401);
   });
 
   it('follows the "require email verification" setting', async () => {
