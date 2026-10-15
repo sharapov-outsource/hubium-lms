@@ -195,14 +195,34 @@ async function stepsOf(db: Prisma.TransactionClient, attemptId: string) {
   return db.lessonStep.findMany({ where: { attemptId }, orderBy: { seq: 'asc' } });
 }
 
-/** Records a step after the attempt's others (a second, simultaneous one fails). */
+/**
+ * Records a step after the attempt's others (a second, simultaneous one fails). After the
+ * last one, not at the count: a deleted page takes its steps along.
+ */
 async function addStep(
   ctx: ModuleCtx,
   attemptId: string,
   data: Omit<Prisma.LessonStepUncheckedCreateInput, 'attemptId' | 'seq'>,
 ) {
-  const seq = await ctx.db.lessonStep.count({ where: { attemptId } });
+  const last = await ctx.db.lessonStep.aggregate({ where: { attemptId }, _max: { seq: true } });
+  const seq = (last._max.seq ?? -1) + 1;
   return ctx.db.lessonStep.create({ data: { ...data, attemptId, seq, createdAt: ctx.now } });
+}
+
+/** Every finished attempt's result worked out again, and the grades that follow. */
+async function regradeFinished(ctx: ModuleCtx, a: Lesson) {
+  const pages = await lessonPages(ctx.db, a.id);
+  const done = await ctx.db.lessonAttempt.findMany({
+    where: { activityId: a.id, finishedAt: { not: null } },
+    include: { steps: { orderBy: { seq: 'asc' } } },
+  });
+  for (const at of done)
+    await ctx.db.lessonAttempt.update({
+      where: { id: at.id },
+      data: { percent: gradeOf(a.settings, pages, at.steps).percent },
+    });
+  for (const userId of new Set(done.filter((x) => !x.preview).map((x) => x.userId)))
+    await pushGrade(ctx, a, userId);
 }
 
 const engineSteps = (rows: { pageId: string; kind: string; correct: boolean }[]): Step[] =>
@@ -557,18 +577,7 @@ export const lesson = defineModule<LessonSettingsT>({
       ] as const;
       if (!keys.some((k) => s[k] !== prev[k])) return;
       await ctx.grades.syncItems(a.id);
-      const pages = await lessonPages(ctx.db, a.id);
-      const done = await ctx.db.lessonAttempt.findMany({
-        where: { activityId: a.id, finishedAt: { not: null } },
-        include: { steps: { orderBy: { seq: 'asc' } } },
-      });
-      for (const at of done)
-        await ctx.db.lessonAttempt.update({
-          where: { id: at.id },
-          data: { percent: gradeOf(s, pages, at.steps).percent },
-        });
-      for (const userId of new Set(done.filter((x) => !x.preview).map((x) => x.userId)))
-        await pushGrade(ctx, a, userId);
+      await regradeFinished(ctx, a);
     },
   },
   cron: [
@@ -732,13 +741,26 @@ export const lesson = defineModule<LessonSettingsT>({
       summary: 'Delete a page (answers to it go with it; jumps to it lead on)',
       capability: 'mod.lesson:edit',
       input: z.object({ id: z.string().uuid() }),
-      async handler(ctx, a, input) {
+      async handler(ctx, ref, input) {
+        const a = ref as Lesson;
         const row = await pageOf(ctx, a, input.id);
+        const order = (await lessonPages(ctx.db, a.id)).map((p) => p.id);
+        const at = order.indexOf(row.id);
+        // learners on it go on to the page after it (or before it, at the end)
+        await ctx.db.lessonAttempt.updateMany({
+          where: { activityId: a.id, finishedAt: null, currentPageId: row.id },
+          data: { currentPageId: order[at + 1] ?? order[at - 1] ?? null },
+        });
+        const answered = await ctx.db.lessonStep.count({
+          where: { pageId: row.id, kind: 'answer', attempt: { finishedAt: { not: null } } },
+        });
         await ctx.db.lessonPage.delete({ where: { id: row.id } });
         await renumber(
           ctx.db,
-          (await lessonPages(ctx.db, a.id)).map((p) => p.id),
+          order.filter((id) => id !== row.id),
         );
+        // its answers went with it: the attempts that had them are worked out again
+        if (answered) await regradeFinished(ctx, a);
         return { ok: true };
       },
     }),

@@ -192,6 +192,56 @@ describe('mod-lesson', () => {
     ).rejects.toMatchObject({ code: 'CONFLICT' });
   });
 
+  it('deleting a page leaves the open attempts going', async () => {
+    const { f, id, teacher, s1, add } = await setup('LSN4', {
+      customScoring: true,
+      maxAttempts: 2,
+      gradeMax: 10,
+    });
+    const intro = await add('content', {
+      title: 'Введение',
+      answers: [{ text: 'Дальше', jump: 'next' }],
+    });
+    const tf = (title: string, afterId: string) =>
+      add(
+        'truefalse',
+        {
+          title,
+          answers: [
+            { text: 'Верно', jump: 'next', score: 1 },
+            { text: 'Неверно', jump: 'this', score: 0 },
+          ],
+        },
+        afterId,
+      );
+    const q1 = await tf('Берлин', intro);
+    const q2 = await tf('Париж', q1);
+    const choices = async (ctx: Ctx) =>
+      ((await state(ctx, id)).current!.page as { choices: { id: string }[] }).choices;
+    const s2 = await ctxFor(t.db, f.users.student2!);
+    for (const s of [s1, s2]) {
+      await runModuleAction(s, id, 'start', {});
+      const introRow = await t.db.lessonPage.findUniqueOrThrow({ where: { id: intro } });
+      await runModuleAction(s, id, 'choose', {
+        pageId: intro,
+        answerId: (introRow.answers as { id: string }[])[0]!.id,
+      });
+    }
+    // the first learner gets the question wrong, then right
+    for (const k of [1, 0])
+      await runModuleAction(s1, id, 'answer', { pageId: q1, choice: (await choices(s1))[k]!.id });
+    expect((await state(s1, id)).current?.page.id).toBe(q2);
+    expect((await state(s2, id)).current?.page.id).toBe(q1);
+
+    await runModuleAction(teacher, id, 'deletePage', { id: q1 });
+    // the one on the deleted page goes on to the next; the other's steps add on
+    expect((await state(s2, id)).current?.page.id).toBe(q2);
+    expect(
+      await runModuleAction(s1, id, 'answer', { pageId: q2, choice: (await choices(s1))[0]!.id }),
+    ).toMatchObject({ correct: true, finished: true });
+    expect(await gradeOf(id, f.users.student1!)).toBe(10);
+  });
+
   it('a backup carries the pages with their jumps', async () => {
     const { id, add } = await setup('LSN3', {});
     const a = await add('content', { title: 'A', answers: [{ text: 'В конец', jump: 'end' }] });
