@@ -8,6 +8,7 @@
   "exports": {
     "./client": "./src/client.tsx",
     "./server": "./src/server.ts",
+    "./embed": "./src/embed.ts",
     "./field": "./src/field.tsx"
   },
   "scripts": {

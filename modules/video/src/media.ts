@@ -1,6 +1,8 @@
 // Pure helpers for mod-video: watched intervals, the HLS ladder, ffmpeg arguments,
 // caption conversion, thumbnail sprites and embed URLs.
 
+import { parseVideoUrl } from '@hubium/editor/embed';
+
 export type Interval = [number, number];
 
 /** Merges intervals (seconds), clamped to [0, duration]; drops empty ones. */
@@ -206,51 +208,22 @@ export function spriteVtt(plan: SpritePlan, duration: number, image: string): st
 
 export type EmbedProvider = 'youtube' | 'rutube' | 'vk';
 
-/** Recognises YouTube, RuTube and VK Video links and returns an API-enabled embed URL. */
+/**
+ * A YouTube, RuTube or VK Video link (recognised as the editor does) with the player address
+ * whose API reports the watching; other services have no such API here.
+ */
 export function parseEmbed(
   raw: string | null | undefined,
 ): { provider: EmbedProvider; id: string; embedUrl: string } | null {
-  if (!raw) return null;
-  let u: URL;
-  try {
-    u = new URL(raw.trim());
-  } catch {
-    return null;
-  }
-  const host = u.hostname.replace(/^www\.|^m\./, '');
-  if (host === 'youtu.be' || host === 'youtube.com' || host === 'youtube-nocookie.com') {
-    const id =
-      host === 'youtu.be'
-        ? u.pathname.slice(1)
-        : (u.searchParams.get('v') ?? u.pathname.match(/^\/(?:embed|shorts|live)\/([\w-]+)/)?.[1]);
-    if (id && /^[\w-]{6,20}$/.test(id))
-      return {
-        provider: 'youtube',
-        id,
-        embedUrl: `https://www.youtube-nocookie.com/embed/${id}?enablejsapi=1&rel=0`,
-      };
-    return null;
-  }
-  if (host === 'rutube.ru') {
-    const id = u.pathname.match(/^\/(?:video|play\/embed)\/([\da-f]{20,40})/)?.[1];
-    if (id) return { provider: 'rutube', id, embedUrl: `https://rutube.ru/play/embed/${id}` };
-    return null;
-  }
-  if (host === 'vk.com' || host === 'vkvideo.ru' || host === 'vk.ru') {
-    let oid = u.searchParams.get('oid');
-    let vid = u.searchParams.get('id');
-    const m = u.pathname.match(/video(-?\d+)_(\d+)/) ?? u.search.match(/video(-?\d+)_(\d+)/);
-    if (m) [, oid, vid] = m as unknown as [string, string, string];
-    if (oid && vid && /^-?\d+$/.test(oid) && /^\d+$/.test(vid)) {
-      const hash = u.searchParams.get('hash');
-      return {
-        provider: 'vk',
-        id: `${oid}_${vid}`,
-        embedUrl: `https://vkvideo.ru/video_ext.php?oid=${oid}&id=${vid}${hash ? `&hash=${hash}` : ''}&js_api=1`,
-      };
-    }
-  }
-  return null;
+  const v = parseVideoUrl(raw);
+  if (!v || v.provider === 'vimeo') return null;
+  const api =
+    v.provider === 'youtube'
+      ? `${v.embedUrl}?enablejsapi=1&rel=0`
+      : v.provider === 'vk'
+        ? `${v.embedUrl}&js_api=1`
+        : v.embedUrl;
+  return { provider: v.provider, id: v.id, embedUrl: api };
 }
 
 export function hlsContentType(file: string): string {

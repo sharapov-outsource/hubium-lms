@@ -27,6 +27,7 @@ import {
   Video,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { toEmbedUrl } from './embed.ts';
 
 /** Video embed (YouTube, RuTube, VK Video, Vimeo). The server re-validates the host. */
 const Embed = Node.create({
@@ -189,34 +190,6 @@ function FormulaDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-/** Client-side counterpart of toEmbedUrl (kept in sync with ./server.ts). */
-function embedUrl(raw: string): string | null {
-  try {
-    const u = new URL(raw);
-    const host = u.hostname.replace(/^m\./, '');
-    if (host === 'youtu.be') return `https://www.youtube-nocookie.com/embed/${u.pathname.slice(1)}`;
-    if (host.endsWith('youtube.com')) {
-      const id =
-        u.searchParams.get('v') ??
-        (u.pathname.startsWith('/shorts/') ? u.pathname.split('/')[2] : null);
-      return id ? `https://www.youtube-nocookie.com/embed/${id}` : null;
-    }
-    if (host === 'rutube.ru') {
-      const m = /\/video\/([0-9a-f]{32})/.exec(u.pathname);
-      return m ? `https://rutube.ru/play/embed/${m[1]}` : null;
-    }
-    if (host === 'vk.com' || host === 'vkvideo.ru') {
-      const m = /video(-?\d+)_(\d+)/.exec(u.pathname + u.search);
-      return m ? `https://vkvideo.ru/video_ext.php?oid=${m[1]}&id=${m[2]}&hd=2` : null;
-    }
-    if (host === 'vimeo.com') {
-      const m = /^\/(\d+)/.exec(u.pathname);
-      return m ? `https://player.vimeo.com/video/${m[1]}` : null;
-    }
-  } catch {}
-  return null;
 }
 
 function ToolButton({
@@ -433,7 +406,7 @@ export function RichTextEditor({
           onClick={() => {
             const url = window.prompt(labels.videoPrompt, 'https://');
             if (!url) return;
-            const src = embedUrl(url);
+            const src = toEmbedUrl(url);
             if (!src) return window.alert(labels.videoInvalid);
             chain().insertContent({ type: 'embed', attrs: { src } }).run();
           }}

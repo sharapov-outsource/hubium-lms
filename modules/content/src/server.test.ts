@@ -15,8 +15,10 @@ describe('content modules', () => {
     expect(url.settings.schema.parse({ url: 'https://example.com' }).display).toBe('newtab');
   });
   it('detects embeddable videos', () => {
-    expect(embedFor('https://youtu.be/abc')).toContain('youtube-nocookie');
+    expect(embedFor('https://youtu.be/dQw4w9WgXcQ')).toContain('youtube-nocookie');
     expect(embedFor('https://example.com')).toBeNull();
+    // a host that only ends like a video service's is not one
+    expect(embedFor('https://notyoutube.com/watch?v=dQw4w9WgXcQ')).toBeNull();
   });
   it('page text extraction for search/AI', () => {
     expect(page.extractText?.({ settings: { content: '<h2>A</h2><p>b</p>' } } as never)).toBe(
