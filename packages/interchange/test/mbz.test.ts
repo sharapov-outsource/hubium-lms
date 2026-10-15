@@ -91,13 +91,19 @@ describe('.mbz import', () => {
       where: { courseId: course.id, parentId: null },
       orderBy: { rank: 'asc' },
     });
-    expect(sections[1]).toMatchObject({ title: 'Тема 1', summary: '<p>Первая тема</p>' });
+    // a section's picture comes with it; one missing from the backup is reported
+    expect(sections[1]!.title).toBe('Тема 1');
+    expect(sections[1]!.summary).toMatch(
+      /^<p>Первая тема<img src="[^"]*\/files\/[0-9a-f-]{36}\/scheme\.png"/,
+    );
+    expect(report.warnings).toContain('Section "Практикум": 1 picture(s) not in the backup');
     // a Moodle 4.5 subsection: in its section after the H5P activity, with its link
     const sub = await t.db.courseSection.findFirstOrThrow({
       where: { parentId: sections[1]!.id },
       include: { activities: true },
     });
-    expect(sub).toMatchObject({ title: 'Практикум', summary: '<p>Задачи</p>', visible: true });
+    expect(sub).toMatchObject({ title: 'Практикум', visible: true });
+    expect(sub.summary).toMatch(/^<p>Задачи/);
     expect(sub.activities.map((a) => `${a.moduleKey}:${a.name}`)).toEqual(['url:Справочник']);
     const acts = await t.db.activity.findMany({
       where: { courseId: course.id },
@@ -481,6 +487,10 @@ describe('.mbz import', () => {
     });
     expect(report.warnings).toContainEqual(expect.stringContaining('office'));
     expect(report.warnings).toContainEqual(expect.stringContaining('adaptive'));
+    // the pictures of a question's text and of its answers' feedback come with it
+    expect(slots[0]!.question!.text).toMatch(/\/files\/[0-9a-f-]{36}\/pi\.png/);
+    expect(JSON.stringify(slots[0]!.question!.data)).toMatch(/\/files\/[0-9a-f-]{36}\/yes\.png/);
+    expect(report.warnings.join('\n')).not.toContain('Тип 3.14');
     expect(slots[0]!.question!.hints).toEqual([
       { text: '<p>Посмотрите на точку</p>', clearWrong: true, showNumCorrect: false },
     ]);

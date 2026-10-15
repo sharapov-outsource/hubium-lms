@@ -69,9 +69,9 @@ export async function mbzFixture(): Promise<Buffer> {
 </information></moodle_backup>`,
     'course/course.xml': `<?xml version="1.0" encoding="UTF-8"?><course id="2" contextid="20"><shortname>MOODLE-PY</shortname><fullname>Python из Moodle</fullname><summary>&lt;p&gt;Курс &lt;img src="@@PLUGINFILE@@/logo.png"&gt;&lt;/p&gt;</summary><format>topics</format><startdate>1735689600</startdate><enddate>0</enddate><customfields><customfield id="1"><shortname>Level</shortname><type>select</type><value>2</value><valueformat>0</valueformat></customfield><customfield id="2"><shortname>starts</shortname><type>date</type><value>1767214800</value><valueformat>0</valueformat></customfield><customfield id="3"><shortname>about</shortname><type>textarea</type><value>&lt;p&gt;Для &lt;b&gt;всех&lt;/b&gt;&lt;/p&gt;</value><valueformat>1</valueformat></customfield><customfield id="4"><shortname>elsewhere</shortname><type>text</type><value>x</value><valueformat>0</valueformat></customfield></customfields></course>`,
     'sections/section_1/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="1"><number>0</number><name>$@NULL@$</name><summary></summary><sequence>11,14</sequence><visible>1</visible></section>`,
-    'sections/section_2/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="2"><number>1</number><name>Тема 1</name><summary>&lt;p&gt;Первая тема&lt;/p&gt;</summary><sequence>12,13,15,16,17,18,19,20,21,22,23,24,25,26,27,28</sequence><visible>1</visible></section>`,
+    'sections/section_2/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="2"><number>1</number><name>Тема 1</name><summary>&lt;p&gt;Первая тема&lt;img src="@@PLUGINFILE@@/scheme.png"&gt;&lt;/p&gt;</summary><sequence>12,13,15,16,17,18,19,20,21,22,23,24,25,26,27,28</sequence><visible>1</visible></section>`,
     // Moodle 4.5: the subsection's own section, after the course's sections
-    'sections/section_3/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="3"><number>2</number><name>Практикум</name><summary>&lt;p&gt;Задачи&lt;/p&gt;</summary><sequence>29</sequence><visible>1</visible><component>mod_subsection</component><itemid>28</itemid></section>`,
+    'sections/section_3/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="3"><number>2</number><name>Практикум</name><summary>&lt;p&gt;Задачи&lt;img src="@@PLUGINFILE@@/lost.png"&gt;&lt;/p&gt;</summary><sequence>29</sequence><visible>1</visible><component>mod_subsection</component><itemid>28</itemid></section>`,
 
     // competencies, linked where the site has the same framework and ID numbers
     'course/competencies.xml': `<?xml version="1.0" encoding="UTF-8"?><course_competencies><settings id="1"><pushratingstouserplans>0</pushratingstouserplans></settings><competencies><competency><id>5</id><idnumber>PY.1</idnumber><ruleoutcome>1</ruleoutcome><sortorder>0</sortorder><frameworkid>3</frameworkid><frameworkidnumber>PYFW</frameworkidnumber></competency><competency><id>6</id><idnumber>PY.404</idnumber><ruleoutcome>0</ruleoutcome><sortorder>1</sortorder><frameworkid>3</frameworkid><frameworkidnumber>PYFW</frameworkidnumber></competency></competencies></course_competencies>`,
@@ -264,9 +264,9 @@ export async function mbzFixture(): Promise<Buffer> {
   <question_category id="2"><name>По умолчанию для курса</name><contextid>20</contextid><contextlevel>50</contextlevel><info>Основные вопросы</info><parent>1</parent>
     <question_bank_entries>
       <question_bank_entry id="5"><questioncategoryid>2</questioncategoryid><question_version><question_versions id="5"><version>1</version><status>ready</status><questions>
-        <question id="50"><parent>0</parent><name>Тип 3.14</name><questiontext>&lt;p&gt;Какой тип у 3.14?&lt;/p&gt;</questiontext><generalfeedback></generalfeedback><defaultmark>1.0000000</defaultmark><penalty>0.3333333</penalty><qtype>multichoice</qtype>
+        <question id="50"><parent>0</parent><name>Тип 3.14</name><questiontext>&lt;p&gt;Какой тип у 3.14?&lt;img src="@@PLUGINFILE@@/pi.png"&gt;&lt;/p&gt;</questiontext><generalfeedback></generalfeedback><defaultmark>1.0000000</defaultmark><penalty>0.3333333</penalty><qtype>multichoice</qtype>
           <plugin_qtype_multichoice_question><answers>
-            <answer id="501"><answertext>float</answertext><answerformat>1</answerformat><fraction>1.0000000</fraction><feedback>Да</feedback></answer>
+            <answer id="501"><answertext>float</answertext><answerformat>1</answerformat><fraction>1.0000000</fraction><feedback>Да&lt;img src="@@PLUGINFILE@@/yes.png"&gt;</feedback></answer>
             <answer id="502"><answertext>int</answertext><answerformat>1</answerformat><fraction>0.0000000</fraction><feedback></feedback></answer>
           </answers><multichoice id="1"><single>1</single><shuffleanswers>1</shuffleanswers></multichoice></plugin_qtype_multichoice_question>
           <question_hints><question_hint id="1"><hint>&lt;p&gt;Посмотрите на точку&lt;/p&gt;</hint><hintformat>1</hintformat><shownumcorrect>0</shownumcorrect><clearwrong>1</clearwrong><options>$@NULL@$</options></question_hint></question_hints>
@@ -383,6 +383,34 @@ export async function mbzFixture(): Promise<Buffer> {
       name: 'check.h5p',
       mime: 'application/zip.h5p',
       data: Buffer.from('PK\x03\x04 h5p'),
+    },
+    // a section's picture, the files of a question and of its answer
+    {
+      ctx: 20,
+      component: 'course',
+      area: 'section',
+      item: 2,
+      name: 'scheme.png',
+      mime: 'image/png',
+      data: Buffer.concat([PNG, Buffer.from([2])]),
+    },
+    {
+      ctx: 20,
+      component: 'question',
+      area: 'questiontext',
+      item: 50,
+      name: 'pi.png',
+      mime: 'image/png',
+      data: Buffer.concat([PNG, Buffer.from([50])]),
+    },
+    {
+      ctx: 20,
+      component: 'question',
+      area: 'answerfeedback',
+      item: 501,
+      name: 'yes.png',
+      mime: 'image/png',
+      data: Buffer.concat([PNG, Buffer.from([51])]),
     },
     {
       ctx: 35,

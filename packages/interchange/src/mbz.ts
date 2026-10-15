@@ -923,6 +923,22 @@ function mapMoodleQuestion(q: Node): Mapped | null {
   }
 }
 
+/** The ids of a question's answers, wherever its type keeps them: their files are its own. */
+function answerIds(q: Node): string[] {
+  const out: string[] = [];
+  const walk = (n: unknown) => {
+    if (!n || typeof n !== 'object') return;
+    for (const [k, v] of Object.entries(n as Node)) {
+      if (k === 'answer')
+        for (const a of arr(v as Node | Node[]))
+          if (a?.['@_id'] !== undefined) out.push(String(a['@_id']));
+      walk(v);
+    }
+  };
+  walk(q);
+  return out;
+}
+
 /**
  * A Cloze question's text with its gaps written back in ({#1} → {1:SA:=…}) from the
  * questions in its sequence; null when a gap is of a type Cloze cannot hold.
@@ -1110,18 +1126,21 @@ export async function importMbz(
     const storedUrls = new Map<string, string>();
     /** Stores files of a Moodle file area into the course editor area; returns name → URL. */
     const storeArea = async (
-      contextid: string,
+      /** null: any context (a question's files are in its category's) */
+      contextid: string | null,
       component: string,
-      filearea: string,
-      itemid?: string,
+      /** null: any area of the item */
+      filearea: string | null,
+      itemid?: string | string[],
     ) => {
       const urls = new Map<string, string>();
+      const items = itemid === undefined ? null : new Set([itemid].flat());
       for (const f of files.filter(
         (x) =>
-          x.contextid === contextid &&
+          (contextid === null || x.contextid === contextid) &&
           x.component === component &&
-          x.filearea === filearea &&
-          (itemid === undefined || x.itemid === itemid),
+          (filearea === null || x.filearea === filearea) &&
+          (items === null || items.has(x.itemid)),
       )) {
         // Moodle names every pasted picture image.png: each file keeps a folder of its own
         // place in the backup, so two of the same name do not collide
@@ -1148,13 +1167,16 @@ export async function importMbz(
       }
       return urls;
     };
-    const rewrite = (htmlText: string, urls: Map<string, string>) =>
-      sanitizeRichText(
-        htmlText.replace(/@@PLUGINFILE@@\/([^"'\s)<>?#]+)/g, (_, p: string) => {
-          const name = decodeURIComponent(p);
-          return urls.get(name) ?? urls.get(name.split('/').pop() ?? '') ?? '#';
-        }),
-      );
+    /** Points @@PLUGINFILE@@ links at the stored files; `missing` counts those not found. */
+    const pointAt = (text: string, urls: Map<string, string>, missing?: { n: number }) =>
+      text.replace(/@@PLUGINFILE@@\/([^"'\s)<>?#\\]+)/g, (_, p: string) => {
+        const name = decodeURIComponent(p);
+        const url = urls.get(name) ?? urls.get(name.split('/').pop() ?? '');
+        if (!url && missing) missing.n++;
+        return url ?? '#';
+      });
+    const rewrite = (htmlText: string, urls: Map<string, string>, missing?: { n: number }) =>
+      sanitizeRichText(pointAt(htmlText, urls, missing));
 
     const courseCtx =
       txt(xml(archive, 'course/inforef.xml')?.contextid) || txt(courseXml['@_contextid']);
@@ -1171,13 +1193,28 @@ export async function importMbz(
       where: { courseId, parentId: null },
       orderBy: { rank: 'asc' },
     });
+    /** A section's summary with its pictures, which are files of the course's "section" area. */
+    const sectionSummary = async (s: { moodleId: string; summary: string }, title: string) => {
+      const missing = { n: 0 };
+      const summary = rewrite(
+        s.summary,
+        await storeArea(courseCtx, 'course', 'section', s.moodleId),
+        missing,
+      );
+      if (missing.n) warnings.push(`Section "${title}": ${missing.n} picture(s) not in the backup`);
+      return summary;
+    };
     const sectionMap = new Map<string, string>();
     for (const [i, s] of topSections.entries()) {
       const target = newSections[i] ?? newSections.at(-1)!;
       sectionMap.set(s.moodleId, target.id);
       await db.courseSection.update({
         where: { id: target.id },
-        data: { title: s.title, summary: sanitizeRichText(s.summary), visible: s.visible },
+        data: {
+          title: s.title,
+          summary: await sectionSummary(s, s.title || String(s.number)),
+          visible: s.visible,
+        },
       });
     }
 
@@ -1254,17 +1291,31 @@ export async function importMbz(
               warnings.push(`Question "${name}": ${parsed.error.issues[0]?.message ?? 'invalid'}`);
               continue;
             }
-            const text = sanitizeRichText(cloze ?? txt(q.questiontext));
             const sharedHere = (mapped.shared ?? []).map((s) => s.set);
+            const checked = sanitizeRichText(cloze ?? txt(q.questiontext));
             const textError =
-              checkQuestionText(mapped.type, text, parsed.data) ??
+              checkQuestionText(mapped.type, checked, parsed.data) ??
               (mapped.type.startsWith('CALCULATED')
-                ? checkVariants(mapped.type as 'CALCULATED', text, parsed.data as never, sharedHere)
+                ? checkVariants(
+                    mapped.type as 'CALCULATED',
+                    checked,
+                    parsed.data as never,
+                    sharedHere,
+                  )
                 : null);
             if (textError) {
               warnings.push(`Question "${name}": ${textError}`);
               continue;
             }
+            // pictures in the question, its feedback and its answers: files of the question
+            // and of its answers, stored as the course's once the question is taken
+            const own = await storeArea(null, 'question', null, String(q['@_id']));
+            const ofAnswers = await storeArea(null, 'question', null, answerIds(q));
+            const missing = { n: 0 };
+            const text = rewrite(cloze ?? txt(q.questiontext), own, missing);
+            parsed.data = JSON.parse(
+              pointAt(JSON.stringify(parsed.data), new Map([...ofAnswers, ...own]), missing),
+            ) as typeof parsed.data;
             // datasets shared in Moodle categories go to the matching categories here,
             // unless one of that name is there already
             for (const s of mapped.shared ?? []) {
@@ -1290,7 +1341,7 @@ export async function importMbz(
                 type: mapped.type,
                 name: name.slice(0, 255),
                 text,
-                generalFeedback: sanitizeRichText(txt(q.generalfeedback)),
+                generalFeedback: rewrite(txt(q.generalfeedback), own, missing),
                 defaultMark: mapped.type === 'DESCRIPTION' ? 0 : num(q.defaultmark, 1),
                 penalty: Math.min(1, Math.max(0, num(q.penalty))),
                 hints: mbzHints(q) as unknown as Prisma.InputJsonValue,
@@ -1300,6 +1351,8 @@ export async function importMbz(
               },
             });
             questionCount++;
+            if (missing.n)
+              warnings.push(`Question "${name}": ${missing.n} picture(s) not in the backup`);
             if (g.entryId) entryToQuestion.set(g.entryId, created2.id);
             entryToQuestion.set(`q:${String(q['@_id'])}`, created2.id);
           }
@@ -1409,7 +1462,7 @@ export async function importMbz(
           await db.courseSection.update({
             where: { id },
             data: {
-              summary: sanitizeRichText(own.summary),
+              summary: await sectionSummary(own, name),
               visible: own.visible && txt(module.visible) !== '0',
             },
           });
