@@ -106,6 +106,21 @@ describe('mod-forum', () => {
     expect(subs).toContain(f.users.student2);
     expect(subs).toContain(f.users.teacher);
     expect(subs).not.toContain(f.users.student1);
+
+    // a double click subscribes once, and unsubscribing then works
+    await Promise.all([
+      run(f.users.student3!, 'subscribe', { subscribed: true }),
+      run(f.users.student3!, 'subscribe', { subscribed: true }),
+    ]);
+    expect(
+      await t.db.forumSubscription.count({
+        where: { activityId: forumId, userId: f.users.student3!, discussionId: null },
+      }),
+    ).toBe(1);
+    await run(f.users.student3!, 'subscribe', { subscribed: false });
+    expect(
+      await subscribers(ctx, await forumRef(), { id: d1.discussionId, groupId: null }),
+    ).not.toContain(f.users.student3);
   });
 
   it('private replies are visible to the recipient and moderators only', async () => {

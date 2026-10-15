@@ -564,14 +564,11 @@ export async function subscribers(
 /** Authors follow the discussions they post in unless they opted out. */
 async function followDiscussion(ctx: ModuleCtx, a: Forum, discussionId: string, userId: string) {
   if (a.settings.subscription === 'disabled' || a.settings.subscription === 'forced') return;
-  const existing = await ctx.db.forumSubscription.findFirst({
-    where: { activityId: a.id, userId, discussionId },
+  // an opt-out already there stays
+  await ctx.db.forumSubscription.createMany({
+    data: [{ activityId: a.id, userId, discussionId, subscribed: true }],
+    skipDuplicates: true,
   });
-  if (!existing) {
-    await ctx.db.forumSubscription.create({
-      data: { activityId: a.id, userId, discussionId, subscribed: true },
-    });
-  }
 }
 
 async function notifyPost(
@@ -1218,19 +1215,22 @@ export const forum = defineModule<ForumSettingsT>({
         }
         const discussionId = input.discussionId ?? null;
         if (discussionId) await loadDiscussion(ctx, a, discussionId);
-        const existing = await ctx.db.forumSubscription.findFirst({
-          where: { activityId: a.id, userId: me, discussionId },
-        });
-        if (existing) {
-          await ctx.db.forumSubscription.update({
-            where: { id: existing.id },
-            data: { subscribed: input.subscribed },
+        // one row each, also when two clicks arrive together: the forum-level row by its
+        // partial unique index (nulls differ in the composite key)
+        if (discussionId)
+          await ctx.db.forumSubscription.upsert({
+            where: {
+              activityId_userId_discussionId: { activityId: a.id, userId: me, discussionId },
+            },
+            create: { activityId: a.id, userId: me, discussionId, subscribed: input.subscribed },
+            update: { subscribed: input.subscribed },
           });
-        } else {
-          await ctx.db.forumSubscription.create({
-            data: { activityId: a.id, userId: me, discussionId, subscribed: input.subscribed },
-          });
-        }
+        else
+          await ctx.db.$executeRaw`
+            INSERT INTO "ForumSubscription" ("id", "activityId", "userId", "discussionId", "subscribed")
+            VALUES (gen_random_uuid(), ${a.id}::uuid, ${me}::uuid, NULL, ${input.subscribed})
+            ON CONFLICT ("activityId", "userId") WHERE "discussionId" IS NULL
+            DO UPDATE SET "subscribed" = EXCLUDED."subscribed"`;
         if (!discussionId) {
           // forum-level choice resets per-discussion overrides
           await ctx.db.forumSubscription.deleteMany({
