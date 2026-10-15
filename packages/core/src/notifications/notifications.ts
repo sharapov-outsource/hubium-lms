@@ -91,6 +91,9 @@ export interface NotifyInput {
 const render = (t: ReturnType<typeof createTranslator>, x: Text | undefined) =>
   x === undefined ? '' : typeof x === 'string' ? x : t(x.key, x.values);
 
+/** Notifications to a digest letter. */
+const DIGEST_BATCH = 100;
+
 /** Recipients per fan-out job for large audiences. */
 export const FANOUT_CHUNK = 500;
 
@@ -446,14 +449,9 @@ export async function sendDigests(
     if (!user) continue;
     const tz = zoneOr(user.timezone, settings['site.defaultTimezone']);
     if (!opts.force && localHour(now, tz) !== user.digestHour) continue;
-    const items = await db.notification.findMany({
-      where: { userId, emailState: 'DIGEST' },
-      orderBy: { id: 'asc' },
-      take: 100,
-    });
     if (user.status !== 'ACTIVE' || user.emailPlaceholder) {
       await db.notification.updateMany({
-        where: { id: { in: items.map((i) => i.id) } },
+        where: { userId, emailState: 'DIGEST' },
         data: { emailState: 'NONE' },
       });
       continue;
@@ -462,36 +460,53 @@ export async function sendDigests(
     const t = createTranslator(locale, siteLocale(settings));
     const unsub = unsubscribeUrl(userId, '*');
     const header = unsubscribeHeaderUrl(userId, '*');
-    const { html, text } = renderDigestEmail({
-      locale,
-      siteName: settings['site.name'],
-      heading: t('notifications.digest.heading', { n: items.length }),
-      items: items.map((i) => ({
-        title: i.title,
-        body: i.body,
-        url: i.url ? absolute(i.url) : undefined,
-      })),
-      footer: t('notifications.email.footer'),
-      unsubscribe: { label: t('notifications.email.unsubscribeAll'), url: unsub },
-    });
-    try {
-      await deliverMail({
-        to: user.email,
-        subject: t('notifications.digest.subject', { site: settings['site.name'] }),
-        html,
-        text,
-        headers: {
-          'List-Unsubscribe': `<${header}>`,
-          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-        },
+    // 100 to a letter, as many letters as it takes. Each batch is taken (marked sent) before
+    // it goes, so a run started meanwhile ("Run now") does not send it again; a letter that
+    // fails gives its batch back.
+    for (;;) {
+      const items = (
+        await db.$queryRaw<{ id: string; title: string; body: string; url: string | null }[]>`
+          UPDATE "Notification" SET "emailState" = 'SENT'
+           WHERE id IN (SELECT id FROM "Notification"
+                         WHERE "userId" = ${userId}::uuid AND "emailState" = 'DIGEST'
+                         ORDER BY id LIMIT ${DIGEST_BATCH}
+                           FOR UPDATE SKIP LOCKED)
+          RETURNING id, title, body, url`
+      ).sort((a, b) => a.id.localeCompare(b.id));
+      if (!items.length) break;
+      const { html, text } = renderDigestEmail({
+        locale,
+        siteName: settings['site.name'],
+        heading: t('notifications.digest.heading', { n: items.length }),
+        items: items.map((i) => ({
+          title: i.title,
+          body: i.body,
+          url: i.url ? absolute(i.url) : undefined,
+        })),
+        footer: t('notifications.email.footer'),
+        unsubscribe: { label: t('notifications.email.unsubscribeAll'), url: unsub },
       });
-      await db.notification.updateMany({
-        where: { id: { in: items.map((i) => i.id) } },
-        data: { emailState: 'SENT' },
-      });
-      sent++;
-    } catch (e) {
-      logger.error({ err: e }, 'digest email failed');
+      try {
+        await deliverMail({
+          to: user.email,
+          subject: t('notifications.digest.subject', { site: settings['site.name'] }),
+          html,
+          text,
+          headers: {
+            'List-Unsubscribe': `<${header}>`,
+            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+          },
+        });
+        sent++;
+      } catch (e) {
+        logger.error({ err: e }, 'digest email failed');
+        await db.notification.updateMany({
+          where: { id: { in: items.map((i) => i.id) } },
+          data: { emailState: 'DIGEST' },
+        });
+        break;
+      }
+      if (items.length < DIGEST_BATCH) break;
     }
   }
   return sent;

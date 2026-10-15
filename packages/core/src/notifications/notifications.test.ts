@@ -158,6 +158,33 @@ describe('notifications', () => {
     ).toBe(0);
   });
 
+  it('sends a long digest in letters of 100, once even when two runs meet', async () => {
+    const userId = f.users.student3!;
+    await t.db.notification.createMany({
+      data: Array.from({ length: 150 }, (_, i) => ({
+        id: uuidv7(),
+        userId,
+        type: 'test.digest',
+        title: `Событие ${i}`,
+        emailState: 'DIGEST' as const,
+      })),
+    });
+    const before = sentMail.length;
+    // "Run now" while the scheduled run is going: each batch goes once
+    const [a, b] = await Promise.all([
+      sendDigests(t.db, new Date(), { force: true }),
+      sendDigests(t.db, new Date(), { force: true }),
+    ]);
+    const mine = sentMail.slice(before).filter((m) => m.html.includes('Событие'));
+    expect(mine).toHaveLength(2);
+    expect(a + b).toBeGreaterThanOrEqual(2);
+    expect(
+      await t.db.notification.count({
+        where: { userId, type: 'test.digest', emailState: 'DIGEST' },
+      }),
+    ).toBe(0);
+  });
+
   it('unsubscribe tokens are signed and turn email off without signing in', async () => {
     const token = unsubscribeToken(f.users.student2!, 'enrol.enrolled');
     expect(parseUnsubscribeToken(token)).toEqual({
