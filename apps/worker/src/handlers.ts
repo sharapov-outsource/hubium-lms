@@ -23,6 +23,7 @@ import {
 } from '@hubium/core';
 import { publishDueAnnouncements } from '@hubium/core/announcements/announcements';
 import { sendCalendarReminders } from '@hubium/core/calendar/calendar';
+import { syncDueSubscriptions } from '@hubium/core/calendar/subscriptions';
 import { garbageCollectBlobs } from '@hubium/core/files/files';
 import { cleanupUploads } from '@hubium/core/files/uploads';
 import { deliverMail } from '@hubium/core/mail/mail';
@@ -110,6 +111,13 @@ export const coreHandlers: JobHandlerDef[] = [
     cron: CORE_SCHEDULE['calendar.reminders'],
     async handler(_data: never, { db }) {
       return { notified: await sendCalendarReminders(db) };
+    },
+  },
+  {
+    name: 'calendar.subscriptions',
+    cron: CORE_SCHEDULE['calendar.subscriptions'],
+    async handler(_data: never, { db }) {
+      return { refreshed: await syncDueSubscriptions(db) };
     },
   },
   {

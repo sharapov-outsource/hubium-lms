@@ -60,67 +60,68 @@ model User {
   createdAt          DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime       @updatedAt @db.Timestamptz(3)
 
-  sessions            Session[]
-  accounts            Account[]
-  twoFactors          TwoFactor[]
-  passwordHistory     PasswordHistory[]
-  knownDevices        KnownDevice[]
-  recoveryPassphrases RecoveryPassphrase[]
-  mentees             UserRelation[]           @relation("mentor")
-  mentors             UserRelation[]           @relation("mentee")
-  apiTokens           ApiToken[]
-  policyAcceptances   PolicyAcceptance[]
-  roleAssignments     RoleAssignment[]
-  uploadedFiles       File[]
-  uploadSessions      UploadSession[]
-  settingsUpdated     SiteSetting[]
-  enrolments          Enrolment[]
-  groupMembers        GroupMember[]
-  cohortMembers       CohortMember[]
-  courseAccesses      CourseAccess[]
-  activityCompletions ActivityCompletion[]
-  courseCompletions   CourseCompletion[]
-  calendarEvents      CalendarEvent[]
-  calendarFeedToken   CalendarFeedToken?
-  grades              Grade[]
-  assignSubmissions   AssignSubmission[]
-  assignGrades        AssignGrade[]            @relation("AssignGradeUser")
-  assignTeamSubmits   AssignTeamSubmit[]
-  assignFlags         AssignUserFlags[]        @relation("AssignUserFlagsUser")
-  assignMarking       AssignUserFlags[]        @relation("AssignUserFlagsMarker")
-  assignParticipants  AssignParticipant[]
-  gradingInstances    GradingInstance[]
-  forumRatings        ForumRating[]            @relation("ForumRatingRater")
-  glossaryEntries     GlossaryEntry[]          @relation("GlossaryEntryAuthor")
-  glossaryRatings     GlossaryRating[]         @relation("GlossaryRatingRater")
-  lessonAttempts      LessonAttempt[]          @relation("LessonAttemptUser")
-  wikiSubwikis        WikiSubwiki[]            @relation("WikiSubwikiUser")
-  wikiVersions        WikiVersion[]            @relation("WikiVersionAuthor")
-  dataRecords         DataRecord[]             @relation("DataRecordAuthor")
-  dataRatings         DataRating[]             @relation("DataRatingRater")
-  workshopSubmissions WorkshopSubmission[]     @relation("WorkshopSubmissionAuthor")
-  workshopAssessments WorkshopAssessment[]     @relation("WorkshopAssessmentReviewer")
-  forumGrades         ForumGrade[]             @relation("ForumGradeUser")
-  forumGraded         ForumGrade[]             @relation("ForumGradeGrader")
-  quizAttempts        QuizAttempt[]
-  notifications       Notification[]           @relation("NotificationUser")
-  notificationsActed  Notification[]           @relation("NotificationActor")
-  notificationPrefs   NotificationPreference[]
-  conversationMembers ConversationMember[]
-  messages            Message[]
-  blocks              UserBlock[]              @relation("Blocker")
-  blockedBy           UserBlock[]              @relation("Blocked")
-  announcements       Announcement[]
-  forumDiscussions    ForumDiscussion[]
-  forumPosts          ForumPost[]              @relation("ForumPostAuthor")
-  forumSubscriptions  ForumSubscription[]
-  forumReadStates     ForumReadState[]
-  videoProgress       VideoProgress[]
-  choiceAnswers       ChoiceAnswer[]
-  feedbackResponses   FeedbackResponse[]
-  liveAttendance      LiveAttendance[]
-  scormAttempts       ScormAttempt[]
-  h5pAttempts         H5pAttempt[]
+  sessions              Session[]
+  accounts              Account[]
+  twoFactors            TwoFactor[]
+  passwordHistory       PasswordHistory[]
+  knownDevices          KnownDevice[]
+  recoveryPassphrases   RecoveryPassphrase[]
+  mentees               UserRelation[]           @relation("mentor")
+  mentors               UserRelation[]           @relation("mentee")
+  apiTokens             ApiToken[]
+  policyAcceptances     PolicyAcceptance[]
+  roleAssignments       RoleAssignment[]
+  uploadedFiles         File[]
+  uploadSessions        UploadSession[]
+  settingsUpdated       SiteSetting[]
+  enrolments            Enrolment[]
+  groupMembers          GroupMember[]
+  cohortMembers         CohortMember[]
+  courseAccesses        CourseAccess[]
+  activityCompletions   ActivityCompletion[]
+  courseCompletions     CourseCompletion[]
+  calendarEvents        CalendarEvent[]
+  calendarSubscriptions CalendarSubscription[]
+  calendarFeedToken     CalendarFeedToken?
+  grades                Grade[]
+  assignSubmissions     AssignSubmission[]
+  assignGrades          AssignGrade[]            @relation("AssignGradeUser")
+  assignTeamSubmits     AssignTeamSubmit[]
+  assignFlags           AssignUserFlags[]        @relation("AssignUserFlagsUser")
+  assignMarking         AssignUserFlags[]        @relation("AssignUserFlagsMarker")
+  assignParticipants    AssignParticipant[]
+  gradingInstances      GradingInstance[]
+  forumRatings          ForumRating[]            @relation("ForumRatingRater")
+  glossaryEntries       GlossaryEntry[]          @relation("GlossaryEntryAuthor")
+  glossaryRatings       GlossaryRating[]         @relation("GlossaryRatingRater")
+  lessonAttempts        LessonAttempt[]          @relation("LessonAttemptUser")
+  wikiSubwikis          WikiSubwiki[]            @relation("WikiSubwikiUser")
+  wikiVersions          WikiVersion[]            @relation("WikiVersionAuthor")
+  dataRecords           DataRecord[]             @relation("DataRecordAuthor")
+  dataRatings           DataRating[]             @relation("DataRatingRater")
+  workshopSubmissions   WorkshopSubmission[]     @relation("WorkshopSubmissionAuthor")
+  workshopAssessments   WorkshopAssessment[]     @relation("WorkshopAssessmentReviewer")
+  forumGrades           ForumGrade[]             @relation("ForumGradeUser")
+  forumGraded           ForumGrade[]             @relation("ForumGradeGrader")
+  quizAttempts          QuizAttempt[]
+  notifications         Notification[]           @relation("NotificationUser")
+  notificationsActed    Notification[]           @relation("NotificationActor")
+  notificationPrefs     NotificationPreference[]
+  conversationMembers   ConversationMember[]
+  messages              Message[]
+  blocks                UserBlock[]              @relation("Blocker")
+  blockedBy             UserBlock[]              @relation("Blocked")
+  announcements         Announcement[]
+  forumDiscussions      ForumDiscussion[]
+  forumPosts            ForumPost[]              @relation("ForumPostAuthor")
+  forumSubscriptions    ForumSubscription[]
+  forumReadStates       ForumReadState[]
+  videoProgress         VideoProgress[]
+  choiceAnswers         ChoiceAnswer[]
+  feedbackResponses     FeedbackResponse[]
+  liveAttendance        LiveAttendance[]
+  scormAttempts         ScormAttempt[]
+  h5pAttempts           H5pAttempt[]
 
   aiConsents         AiConsent[]
   pushSubscriptions  PushSubscription[]

@@ -87,6 +87,7 @@ export const EventInput = z.object({
   courseId: z.string().uuid().optional(),
   title: z.string().trim().min(1).max(255),
   description: z.string().max(5000).default(''),
+  location: z.string().trim().max(255).default(''),
   startsAt: z.coerce.date(),
   endsAt: z.coerce.date().optional().nullable(),
   allDay: z.boolean().default(false),
@@ -114,6 +115,7 @@ export const createEvent = defineOperation({
         kind: 'CUSTOM',
         title: input.title,
         description: input.description,
+        location: input.location,
         startsAt: input.startsAt,
         endsAt: input.endsAt ?? null,
         allDay: input.allDay,
@@ -131,6 +133,8 @@ export const deleteEvent = defineOperation({
     const e = await ctx.db.calendarEvent.findUnique({ where: { id } });
     if (!e) throw new NotFoundError('Event');
     if (e.activityId) throw new ForbiddenError('Activity events are managed by the activity');
+    if (e.subscriptionId)
+      throw new ForbiddenError('Imported events go when their import or subscription is removed');
     if (e.scope === 'USER' && e.userId === ctx.perm.userId) return;
     if (e.scope === 'COURSE' && e.courseId)
       return ctx.perm.require('calendar:managecourse', e.courseId);
@@ -217,6 +221,7 @@ export function toICal(
     }
     lines.push(`SUMMARY:${icsEscape(e.courseName ? `${e.title} (${e.courseName})` : e.title)}`);
     if (e.description) lines.push(`DESCRIPTION:${icsEscape(e.description)}`);
+    if (e.location) lines.push(`LOCATION:${icsEscape(e.location)}`);
     if (e.activityId && e.courseId)
       lines.push(`URL:${opts.baseUrl}/course/${e.courseId}/a/${e.activityId}`);
     lines.push('END:VEVENT');

@@ -73,22 +73,23 @@ model Course {
   createdAt          DateTime                 @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime                 @updatedAt @db.Timestamptz(3)
 
-  category          Category           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  context           Context            @relation("CourseContext", fields: [id], references: [id], onDelete: Cascade)
-  sections          CourseSection[]
-  activities        Activity[]
-  enrolmentMethods  EnrolmentMethod[]
-  enrolments        Enrolment[]
-  groups            Group[]
-  groupings         Grouping[]
-  accesses          CourseAccess[]
-  courseCompletions CourseCompletion[]
-  calendarEvents    CalendarEvent[]
-  gradeCategories   GradeCategory[]
-  gradeItems        GradeItem[]
-  notifications     Notification[]
-  conversations     Conversation[]
-  announcements     Announcement[]
+  category              Category               @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  context               Context                @relation("CourseContext", fields: [id], references: [id], onDelete: Cascade)
+  sections              CourseSection[]
+  activities            Activity[]
+  enrolmentMethods      EnrolmentMethod[]
+  enrolments            Enrolment[]
+  groups                Group[]
+  groupings             Grouping[]
+  accesses              CourseAccess[]
+  courseCompletions     CourseCompletion[]
+  calendarEvents        CalendarEvent[]
+  calendarSubscriptions CalendarSubscription[]
+  gradeCategories       GradeCategory[]
+  gradeItems            GradeItem[]
+  notifications         Notification[]
+  conversations         Conversation[]
+  announcements         Announcement[]
 
   aiCourseFeatures   AiCourseFeature[]
   contentChunks      ContentChunk[]

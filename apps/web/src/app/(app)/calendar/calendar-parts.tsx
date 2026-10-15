@@ -2,11 +2,16 @@
 
 import { LocalDateTimeInput } from '@hubium/module-sdk/form';
 import { Button, Checkbox, Input, Select, Textarea } from '@hubium/ui';
+import { toast } from '@hubium/ui/theme';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
-import { createEventAction, resetFeedTokenAction } from '@/server/actions/calendar';
+import {
+  createEventAction,
+  importCalendarAction,
+  resetFeedTokenAction,
+} from '@/server/actions/calendar';
 
 export function NewEventForm({
   courses,
@@ -58,10 +63,106 @@ export function NewEventForm({
           </Select>
         </FormField>
       ) : null}
+      <FormField name="location" label={t('location')} maxLength={255} />
       <FormField name="description" label={t('eventDescription')}>
         <Textarea id="f-description" name="description" className="min-h-16" />
       </FormField>
       <SubmitButton>{tc('create')}</SubmitButton>
+    </ActionForm>
+  );
+}
+
+/** Imports an .ics file, or subscribes to a feed by its address, into a chosen calendar. */
+export function ImportCalendarForm({
+  courses,
+  canSite,
+}: {
+  courses: { id: string; fullName: string }[];
+  canSite: boolean;
+}) {
+  const t = useTranslations('calendar');
+  const router = useRouter();
+  const [scope, setScope] = useState('USER');
+  const [source, setSource] = useState<'file' | 'url'>('file');
+  return (
+    <ActionForm
+      action={importCalendarAction}
+      resetOnSuccess
+      onSuccess={(r: { events: number }) => {
+        toast.success(t('imported', { n: r.events }));
+        router.refresh();
+      }}
+      className="grid gap-3"
+    >
+      <fieldset className="grid gap-1.5">
+        <legend className="mb-1 text-sm font-medium">{t('importSource')}</legend>
+        {(['file', 'url'] as const).map((v) => (
+          <label key={v} htmlFor={`imp-src-${v}`} className="flex items-center gap-2 text-sm">
+            <input
+              id={`imp-src-${v}`}
+              type="radio"
+              name="source"
+              value={v}
+              checked={source === v}
+              onChange={() => setSource(v)}
+            />
+            {t(v === 'file' ? 'importFile' : 'subscribeUrl')}
+          </label>
+        ))}
+      </fieldset>
+      <FormField id="imp-name" name="name" label={t('importName')} required={source === 'url'} />
+      {source === 'file' ? (
+        <FormField
+          id="imp-file"
+          name="file"
+          label={t('icsFile')}
+          type="file"
+          accept=".ics,text/calendar"
+          required
+        />
+      ) : (
+        <>
+          <FormField
+            id="imp-url"
+            name="url"
+            label={t('feedUrl')}
+            hint={t('feedUrlHint')}
+            inputMode="url"
+            required
+          />
+          <FormField id="imp-poll" name="pollSeconds" label={t('pollEvery')}>
+            <Select id="imp-poll" name="pollSeconds" defaultValue="86400">
+              <option value="3600">{t('poll.hour')}</option>
+              <option value="86400">{t('poll.day')}</option>
+              <option value="604800">{t('poll.week')}</option>
+            </Select>
+          </FormField>
+        </>
+      )}
+      <FormField id="imp-scope" name="scope" label={t('importInto')}>
+        <Select
+          id="imp-scope"
+          name="scope"
+          value={scope}
+          onChange={(e) => setScope(e.target.value)}
+        >
+          <option value="USER">{t('scopes.USER')}</option>
+          {courses.length ? <option value="COURSE">{t('scopes.COURSE')}</option> : null}
+          {canSite ? <option value="SITE">{t('scopes.SITE')}</option> : null}
+        </Select>
+      </FormField>
+      {scope === 'COURSE' ? (
+        <FormField id="imp-courseId" name="courseId" label={t('course')}>
+          <Select id="imp-courseId" name="courseId">
+            {courses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.fullName}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+      ) : null}
+      <SubmitButton>{t(source === 'file' ? 'importAction' : 'subscribeAction')}</SubmitButton>
     </ActionForm>
   );
 }

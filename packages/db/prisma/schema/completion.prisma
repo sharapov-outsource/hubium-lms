@@ -55,31 +55,62 @@ model CourseCompletion {
 }
 
 model CalendarEvent {
-  id          String            @id @default(uuid(7)) @db.Uuid
-  scope       CalendarScope
-  courseId    String?           @db.Uuid
-  groupId     String?           @db.Uuid
-  userId      String?           @db.Uuid
-  activityId  String?           @db.Uuid
-  moduleKey   String?
-  kind        CalendarEventKind @default(CUSTOM)
-  title       String
-  description String            @default("")
-  startsAt    DateTime          @db.Timestamptz(3)
-  endsAt      DateTime?         @db.Timestamptz(3)
-  allDay      Boolean           @default(false)
-  visible     Boolean           @default(true)
-  createdById String?           @db.Uuid
-  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
+  id             String            @id @default(uuid(7)) @db.Uuid
+  scope          CalendarScope
+  courseId       String?           @db.Uuid
+  groupId        String?           @db.Uuid
+  userId         String?           @db.Uuid
+  activityId     String?           @db.Uuid
+  moduleKey      String?
+  kind           CalendarEventKind @default(CUSTOM)
+  title          String
+  description    String            @default("")
+  location       String            @default("")
+  startsAt       DateTime          @db.Timestamptz(3)
+  endsAt         DateTime?         @db.Timestamptz(3)
+  allDay         Boolean           @default(false)
+  visible        Boolean           @default(true)
+  createdById    String?           @db.Uuid
+  /// An event from an imported file or a subscribed feed, with its UID there.
+  subscriptionId String?           @db.Uuid
+  uid            String?
+  createdAt      DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @db.Timestamptz(3)
 
-  course Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course       Course?               @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user         User?                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription CalendarSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@unique([activityId, kind])
+  @@unique([subscriptionId, uid])
   @@index([startsAt])
   @@index([courseId, startsAt])
   @@index([userId, startsAt])
+}
+
+/// An iCalendar feed subscribed to by URL and refreshed on a schedule, or a file imported
+/// once (no URL); its events are in the calendar of a user, a course or the site.
+model CalendarSubscription {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  scope       CalendarScope
+  courseId    String?       @db.Uuid
+  userId      String?       @db.Uuid
+  name        String
+  url         String?
+  /// Seconds between refreshes (an hour, a day, a week); 0 for an imported file.
+  pollSeconds Int           @default(86400)
+  lastSyncAt  DateTime?     @db.Timestamptz(3)
+  lastError   String?
+  createdById String?       @db.Uuid
+  createdAt   DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(3)
+
+  course Course?         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events CalendarEvent[]
+
+  @@index([courseId])
+  @@index([userId])
 }
 
 model CalendarFeedToken {

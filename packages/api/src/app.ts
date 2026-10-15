@@ -324,8 +324,10 @@ const CalendarEvent = z
     id: z.string(),
     title: z.string(),
     kind: z.string(),
+    location: z.string(),
     startsAt: z.string(),
     endsAt: z.string().nullable(),
+    allDay: z.boolean(),
     courseId: Id.nullable(),
     url: z.string().nullable(),
   })
@@ -1306,8 +1308,10 @@ export function createApi(opts: ApiOptions) {
             id: e.id,
             title: e.title,
             kind: e.kind,
+            location: e.location,
             startsAt: e.startsAt.toISOString(),
             endsAt: iso(e.endsAt),
+            allDay: e.allDay,
             courseId: e.courseId ?? null,
             url:
               e.activityId && e.courseId

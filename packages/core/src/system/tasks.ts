@@ -17,6 +17,8 @@ export const CORE_SCHEDULE = {
   'email.digest': '0 * * * *',
   'announcements.publish': '* * * * *',
   'calendar.reminders': '10 * * * *',
+  // each subscription is refreshed when its own interval has passed
+  'calendar.subscriptions': '25 * * * *',
   'enrol.expire': '5 * * * *',
   'notifications.prune': '41 4 * * *',
   'webhooks.prune': '29 4 * * *',

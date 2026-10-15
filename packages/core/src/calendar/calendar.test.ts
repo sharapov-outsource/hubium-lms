@@ -9,6 +9,9 @@ const base = {
   moduleKey: 'assign',
   kind: 'DUE' as const,
   description: 'Line 1\nLine, 2; done',
+  location: '',
+  subscriptionId: null,
+  uid: null,
   allDay: false,
   visible: true,
   createdById: null,
@@ -34,6 +37,7 @@ describe('toICal', () => {
           id: 'e2',
           activityId: null,
           title: 'Каникулы',
+          location: 'Дача, 2 км',
           allDay: true,
           startsAt: new Date('2026-05-09T00:00:00Z'),
           endsAt: null,
@@ -47,6 +51,7 @@ describe('toICal', () => {
     expect(ics).toContain('DTSTART;VALUE=DATE:20260509');
     expect(ics).toContain('SUMMARY:Эссе (История)');
     expect(ics).toContain('DESCRIPTION:Line 1\\nLine\\, 2\\; done');
+    expect(ics).toContain('LOCATION:Дача\\, 2 км');
     expect(ics).toContain('URL:https://lms.example/course/c1/a/a1');
     expect(ics.endsWith('END:VCALENDAR\r\n')).toBe(true);
   });

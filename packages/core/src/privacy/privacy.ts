@@ -80,7 +80,7 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
     }),
     db.calendarEvent.findMany({
       where: { userId, scope: 'USER' },
-      select: { title: true, description: true, startsAt: true, endsAt: true },
+      select: { title: true, description: true, location: true, startsAt: true, endsAt: true },
     }),
     db.message.findMany({
       where: { senderId: userId, deletedAt: null },
@@ -171,6 +171,10 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
       field: profileFieldLabel(f, ctx.locale),
       value: profileValueText(stored[f.shortName]),
     }));
+  const calendarSubscriptions = await db.calendarSubscription.findMany({
+    where: { userId, scope: 'USER' },
+    select: { name: true, url: true, pollSeconds: true, createdAt: true },
+  });
   return JSON.parse(
     JSON.stringify({
       exportedAt: ctx.now.toISOString(),
@@ -180,6 +184,7 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
       grades,
       completions,
       calendar: events,
+      calendarSubscriptions,
       messages,
       notifications,
       notificationPreferences: preferences,
@@ -217,6 +222,7 @@ export async function erasePersonalData(
   await tx.notification.deleteMany({ where: { userId } });
   await tx.notificationPreference.deleteMany({ where: { userId } });
   await tx.calendarEvent.deleteMany({ where: { userId, scope: 'USER' } });
+  await tx.calendarSubscription.deleteMany({ where: { userId, scope: 'USER' } });
   // Webhook deliveries carry the person's name and email until they are pruned.
   await tx.$executeRaw`DELETE FROM "WebhookDelivery" WHERE payload -> 'user' ->> 'id' = ${userId}`;
   await tx.message.updateMany({

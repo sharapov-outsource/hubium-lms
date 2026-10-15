@@ -84,7 +84,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
   - typing indicator and attachments;
   - blocking and privacy settings.
 - **Announcements:** site and course announcements, pinned or scheduled.
-- **Calendar:** site, course, group and personal events, month, week and agenda views, reminders, and an iCal feed.
+- **Calendar:** site, course, group and personal events with a location, day, week, month and agenda views, reminders, an iCal feed, and .ics files imported or calendars subscribed by address (refreshed hourly, daily or weekly, repeating events expanded).
 
 ### AI assistant
 

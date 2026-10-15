@@ -180,10 +180,13 @@ export const resetCourse = defineOperation({
       await tx.groupMember.deleteMany({ where: { group: { courseId } } });
     if (input.groupings) await tx.grouping.deleteMany({ where: { courseId } });
 
-    if (input.events)
+    if (input.events) {
       report.events = (
         await tx.calendarEvent.deleteMany({ where: { courseId, activityId: null } })
       ).count;
+      // imports and subscriptions too, or they would bring the events back
+      await tx.calendarSubscription.deleteMany({ where: { courseId } });
+    }
     if (input.announcements)
       report.announcements = (await tx.announcement.deleteMany({ where: { courseId } })).count;
 
@@ -236,7 +239,10 @@ async function shiftCourseDates(tx: Prisma.TransactionClient, courseId: string, 
     // activity events follow the new settings
     await syncCalendar(tx, updated);
   }
-  for (const e of await tx.calendarEvent.findMany({ where: { courseId, activityId: null } }))
+  // a subscription's events keep the dates of their feed
+  for (const e of await tx.calendarEvent.findMany({
+    where: { courseId, activityId: null, subscriptionId: null },
+  }))
     await tx.calendarEvent.update({
       where: { id: e.id },
       data: { startsAt: at(e.startsAt)!, endsAt: at(e.endsAt) },

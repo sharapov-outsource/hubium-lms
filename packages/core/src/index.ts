@@ -10,6 +10,8 @@ export * from './auth/recovery.ts';
 export * from './auth/sso.ts';
 export * from './cache-bus.ts';
 export * from './calendar/calendar.ts';
+export * from './calendar/ics.ts';
+export * from './calendar/subscriptions.ts';
 export * from './client-ip.ts';
 export * from './completion/completion.ts';
 export * from './content.ts';
