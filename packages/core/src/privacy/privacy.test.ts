@@ -3,6 +3,7 @@ import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { createApiToken } from '../api-tokens/tokens.ts';
 import { resetFeedToken, userForFeedToken } from '../calendar/calendar.ts';
+import { ForbiddenError } from '../errors.ts';
 import { openDirectConversation, sendMessage } from '../messaging/messaging.ts';
 import { runModuleAction } from '../modules/actions.ts';
 import { buildModuleCtx } from '../modules/module-ctx.ts';
@@ -42,6 +43,12 @@ describe('privacy', () => {
     await expect(exportUserData(s2, f.users.student1!)).rejects.toThrow();
     const admin = await ctxFor(t.db, 'admin@test.local');
     await expect(exportUserData(admin, f.users.student1!)).resolves.toHaveProperty('user');
+    // a manager edits accounts but not administrators': nor gets their messages and log
+    const manager = await ctxFor(t.db, 'manager@hubium.local');
+    await expect(exportUserData(manager, f.users.student1!)).resolves.toHaveProperty('user');
+    await expect(exportUserData(manager, admin.perm.userId!)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
   });
 
   it('erases personal content when a user is deleted', async () => {

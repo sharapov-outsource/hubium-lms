@@ -15,6 +15,13 @@ import { listProfileFields, profileFieldLabel, profileValueText } from '../users
 async function canManage(ctx: RequestContext, userId: string) {
   if (ctx.actor.kind === 'user' && ctx.actor.userId === userId) return;
   await ctx.perm.require('user:update');
+  // as for editing accounts: an administrator's only by administrators
+  const target = await ctx.db.user.findUnique({
+    where: { id: userId },
+    select: { isSiteAdmin: true },
+  });
+  if (target?.isSiteAdmin && !ctx.perm.isSiteAdmin)
+    throw new ForbiddenError("Only site admins can handle an admin's data");
 }
 
 /** Everything Hubium stores about a user, as JSON (files are listed, not embedded). */
