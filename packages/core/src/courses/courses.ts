@@ -1,9 +1,10 @@
-import { type Course, type Db, Prisma, uuidv7 } from '@hubium/db';
+import { type Course, type Db, Prisma, SYSTEM_CONTEXT_ID, uuidv7 } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
+import type { Capability } from '../access/capabilities.ts';
 import { createContext } from '../access/contexts.ts';
-import { loadUserAccess, Permissions } from '../access/permissions.ts';
+import { loadUserAccess, Permissions, rolesWithCap } from '../access/permissions.ts';
 import { scheduleCourseProgress } from '../completion/schedule.ts';
 import type { RequestContext } from '../context.ts';
 import { logEnrolments } from '../enrol/enrol.ts';
@@ -602,6 +603,54 @@ export interface MyCourse {
   endDate: Date | null;
   /** Stored custom field values (all of them: callers pick what to show). */
   customFields: unknown;
+}
+
+/**
+ * Courses (not in the recycle bin) matching `where` in which the person holds `cap`, by name,
+ * at most `take`. Only the courses within reach of their roles are looked at (the course, a
+ * category above it, the site when a role there allows `cap`), and can() decides among them,
+ * so overrides and prohibitions count and a match past the first page of the site is found.
+ */
+export async function coursesWithCap<S extends Prisma.CourseSelect & { id: true }>(
+  ctx: RequestContext,
+  cap: Capability,
+  opts: { where?: Prisma.CourseWhereInput; select: S; take: number },
+): Promise<Prisma.CourseGetPayload<{ select: S }>[]> {
+  const userId = ctx.perm.userId;
+  if (!userId) return [];
+  let reach: Prisma.CourseWhereInput = {};
+  if (!ctx.perm.isSiteAdmin) {
+    const [held, siteRoles] = await Promise.all([
+      ctx.db.roleAssignment.findMany({
+        where: { userId },
+        select: { contextId: true, roleId: true },
+      }),
+      rolesWithCap(ctx.db, cap, SYSTEM_CONTEXT_ID),
+    ]);
+    const everywhere = held.some(
+      (h) => h.contextId === SYSTEM_CONTEXT_ID && siteRoles.includes(h.roleId),
+    );
+    const ids = [...new Set(held.map((h) => h.contextId))].filter((c) => c !== SYSTEM_CONTEXT_ID);
+    if (!everywhere)
+      reach = { context: { OR: [{ id: { in: ids } }, { ancestorIds: { hasSome: ids } }] } };
+  }
+  const out: Prisma.CourseGetPayload<{ select: S }>[] = [];
+  const BATCH = 200;
+  for (let skip = 0; out.length < opts.take; skip += BATCH) {
+    const batch = await ctx.db.course.findMany({
+      where: { AND: [{ deletedAt: null }, reach, opts.where ?? {}] },
+      orderBy: [{ fullName: 'asc' }, { id: 'asc' }],
+      skip,
+      take: BATCH,
+      select: opts.select,
+    });
+    for (const c of batch) {
+      if (out.length >= opts.take) break;
+      if (await ctx.perm.can(cap, (c as { id: string }).id).catch(() => false)) out.push(c);
+    }
+    if (batch.length < BATCH) break;
+  }
+  return out;
 }
 
 /**

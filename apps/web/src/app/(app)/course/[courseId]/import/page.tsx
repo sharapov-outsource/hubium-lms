@@ -1,4 +1,4 @@
-import { getModule } from '@hubium/core';
+import { coursesWithCap, getModule } from '@hubium/core';
 import { Button, Card, CardContent, Input, PageHeader } from '@hubium/ui';
 import Link from 'next/link';
 import { forbidden } from 'next/navigation';
@@ -42,7 +42,7 @@ export default async function CourseImportPage({
   }
 
   async function choose() {
-    const q = sp.q?.trim() ?? '';
+    const q = sp.q?.trim().slice(0, 200) ?? '';
     // without a query: the courses the person has a role in; with one: any course found
     const own = q
       ? undefined
@@ -52,9 +52,8 @@ export default async function CourseImportPage({
             select: { contextId: true },
           })
         ).map((r) => r.contextId);
-    const candidates = await ctx.db.course.findMany({
+    const courses = await coursesWithCap(ctx, 'backup:create', {
       where: {
-        deletedAt: null,
         id: { not: courseId, in: own },
         ...(q
           ? {
@@ -65,13 +64,9 @@ export default async function CourseImportPage({
             }
           : {}),
       },
-      orderBy: { fullName: 'asc' },
-      take: 100,
       select: { id: true, fullName: true, shortName: true },
+      take: 100,
     });
-    const courses = [];
-    for (const c of candidates)
-      if (await ctx.perm.can('backup:create', c.id).catch(() => false)) courses.push(c);
     return (
       <Card>
         <CardContent className="grid gap-4 pt-5">
