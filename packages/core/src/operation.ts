@@ -113,10 +113,15 @@ export function toActionError(
       fieldErrors,
     };
   }
+  const prisma = e && typeof e === 'object' && 'code' in e ? (e as { code: unknown }).code : null;
   // Unique constraint races (two requests creating the same thing) surface as a conflict.
-  if (e && typeof e === 'object' && 'code' in e && (e as { code: unknown }).code === 'P2002') {
-    return { ok: false, code: 'CONFLICT', message: t(msg('errors.inUse')) };
-  }
+  if (prisma === 'P2002') return { ok: false, code: 'CONFLICT', message: t(msg('errors.inUse')) };
+  // a row someone else removed meanwhile, or a reference to one that is not there: the
+  // request's, not the server's fault
+  if (prisma === 'P2025')
+    return { ok: false, code: 'NOT_FOUND', message: t(msg('errors.NOT_FOUND')) };
+  if (prisma === 'P2003')
+    return { ok: false, code: 'VALIDATION', message: t(msg('errors.VALIDATION')) };
   logger.error({ err: e }, 'unexpected error');
   return { ok: false, code: 'INTERNAL', message: t(msg('errors.INTERNAL')) };
 }

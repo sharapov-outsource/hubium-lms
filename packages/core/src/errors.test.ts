@@ -68,4 +68,16 @@ describe('errors for people', () => {
     expect(closed.message).toBe('This value is already in use');
     expect(closed.msg?.in('it')).toBe('Questo valore è già in uso');
   });
+
+  it("tells the database's refusals of a request from the server's own failures", () => {
+    const prisma = (code: string) => Object.assign(new Error(code), { code });
+    expect(toActionError(prisma('P2002'), 'ru')).toMatchObject({ code: 'CONFLICT' });
+    expect(toActionError(prisma('P2025'), 'ru')).toEqual({
+      ok: false,
+      code: 'NOT_FOUND',
+      message: 'Не найдено',
+    });
+    expect(toActionError(prisma('P2003'), 'en')).toMatchObject({ code: 'VALIDATION' });
+    expect(toActionError(new Error('boom'), 'en')).toMatchObject({ code: 'INTERNAL' });
+  });
 });
