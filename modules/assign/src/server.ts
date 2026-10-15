@@ -1315,19 +1315,32 @@ export const assign = defineModule<AssignSettingsT>({
     extend: defineAction({
       summary: 'Give a student a personal due date and cut-off (null due date removes it)',
       capability: 'mod.assign:grantextension',
+      // the same dates and checks as setOverride
       input: z.object({
         userId: z.string().uuid(),
-        dueAt: z.string().nullable(),
-        cutoffAt: z.string().nullable().optional(),
+        dueAt: DateInput,
+        cutoffAt: DateInput,
       }),
       async handler(ctx, a, input) {
+        const enrolled = await ctx.db.enrolment.findFirst({
+          where: { courseId: a.courseId, userId: input.userId },
+        });
+        if (!enrolled) throw new ModuleError('NOT_FOUND', 'User is not enrolled');
+        const own = await ctx.db.assignOverride.findUnique({
+          where: { activityId_userId: { activityId: a.id, userId: input.userId } },
+        });
         if (!input.dueAt) {
-          await ctx.db.assignOverride.deleteMany({
-            where: { activityId: a.id, userId: input.userId },
-          });
+          // taking the extension back leaves the rest of their dates (when they may start)
+          if (own?.allowSubmissionsFrom)
+            await ctx.db.assignOverride.update({
+              where: { id: own.id },
+              data: { dueAt: null, cutoffAt: null },
+            });
+          else if (own) await ctx.db.assignOverride.delete({ where: { id: own.id } });
         } else {
           const dueAt = new Date(input.dueAt);
           const cutoffAt = input.cutoffAt ? new Date(input.cutoffAt) : dueAt;
+          if (cutoffAt < dueAt) throw new Error('Cut-off must not be before the due date');
           await ctx.db.assignOverride.upsert({
             where: { activityId_userId: { activityId: a.id, userId: input.userId } },
             create: { activityId: a.id, userId: input.userId, dueAt, cutoffAt },

@@ -135,4 +135,36 @@ describe('assignment: dates for students and groups, late penalty', () => {
     await runModuleAction(teacher, id, 'grade', { userId: f.users.student1, grade: 2 });
     expect(await finalGrade(id, f.users.student1!)).toBe(2);
   });
+
+  it('an extension takes the dates and checks of an override, and leaves the rest', async () => {
+    const { f, teacher, id, now } = await setup('AOV4');
+    const s1 = f.users.student1!;
+    const extend = (input: Record<string, unknown>) =>
+      runModuleAction(teacher, id, 'extend', { userId: s1, ...input });
+    // a wrong date is a mistake of the form, not of the server
+    await expect(extend({ dueAt: 'завтра' })).rejects.toMatchObject({ code: 'VALIDATION' });
+    await expect(
+      extend({
+        dueAt: new Date(now + 2 * DAY).toISOString(),
+        cutoffAt: new Date(now + DAY).toISOString(),
+      }),
+    ).rejects.toThrow(/Cut-off/);
+    const outsider = await t.db.user.findFirstOrThrow({ where: { username: 'manager' } });
+    await expect(
+      runModuleAction(teacher, id, 'extend', {
+        userId: outsider.id,
+        dueAt: new Date(now + DAY).toISOString(),
+      }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    // their own opening date stays when the extension is taken back
+    const from = new Date(now + 3600_000).toISOString();
+    await runModuleAction(teacher, id, 'setOverride', { userId: s1, allowSubmissionsFrom: from });
+    await extend({ dueAt: new Date(now + DAY).toISOString() });
+    await extend({ dueAt: null });
+    const own = await t.db.assignOverride.findUniqueOrThrow({
+      where: { activityId_userId: { activityId: id, userId: s1 } },
+    });
+    expect(own).toMatchObject({ dueAt: null, cutoffAt: null });
+    expect(own.allowSubmissionsFrom?.toISOString()).toBe(from);
+  });
 });
