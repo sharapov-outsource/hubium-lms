@@ -720,6 +720,14 @@ export const workshop = defineModule<WorkshopSettingsT>({
       input: z.object({ assessmentId: z.string().uuid() }),
       async handler(ctx, ref, input) {
         const x = await assessmentOf(ctx, ref, input.assessmentId);
+        // grades are worked out from the assessments in the evaluation phase: taking one
+        // back afterwards would leave grades that no assessment backs
+        const { phase } = await workshopState(ctx.db, ref.id);
+        if (x.assessedAt && (phase === 'evaluation' || phase === 'closed'))
+          throw new ModuleError(
+            'CONFLICT',
+            'An assessment that grades are worked out from cannot be taken back',
+          );
         await ctx.db.workshopAssessment.delete({ where: { id: x.id } });
         return { ok: true };
       },

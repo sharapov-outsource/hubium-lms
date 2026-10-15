@@ -125,6 +125,13 @@ describe('mod-workshop', () => {
       published?: unknown[];
     };
     expect(seen.mine?.title).toBe('Эссе 2');
+    // nor can an assessment be taken back that the grades come from
+    const given = await t.db.workshopAssessment.findFirstOrThrow({
+      where: { submission: { activityId: id }, assessedAt: { not: null } },
+    });
+    await expect(act(teacher, 'deallocate', { assessmentId: given.id })).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
     // the form cannot change once work has been assessed with it
     await expect(
       act(teacher, 'saveForm', { dimensions: [{ description: 'Новое', maxGrade: 5 }] }),
