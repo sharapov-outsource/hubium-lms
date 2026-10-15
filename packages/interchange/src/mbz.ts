@@ -449,6 +449,96 @@ export function mbzForumGrading(data: Node, scaleOf: (moodleId: string) => strin
   };
 }
 
+/** Every node named `tag` anywhere under `node` (subplugin data nests in varying wrappers). */
+function nodesNamed(node: unknown, tag: string): Node[] {
+  if (!node || typeof node !== 'object') return [];
+  const out: Node[] = [];
+  for (const [k, v] of Object.entries(node as Node)) {
+    if (k === tag) out.push(...arr(v as Node | Node[]));
+    else for (const x of arr(v as Node | Node[])) out.push(...nodesNamed(x, tag));
+  }
+  return out;
+}
+
+/**
+ * A Moodle workshop's settings and its assessment form, as the workshop module's backup
+ * takes them; submissions and assessments are users' data and stay out.
+ */
+export function mbzWorkshop(data: Node) {
+  const presence = (v: unknown) =>
+    (['off', 'optional', 'required'] as const)[num(v, 1)] ?? 'optional';
+  const strategy = (['accumulative', 'comments', 'numerrors', 'rubric'] as const).find(
+    (k) => k === txt(data.strategy),
+  );
+  const sorted = (xs: Node[]) => [...xs].sort((a, b) => num(a.sort) - num(b.sort));
+  const comparison = num(nodesNamed(data, 'workshopeval_best_setting')[0]?.comparison, 5);
+  let onScale = false;
+  const dimensions = !strategy
+    ? []
+    : strategy === 'accumulative'
+      ? sorted(nodesNamed(data, 'workshopform_accumulative_dimension')).map((d) => {
+          const g = num(d.grade, 10);
+          if (g < 0) onScale = true;
+          return {
+            description: txt(d.description),
+            maxGrade: g > 0 ? g : 10,
+            weight: num(d.weight, 1),
+          };
+        })
+      : strategy === 'comments'
+        ? sorted(nodesNamed(data, 'workshopform_comments_dimension')).map((d) => ({
+            description: txt(d.description),
+          }))
+        : strategy === 'numerrors'
+          ? sorted(nodesNamed(data, 'workshopform_numerrors_dimension')).map((d) => ({
+              description: txt(d.description),
+              weight: num(d.weight, 1),
+              positive: plainText(txt(d.grade1)).slice(0, 255) || undefined,
+              negative: plainText(txt(d.grade0)).slice(0, 255) || undefined,
+            }))
+          : sorted(nodesNamed(data, 'workshopform_rubric_criterion')).map((c) => ({
+              description: txt(c.description),
+              levels: nodesNamed(c, 'workshopform_rubric_level')
+                .sort((a, b) => num(a.grade) - num(b.grade))
+                .map((l) => ({
+                  grade: num(l.grade),
+                  definition: plainText(txt(l.definition)).slice(0, 2000),
+                })),
+            }));
+  const mapping = Object.fromEntries(
+    nodesNamed(data, 'workshopform_numerrors_map').map((m) => [txt(m.nonegative), num(m.grade)]),
+  );
+  const ws = num(data.grade, 80);
+  const wg = num(data.gradinggrade, 20);
+  return {
+    settings: {
+      strategy: strategy ?? 'accumulative',
+      gradeMax: ws >= 0 ? ws : 80,
+      gradingGradeMax: wg >= 0 ? wg : 20,
+      instructAuthors: txt(data.instructauthors),
+      instructReviewers: txt(data.instructreviewers),
+      conclusion: txt(data.conclusion),
+      submissionText: presence(data.submissiontypetext),
+      submissionFiles:
+        num(data.nattachments, 1) === 0 ? ('off' as const) : presence(data.submissiontypefile),
+      maxAttachments: Math.min(20, Math.max(0, num(data.nattachments, 1))),
+      lateSubmissions: txt(data.latesubmissions) === '1',
+      submissionStart: date(data.submissionstart),
+      submissionEnd: date(data.submissionend),
+      assessmentStart: date(data.assessmentstart),
+      assessmentEnd: date(data.assessmentend),
+      phaseSwitch: txt(data.phaseswitchassessment) === '1',
+      selfAssessment: txt(data.useselfassessment) === '1',
+      comparison: [9, 7, 5, 3, 1].includes(comparison) ? comparison : 5,
+    },
+    form: strategy && dimensions.length ? { [strategy]: { dimensions, mapping } } : {},
+    unknownStrategy: !strategy,
+    onScale,
+    examples: txt(data.useexamples) === '1',
+    submissions: nodesNamed(data, 'submission').length,
+  };
+}
+
 /** Moodle's lesson page kinds (qtype) as Hubium's. */
 const LESSON_QTYPES: Record<string, string> = {
   '1': 'shortanswer',
@@ -1838,6 +1928,26 @@ export async function importMbz(
               buildModuleCtx(ctx),
               toActivityRef(act) as never,
               { fields },
+              () => undefined,
+            );
+            break;
+          }
+          case 'workshop': {
+            // the settings and the assessment form; work and assessments are users' data
+            const w = mbzWorkshop(data);
+            const left: string[] = [];
+            if (w.submissions) left.push(`submissions, which are users' data (${w.submissions})`);
+            if (w.examples) left.push('example submissions');
+            if (w.unknownStrategy)
+              left.push(`the grading strategy ${txt(data.strategy)} (accumulative is used)`);
+            if (w.onScale) left.push('scales of criteria (graded by points)');
+            if (left.length) warnings.push(`"${name}": left out ${left.join('; ')}`);
+            const { id } = await create({ ...base, moduleKey: 'workshop', settings: w.settings });
+            const act = await db.activity.findUniqueOrThrow({ where: { id } });
+            await getModule('workshop')?.backup?.import?.(
+              buildModuleCtx(ctx),
+              toActivityRef(act) as never,
+              { forms: w.form },
               () => undefined,
             );
             break;

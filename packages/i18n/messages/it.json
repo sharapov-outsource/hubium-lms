@@ -2115,6 +2115,7 @@
       "lti_cleanup": "Pulizia dei dati LTI",
       "quiz_overdue_sweep": "Chiusura dei tentativi di quiz scaduti",
       "lesson_overdue_sweep": "Chiusura dei tentativi di lezione scaduti",
+      "workshop_phase_switch": "Cambio di fase dei workshop",
       "livesession_remind": "Promemoria dei webinar"
     }
   }

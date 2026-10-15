@@ -1,0 +1,66 @@
+// mod-workshop: peer assessment in phases, as Moodle's workshop.
+
+/// The workshop's state: its phase and its assessment forms (one per grading strategy).
+model Workshop {
+  activityId String   @id @db.Uuid
+  /// setup | submission | assessment | evaluation | closed
+  phase      String   @default("setup")
+  /// { [strategy]: { dimensions, mapping } }
+  forms      Json     @default("{}")
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+}
+
+model WorkshopSubmission {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  activityId String   @db.Uuid
+  authorId   String   @db.Uuid
+  title      String
+  content    String   @default("")
+  /// Sent after the deadline.
+  late       Boolean  @default(false)
+  /// 0..100 from the assessments; null until grades are calculated.
+  grade      Float?
+  /// The teacher's grade (0..100) instead of the calculated one.
+  gradeOver  Float?
+  /// The teacher's feedback to the author.
+  feedback   String   @default("")
+  /// Shown to every participant once the workshop is closed.
+  published  Boolean  @default(false)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  activity    Activity             @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  author      User                 @relation("WorkshopSubmissionAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  assessments WorkshopAssessment[]
+
+  @@unique([activityId, authorId])
+}
+
+model WorkshopAssessment {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  submissionId     String    @db.Uuid
+  reviewerId       String    @db.Uuid
+  /// How much the assessment counts for the submission's grade (0 to 16, as in Moodle).
+  weight           Int       @default(1)
+  /// The filled form: { [dimensionId]: { grade, levelId, passed, comment } }.
+  filling          Json?
+  /// 0..100 the assessment gives; null until assessed.
+  grade            Float?
+  /// 0..100 for the quality of the assessment; null until calculated.
+  gradingGrade     Float?
+  gradingGradeOver Float?
+  /// The reviewer's overall comment to the author.
+  feedbackAuthor   String    @default("")
+  /// The teacher's comment to the reviewer.
+  feedbackReviewer String    @default("")
+  assessedAt       DateTime? @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @db.Timestamptz(3)
+
+  submission WorkshopSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  reviewer   User               @relation("WorkshopAssessmentReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, reviewerId])
+  @@index([reviewerId])
+}

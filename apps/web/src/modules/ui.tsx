@@ -13,6 +13,7 @@ import { quizUI } from '@hubium/mod-quiz/ui';
 import { scormUI } from '@hubium/mod-scorm/ui';
 import { videoUI } from '@hubium/mod-video/ui';
 import { wikiUI } from '@hubium/mod-wiki/ui';
+import { workshopUI } from '@hubium/mod-workshop/ui';
 import type { ActivityModuleUI } from '@hubium/module-sdk/ui';
 
 const uis = new Map<string, ActivityModuleUI<never>>();
@@ -25,6 +26,7 @@ for (const ui of [
   lessonUI,
   wikiUI,
   dataUI,
+  workshopUI,
   assignUI,
   quizUI,
   forumUI,

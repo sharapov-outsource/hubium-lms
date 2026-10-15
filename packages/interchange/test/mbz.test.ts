@@ -28,12 +28,15 @@ describe('.mbz import', () => {
     expect(report).toMatchObject({
       moodleRelease: '4.5 (Build: 20241007)',
       sections: 2,
-      activities: 14,
+      activities: 15,
       questions: 6,
     });
     expect(report.warnings.join('\n')).toContain('Формула');
     expect(report.warnings.join('\n')).toContain('Новости');
     expect(report.warnings.join('\n')).toContain('"Пакет" (imscp)');
+    expect(report.warnings.join('\n')).toContain(
+      `"Рецензии": left out submissions, which are users' data (1)`,
+    );
     expect(report.warnings.join('\n')).toContain(
       `"Каталог": left out entries, which are users' data (1); fields of type latlong`,
     );
@@ -86,7 +89,37 @@ describe('.mbz import', () => {
       'lesson:Маршрут',
       'label:Пакет',
       'data:Каталог',
+      'workshop:Рецензии',
     ]);
+    const ws = acts.find((a) => a.moduleKey === 'workshop')!;
+    expect(ws.settings).toMatchObject({
+      strategy: 'rubric',
+      gradeMax: 60,
+      gradingGradeMax: 40,
+      instructAuthors: '<p>Напишите эссе</p>',
+      submissionText: 'required',
+      submissionFiles: 'off',
+      lateSubmissions: true,
+      phaseSwitch: true,
+      selfAssessment: true,
+      comparison: 3,
+    });
+    const state = await t.db.workshop.findUniqueOrThrow({ where: { activityId: ws.id } });
+    expect(state.phase).toBe('setup');
+    expect(state.forms).toMatchObject({
+      rubric: {
+        dimensions: [
+          {
+            description: '<p>Аргументы</p>',
+            levels: [
+              { grade: 0, definition: 'Нет' },
+              { grade: 2, definition: 'Есть' },
+            ],
+          },
+        ],
+      },
+    });
+    expect(await t.db.workshopSubmission.count({ where: { activityId: ws.id } })).toBe(0);
     const catalog = acts.find((a) => a.moduleKey === 'data')!;
     expect(catalog.settings).toMatchObject({
       approvalRequired: true,

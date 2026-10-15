@@ -13,6 +13,7 @@ import { quizModules } from '@hubium/mod-quiz/server';
 import { scormModules } from '@hubium/mod-scorm/server';
 import { videoModules } from '@hubium/mod-video/server';
 import { wikiModules } from '@hubium/mod-wiki/server';
+import { workshopModules } from '@hubium/mod-workshop/server';
 
 // The server side of every activity module in this build, registered at startup by web,
 // worker, CLI, the seed script and core's tests (core itself never imports modules).
@@ -27,6 +28,7 @@ export const serverModules = [
   ...lessonModules,
   ...wikiModules,
   ...dataModules,
+  ...workshopModules,
   ...assignModules,
   ...quizModules,
   ...forumModules,

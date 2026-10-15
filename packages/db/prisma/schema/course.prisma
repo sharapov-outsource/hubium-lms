@@ -143,43 +143,45 @@ model Activity {
   createdAt            DateTime           @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime           @updatedAt @db.Timestamptz(3)
 
-  course             Course               @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  section            CourseSection        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  course              Course               @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  section             CourseSection        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   /// Group mode works with the groups of this grouping only.
-  grouping           Grouping?            @relation(fields: [groupingId], references: [id], onDelete: SetNull)
-  context            Context              @relation("ActivityContext", fields: [id], references: [id], onDelete: Cascade)
-  completions        ActivityCompletion[]
-  gradeItems         GradeItem[]
-  assignSubmissions  AssignSubmission[]
-  assignGrades       AssignGrade[]
-  assignOverrides    AssignOverride[]
-  assignUserFlags    AssignUserFlags[]
-  assignParticipants AssignParticipant[]
-  assignState        AssignState?
-  gradingDefinitions GradingDefinition[]
-  forumGrades        ForumGrade[]
-  quizSlots          QuizSlot[]
-  quizAttempts       QuizAttempt[]
-  quizOverrides      QuizOverride[]
-  forumDiscussions   ForumDiscussion[]
-  forumSubscriptions ForumSubscription[]
-  videoAsset         VideoAsset?
-  videoProgress      VideoProgress[]
-  bookChapters       BookChapter[]
-  choiceAnswers      ChoiceAnswer[]
-  feedbackItems      FeedbackItem[]
-  feedbackResponses  FeedbackResponse[]
-  glossaryEntries    GlossaryEntry[]
-  lessonPages        LessonPage[]
-  lessonAttempts     LessonAttempt[]
-  wikiSubwikis       WikiSubwiki[]
-  dataFields         DataField[]
-  dataRecords        DataRecord[]
-  liveMeeting        LiveMeeting?
-  liveAttendance     LiveAttendance[]
-  liveRecordings     LiveRecording[]
-  scormPackage       ScormPackage?
-  scormAttempts      ScormAttempt[]
+  grouping            Grouping?            @relation(fields: [groupingId], references: [id], onDelete: SetNull)
+  context             Context              @relation("ActivityContext", fields: [id], references: [id], onDelete: Cascade)
+  completions         ActivityCompletion[]
+  gradeItems          GradeItem[]
+  assignSubmissions   AssignSubmission[]
+  assignGrades        AssignGrade[]
+  assignOverrides     AssignOverride[]
+  assignUserFlags     AssignUserFlags[]
+  assignParticipants  AssignParticipant[]
+  assignState         AssignState?
+  gradingDefinitions  GradingDefinition[]
+  forumGrades         ForumGrade[]
+  quizSlots           QuizSlot[]
+  quizAttempts        QuizAttempt[]
+  quizOverrides       QuizOverride[]
+  forumDiscussions    ForumDiscussion[]
+  forumSubscriptions  ForumSubscription[]
+  videoAsset          VideoAsset?
+  videoProgress       VideoProgress[]
+  bookChapters        BookChapter[]
+  choiceAnswers       ChoiceAnswer[]
+  feedbackItems       FeedbackItem[]
+  feedbackResponses   FeedbackResponse[]
+  glossaryEntries     GlossaryEntry[]
+  lessonPages         LessonPage[]
+  lessonAttempts      LessonAttempt[]
+  wikiSubwikis        WikiSubwiki[]
+  dataFields          DataField[]
+  dataRecords         DataRecord[]
+  workshop            Workshop?
+  workshopSubmissions WorkshopSubmission[]
+  liveMeeting         LiveMeeting?
+  liveAttendance      LiveAttendance[]
+  liveRecordings      LiveRecording[]
+  scormPackage        ScormPackage?
+  scormAttempts       ScormAttempt[]
 
   contentChunks      ContentChunk[]
   gradingSuggestions GradingSuggestion[]

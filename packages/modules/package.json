@@ -27,7 +27,8 @@
     "@hubium/mod-quiz": "workspace:*",
     "@hubium/mod-scorm": "workspace:*",
     "@hubium/mod-video": "workspace:*",
-    "@hubium/mod-wiki": "workspace:*"
+    "@hubium/mod-wiki": "workspace:*",
+    "@hubium/mod-workshop": "workspace:*"
   },
   "devDependencies": {
     "@hubium/tooling": "workspace:*",

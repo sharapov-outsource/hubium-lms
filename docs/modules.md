@@ -1,6 +1,6 @@
 # Writing an activity module
 
-Every course activity in Hubium — page, book, choice, feedback, glossary, lesson, wiki, database, assignment, quiz, forum, video, SCORM, LTI — is a module built on `@hubium/module-sdk`. A module owns its settings, tables, UI and actions; core provides permissions, files, grades, completion, notifications, jobs, AI and privacy plumbing through `ctx`.
+Every course activity in Hubium — page, book, choice, feedback, glossary, lesson, wiki, database, workshop, assignment, quiz, forum, video, SCORM, LTI — is a module built on `@hubium/module-sdk`. A module owns its settings, tables, UI and actions; core provides permissions, files, grades, completion, notifications, jobs, AI and privacy plumbing through `ctx`.
 
 Modules **never import `@hubium/core`** (dependency-cruiser enforces it). Everything they need arrives in `ModuleCtx`.
 

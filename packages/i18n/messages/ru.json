@@ -2116,6 +2116,7 @@
       "lti_cleanup": "Очистка данных LTI",
       "quiz_overdue_sweep": "Завершение просроченных попыток тестов",
       "lesson_overdue_sweep": "Завершение просроченных попыток лекций",
+      "workshop_phase_switch": "Смена фаз семинаров",
       "livesession_remind": "Напоминания о вебинарах"
     }
   }

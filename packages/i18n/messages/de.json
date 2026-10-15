@@ -2115,6 +2115,7 @@
       "lti_cleanup": "LTI-Daten bereinigen",
       "quiz_overdue_sweep": "Überfällige Testversuche abschließen",
       "lesson_overdue_sweep": "Überfällige Lektionsversuche abschließen",
+      "workshop_phase_switch": "Workshop-Phasen wechseln",
       "livesession_remind": "Webinar-Erinnerungen"
     }
   }

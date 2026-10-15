@@ -58,6 +58,7 @@
     "@hubium/mod-scorm": "workspace:*",
     "@hubium/mod-video": "workspace:*",
     "@hubium/mod-wiki": "workspace:*",
+    "@hubium/mod-workshop": "workspace:*",
     "@hubium/modules": "workspace:*",
     "@hubium/tooling": "workspace:*",
     "@types/node": "^24",

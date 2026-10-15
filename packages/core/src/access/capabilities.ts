@@ -151,6 +151,17 @@ export const coreCapabilities = {
   'mod.data:viewrating': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },
   'mod.data:viewallratings': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.data:exportentries': { level: 'ACTIVITY', archetypes: [M, ET, T], risk: ['personal'] },
+  // workshop: handing in, assessing peers, running it (phases, form, allocation, grades)
+  'mod.workshop:submit': { level: 'ACTIVITY', archetypes: [S], excludeAdmin: true },
+  'mod.workshop:peerassess': { level: 'ACTIVITY', archetypes: [S], excludeAdmin: true },
+  'mod.workshop:manage': { level: 'ACTIVITY', archetypes: [M, ET] },
+  'mod.workshop:viewall': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  'mod.workshop:viewauthornames': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },
+  'mod.workshop:viewreviewernames': {
+    level: 'ACTIVITY',
+    archetypes: [M, ET, T],
+    risk: ['personal'],
+  },
   // video / live
   'mod.video:viewprogress': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.livesession:join': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },

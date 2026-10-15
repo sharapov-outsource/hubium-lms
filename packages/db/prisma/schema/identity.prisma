@@ -98,6 +98,8 @@ model User {
   wikiVersions        WikiVersion[]            @relation("WikiVersionAuthor")
   dataRecords         DataRecord[]             @relation("DataRecordAuthor")
   dataRatings         DataRating[]             @relation("DataRatingRater")
+  workshopSubmissions WorkshopSubmission[]     @relation("WorkshopSubmissionAuthor")
+  workshopAssessments WorkshopAssessment[]     @relation("WorkshopAssessmentReviewer")
   forumGrades         ForumGrade[]             @relation("ForumGradeUser")
   forumGraded         ForumGrade[]             @relation("ForumGradeGrader")
   quizAttempts        QuizAttempt[]
