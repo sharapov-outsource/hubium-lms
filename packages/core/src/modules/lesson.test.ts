@@ -2,7 +2,10 @@ import type { lessonState } from '@hubium/mod-lesson/server';
 import { describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
+import { updateActivity } from '../courses/activities.ts';
 import { runModuleAction, runModuleQuery } from './actions.ts';
+import { buildModuleCtx } from './module-ctx.ts';
+import { listModules } from './registry.ts';
 
 type State = Awaited<ReturnType<typeof lessonState>>;
 type Ctx = Awaited<ReturnType<typeof ctxFor>>;
@@ -34,6 +37,12 @@ describe('mod-lesson', () => {
       where: { gradeItemId_userId: { gradeItemId: item.id, userId } },
     });
     return g?.finalGrade == null ? null : Number(g.finalGrade);
+  };
+
+  const sweep = async () => {
+    const lesson = listModules().find((m) => m.key === 'lesson')!;
+    const sys = await ctxFor(t.db, 'system');
+    await t.db.$transaction((tx) => lesson.cron![0]!.handler(buildModuleCtx(sys, tx)));
   };
 
   it('a learner goes through pages and questions; points make the grade; essays wait', async () => {
@@ -189,12 +198,15 @@ describe('mod-lesson', () => {
       where: { activityId: id, finishedAt: null },
       data: { dueAt: new Date(Date.now() - 1000) },
     });
+    // reading the lesson shows it over and writes nothing; the sweep ends it
     const late = await state(s1, id);
     expect(late.current).toBeNull();
-    expect(late.past).toHaveLength(2);
+    expect(late.past).toHaveLength(1);
     await expect(
       runModuleAction(s1, id, 'choose', { pageId: menu, answerId: europe }),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
+    await sweep();
+    expect((await state(s1, id)).past).toHaveLength(2);
   });
 
   it('deleting a page leaves the open attempts going', async () => {
@@ -249,7 +261,7 @@ describe('mod-lesson', () => {
 
   it('an open attempt ends when the lesson closes', async () => {
     const closesAt = new Date(Date.now() + 3_600_000).toISOString();
-    const { id, s1, add } = await setup('LSN5', { closesAt });
+    const { id, teacher, s1, add } = await setup('LSN5', { closesAt });
     const intro = await add('content', {
       title: 'Введение',
       answers: [{ text: 'Дальше', jump: 'next' }],
@@ -262,9 +274,10 @@ describe('mod-lesson', () => {
     // the teacher closes the lesson earlier, while the learner is in it
     const row = await t.db.activity.findUniqueOrThrow({ where: { id } });
     const closed = new Date(Date.now() - 60_000);
-    await t.db.activity.update({
-      where: { id },
-      data: { settings: { ...(row.settings as object), closesAt: closed.toISOString() } },
+    await updateActivity.run(teacher, {
+      id,
+      name: row.name,
+      settings: { ...(row.settings as object), closesAt: closed.toISOString() },
     });
     const introRow = await t.db.lessonPage.findUniqueOrThrow({ where: { id: intro } });
     await expect(
@@ -273,8 +286,9 @@ describe('mod-lesson', () => {
         answerId: (introRow.answers as { id: string }[])[0]!.id,
       }),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
-    // looking at the lesson ends it, at the close date
+    // the lesson shows it over; the sweep ends it, at the close date
     expect((await state(s1, id)).current).toBeNull();
+    await sweep();
     expect((await attempt()).finishedAt?.getTime()).toBe(closed.getTime());
   });
 

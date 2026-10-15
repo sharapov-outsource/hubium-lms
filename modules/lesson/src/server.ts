@@ -307,11 +307,16 @@ function attemptEnds(a: Lesson, at: Pick<AttemptRow, 'dueAt' | 'preview'>): Date
   return closes && closes < at.dueAt ? closes : at.dueAt;
 }
 
-/** The user's open attempt (ended first if its time ran out or the lesson has closed). */
+/**
+ * The user's open attempt. One whose time ran out or whose lesson has closed is over:
+ * actions end it first (`end`); a read only treats it as over and leaves the ending to
+ * the action or the overdue sweep, as reads write nothing.
+ */
 export async function openAttempt(
   ctx: ModuleCtx,
   a: Lesson,
   userId: string,
+  opts: { end: boolean } = { end: true },
 ): Promise<AttemptRow | null> {
   const at = await ctx.db.lessonAttempt.findFirst({
     where: { activityId: a.id, userId, finishedAt: null },
@@ -319,10 +324,27 @@ export async function openAttempt(
   });
   const ends = at && attemptEnds(a, at);
   if (at && ends && ends < ctx.now) {
-    await finishAttempt(ctx, a, { ...at, dueAt: ends });
+    if (opts.end) await finishAttempt(ctx, a, { ...at, dueAt: ends });
     return null;
   }
   return at;
+}
+
+/** Open attempts take a new time limit or close date at once (the sweep ends them then). */
+async function refreshOpenAttempts(ctx: ModuleCtx, a: Lesson) {
+  const open = await ctx.db.lessonAttempt.findMany({
+    where: { activityId: a.id, finishedAt: null },
+    select: { id: true, startedAt: true, dueAt: true, preview: true },
+  });
+  const limit = (a.settings.timeLimitMin ?? 0) * 60_000;
+  for (const at of open) {
+    const dueAt = attemptEnds(a, {
+      dueAt: limit ? new Date(at.startedAt.getTime() + limit) : null,
+      preview: at.preview,
+    });
+    if (dueAt?.getTime() !== at.dueAt?.getTime())
+      await ctx.db.lessonAttempt.update({ where: { id: at.id }, data: { dueAt } });
+  }
 }
 
 async function requireOpen(ctx: ModuleCtx, a: Lesson) {
@@ -371,7 +393,7 @@ export type PlayerPage = ReturnType<typeof playerPage>;
 export async function lessonState(ctx: ModuleCtx, ref: ActivityRef, userId: string) {
   const a = ref as Lesson;
   const s = a.settings;
-  const at = await openAttempt(ctx, a, userId);
+  const at = await openAttempt(ctx, a, userId, { end: false });
   const [pages, finished] = await Promise.all([
     lessonPages(ctx.db, a.id),
     ctx.db.lessonAttempt.findMany({
@@ -591,6 +613,8 @@ export const lesson = defineModule<LessonSettingsT>({
     async onUpdate(ctx, ref, prev) {
       const a = ref as Lesson;
       const s = a.settings;
+      if (s.closesAt !== prev.closesAt || s.timeLimitMin !== prev.timeLimitMin)
+        await refreshOpenAttempts(ctx, a);
       const keys = [
         'practice',
         'gradeMax',
