@@ -196,7 +196,8 @@
     "noUpcoming": "Rien de prévu",
     "todo": "À faire",
     "noTodo": "Tout est fait",
-    "allCourses": "Tous mes cours"
+    "allCourses": "Tous mes cours",
+    "completeBy": "À terminer avant le"
   },
   "settings": {
     "title": "Paramètres",
@@ -1624,7 +1625,8 @@
       "DUE": "Date de remise",
       "CUTOFF": "Date limite",
       "SESSION": "Session",
-      "CUSTOM": "Événement"
+      "CUSTOM": "Événement",
+      "EXPECTED": "Achèvement attendu"
     },
     "deleteConfirm": "Supprimer cet événement ?",
     "week": "Semaine",
@@ -2660,7 +2662,8 @@
     "deadlines": "À venir",
     "toSubmit": "À remettre",
     "toAttempt": "À passer",
-    "noDeadlines": "Rien à rendre."
+    "noDeadlines": "Rien à rendre.",
+    "toComplete": "À terminer"
   },
   "adminSso": {
     "title": "Authentification unique (SSO)",

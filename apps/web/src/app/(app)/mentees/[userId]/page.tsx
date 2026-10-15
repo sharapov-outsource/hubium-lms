@@ -134,9 +134,20 @@ export default async function MenteePage({ params }: { params: Promise<{ userId:
                   <li key={`${i.activityId}-${i.kind}`} className="grid gap-0.5">
                     <span className="font-medium">{i.title}</span>
                     <span className="text-muted-foreground">
-                      {t(i.kind === 'attempt' ? 'toAttempt' : 'toSubmit')}
+                      {t(
+                        i.kind === 'attempt'
+                          ? 'toAttempt'
+                          : i.kind === 'complete'
+                            ? 'toComplete'
+                            : 'toSubmit',
+                      )}
                       {i.dueAt
-                        ? ` · ${format.dateTime(i.dueAt, { dateStyle: 'medium', timeStyle: 'short' })}`
+                        ? ` · ${format.dateTime(
+                            i.dueAt,
+                            i.allDay
+                              ? { dateStyle: 'medium', timeZone: 'UTC' }
+                              : { dateStyle: 'medium', timeStyle: 'short' },
+                          )}`
                         : ''}
                     </span>
                   </li>

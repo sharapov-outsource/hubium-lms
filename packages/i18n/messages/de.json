@@ -196,7 +196,8 @@
     "noUpcoming": "Keine anstehenden Termine",
     "todo": "Zu erledigen",
     "noTodo": "Alles erledigt",
-    "allCourses": "Alle meine Kurse"
+    "allCourses": "Alle meine Kurse",
+    "completeBy": "Abschließen bis"
   },
   "settings": {
     "title": "Einstellungen",
@@ -1624,7 +1625,8 @@
       "DUE": "Fällig",
       "CUTOFF": "Abgabeschluss",
       "SESSION": "Sitzung",
-      "CUSTOM": "Termin"
+      "CUSTOM": "Termin",
+      "EXPECTED": "Erwarteter Abschluss"
     },
     "deleteConfirm": "Diesen Termin löschen?",
     "week": "Woche",
@@ -2660,7 +2662,8 @@
     "deadlines": "Demnächst",
     "toSubmit": "Abzugeben",
     "toAttempt": "Zu absolvieren",
-    "noDeadlines": "Nichts fällig."
+    "noDeadlines": "Nichts fällig.",
+    "toComplete": "Abzuschließen"
   },
   "adminSso": {
     "title": "Single Sign-on (SSO)",

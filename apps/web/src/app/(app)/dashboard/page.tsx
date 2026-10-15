@@ -163,7 +163,14 @@ export default async function DashboardPage() {
                       </Link>
                       {i.dueAt ? (
                         <p className="text-xs text-muted-foreground">
-                          {format.dateTime(i.dueAt, { dateStyle: 'medium', timeStyle: 'short' })}
+                          {i.kind === 'complete' ? `${t('completeBy')} ` : ''}
+                          {format.dateTime(
+                            i.dueAt,
+                            // a date without a time is the same date in every time zone
+                            i.allDay
+                              ? { dateStyle: 'medium', timeZone: 'UTC' }
+                              : { dateStyle: 'medium', timeStyle: 'short' },
+                          )}
                         </p>
                       ) : null}
                     </li>

@@ -21,6 +21,8 @@ enum CalendarEventKind {
   CUTOFF
   SESSION
   CUSTOM
+  /// the date a learner is expected to complete an activity by (Activity.completionExpectedAt)
+  EXPECTED
 }
 
 model ActivityCompletion {

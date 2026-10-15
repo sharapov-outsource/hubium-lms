@@ -243,10 +243,9 @@ export default async function CalendarPage({
                 allDay: t('allDay'),
                 none: t('noEvents'),
                 kinds: Object.fromEntries(
-                  (['OPEN', 'CLOSE', 'DUE', 'CUTOFF', 'SESSION', 'CUSTOM'] as const).map((k) => [
-                    k,
-                    t(`kinds.${k}`),
-                  ]),
+                  (
+                    ['OPEN', 'CLOSE', 'DUE', 'CUTOFF', 'SESSION', 'CUSTOM', 'EXPECTED'] as const
+                  ).map((k) => [k, t(`kinds.${k}`)]),
                 ),
               }}
             />

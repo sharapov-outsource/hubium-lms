@@ -263,8 +263,11 @@ export interface TodoItem {
   activityId: string;
   courseId: string;
   title: string;
-  kind: 'grade' | 'submit' | 'attempt';
+  /** complete: an activity due for completion by its expected date (the core's own) */
+  kind: 'grade' | 'submit' | 'attempt' | 'complete';
   dueAt?: Date | null;
+  /** dueAt is a date without a time, kept as midnight UTC */
+  allDay?: boolean;
   count?: number;
 }
 

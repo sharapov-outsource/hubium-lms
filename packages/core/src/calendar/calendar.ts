@@ -74,6 +74,9 @@ export async function listUserEvents(
       });
   const seen = new Set<string>();
   const openable = new Set<string>();
+  // an activity's expected completion date is its learners', until they complete it
+  const expected = events.filter((e) => e.kind === 'EXPECTED');
+  const learns = new Set<string>();
   if (courses.size) {
     const ctx = await userContext(db, userId);
     for (const [courseId, { activities }] of courses) {
@@ -86,11 +89,35 @@ export async function listUserEvents(
       seen.add(courseId);
       for (const section of outline)
         for (const a of section.activities) if (a.available) openable.add(a.activity.id);
+      if (
+        expected.some((e) => e.courseId === courseId) &&
+        (await ctx.perm.can('grade:view', courseId))
+      )
+        learns.add(courseId);
     }
   }
+  const completed = new Set(
+    expected.length
+      ? (
+          await db.activityCompletion.findMany({
+            where: {
+              userId,
+              activityId: { in: expected.flatMap((e) => (e.activityId ? [e.activityId] : [])) },
+              state: { not: 'INCOMPLETE' },
+            },
+            select: { activityId: true },
+          })
+        ).map((c) => c.activityId)
+      : [],
+  );
   return events
     .filter((e) => !e.courseId || seen.has(e.courseId))
     .filter((e) => !e.activityId || openable.has(e.activityId))
+    .filter(
+      (e) =>
+        e.kind !== 'EXPECTED' ||
+        (!!e.courseId && learns.has(e.courseId) && !completed.has(e.activityId ?? '')),
+    )
     .map(({ course, ...e }) => ({ ...e, courseName: course?.fullName ?? null }));
 }
 

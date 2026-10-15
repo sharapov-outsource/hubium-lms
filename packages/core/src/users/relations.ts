@@ -310,7 +310,10 @@ export async function menteeOverview(ctx: RequestContext, menteeId: string) {
       };
     }),
   );
-  const todo = await collectTodo(as, menteeId, { kinds: ['submit', 'attempt'], limit: 20 });
+  const todo = await collectTodo(as, menteeId, {
+    kinds: ['submit', 'attempt', 'complete'],
+    limit: 20,
+  });
   return {
     user: { id: user.id, name: user.name, lastAccessAt: lastVisit(user) },
     courses: rows,

@@ -1,6 +1,6 @@
 import { type Activity, type CompletionState, Prisma, uuidv7 } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
-import { msg, parseSettings } from '@hubium/module-sdk';
+import { type CalendarEventSpec, msg, parseSettings } from '@hubium/module-sdk';
 import { z } from 'zod';
 import { createContext } from '../access/contexts.ts';
 import { countsTowardsProgress, scheduleCourseProgress } from '../completion/schedule.ts';
@@ -148,10 +148,18 @@ function validateAvailability(raw: unknown): Prisma.InputJsonValue | typeof Pris
   return r.data.c.length ? (r.data as unknown as Prisma.InputJsonValue) : Prisma.DbNull;
 }
 
-/** The calendar events an activity's module declares, kept in step with its settings. */
+/**
+ * The calendar events an activity's module declares, and the date a learner is expected to
+ * complete it by, kept in step with its settings.
+ */
 export async function syncCalendar(tx: Prisma.TransactionClient, a: Activity): Promise<void> {
   const m = requireModule(a.moduleKey);
-  const specs = m.calendar?.events(toActivityRef(a)) ?? [];
+  const specs: (Omit<CalendarEventSpec, 'kind'> & {
+    kind: CalendarEventSpec['kind'] | 'EXPECTED';
+    allDay?: boolean;
+  })[] = m.calendar?.events(toActivityRef(a)) ?? [];
+  if (a.completionExpectedAt && a.completionMode !== 'NONE')
+    specs.push({ kind: 'EXPECTED', title: a.name, startsAt: a.completionExpectedAt, allDay: true });
   const kinds = specs.map((s) => s.kind);
   await tx.calendarEvent.deleteMany({ where: { activityId: a.id, kind: { notIn: kinds } } });
   for (const s of specs) {
@@ -166,12 +174,14 @@ export async function syncCalendar(tx: Prisma.TransactionClient, a: Activity): P
         title: s.title,
         startsAt: s.startsAt,
         endsAt: s.endsAt,
+        allDay: s.allDay ?? false,
         visible: a.visibility === 'SHOWN' && !a.deletedAt,
       },
       update: {
         title: s.title,
         startsAt: s.startsAt,
         endsAt: s.endsAt ?? null,
+        allDay: s.allDay ?? false,
         visible: a.visibility === 'SHOWN' && !a.deletedAt,
       },
     });

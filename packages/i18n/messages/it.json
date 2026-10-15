@@ -196,7 +196,8 @@
     "noUpcoming": "Nessun evento in programma",
     "todo": "Da fare",
     "noTodo": "Tutto fatto",
-    "allCourses": "Tutti i miei corsi"
+    "allCourses": "Tutti i miei corsi",
+    "completeBy": "Da completare entro il"
   },
   "settings": {
     "title": "Impostazioni",
@@ -1624,7 +1625,8 @@
       "DUE": "Scadenza",
       "CUTOFF": "Data limite",
       "SESSION": "Sessione",
-      "CUSTOM": "Evento"
+      "CUSTOM": "Evento",
+      "EXPECTED": "Completamento previsto"
     },
     "deleteConfirm": "Eliminare questo evento?",
     "week": "Settimana",
@@ -2660,7 +2662,8 @@
     "deadlines": "In scadenza",
     "toSubmit": "Da consegnare",
     "toAttempt": "Da svolgere",
-    "noDeadlines": "Nessuna scadenza."
+    "noDeadlines": "Nessuna scadenza.",
+    "toComplete": "Da completare"
   },
   "adminSso": {
     "title": "Single sign-on (SSO)",

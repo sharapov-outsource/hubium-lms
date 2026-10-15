@@ -197,7 +197,8 @@
     "noUpcoming": "Nothing coming up",
     "todo": "To do",
     "noTodo": "All done",
-    "allCourses": "All my courses"
+    "allCourses": "All my courses",
+    "completeBy": "Complete by"
   },
   "settings": {
     "title": "Settings",
@@ -1625,7 +1626,8 @@
       "DUE": "Due",
       "CUTOFF": "Cut-off",
       "SESSION": "Session",
-      "CUSTOM": "Event"
+      "CUSTOM": "Event",
+      "EXPECTED": "Expected completion"
     },
     "deleteConfirm": "Delete this event?",
     "week": "Week",
@@ -2661,7 +2663,8 @@
     "deadlines": "Coming up",
     "toSubmit": "To hand in",
     "toAttempt": "To take",
-    "noDeadlines": "Nothing due."
+    "noDeadlines": "Nothing due.",
+    "toComplete": "To complete"
   },
   "adminSso": {
     "title": "Single sign-on (SSO)",

@@ -197,7 +197,8 @@
     "noUpcoming": "Ближайших событий нет",
     "todo": "К выполнению",
     "noTodo": "Всё сделано",
-    "allCourses": "Все мои курсы"
+    "allCourses": "Все мои курсы",
+    "completeBy": "Выполнить до"
   },
   "settings": {
     "title": "Настройки",
@@ -1625,7 +1626,8 @@
       "DUE": "Срок сдачи",
       "CUTOFF": "Последний срок",
       "SESSION": "Занятие",
-      "CUSTOM": "Событие"
+      "CUSTOM": "Событие",
+      "EXPECTED": "Ожидаемое выполнение"
     },
     "deleteConfirm": "Удалить событие?",
     "week": "Неделя",
@@ -2661,7 +2663,8 @@
     "deadlines": "Ближайшие сроки",
     "toSubmit": "Сдать",
     "toAttempt": "Пройти",
-    "noDeadlines": "Сроков нет."
+    "noDeadlines": "Сроков нет.",
+    "toComplete": "Выполнить"
   },
   "adminSso": {
     "title": "Единый вход (SSO)",
