@@ -2,6 +2,7 @@ import { lenientOverride } from '@hubium/mod-quiz/server';
 import { describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
+import { updateActivity } from '../courses/activities.ts';
 import { ForbiddenError } from '../errors.ts';
 import { createGroup, setGroupMembers } from '../groups/groups.ts';
 import { importGift, saveQuestion } from '../questions/bank.ts';
@@ -142,5 +143,48 @@ describe('quiz overrides and regrading', () => {
     expect(await grade()).toBe(10);
     const event = await t.db.eventLog.findFirst({ where: { name: 'quiz.regraded' } });
     expect(event?.data).toMatchObject({ attempts: 1, changed: 1 });
+  });
+
+  it('gives an open attempt the time limit and close date set after it began', async () => {
+    const { f, teacher, quizId } = await setup('QOVR3', { timeLimitMin: 10 });
+    const start = async (userId: string) => {
+      const { attemptId } = (await runModuleAction(
+        await ctxFor(t.db, userId),
+        quizId,
+        'start',
+        {},
+      )) as {
+        attemptId: string;
+      };
+      return attemptId;
+    };
+    const dueOf = async (id: string) =>
+      (await t.db.quizAttempt.findUniqueOrThrow({ where: { id } })).dueAt?.getTime() ?? null;
+    const minutes = (n: number) => n * 60_000;
+    const s1 = await start(f.users.student1!);
+    const begun = (await t.db.quizAttempt.findUniqueOrThrow({ where: { id: s1 } })).startedAt;
+    expect(await dueOf(s1)).toBe(begun.getTime() + minutes(10));
+    // the browser failed: 30 minutes more
+    const { id } = (await runModuleAction(teacher, quizId, 'setOverride', {
+      userId: f.users.student1,
+      timeLimitMin: 40,
+    })) as { id: string };
+    expect(await dueOf(s1)).toBe(begun.getTime() + minutes(40));
+    await runModuleAction(teacher, quizId, 'deleteOverride', { id });
+    expect(await dueOf(s1)).toBe(begun.getTime() + minutes(10));
+
+    // no limit, then a close date: the attempt closes with the quiz
+    const quiz = await t.db.activity.findUniqueOrThrow({ where: { id: quizId } });
+    const settings = (over: Record<string, unknown>) =>
+      updateActivity.run(teacher, {
+        id: quizId,
+        name: quiz.name,
+        settings: { ...(quiz.settings as object), ...over },
+      });
+    await settings({ timeLimitMin: 0 });
+    expect(await dueOf(s1)).toBeNull();
+    const closeAt = new Date(Date.now() + minutes(60));
+    await settings({ timeLimitMin: 0, closeAt: closeAt.toISOString() });
+    expect(await dueOf(s1)).toBe(closeAt.getTime());
   });
 });

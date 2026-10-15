@@ -189,6 +189,34 @@ export async function effectiveQuiz(db: Db, a: ActivityRef<QuizSettingsT>, userI
   };
 }
 
+/** When an attempt started at `startedAt` closes: the time limit, or the close date if sooner. */
+function attemptDue(
+  e: { timeLimitSec: number; closeAt: Date | null },
+  startedAt: Date,
+): Date | null {
+  const timeDue = e.timeLimitSec ? new Date(startedAt.getTime() + e.timeLimitSec * 1000) : null;
+  return timeDue && e.closeAt
+    ? new Date(Math.min(timeDue.getTime(), e.closeAt.getTime()))
+    : (timeDue ?? e.closeAt);
+}
+
+/**
+ * Open attempts take a new time limit or close date (the quiz's, or a participant's or
+ * group's override) at once: extra time given to someone whose browser failed reaches the
+ * attempt they are in, and a close date set later ends attempts begun without a limit.
+ */
+async function refreshOpenAttempts(ctx: ModuleCtx, a: ActivityRef<QuizSettingsT>) {
+  const open = await ctx.db.quizAttempt.findMany({
+    where: { activityId: a.id, state: 'IN_PROGRESS', preview: false },
+    select: { id: true, userId: true, startedAt: true, dueAt: true },
+  });
+  for (const at of open) {
+    const dueAt = attemptDue(await effectiveQuiz(ctx.db, a, at.userId), at.startedAt);
+    if (dueAt?.getTime() !== at.dueAt?.getTime())
+      await ctx.db.quizAttempt.update({ where: { id: at.id }, data: { dueAt } });
+  }
+}
+
 /** Password, network and waiting rules for one learner. */
 export function accessRules(
   a: ActivityRef<QuizSettingsT>,
@@ -454,15 +482,14 @@ export async function startAttempt(
   };
   const used = new Set(slots.filter((s) => s.questionId).map((s) => s.questionId!));
   const timeDue = e.timeLimitSec ? new Date(ctx.now.getTime() + e.timeLimitSec * 1000) : null;
-  const dueAt =
-    timeDue && e.closeAt
-      ? new Date(Math.min(timeDue.getTime(), e.closeAt.getTime()))
-      : (timeDue ?? e.closeAt);
+  const dueAt = attemptDue(e, ctx.now);
   const attempt = await ctx.db.quizAttempt.create({
     data: {
       activityId: a.id,
       userId,
       attemptNumber: (last?.attemptNumber ?? 0) + 1,
+      // the time limit counts from here, as when the dates change later
+      startedAt: ctx.now,
       dueAt: preview ? timeDue : dueAt,
       preview,
       seed,
@@ -1169,6 +1196,8 @@ export const quiz = defineModule<QuizSettingsT>({
     // a new "questions per page" lays the questions out again, as Moodle's "repaginate now"
     async onUpdate(ctx, a, prev) {
       if (a.settings.perPage !== prev.perPage) await repaginate(ctx.db, a.id, a.settings.perPage);
+      if (a.settings.timeLimitMin !== prev.timeLimitMin || a.settings.closeAt !== prev.closeAt)
+        await refreshOpenAttempts(ctx, a);
       // the grade is the attempts' share of the maximum, by the grading method: either new
       // gives everyone a new grade, as Moodle works them out again
       if (a.settings.gradeMax !== prev.gradeMax || a.settings.gradeMethod !== prev.gradeMethod) {
@@ -1832,6 +1861,7 @@ export const quiz = defineModule<QuizSettingsT>({
           userId: input.userId ?? null,
           groupId: input.groupId ?? null,
         });
+        await refreshOpenAttempts(ctx, a as ActivityRef<QuizSettingsT>);
         return { id: o.id };
       },
     }),
@@ -1841,6 +1871,7 @@ export const quiz = defineModule<QuizSettingsT>({
       input: z.object({ id: z.string().uuid() }),
       async handler(ctx, a, { id }) {
         await ctx.db.quizOverride.deleteMany({ where: { id, activityId: a.id } });
+        await refreshOpenAttempts(ctx, a as ActivityRef<QuizSettingsT>);
         return { ok: true };
       },
     }),
