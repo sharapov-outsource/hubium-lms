@@ -82,11 +82,17 @@ Ratings of items (forum posts, glossary entries) share their settings, aggregati
 
 ## ModuleCtx
 
-`db` (Prisma, transactional inside actions), `actor`, `perm` (`can`, `require`, `usersWithCap`), `files`, `grades`, `completion`, `notify`, `storage` (keys under `mod/<key>/`), `jobs`, `realtime.publish`, `activities.get`, `ai` (grading assistant), `content.url`, `log`.
+`db` (Prisma, transactional inside actions), `actor`, `perm` (`can`, `require`, `usersWithCap`), `files`, `grades`, `completion`, `notify`, `storage`, `jobs`, `realtime.publish`, `activities.get`, `ai` (grading assistant), `content.url`, `log`.
+
+The context is the same for every module and trusts the module with what it is given:
+
+- `storage` keys have the form `mod/<key>/…`; use your module's own key, the core checks the form, not whose key it is;
+- `files.open(id)` reads any file by its id without a permission check: check access before you open a file a request names;
+- `jobs.enqueue(name, …)` takes the job's full name (`<key>.<job>`, declared in `jobs`); inside an action it is sent in the action's transaction and runs only once that commits.
 
 ## Capabilities
 
-Declare module capabilities as `mod.<key>:<name>` with archetype defaults; administrators can override them per role and context like core ones. Check them with `capability` on actions or `ctx.perm.require` in handlers.
+Module capabilities are named `mod.<key>:<name>` and listed, with their level and archetype defaults, in the core's `packages/core/src/access/capabilities.ts` (the module contract has no field for them); administrators can override them per role and context like core ones. Check them with `capability` on actions or `ctx.perm.require` in handlers.
 
 ## Tests
 

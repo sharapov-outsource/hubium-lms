@@ -73,7 +73,11 @@ export interface ModuleStorage {
 }
 
 export interface ModuleJobs {
-  /** Enqueues `<moduleKey>.<name>` declared in `ActivityModule.jobs`, after commit. */
+  /**
+   * Enqueues the job `name`, its full name (`<moduleKey>.<job>`, declared in
+   * `ActivityModule.jobs`). Inside an action it is sent in the action's transaction, so it
+   * runs only once that commits, and not at all if it rolls back.
+   */
   enqueue(
     name: string,
     data: object,

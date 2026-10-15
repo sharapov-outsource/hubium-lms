@@ -130,7 +130,6 @@ export interface ActivityModule<S extends z.ZodObject = z.ZodObject> {
   archetype: 'activity' | 'resource' | 'inline';
   icon: LucideIconName;
   supports: { groups?: boolean; grading?: boolean; intro?: boolean; backup: boolean; ai?: boolean };
-  capabilities?: Record<`mod.${string}:${string}`, CapabilityDef>;   // with archetype defaults, excludeAdmin flag
   notifications?: Record<string, NotificationTypeDef>;                // default channels, user-overridable?
   settings: { schema: S; defaults(): z.input<S>; migrate?(raw: unknown, from: number): unknown };
   siteSettings?: z.ZodObject;                                         // /admin/settings/modules/:key
@@ -260,7 +259,7 @@ Better Auth is the right choice. Auth.js has effectively folded into it, and Luc
 
 **Site admins** are `User.isSiteAdmin`, not a role (as in Moodle). They bypass checks except for capabilities flagged `excludeAdmin` (participation caps such as `mod.quiz:attempt` and `mod.assign:submit`), so admins never show up as "students to grade".
 
-**Capabilities are code-defined** (`defineCapabilities` in core and modules) with archetype defaults. `syncCapabilities()` runs on boot, after migrations, and grants new capabilities to roles by archetype, never touching existing edits. The `Capability` type is a string-literal union, so typos fail to compile.
+**Capabilities are code-defined** in `packages/core/src/access/capabilities.ts`, the modules' (`mod.<key>:<name>`) among the core's, with archetype defaults. `syncCapabilities()` runs on boot, after migrations, and grants new capabilities to roles by archetype, never touching existing edits. The `Capability` type is a string-literal union, so typos fail to compile.
 
 ### 3.3 Seeded roles (A = ALLOW)
 
