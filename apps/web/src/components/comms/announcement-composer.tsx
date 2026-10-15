@@ -150,7 +150,6 @@ export function AnnouncementEditButton({
   announcement: AnnouncementDraft;
 }) {
   const t = useTranslations('announcements');
-  const tc = useTranslations('common');
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -159,7 +158,7 @@ export function AnnouncementEditButton({
           <Pencil aria-hidden />
         </Button>
       </DialogTrigger>
-      <DialogContent title={t('edit')} closeLabel={tc('close')} className="max-w-2xl">
+      <DialogContent title={t('edit')} className="max-w-2xl">
         <AnnouncementForm
           courseId={courseId}
           groups={groups}

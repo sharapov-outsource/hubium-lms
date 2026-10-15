@@ -51,6 +51,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     noFiles: tf('file.noFiles'),
     search: tf('searchPlaceholder'),
     nothingFound: tf('nothingFound'),
+    close: tf('close'),
   };
   const nonce = h.get('x-nonce') ?? undefined;
   const palette = generateAccentPalette(settings['branding.accent']);

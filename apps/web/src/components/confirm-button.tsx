@@ -51,7 +51,7 @@ export function CommandButton<T>({
       <DialogTrigger asChild>
         <Button {...props}>{children}</Button>
       </DialogTrigger>
-      <DialogContent title={tc('confirm')} description={confirm} closeLabel={tc('close')}>
+      <DialogContent title={tc('confirm')} description={confirm}>
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="outline">{tc('cancel')}</Button>

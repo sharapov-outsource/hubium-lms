@@ -8,6 +8,7 @@ import { Highlight, matchScore } from '../lib/search.tsx';
 import { useFormReset } from '../lib/use-form-reset.ts';
 import { fieldClass } from './input.tsx';
 import { Popover, PopoverContent, PopoverTrigger } from './popover.tsx';
+import { useUiText } from './ui-text.tsx';
 
 export interface ComboboxOption {
   value: string;
@@ -27,8 +28,9 @@ export interface ComboboxProps {
   defaultValue?: string | null;
   onChange?: (value: string) => void;
   placeholder?: string;
-  searchPlaceholder: string;
-  emptyText: string;
+  /** The search box's placeholder and the text of an empty result; the kit's when left out. */
+  searchPlaceholder?: string;
+  emptyText?: string;
   disabled?: boolean;
   invalid?: boolean;
   className?: string;
@@ -58,6 +60,7 @@ export function Combobox({
   'aria-describedby': describedBy,
   onSearch,
 }: ComboboxProps) {
+  const ui = useUiText();
   const controlled = value !== undefined;
   const [inner, setInner] = useState(defaultValue ?? '');
   const [open, setOpen] = useState(false);
@@ -119,14 +122,14 @@ export function Combobox({
               <Command.Input
                 value={search}
                 onValueChange={searchFor}
-                placeholder={searchPlaceholder}
-                aria-label={searchPlaceholder}
+                placeholder={searchPlaceholder ?? ui.search}
+                aria-label={searchPlaceholder ?? ui.search}
                 className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
             </div>
             <Command.List className="scrollbar-hairline max-h-72 overflow-y-auto overscroll-contain p-1">
               <Command.Empty className="px-2 py-6 text-center text-sm text-muted-foreground">
-                {emptyText}
+                {emptyText ?? ui.nothingFound}
               </Command.Empty>
               {options.map((o) => (
                 <Command.Item

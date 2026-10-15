@@ -53,8 +53,6 @@ export default async function AccountSettings() {
                 name="timezone"
                 defaultValue={user.timezone ?? ''}
                 options={[{ value: '', label: t('timezoneDefault') }, ...timezoneOptions(locale)]}
-                searchPlaceholder={tc('searchPlaceholder')}
-                emptyText={tc('nothingFound')}
               />
             </FormField>
             <ProfileFieldInputs

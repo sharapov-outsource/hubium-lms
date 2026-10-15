@@ -23,11 +23,7 @@ export function RotateSecretButton({ id }: { id: string }) {
             {t('rotate')}
           </Button>
         </DialogTrigger>
-        <DialogContent
-          title={tc('confirm')}
-          description={t('rotateConfirm')}
-          closeLabel={tc('close')}
-        >
+        <DialogContent title={tc('confirm')} description={t('rotateConfirm')}>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline">{tc('cancel')}</Button>

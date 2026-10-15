@@ -82,11 +82,7 @@ export async function AppShell({
           </aside>
           <div className="flex min-w-0 flex-col">
             <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background/90 px-4 backdrop-blur sm:px-6">
-              <MobileMenu
-                label={t('nav.openMenu')}
-                title={t('nav.main')}
-                closeLabel={t('common.close')}
-              >
+              <MobileMenu label={t('nav.openMenu')} title={t('nav.main')}>
                 {items.map((it) => (
                   <NavLink
                     key={it.href}

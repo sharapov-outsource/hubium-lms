@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { Dialog as D } from 'radix-ui';
 import type { ComponentProps, ReactNode } from 'react';
 import { cn } from '../lib/cn.ts';
+import { useUiText } from './ui-text.tsx';
 
 export const Dialog = D.Root;
 export const DialogTrigger = D.Trigger;
@@ -20,9 +21,10 @@ export function DialogContent({
   description?: ReactNode;
   children?: ReactNode;
   className?: string;
-  /** The close button's name, in the page's language (the kit has no texts of its own). */
-  closeLabel: string;
+  /** The close button's name; the kit's (UiText) when left out. */
+  closeLabel?: string;
 }) {
+  const ui = useUiText();
   return (
     <D.Portal>
       <D.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px]" />
@@ -43,7 +45,7 @@ export function DialogContent({
         {children}
         <D.Close
           className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100"
-          aria-label={closeLabel}
+          aria-label={closeLabel ?? ui.close}
         >
           <X className="size-4" />
         </D.Close>

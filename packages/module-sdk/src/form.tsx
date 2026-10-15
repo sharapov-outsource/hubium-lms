@@ -333,7 +333,7 @@ export function useConfirm(): [(text: ReactNode) => Promise<boolean>, ReactNode]
   };
   const dialog = (
     <Dialog open={text !== null} onOpenChange={(open) => !open && close(false)}>
-      <DialogContent title={tc('confirm')} description={text} closeLabel={tc('close')}>
+      <DialogContent title={tc('confirm')} description={text}>
         <DialogFooter>
           <Button variant="outline" onClick={() => close(false)}>
             {tc('cancel')}

@@ -52,7 +52,6 @@ export function CalculationDialog({
   ids: string[];
 }) {
   const t = useTranslations('grades.calc');
-  const tc = useTranslations('common');
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [src, setSrc] = useState(formula ?? '=');
@@ -100,7 +99,7 @@ export function CalculationDialog({
           <Sigma />
         </Button>
       </DialogTrigger>
-      <DialogContent title={t('title', { name })} description={t('hint')} closeLabel={tc('close')}>
+      <DialogContent title={t('title', { name })} description={t('hint')}>
         <Field
           label={t('label')}
           htmlFor={`calc-${itemId}`}

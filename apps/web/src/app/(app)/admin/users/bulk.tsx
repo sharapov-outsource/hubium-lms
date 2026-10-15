@@ -248,7 +248,7 @@ export function BulkUsers({
                     {t('apply')}
                   </Button>
                 </DialogTrigger>
-                <DialogContent title={t('deleteTitle')} closeLabel={tc('close')}>
+                <DialogContent title={t('deleteTitle')}>
                   <p className="text-sm">{t('deleteConfirm', { count })}</p>
                   <DialogFooter>
                     <DialogClose asChild>
@@ -343,8 +343,6 @@ function TargetPick({
       onChange={onChange}
       onSearch={setQ}
       placeholder={tc('select')}
-      searchPlaceholder={tc('searchPlaceholder')}
-      emptyText={tc('nothingFound')}
     />
   );
 }

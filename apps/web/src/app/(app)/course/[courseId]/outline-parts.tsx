@@ -195,7 +195,7 @@ export function ActivityMenu({
         </DropdownMenuContent>
       </DropdownMenu>
       <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
-        <DialogContent title={t('moveTo')} description={activity.name} closeLabel={tc('close')}>
+        <DialogContent title={t('moveTo')} description={activity.name}>
           <Label htmlFor={`mv-${activity.id}`}>{t('moveTo')}</Label>
           <Select
             id={`mv-${activity.id}`}
@@ -228,7 +228,6 @@ export function ActivityMenu({
         <DialogContent
           title={t('delete')}
           description={t('deleteConfirm', { name: activity.name })}
-          closeLabel={tc('close')}
         >
           {dependents.length ? (
             <p className="text-sm text-warning">
@@ -352,7 +351,7 @@ export function SectionMenu({
       </DropdownMenu>
       {sub ? (
         <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
-          <DialogContent title={t('moveTo')} description={section.title} closeLabel={tc('close')}>
+          <DialogContent title={t('moveTo')} description={section.title}>
             <Label htmlFor={`smv-${section.id}`}>{t('moveTo')}</Label>
             <Select
               id={`smv-${section.id}`}
@@ -386,7 +385,6 @@ export function SectionMenu({
         <DialogContent
           title={t(sub ? 'deleteSubsection' : 'deleteSection')}
           description={t('deleteSectionConfirm')}
-          closeLabel={tc('close')}
         >
           <p className="text-sm text-muted-foreground">{t('deleteSectionBin')}</p>
           <DialogFooter>
@@ -407,11 +405,7 @@ export function SectionMenu({
         </DialogContent>
       </Dialog>
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent
-          title={t(sub ? 'editSubsection' : 'editSection')}
-          closeLabel={tc('close')}
-          className="max-w-2xl"
-        >
+        <DialogContent title={t(sub ? 'editSubsection' : 'editSection')} className="max-w-2xl">
           <ActionForm
             action={updateSectionAction}
             success={tc('saved')}
@@ -462,7 +456,6 @@ export function AddActivityButton({
   modules: { key: string; icon: string; archetype: string; name: string; description: string }[];
 }) {
   const t = useTranslations('course');
-  const tc = useTranslations('common');
   const groups = [
     { label: t('activities'), items: modules.filter((m) => m.archetype === 'activity') },
     { label: t('resources'), items: modules.filter((m) => m.archetype !== 'activity') },
@@ -475,7 +468,7 @@ export function AddActivityButton({
           {t('addActivity')}
         </Button>
       </DialogTrigger>
-      <DialogContent title={t('chooseActivity')} closeLabel={tc('close')} className="max-w-2xl">
+      <DialogContent title={t('chooseActivity')} className="max-w-2xl">
         {groups.map((g) => (
           <section key={g.label} className="grid gap-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

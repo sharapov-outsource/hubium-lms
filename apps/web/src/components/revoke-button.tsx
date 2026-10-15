@@ -3,7 +3,6 @@
 import type { ActionResult } from '@hubium/core/operation';
 import { Button, Textarea } from '@hubium/ui';
 import { Dialog, DialogContent, DialogTrigger } from '@hubium/ui/dialog';
-import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 
@@ -25,7 +24,6 @@ export function RevokeButton({
   reasonLabel: string;
   done: string;
 }) {
-  const tc = useTranslations('common');
   const id = useId();
   const [open, setOpen] = useState(false);
   return (
@@ -35,7 +33,7 @@ export function RevokeButton({
           {label}
         </Button>
       </DialogTrigger>
-      <DialogContent title={`${label}: ${name}`} closeLabel={tc('close')}>
+      <DialogContent title={`${label}: ${name}`}>
         <ActionForm
           action={action}
           success={done}

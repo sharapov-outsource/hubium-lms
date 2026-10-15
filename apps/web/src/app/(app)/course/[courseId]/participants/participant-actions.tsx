@@ -66,12 +66,7 @@ export function EnrolDialog({
           {t('enrol')}
         </Button>
       </DialogTrigger>
-      <DialogContent
-        title={t('enrolTitle')}
-        description={t('searchUsers')}
-        closeLabel={tc('close')}
-        className="max-w-xl"
-      >
+      <DialogContent title={t('enrolTitle')} description={t('searchUsers')} className="max-w-xl">
         <Label htmlFor="enrol-q" className="sr-only">
           {tc('search')}
         </Label>
@@ -218,7 +213,7 @@ export function ParticipantActions({
         </DropdownMenuContent>
       </DropdownMenu>
       <Dialog open={rolesOpen} onOpenChange={setRolesOpen}>
-        <DialogContent title={t('changeRoles')} description={user.name} closeLabel={tc('close')}>
+        <DialogContent title={t('changeRoles')} description={user.name}>
           <div className="grid gap-2">
             {roles.map((r) => (
               <label
@@ -254,11 +249,7 @@ export function ParticipantActions({
         </DialogContent>
       </Dialog>
       <Dialog open={unenrolOpen} onOpenChange={setUnenrolOpen}>
-        <DialogContent
-          title={t('unenrol')}
-          description={t('unenrolConfirm', { name: user.name })}
-          closeLabel={tc('close')}
-        >
+        <DialogContent title={t('unenrol')} description={t('unenrolConfirm', { name: user.name })}>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline">{tc('cancel')}</Button>

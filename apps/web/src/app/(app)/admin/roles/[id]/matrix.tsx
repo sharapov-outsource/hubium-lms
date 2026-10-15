@@ -16,11 +16,7 @@ export function DeleteRoleButton({ id, name }: { id: string; name: string }) {
       <DialogTrigger asChild>
         <Button variant="outline">{tc('delete')}</Button>
       </DialogTrigger>
-      <DialogContent
-        title={tc('delete')}
-        description={t('deleteConfirm', { name })}
-        closeLabel={tc('close')}
-      >
+      <DialogContent title={tc('delete')} description={t('deleteConfirm', { name })}>
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="outline">{tc('cancel')}</Button>

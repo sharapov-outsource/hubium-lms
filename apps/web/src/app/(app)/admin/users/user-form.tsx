@@ -104,8 +104,6 @@ export function UserForm({
             name="timezone"
             defaultValue={values.timezone ?? ''}
             options={[{ value: '', label: ts('timezoneDefault') }, ...timezones]}
-            searchPlaceholder={tc('searchPlaceholder')}
-            emptyText={tc('nothingFound')}
           />
         </FormField>
       </div>

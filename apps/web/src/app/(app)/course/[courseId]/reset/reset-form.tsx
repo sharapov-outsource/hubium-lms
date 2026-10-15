@@ -162,7 +162,7 @@ export function ResetForm({
               {t('submit')}
             </Button>
           </DialogTrigger>
-          <DialogContent title={t('confirmTitle')} closeLabel={tc('close')}>
+          <DialogContent title={t('confirmTitle')}>
             <p className="text-sm">{t('confirm')}</p>
             <DialogFooter>
               <DialogClose asChild>

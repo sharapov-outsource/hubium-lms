@@ -1,13 +1,11 @@
 'use client';
 
 import { Combobox, type ComboboxOption } from '@hubium/ui';
-import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { permissionContextsAction } from '@/server/actions/admin';
 
 /** The whole site, or a category or course found by name as the search is typed. */
 export function ContextPick({ site, chosen }: { site: string; chosen: ComboboxOption | null }) {
-  const tc = useTranslations('common');
   const [q, setQ] = useState('');
   const [found, setFound] = useState<ComboboxOption[]>([]);
   useEffect(() => {
@@ -37,8 +35,6 @@ export function ContextPick({ site, chosen }: { site: string; chosen: ComboboxOp
       options={options}
       defaultValue={chosen?.value ?? ''}
       onSearch={setQ}
-      searchPlaceholder={tc('searchPlaceholder')}
-      emptyText={tc('nothingFound')}
     />
   );
 }

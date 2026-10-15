@@ -121,11 +121,7 @@ export function DangerZone({
             <DialogTrigger asChild>
               <Button variant="outline">{ta('loginAs')}</Button>
             </DialogTrigger>
-            <DialogContent
-              title={ta('loginAs')}
-              description={ta('loginAsConfirm', { name })}
-              closeLabel={tc('close')}
-            >
+            <DialogContent title={ta('loginAs')} description={ta('loginAsConfirm', { name })}>
               <DialogFooter>
                 <DialogClose asChild>
                   <Button variant="outline">{tc('cancel')}</Button>
@@ -152,11 +148,7 @@ export function DangerZone({
             <DialogTrigger asChild>
               <Button variant="destructive">{tc('delete')}</Button>
             </DialogTrigger>
-            <DialogContent
-              title={tc('delete')}
-              description={t('deleteConfirm', { name })}
-              closeLabel={tc('close')}
-            >
+            <DialogContent title={tc('delete')} description={t('deleteConfirm', { name })}>
               <DialogFooter>
                 <DialogClose asChild>
                   <Button variant="outline">{tc('cancel')}</Button>

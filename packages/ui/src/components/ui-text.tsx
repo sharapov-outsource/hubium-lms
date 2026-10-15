@@ -11,6 +11,8 @@ export interface UiText {
   /** Placeholder of the search box in long lists. */
   search: string;
   nothingFound: string;
+  /** The name of a dialog's close button. */
+  close: string;
 }
 
 const defaults: UiText = {
@@ -20,6 +22,7 @@ const defaults: UiText = {
   noFiles: 'No files chosen',
   search: 'Search…',
   nothingFound: 'Nothing found',
+  close: 'Close',
 };
 
 const UiTextContext = createContext<UiText>(defaults);

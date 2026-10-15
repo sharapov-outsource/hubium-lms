@@ -84,8 +84,6 @@ export default async function SettingsSectionPage({
               name="defaultTimezone"
               defaultValue={s['site.defaultTimezone']}
               options={timezoneOptions(locale)}
-              searchPlaceholder={tc('searchPlaceholder')}
-              emptyText={tc('nothingFound')}
             />
           </FormField>
           <FormField

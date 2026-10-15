@@ -290,7 +290,7 @@ function NewGroupDialog() {
           <Plus aria-hidden />
         </Button>
       </DialogTrigger>
-      <DialogContent title={t('newGroup')} closeLabel={tc('close')}>
+      <DialogContent title={t('newGroup')}>
         <form
           className="grid gap-4"
           onSubmit={(e) => {

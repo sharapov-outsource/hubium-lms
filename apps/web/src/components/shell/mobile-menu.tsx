@@ -13,12 +13,10 @@ import { type ReactNode, useEffect, useState } from 'react';
 export function MobileMenu({
   label,
   title,
-  closeLabel,
   children,
 }: {
   label: string;
   title: string;
-  closeLabel: string;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -32,7 +30,7 @@ export function MobileMenu({
           <Menu aria-hidden />
         </Button>
       </DialogTrigger>
-      <DialogContent title={title} closeLabel={closeLabel}>
+      <DialogContent title={title}>
         <nav aria-label={title} className="grid gap-0.5">
           {children}
         </nav>
