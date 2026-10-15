@@ -7,6 +7,7 @@ import { logEvent } from '../events/log.ts';
 import { optionalText } from '../lib/zod.ts';
 import { leaveGroupChats } from '../messaging/messaging.ts';
 import { defineOperation } from '../operation.ts';
+import { separateGroupsOf } from './visibility.ts';
 
 const GroupInput = z.object({
   courseId: z.string().uuid(),
@@ -117,24 +118,22 @@ export const setGroupMembers = defineOperation({
 
 export async function listGroups(ctx: RequestContext, courseId: string) {
   await ctx.perm.require('course:viewparticipants', courseId);
+  const only = await separateGroupsOf(ctx, courseId);
   return ctx.db.group.findMany({
-    where: { courseId },
+    where: { courseId, ...(only ? { id: { in: only } } : {}) },
     orderBy: { name: 'asc' },
     include: { members: { include: { user: { select: { id: true, name: true } } } } },
   });
 }
 
-/** Groups the user belongs to in the course; null when they can see all groups. */
-export async function visibleGroupIds(
-  ctx: RequestContext,
-  courseId: string,
-): Promise<string[] | null> {
-  if (await ctx.perm.can('group:accessall', courseId)) return null;
-  const rows = await ctx.db.groupMember.findMany({
-    where: { userId: ctx.perm.userId ?? '', group: { courseId } },
-    select: { groupId: true },
+/** The course's groups by name, as far as the user may see them (filters, pickers). */
+export async function listGroupNames(ctx: RequestContext, courseId: string) {
+  const only = await separateGroupsOf(ctx, courseId);
+  return ctx.db.group.findMany({
+    where: { courseId, ...(only ? { id: { in: only } } : {}) },
+    orderBy: { name: 'asc' },
+    select: { id: true, name: true },
   });
-  return rows.map((r) => r.groupId);
 }
 
 // ── groupings (sets of groups an activity can be limited to) ─────────────────

@@ -1,4 +1,4 @@
-import { getCourseAccess, listParticipants, roleName } from '@hubium/core';
+import { getCourseAccess, listGroupNames, listParticipants, roleName } from '@hubium/core';
 import { Avatar, Badge, Button, Input, Select, Table, TBody, Td, THead, Th, Tr } from '@hubium/ui';
 import { forbidden } from 'next/navigation';
 import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
@@ -40,7 +40,7 @@ export default async function ParticipantsPage({
       where: { assignableLevels: { has: 'COURSE' } },
       orderBy: { sortOrder: 'asc' },
     }),
-    db.group.findMany({ where: { courseId }, orderBy: { name: 'asc' } }),
+    listGroupNames(ctx, courseId),
   ]);
   const roleLabel = (r: { name: unknown; shortName: string }) => roleName(r, locale);
   const canManage = access.canManageEnrolments;

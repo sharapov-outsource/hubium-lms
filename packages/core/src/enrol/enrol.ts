@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { separateGroupsOf } from '../groups/visibility.ts';
 import { optionalText } from '../lib/zod.ts';
 import { leaveGroupChats } from '../messaging/messaging.ts';
 import { buildModuleCtx } from '../modules/module-ctx.ts';
@@ -459,16 +460,12 @@ export async function listParticipants(
 ) {
   const q = ParticipantsQuery.parse(raw);
   await ctx.perm.require('course:viewparticipants', q.courseId);
-  const course = await ctx.db.course.findUniqueOrThrow({ where: { id: q.courseId } });
-  // Separate groups: users without group:accessall see only their groups' members.
-  let restrictGroups: string[] | undefined;
-  if (course.groupMode === 'SEPARATE' && !(await ctx.perm.can('group:accessall', q.courseId))) {
-    const mine = await ctx.db.groupMember.findMany({
-      where: { userId: ctx.perm.userId ?? '', group: { courseId: q.courseId } },
-      select: { groupId: true },
-    });
-    restrictGroups = mine.map((m) => m.groupId);
-  }
+  // Separate groups: users without group:accessall see only their groups' members, and
+  // asking for another group gives nobody.
+  const restrictGroups = (await separateGroupsOf(ctx, q.courseId)) ?? undefined;
+  const groupFilter = restrictGroups
+    ? { in: q.groupId ? restrictGroups.filter((g) => g === q.groupId) : restrictGroups }
+    : q.groupId;
   // Contact details (and searching by them) only for people who manage the course roster.
   const showContacts =
     (await ctx.perm.can('enrol:manage', q.courseId)) ||
@@ -477,11 +474,7 @@ export async function listParticipants(
     deletedAt: null,
     enrolments: { some: { courseId: q.courseId, ...(q.status ? { status: q.status } : {}) } },
     ...(q.roleId ? { roleAssignments: { some: { contextId: q.courseId, roleId: q.roleId } } } : {}),
-    ...(q.groupId || restrictGroups
-      ? {
-          groupMembers: { some: { groupId: q.groupId ? q.groupId : { in: restrictGroups ?? [] } } },
-        }
-      : {}),
+    ...(groupFilter ? { groupMembers: { some: { groupId: groupFilter } } } : {}),
     ...(q.q
       ? {
           OR: [

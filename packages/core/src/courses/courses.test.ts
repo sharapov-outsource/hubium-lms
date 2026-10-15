@@ -16,7 +16,7 @@ import {
   updateSelfEnrolment,
 } from '../enrol/enrol.ts';
 import { ForbiddenError, ValidationError } from '../errors.ts';
-import { createGroup, setGroupMembers } from '../groups/groups.ts';
+import { createGroup, listGroupNames, listGroups, setGroupMembers } from '../groups/groups.ts';
 import { assignSystemRole } from '../users/users.ts';
 import {
   createActivity,
@@ -384,6 +384,21 @@ describe('courses domain', () => {
     expect(list.users.map((u) => u.id).sort()).toEqual([ids.student1!, ids.student3!].sort());
     const all = await listParticipants(teacher, { courseId: ids.course! });
     expect(all.total).toBe(4);
+    // another group's members stay hidden, even when asked for by its id
+    const other = await t.db.group.create({ data: { courseId: ids.course!, name: 'Чужая' } });
+    await t.db.groupMember.create({ data: { groupId: other.id, userId: ids.student2! } });
+    expect((await listParticipants(s1, { courseId: ids.course!, groupId: other.id })).total).toBe(
+      0,
+    );
+    expect((await listGroupNames(s1, ids.course!)).map((g) => g.id)).toEqual([ids.group!]);
+    expect((await listGroups(s1, ids.course!)).map((g) => g.id)).toEqual([ids.group!]);
+    expect(await listGroupNames(teacher, ids.course!)).toHaveLength(2);
+    expect(
+      (await listParticipants(teacher, { courseId: ids.course!, groupId: other.id })).users.map(
+        (u) => u.id,
+      ),
+    ).toEqual([ids.student2!]);
+    await t.db.group.delete({ where: { id: other.id } });
     await expect(
       setGroupMembers.run(teacher, { groupId: ids.group!, add: [ids.manager!] }),
     ).rejects.toBeInstanceOf(ValidationError);
