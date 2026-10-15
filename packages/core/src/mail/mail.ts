@@ -20,6 +20,8 @@ export async function deliverMail(m: {
   html: string;
   text: string;
   headers?: Record<string, string>;
+  /** Files sent with the letter (scheduled reports). */
+  attachments?: { filename: string; content: Buffer; contentType: string }[];
 }) {
   const from = process.env.MAIL_FROM ?? 'Hubium LMS <no-reply@hubium.local>';
   return getTransport().sendMail({ from, ...m });

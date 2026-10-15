@@ -104,7 +104,8 @@
     "userMenu": "User menu",
     "badges": "My badges",
     "certificates": "My certificates",
-    "plans": "Learning plans"
+    "plans": "Learning plans",
+    "reports": "Reports"
   },
   "auth": {
     "signIn": "Sign in",
@@ -2187,7 +2188,8 @@
       "workshop_phase_switch": "Switch workshop phases",
       "livesession_remind": "Webinar reminders",
       "badges_review": "Review and award badges",
-      "competency_plans_sync": "Learning plans for cohorts"
+      "competency_plans_sync": "Learning plans for cohorts",
+      "reports_schedules": "Report schedules"
     }
   },
   "badges": {
@@ -2590,5 +2592,260 @@
     "files": "Files",
     "tieEvidence": "Tie to competencies",
     "tie": "Tie"
+  },
+  "customReports": {
+    "title": "Reports",
+    "intro": "Your own reports on users, courses, participants, completion, grades, badges, certificates and competencies.",
+    "noReports": "No reports yet",
+    "name": "Name",
+    "source": "Source",
+    "new": "New report",
+    "view": "View",
+    "copy": "copy",
+    "duplicate": "Duplicate",
+    "sources": {
+      "users": "Users",
+      "courses": "Courses",
+      "participants": "Course participants",
+      "completion": "Course completion",
+      "grades": "Grades",
+      "badges": "Badges",
+      "certificates": "Certificates",
+      "competencies": "Competencies",
+      "plans": "Learning plans"
+    },
+    "downloadXlsx": "Download XLSX",
+    "downloadCsv": "Download CSV",
+    "operator": "Condition",
+    "any": "Any",
+    "value": "Value",
+    "datePlaceholder": "YYYY-MM-DD",
+    "apply": "Apply",
+    "reset": "Reset",
+    "total": "{n, plural, one {# row} other {# rows}}",
+    "noRows": "No rows",
+    "never": "never",
+    "ops": {
+      "contains": "contains",
+      "notContains": "does not contain",
+      "equals": "is",
+      "startsWith": "starts with",
+      "empty": "is empty",
+      "notEmpty": "is not empty",
+      "eq": "=",
+      "ne": "≠",
+      "gt": ">",
+      "gte": "≥",
+      "lt": "<",
+      "lte": "≤",
+      "after": "from",
+      "before": "before",
+      "lastDays": "in the last N days",
+      "nextDays": "in the next N days",
+      "isTrue": "yes",
+      "isFalse": "no",
+      "in": "is any of",
+      "notIn": "is none of"
+    },
+    "aggregates": {
+      "count": "count",
+      "countDistinct": "count distinct",
+      "list": "list",
+      "sum": "sum",
+      "avg": "average",
+      "min": "minimum",
+      "max": "maximum",
+      "countTrue": "count of “yes”"
+    },
+    "column": "Column {n}",
+    "aggregate": "Aggregation",
+    "noAggregate": "No aggregation",
+    "label": "Heading",
+    "moveUpN": "Column {n} up",
+    "moveDownN": "Column {n} down",
+    "removeN": "Remove column {n}",
+    "addColumn": "Add column",
+    "sortBy": "Sort by",
+    "sortDefault": "The first column",
+    "direction": "Order",
+    "asc": "Ascending",
+    "desc": "Descending",
+    "columns": "Columns",
+    "conditions": "Conditions",
+    "conditionsHint": "Always applied; viewers do not change them.",
+    "condition": "Condition {n}",
+    "valueN": "Value of condition {n}",
+    "removeConditionN": "Remove condition {n}",
+    "addCondition": "Add condition",
+    "filters": "Filters",
+    "filtersHint": "Fields viewers filter the rows by themselves.",
+    "addFilter": "Add filter",
+    "chooseField": "Choose a field",
+    "audiences": "Who sees it",
+    "audiencesHint": "Those who build reports see them all. A report shows the whole site's data: give access only to those who need it.",
+    "audienceAll": "All users",
+    "roles": "Roles",
+    "cohorts": "Cohorts",
+    "people": "People",
+    "peopleHint": "Emails or logins, one per line or separated by commas.",
+    "schedules": "Schedules",
+    "noSchedules": "No schedules",
+    "newSchedule": "New schedule",
+    "frequency": "How often",
+    "hour": "Time",
+    "day": "Day",
+    "dayHint": "Week: 1 Monday … 7 Sunday; month: day 1–28.",
+    "format": "Format",
+    "recipients": "Recipients",
+    "toAudience": "And everyone who sees the report (except “All users”)",
+    "skipEmpty": "Do not send an empty report",
+    "frequencies": {
+      "DAILY": "Daily",
+      "WEEKDAYS": "On weekdays",
+      "WEEKLY": "Weekly",
+      "MONTHLY": "Monthly"
+    },
+    "lastRun": "Last",
+    "nextRun": "Next",
+    "sendNow": "Send now",
+    "sent": "Sent",
+    "entities": {
+      "user": "User",
+      "course": "Course"
+    },
+    "fields": {
+      "user": {
+        "fullName": "User",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "username": "Login",
+        "email": "Email",
+        "status": "User status",
+        "createdAt": "Registered",
+        "lastLoginAt": "Last sign-in",
+        "lastAccessAt": "Last access",
+        "twoFactor": "Two-factor sign-in"
+      },
+      "course": {
+        "fullName": "Course",
+        "shortName": "Course short name",
+        "idNumber": "Course ID number",
+        "category": "Category",
+        "startDate": "Course start",
+        "endDate": "Course end",
+        "visible": "Course visible",
+        "format": "Course format",
+        "createdAt": "Course created",
+        "participants": "Participants",
+        "completed": "Completed"
+      },
+      "enrolment": {
+        "method": "Enrolment method",
+        "status": "Enrolment status",
+        "createdAt": "Enrolled",
+        "endsAt": "Enrolled until",
+        "roles": "Course roles"
+      },
+      "completion": {
+        "progress": "Progress, %",
+        "completed": "Course completed",
+        "completedAt": "Completion date",
+        "startedAt": "Started"
+      },
+      "grade": {
+        "item": "Grade item",
+        "kind": "Item type",
+        "grade": "Grade",
+        "max": "Maximum",
+        "percent": "Grade, %",
+        "updatedAt": "Grade changed"
+      },
+      "badge": {
+        "name": "Badge",
+        "site": "Site badge",
+        "issuedAt": "Badge issued",
+        "expiresAt": "Badge expires",
+        "revoked": "Badge revoked"
+      },
+      "certificate": {
+        "name": "Certificate",
+        "code": "Certificate code",
+        "issuedAt": "Certificate issued",
+        "revoked": "Certificate revoked"
+      },
+      "competency": {
+        "framework": "Framework",
+        "name": "Competency",
+        "idNumber": "Competency ID number",
+        "rating": "Competency rating",
+        "proficient": "Proficient",
+        "status": "Review",
+        "updatedAt": "Rating changed"
+      },
+      "plan": {
+        "name": "Learning plan",
+        "status": "Plan status",
+        "dueDate": "Plan due date",
+        "template": "Template",
+        "createdAt": "Plan created"
+      }
+    },
+    "values": {
+      "user": {
+        "status": {
+          "ACTIVE": "Active",
+          "SUSPENDED": "Suspended"
+        }
+      },
+      "course": {
+        "format": {
+          "TOPICS": "Topics",
+          "WEEKS": "Weeks",
+          "SINGLE": "Single page"
+        }
+      },
+      "enrolment": {
+        "method": {
+          "MANUAL": "Manual",
+          "SELF": "Self",
+          "COHORT": "Cohort",
+          "GUEST": "Guest"
+        },
+        "status": {
+          "ACTIVE": "Active",
+          "SUSPENDED": "Suspended"
+        }
+      },
+      "grade": {
+        "kind": {
+          "COURSE": "Course total",
+          "CATEGORY": "Category",
+          "MODULE": "Activity",
+          "MANUAL": "Manual"
+        }
+      },
+      "competency": {
+        "status": {
+          "IDLE": "—",
+          "WAITING_FOR_REVIEW": "Waiting for review",
+          "IN_REVIEW": "In review"
+        }
+      },
+      "plan": {
+        "status": {
+          "DRAFT": "Draft",
+          "WAITING_FOR_REVIEW": "Waiting for review",
+          "IN_REVIEW": "In review",
+          "ACTIVE": "Active",
+          "COMPLETE": "Complete"
+        }
+      }
+    },
+    "email": {
+      "subject": "{site}: report “{name}”",
+      "intro": "The report “{name}” is attached: {rows, plural, one {# row} other {# rows}}.",
+      "open": "Open the report",
+      "footer": "Schedule “{schedule}”."
+    }
   }
 }

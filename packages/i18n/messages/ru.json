@@ -104,7 +104,8 @@
     "userMenu": "Меню пользователя",
     "badges": "Мои значки",
     "certificates": "Мои сертификаты",
-    "plans": "Планы обучения"
+    "plans": "Планы обучения",
+    "reports": "Отчёты"
   },
   "auth": {
     "signIn": "Войти",
@@ -2187,7 +2188,8 @@
       "workshop_phase_switch": "Смена фаз семинаров",
       "livesession_remind": "Напоминания о вебинарах",
       "badges_review": "Проверка и выдача значков",
-      "competency_plans_sync": "Планы обучения для глобальных групп"
+      "competency_plans_sync": "Планы обучения для глобальных групп",
+      "reports_schedules": "Рассылка отчётов"
     }
   },
   "badges": {
@@ -2590,5 +2592,260 @@
     "files": "Файлы",
     "tieEvidence": "Привязать к компетенциям",
     "tie": "Привязать"
+  },
+  "customReports": {
+    "title": "Отчёты",
+    "intro": "Свои отчёты по пользователям, курсам, участникам, выполнению, оценкам, значкам, сертификатам и компетенциям.",
+    "noReports": "Отчётов пока нет",
+    "name": "Название",
+    "source": "Источник",
+    "new": "Новый отчёт",
+    "view": "Просмотр",
+    "copy": "копия",
+    "duplicate": "Копировать",
+    "sources": {
+      "users": "Пользователи",
+      "courses": "Курсы",
+      "participants": "Участники курсов",
+      "completion": "Выполнение курсов",
+      "grades": "Оценки",
+      "badges": "Значки",
+      "certificates": "Сертификаты",
+      "competencies": "Компетенции",
+      "plans": "Планы обучения"
+    },
+    "downloadXlsx": "Скачать XLSX",
+    "downloadCsv": "Скачать CSV",
+    "operator": "Условие",
+    "any": "Любое",
+    "value": "Значение",
+    "datePlaceholder": "ГГГГ-ММ-ДД",
+    "apply": "Применить",
+    "reset": "Сбросить",
+    "total": "{n, plural, one {# строка} few {# строки} many {# строк} other {# строки}}",
+    "noRows": "Нет строк",
+    "never": "не было",
+    "ops": {
+      "contains": "содержит",
+      "notContains": "не содержит",
+      "equals": "равно",
+      "startsWith": "начинается с",
+      "empty": "пусто",
+      "notEmpty": "не пусто",
+      "eq": "=",
+      "ne": "≠",
+      "gt": ">",
+      "gte": "≥",
+      "lt": "<",
+      "lte": "≤",
+      "after": "с даты",
+      "before": "до даты",
+      "lastDays": "за последние N дней",
+      "nextDays": "в ближайшие N дней",
+      "isTrue": "да",
+      "isFalse": "нет",
+      "in": "одно из",
+      "notIn": "ни одно из"
+    },
+    "aggregates": {
+      "count": "количество",
+      "countDistinct": "количество разных",
+      "list": "список",
+      "sum": "сумма",
+      "avg": "среднее",
+      "min": "минимум",
+      "max": "максимум",
+      "countTrue": "сколько «да»"
+    },
+    "column": "Столбец {n}",
+    "aggregate": "Агрегирование",
+    "noAggregate": "Без агрегирования",
+    "label": "Заголовок",
+    "moveUpN": "Столбец {n} выше",
+    "moveDownN": "Столбец {n} ниже",
+    "removeN": "Убрать столбец {n}",
+    "addColumn": "Добавить столбец",
+    "sortBy": "Сортировка",
+    "sortDefault": "По первому столбцу",
+    "direction": "Порядок",
+    "asc": "По возрастанию",
+    "desc": "По убыванию",
+    "columns": "Столбцы",
+    "conditions": "Условия",
+    "conditionsHint": "Действуют всегда; зрители их не меняют.",
+    "condition": "Условие {n}",
+    "valueN": "Значение условия {n}",
+    "removeConditionN": "Убрать условие {n}",
+    "addCondition": "Добавить условие",
+    "filters": "Фильтры",
+    "filtersHint": "Поля, по которым зрители сами отбирают строки.",
+    "addFilter": "Добавить фильтр",
+    "chooseField": "Выберите поле",
+    "audiences": "Кто видит",
+    "audiencesHint": "Те, кто строит отчёты, видят все. Отчёт показывает данные всего сайта — давайте доступ только тем, кому они нужны.",
+    "audienceAll": "Все пользователи",
+    "roles": "Роли",
+    "cohorts": "Глобальные группы",
+    "people": "Пользователи",
+    "peopleHint": "Почта или логин, по одному в строке или через запятую.",
+    "schedules": "Рассылка",
+    "noSchedules": "Рассылок нет",
+    "newSchedule": "Новая рассылка",
+    "frequency": "Как часто",
+    "hour": "Время",
+    "day": "День",
+    "dayHint": "Неделя: 1 — понедельник … 7 — воскресенье; месяц: число 1–28.",
+    "format": "Формат",
+    "recipients": "Получатели",
+    "toAudience": "И всем, кто видит отчёт (кроме «Все пользователи»)",
+    "skipEmpty": "Не отправлять пустой отчёт",
+    "frequencies": {
+      "DAILY": "Ежедневно",
+      "WEEKDAYS": "По будням",
+      "WEEKLY": "Еженедельно",
+      "MONTHLY": "Ежемесячно"
+    },
+    "lastRun": "Последняя",
+    "nextRun": "Следующая",
+    "sendNow": "Отправить сейчас",
+    "sent": "Отправлено",
+    "entities": {
+      "user": "Пользователь",
+      "course": "Курс"
+    },
+    "fields": {
+      "user": {
+        "fullName": "Пользователь",
+        "firstName": "Имя",
+        "lastName": "Фамилия",
+        "username": "Логин",
+        "email": "Почта",
+        "status": "Статус пользователя",
+        "createdAt": "Зарегистрирован",
+        "lastLoginAt": "Последний вход",
+        "lastAccessAt": "Последнее посещение",
+        "twoFactor": "Двухфакторный вход"
+      },
+      "course": {
+        "fullName": "Курс",
+        "shortName": "Краткое название курса",
+        "idNumber": "ID-номер курса",
+        "category": "Категория",
+        "startDate": "Начало курса",
+        "endDate": "Окончание курса",
+        "visible": "Курс виден",
+        "format": "Формат курса",
+        "createdAt": "Курс создан",
+        "participants": "Участников",
+        "completed": "Завершили"
+      },
+      "enrolment": {
+        "method": "Способ зачисления",
+        "status": "Статус зачисления",
+        "createdAt": "Зачислен",
+        "endsAt": "Зачисление до",
+        "roles": "Роли в курсе"
+      },
+      "completion": {
+        "progress": "Прогресс, %",
+        "completed": "Курс завершён",
+        "completedAt": "Дата завершения",
+        "startedAt": "Начал курс"
+      },
+      "grade": {
+        "item": "Элемент оценивания",
+        "kind": "Тип элемента",
+        "grade": "Оценка",
+        "max": "Максимум",
+        "percent": "Оценка, %",
+        "updatedAt": "Оценка изменена"
+      },
+      "badge": {
+        "name": "Значок",
+        "site": "Значок сайта",
+        "issuedAt": "Значок выдан",
+        "expiresAt": "Значок действует до",
+        "revoked": "Значок отозван"
+      },
+      "certificate": {
+        "name": "Сертификат",
+        "code": "Код сертификата",
+        "issuedAt": "Сертификат выдан",
+        "revoked": "Сертификат отозван"
+      },
+      "competency": {
+        "framework": "Фреймворк",
+        "name": "Компетенция",
+        "idNumber": "ID-номер компетенции",
+        "rating": "Оценка компетенции",
+        "proficient": "Освоена",
+        "status": "Проверка",
+        "updatedAt": "Оценка изменена"
+      },
+      "plan": {
+        "name": "План обучения",
+        "status": "Статус плана",
+        "dueDate": "Срок плана",
+        "template": "Шаблон",
+        "createdAt": "План создан"
+      }
+    },
+    "values": {
+      "user": {
+        "status": {
+          "ACTIVE": "Активен",
+          "SUSPENDED": "Заблокирован"
+        }
+      },
+      "course": {
+        "format": {
+          "TOPICS": "По темам",
+          "WEEKS": "По неделям",
+          "SINGLE": "Одна страница"
+        }
+      },
+      "enrolment": {
+        "method": {
+          "MANUAL": "Вручную",
+          "SELF": "Самостоятельно",
+          "COHORT": "Глобальная группа",
+          "GUEST": "Гость"
+        },
+        "status": {
+          "ACTIVE": "Активно",
+          "SUSPENDED": "Приостановлено"
+        }
+      },
+      "grade": {
+        "kind": {
+          "COURSE": "Итог курса",
+          "CATEGORY": "Категория",
+          "MODULE": "Элемент курса",
+          "MANUAL": "Ручной"
+        }
+      },
+      "competency": {
+        "status": {
+          "IDLE": "—",
+          "WAITING_FOR_REVIEW": "Ждёт проверки",
+          "IN_REVIEW": "На проверке"
+        }
+      },
+      "plan": {
+        "status": {
+          "DRAFT": "Черновик",
+          "WAITING_FOR_REVIEW": "Ждёт проверки",
+          "IN_REVIEW": "На проверке",
+          "ACTIVE": "Действует",
+          "COMPLETE": "Завершён"
+        }
+      }
+    },
+    "email": {
+      "subject": "{site}: отчёт «{name}»",
+      "intro": "Отчёт «{name}» во вложении: {rows, plural, one {# строка} few {# строки} many {# строк} other {# строки}}.",
+      "open": "Открыть отчёт",
+      "footer": "Рассылка «{schedule}»."
+    }
   }
 }

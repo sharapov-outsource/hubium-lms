@@ -35,6 +35,7 @@ export const sentMail: {
   html: string;
   text: string;
   headers?: Record<string, string>;
+  attachments?: { filename: string; content: Buffer; contentType: string }[];
 }[] = [];
 setMailTransport({
   sendMail: async (m: (typeof sentMail)[number]) => {

@@ -1,0 +1,62 @@
+// Custom reports, as Moodle's report builder: a source (users, courses, participants…),
+// the columns chosen from its fields (with aggregation), fixed conditions, filters the
+// viewer sets, who may view it, and schedules that email it.
+
+enum ReportFrequency {
+  DAILY
+  WEEKDAYS
+  WEEKLY
+  MONTHLY
+}
+
+model CustomReport {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  name        String
+  /// A source of core reports/sources.ts.
+  source      String
+  /// [{ field, aggregate?, label? }] in order.
+  columns     Json     @default("[]")
+  /// [{ field, op, value? }]: always applied.
+  conditions  Json     @default("[]")
+  /// [field]: the viewer sets them.
+  filters     Json     @default("[]")
+  /// { column, desc } or null: the first column ascending.
+  sort        Json?
+  /// { all, roleIds, cohortIds, userIds }: who may view it besides those who build reports.
+  audiences   Json     @default("{}")
+  createdById String?  @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  schedules ReportSchedule[]
+}
+
+/// Emails a report as a file to its audience and/or chosen people.
+model ReportSchedule {
+  id          String          @id @default(uuid(7)) @db.Uuid
+  reportId    String          @db.Uuid
+  name        String
+  /// "csv" or "xlsx".
+  format      String          @default("xlsx")
+  frequency   ReportFrequency @default(WEEKLY)
+  /// The hour (0-23) in the site's time zone.
+  hour        Int             @default(8)
+  /// WEEKLY: 1 Monday … 7 Sunday. MONTHLY: the day of the month (1-28).
+  day         Int             @default(1)
+  /// The report's audience gets it too.
+  toAudience  Boolean         @default(false)
+  userIds     String[]        @db.Uuid
+  /// No email when the report is empty.
+  skipEmpty   Boolean         @default(true)
+  enabled     Boolean         @default(true)
+  nextRunAt   DateTime        @db.Timestamptz(3)
+  lastRunAt   DateTime?       @db.Timestamptz(3)
+  /// Rows sent last time, or null if it was skipped.
+  lastRows    Int?
+  createdById String?         @db.Uuid
+  createdAt   DateTime        @default(now()) @db.Timestamptz(3)
+
+  report CustomReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([enabled, nextRunAt])
+}

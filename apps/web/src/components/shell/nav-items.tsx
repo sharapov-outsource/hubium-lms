@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   Bell,
   BookOpen,
   CalendarDays,
@@ -19,6 +20,7 @@ const icons = {
   notifications: Bell,
   admin: Shield,
   mentees: Users,
+  reports: BarChart3,
 } satisfies Record<string, LucideIcon>;
 
 export type NavIconName = keyof typeof icons;

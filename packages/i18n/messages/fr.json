@@ -103,7 +103,8 @@
     "userMenu": "Menu utilisateur",
     "badges": "Mes badges",
     "certificates": "Mes certificats",
-    "plans": "Plans de formation"
+    "plans": "Plans de formation",
+    "reports": "Rapports"
   },
   "auth": {
     "signIn": "Se connecter",
@@ -2186,7 +2187,8 @@
       "workshop_phase_switch": "Changement de phase des ateliers",
       "livesession_remind": "Rappels des webinaires",
       "badges_review": "Vérifier et décerner les badges",
-      "competency_plans_sync": "Plans de formation des cohortes"
+      "competency_plans_sync": "Plans de formation des cohortes",
+      "reports_schedules": "Envoi des rapports"
     }
   },
   "badges": {
@@ -2589,5 +2591,260 @@
     "files": "Fichiers",
     "tieEvidence": "Lier à des compétences",
     "tie": "Lier"
+  },
+  "customReports": {
+    "title": "Rapports",
+    "intro": "Vos propres rapports sur les utilisateurs, cours, participants, achèvements, notes, badges, certificats et compétences.",
+    "noReports": "Aucun rapport pour l’instant",
+    "name": "Nom",
+    "source": "Source",
+    "new": "Nouveau rapport",
+    "view": "Afficher",
+    "copy": "copie",
+    "duplicate": "Dupliquer",
+    "sources": {
+      "users": "Utilisateurs",
+      "courses": "Cours",
+      "participants": "Participants aux cours",
+      "completion": "Achèvement des cours",
+      "grades": "Notes",
+      "badges": "Badges",
+      "certificates": "Certificats",
+      "competencies": "Compétences",
+      "plans": "Plans de formation"
+    },
+    "downloadXlsx": "Télécharger XLSX",
+    "downloadCsv": "Télécharger CSV",
+    "operator": "Condition",
+    "any": "Toutes",
+    "value": "Valeur",
+    "datePlaceholder": "AAAA-MM-JJ",
+    "apply": "Appliquer",
+    "reset": "Réinitialiser",
+    "total": "{n, plural, one {# ligne} other {# lignes}}",
+    "noRows": "Aucune ligne",
+    "never": "jamais",
+    "ops": {
+      "contains": "contient",
+      "notContains": "ne contient pas",
+      "equals": "est",
+      "startsWith": "commence par",
+      "empty": "est vide",
+      "notEmpty": "n’est pas vide",
+      "eq": "=",
+      "ne": "≠",
+      "gt": ">",
+      "gte": "≥",
+      "lt": "<",
+      "lte": "≤",
+      "after": "à partir du",
+      "before": "avant le",
+      "lastDays": "ces N derniers jours",
+      "nextDays": "dans les N prochains jours",
+      "isTrue": "oui",
+      "isFalse": "non",
+      "in": "est l’un de",
+      "notIn": "n’est aucun de"
+    },
+    "aggregates": {
+      "count": "nombre",
+      "countDistinct": "nombre distinct",
+      "list": "liste",
+      "sum": "somme",
+      "avg": "moyenne",
+      "min": "minimum",
+      "max": "maximum",
+      "countTrue": "nombre de « oui »"
+    },
+    "column": "Colonne {n}",
+    "aggregate": "Agrégation",
+    "noAggregate": "Sans agrégation",
+    "label": "Intitulé",
+    "moveUpN": "Colonne {n} vers le haut",
+    "moveDownN": "Colonne {n} vers le bas",
+    "removeN": "Retirer la colonne {n}",
+    "addColumn": "Ajouter une colonne",
+    "sortBy": "Tri",
+    "sortDefault": "La première colonne",
+    "direction": "Ordre",
+    "asc": "Croissant",
+    "desc": "Décroissant",
+    "columns": "Colonnes",
+    "conditions": "Conditions",
+    "conditionsHint": "Toujours appliquées ; les lecteurs ne les changent pas.",
+    "condition": "Condition {n}",
+    "valueN": "Valeur de la condition {n}",
+    "removeConditionN": "Retirer la condition {n}",
+    "addCondition": "Ajouter une condition",
+    "filters": "Filtres",
+    "filtersHint": "Champs selon lesquels les lecteurs filtrent eux-mêmes.",
+    "addFilter": "Ajouter un filtre",
+    "chooseField": "Choisir un champ",
+    "audiences": "Qui le voit",
+    "audiencesHint": "Ceux qui créent les rapports les voient tous. Un rapport montre les données de tout le site : n’y donnez accès qu’à qui en a besoin.",
+    "audienceAll": "Tous les utilisateurs",
+    "roles": "Rôles",
+    "cohorts": "Cohortes",
+    "people": "Personnes",
+    "peopleHint": "Adresses de courriel ou identifiants, un par ligne ou séparés par des virgules.",
+    "schedules": "Envois",
+    "noSchedules": "Aucun envoi",
+    "newSchedule": "Nouvel envoi",
+    "frequency": "Fréquence",
+    "hour": "Heure",
+    "day": "Jour",
+    "dayHint": "Semaine : 1 lundi … 7 dimanche ; mois : jour 1–28.",
+    "format": "Format",
+    "recipients": "Destinataires",
+    "toAudience": "Et tous ceux qui voient le rapport (sauf « Tous les utilisateurs »)",
+    "skipEmpty": "Ne pas envoyer un rapport vide",
+    "frequencies": {
+      "DAILY": "Tous les jours",
+      "WEEKDAYS": "En semaine",
+      "WEEKLY": "Chaque semaine",
+      "MONTHLY": "Chaque mois"
+    },
+    "lastRun": "Dernier",
+    "nextRun": "Prochain",
+    "sendNow": "Envoyer maintenant",
+    "sent": "Envoyé",
+    "entities": {
+      "user": "Utilisateur",
+      "course": "Cours"
+    },
+    "fields": {
+      "user": {
+        "fullName": "Utilisateur",
+        "firstName": "Prénom",
+        "lastName": "Nom",
+        "username": "Identifiant",
+        "email": "Courriel",
+        "status": "Statut de l’utilisateur",
+        "createdAt": "Inscrit le",
+        "lastLoginAt": "Dernière connexion",
+        "lastAccessAt": "Dernier accès",
+        "twoFactor": "Connexion à deux facteurs"
+      },
+      "course": {
+        "fullName": "Cours",
+        "shortName": "Nom abrégé du cours",
+        "idNumber": "Numéro d’identification du cours",
+        "category": "Catégorie",
+        "startDate": "Début du cours",
+        "endDate": "Fin du cours",
+        "visible": "Cours visible",
+        "format": "Format du cours",
+        "createdAt": "Cours créé",
+        "participants": "Participants",
+        "completed": "Achevés"
+      },
+      "enrolment": {
+        "method": "Méthode d’inscription",
+        "status": "Statut d’inscription",
+        "createdAt": "Inscrit au cours",
+        "endsAt": "Inscrit jusqu’au",
+        "roles": "Rôles dans le cours"
+      },
+      "completion": {
+        "progress": "Progression, %",
+        "completed": "Cours achevé",
+        "completedAt": "Date d’achèvement",
+        "startedAt": "Commencé"
+      },
+      "grade": {
+        "item": "Élément d’évaluation",
+        "kind": "Type d’élément",
+        "grade": "Note",
+        "max": "Maximum",
+        "percent": "Note, %",
+        "updatedAt": "Note modifiée"
+      },
+      "badge": {
+        "name": "Badge",
+        "site": "Badge du site",
+        "issuedAt": "Badge décerné",
+        "expiresAt": "Badge valable jusqu’au",
+        "revoked": "Badge révoqué"
+      },
+      "certificate": {
+        "name": "Certificat",
+        "code": "Code du certificat",
+        "issuedAt": "Certificat délivré",
+        "revoked": "Certificat révoqué"
+      },
+      "competency": {
+        "framework": "Référentiel",
+        "name": "Compétence",
+        "idNumber": "Numéro de la compétence",
+        "rating": "Évaluation de la compétence",
+        "proficient": "Acquise",
+        "status": "Validation",
+        "updatedAt": "Évaluation modifiée"
+      },
+      "plan": {
+        "name": "Plan de formation",
+        "status": "Statut du plan",
+        "dueDate": "Échéance du plan",
+        "template": "Modèle",
+        "createdAt": "Plan créé"
+      }
+    },
+    "values": {
+      "user": {
+        "status": {
+          "ACTIVE": "Actif",
+          "SUSPENDED": "Suspendu"
+        }
+      },
+      "course": {
+        "format": {
+          "TOPICS": "Thématique",
+          "WEEKS": "Hebdomadaire",
+          "SINGLE": "Page unique"
+        }
+      },
+      "enrolment": {
+        "method": {
+          "MANUAL": "Manuelle",
+          "SELF": "Auto-inscription",
+          "COHORT": "Cohorte",
+          "GUEST": "Invité"
+        },
+        "status": {
+          "ACTIVE": "Active",
+          "SUSPENDED": "Suspendue"
+        }
+      },
+      "grade": {
+        "kind": {
+          "COURSE": "Total du cours",
+          "CATEGORY": "Catégorie",
+          "MODULE": "Activité",
+          "MANUAL": "Manuel"
+        }
+      },
+      "competency": {
+        "status": {
+          "IDLE": "—",
+          "WAITING_FOR_REVIEW": "En attente de validation",
+          "IN_REVIEW": "En cours de validation"
+        }
+      },
+      "plan": {
+        "status": {
+          "DRAFT": "Brouillon",
+          "WAITING_FOR_REVIEW": "En attente de validation",
+          "IN_REVIEW": "En cours de validation",
+          "ACTIVE": "Actif",
+          "COMPLETE": "Terminé"
+        }
+      }
+    },
+    "email": {
+      "subject": "{site} : rapport « {name} »",
+      "intro": "Le rapport « {name} » est joint : {rows, plural, one {# ligne} other {# lignes}}.",
+      "open": "Ouvrir le rapport",
+      "footer": "Envoi « {schedule} »."
+    }
   }
 }

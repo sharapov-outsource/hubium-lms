@@ -1,4 +1,4 @@
-import { getSetting, hasMentees, pendingPolicies } from '@hubium/core';
+import { getSetting, hasMentees, hasReports, pendingPolicies } from '@hubium/core';
 import { Alert } from '@hubium/ui';
 import { headers } from 'next/headers';
 import Link from 'next/link';
@@ -52,6 +52,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       icon: 'mentees',
       mobile: true,
     });
+  // custom reports, for those who build them and their audiences
+  if (await hasReports(ctx))
+    items.push({ href: '/reports', label: 'nav.reports', icon: 'reports' });
   if (
     user.isSiteAdmin ||
     (await ctx.perm.canAny([

@@ -198,6 +198,8 @@ export const coreCapabilities = {
   'competency:review': { level: 'SYSTEM', archetypes: [M], risk: ['personal'] },
   'competency:requestreview': { level: 'SYSTEM', archetypes: [U] },
   'competency:evidencemanageown': { level: 'SYSTEM', archetypes: [U] },
+  // custom reports: built by managers, viewed by their audiences
+  'report:customise': { level: 'SYSTEM', archetypes: [M], risk: ['personal'] },
   'mod.lti:manage': { level: 'COURSE', archetypes: [M, ET], risk: ['config'] },
 } as const satisfies Record<string, CapabilityDef>;
 

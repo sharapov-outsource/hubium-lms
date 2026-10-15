@@ -103,7 +103,8 @@
     "userMenu": "Nutzermenü",
     "badges": "Meine Auszeichnungen",
     "certificates": "Meine Zertifikate",
-    "plans": "Lernpläne"
+    "plans": "Lernpläne",
+    "reports": "Berichte"
   },
   "auth": {
     "signIn": "Anmelden",
@@ -2186,7 +2187,8 @@
       "workshop_phase_switch": "Workshop-Phasen wechseln",
       "livesession_remind": "Webinar-Erinnerungen",
       "badges_review": "Auszeichnungen prüfen und verleihen",
-      "competency_plans_sync": "Lernpläne für globale Gruppen"
+      "competency_plans_sync": "Lernpläne für globale Gruppen",
+      "reports_schedules": "Berichtsversand"
     }
   },
   "badges": {
@@ -2589,5 +2591,260 @@
     "files": "Dateien",
     "tieEvidence": "Mit Kompetenzen verknüpfen",
     "tie": "Verknüpfen"
+  },
+  "customReports": {
+    "title": "Berichte",
+    "intro": "Eigene Berichte zu Nutzer/innen, Kursen, Teilnehmenden, Abschlüssen, Bewertungen, Auszeichnungen, Zertifikaten und Kompetenzen.",
+    "noReports": "Noch keine Berichte",
+    "name": "Name",
+    "source": "Quelle",
+    "new": "Neuer Bericht",
+    "view": "Ansehen",
+    "copy": "Kopie",
+    "duplicate": "Kopieren",
+    "sources": {
+      "users": "Nutzer/innen",
+      "courses": "Kurse",
+      "participants": "Kursteilnehmende",
+      "completion": "Kursabschluss",
+      "grades": "Bewertungen",
+      "badges": "Auszeichnungen",
+      "certificates": "Zertifikate",
+      "competencies": "Kompetenzen",
+      "plans": "Lernpläne"
+    },
+    "downloadXlsx": "XLSX herunterladen",
+    "downloadCsv": "CSV herunterladen",
+    "operator": "Bedingung",
+    "any": "Beliebig",
+    "value": "Wert",
+    "datePlaceholder": "JJJJ-MM-TT",
+    "apply": "Anwenden",
+    "reset": "Zurücksetzen",
+    "total": "{n, plural, one {# Zeile} other {# Zeilen}}",
+    "noRows": "Keine Zeilen",
+    "never": "nie",
+    "ops": {
+      "contains": "enthält",
+      "notContains": "enthält nicht",
+      "equals": "ist",
+      "startsWith": "beginnt mit",
+      "empty": "ist leer",
+      "notEmpty": "ist nicht leer",
+      "eq": "=",
+      "ne": "≠",
+      "gt": ">",
+      "gte": "≥",
+      "lt": "<",
+      "lte": "≤",
+      "after": "ab",
+      "before": "vor",
+      "lastDays": "in den letzten N Tagen",
+      "nextDays": "in den nächsten N Tagen",
+      "isTrue": "ja",
+      "isFalse": "nein",
+      "in": "ist eines von",
+      "notIn": "ist keines von"
+    },
+    "aggregates": {
+      "count": "Anzahl",
+      "countDistinct": "Anzahl verschiedener",
+      "list": "Liste",
+      "sum": "Summe",
+      "avg": "Durchschnitt",
+      "min": "Minimum",
+      "max": "Maximum",
+      "countTrue": "Anzahl „ja“"
+    },
+    "column": "Spalte {n}",
+    "aggregate": "Aggregation",
+    "noAggregate": "Keine Aggregation",
+    "label": "Überschrift",
+    "moveUpN": "Spalte {n} nach oben",
+    "moveDownN": "Spalte {n} nach unten",
+    "removeN": "Spalte {n} entfernen",
+    "addColumn": "Spalte hinzufügen",
+    "sortBy": "Sortierung",
+    "sortDefault": "Erste Spalte",
+    "direction": "Reihenfolge",
+    "asc": "Aufsteigend",
+    "desc": "Absteigend",
+    "columns": "Spalten",
+    "conditions": "Bedingungen",
+    "conditionsHint": "Gelten immer; Betrachtende ändern sie nicht.",
+    "condition": "Bedingung {n}",
+    "valueN": "Wert der Bedingung {n}",
+    "removeConditionN": "Bedingung {n} entfernen",
+    "addCondition": "Bedingung hinzufügen",
+    "filters": "Filter",
+    "filtersHint": "Felder, nach denen Betrachtende selbst filtern.",
+    "addFilter": "Filter hinzufügen",
+    "chooseField": "Feld auswählen",
+    "audiences": "Wer sieht ihn",
+    "audiencesHint": "Wer Berichte erstellt, sieht alle. Ein Bericht zeigt Daten der ganzen Website: nur denen freigeben, die sie brauchen.",
+    "audienceAll": "Alle Nutzer/innen",
+    "roles": "Rollen",
+    "cohorts": "Globale Gruppen",
+    "people": "Personen",
+    "peopleHint": "E-Mail-Adressen oder Anmeldenamen, je eine pro Zeile oder durch Kommas getrennt.",
+    "schedules": "Versand",
+    "noSchedules": "Kein Versand",
+    "newSchedule": "Neuer Versand",
+    "frequency": "Wie oft",
+    "hour": "Uhrzeit",
+    "day": "Tag",
+    "dayHint": "Woche: 1 Montag … 7 Sonntag; Monat: Tag 1–28.",
+    "format": "Format",
+    "recipients": "Empfänger",
+    "toAudience": "Und alle, die den Bericht sehen (außer „Alle Nutzer/innen“)",
+    "skipEmpty": "Leeren Bericht nicht senden",
+    "frequencies": {
+      "DAILY": "Täglich",
+      "WEEKDAYS": "Werktags",
+      "WEEKLY": "Wöchentlich",
+      "MONTHLY": "Monatlich"
+    },
+    "lastRun": "Zuletzt",
+    "nextRun": "Nächster",
+    "sendNow": "Jetzt senden",
+    "sent": "Gesendet",
+    "entities": {
+      "user": "Nutzer/in",
+      "course": "Kurs"
+    },
+    "fields": {
+      "user": {
+        "fullName": "Nutzer/in",
+        "firstName": "Vorname",
+        "lastName": "Nachname",
+        "username": "Anmeldename",
+        "email": "E-Mail",
+        "status": "Nutzerstatus",
+        "createdAt": "Registriert",
+        "lastLoginAt": "Letzte Anmeldung",
+        "lastAccessAt": "Letzter Zugriff",
+        "twoFactor": "Zwei-Faktor-Anmeldung"
+      },
+      "course": {
+        "fullName": "Kurs",
+        "shortName": "Kurzname des Kurses",
+        "idNumber": "ID-Nummer des Kurses",
+        "category": "Kategorie",
+        "startDate": "Kursbeginn",
+        "endDate": "Kursende",
+        "visible": "Kurs sichtbar",
+        "format": "Kursformat",
+        "createdAt": "Kurs erstellt",
+        "participants": "Teilnehmende",
+        "completed": "Abgeschlossen"
+      },
+      "enrolment": {
+        "method": "Einschreibemethode",
+        "status": "Einschreibestatus",
+        "createdAt": "Eingeschrieben",
+        "endsAt": "Eingeschrieben bis",
+        "roles": "Rollen im Kurs"
+      },
+      "completion": {
+        "progress": "Fortschritt, %",
+        "completed": "Kurs abgeschlossen",
+        "completedAt": "Abschlussdatum",
+        "startedAt": "Begonnen"
+      },
+      "grade": {
+        "item": "Bewertungsaspekt",
+        "kind": "Art",
+        "grade": "Bewertung",
+        "max": "Maximum",
+        "percent": "Bewertung, %",
+        "updatedAt": "Bewertung geändert"
+      },
+      "badge": {
+        "name": "Auszeichnung",
+        "site": "Website-Auszeichnung",
+        "issuedAt": "Verliehen",
+        "expiresAt": "Gültig bis",
+        "revoked": "Widerrufen"
+      },
+      "certificate": {
+        "name": "Zertifikat",
+        "code": "Zertifikatscode",
+        "issuedAt": "Zertifikat ausgestellt",
+        "revoked": "Zertifikat widerrufen"
+      },
+      "competency": {
+        "framework": "Kompetenzrahmen",
+        "name": "Kompetenz",
+        "idNumber": "ID-Nummer der Kompetenz",
+        "rating": "Kompetenzbewertung",
+        "proficient": "Beherrscht",
+        "status": "Prüfung",
+        "updatedAt": "Bewertung geändert"
+      },
+      "plan": {
+        "name": "Lernplan",
+        "status": "Planstatus",
+        "dueDate": "Fälligkeit",
+        "template": "Vorlage",
+        "createdAt": "Plan erstellt"
+      }
+    },
+    "values": {
+      "user": {
+        "status": {
+          "ACTIVE": "Aktiv",
+          "SUSPENDED": "Gesperrt"
+        }
+      },
+      "course": {
+        "format": {
+          "TOPICS": "Themen",
+          "WEEKS": "Wochen",
+          "SINGLE": "Einzelseite"
+        }
+      },
+      "enrolment": {
+        "method": {
+          "MANUAL": "Manuell",
+          "SELF": "Selbst",
+          "COHORT": "Globale Gruppe",
+          "GUEST": "Gast"
+        },
+        "status": {
+          "ACTIVE": "Aktiv",
+          "SUSPENDED": "Ausgesetzt"
+        }
+      },
+      "grade": {
+        "kind": {
+          "COURSE": "Kursgesamt",
+          "CATEGORY": "Kategorie",
+          "MODULE": "Aktivität",
+          "MANUAL": "Manuell"
+        }
+      },
+      "competency": {
+        "status": {
+          "IDLE": "—",
+          "WAITING_FOR_REVIEW": "Wartet auf Prüfung",
+          "IN_REVIEW": "In Prüfung"
+        }
+      },
+      "plan": {
+        "status": {
+          "DRAFT": "Entwurf",
+          "WAITING_FOR_REVIEW": "Wartet auf Prüfung",
+          "IN_REVIEW": "In Prüfung",
+          "ACTIVE": "Aktiv",
+          "COMPLETE": "Abgeschlossen"
+        }
+      }
+    },
+    "email": {
+      "subject": "{site}: Bericht „{name}“",
+      "intro": "Der Bericht „{name}“ ist angehängt: {rows, plural, one {# Zeile} other {# Zeilen}}.",
+      "open": "Bericht öffnen",
+      "footer": "Versand „{schedule}“."
+    }
   }
 }

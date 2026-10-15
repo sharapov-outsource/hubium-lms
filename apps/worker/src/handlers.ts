@@ -37,6 +37,7 @@ import {
   sendDigests,
   sendNotificationEmails,
 } from '@hubium/core/notifications/notifications';
+import { runDueSchedules } from '@hubium/core/reports/reports';
 import type { Db } from '@hubium/db';
 import { IMPORT_JOB, runImportTask } from '@hubium/interchange';
 
@@ -138,6 +139,13 @@ export const coreHandlers: JobHandlerDef[] = [
     cron: CORE_SCHEDULE['competency.plans.sync'],
     async handler(_data: never, { db }) {
       return { created: await syncTemplateCohorts(db) };
+    },
+  },
+  {
+    name: 'reports.schedules',
+    cron: CORE_SCHEDULE['reports.schedules'],
+    async handler(_data: never, { db }) {
+      return { sent: await runDueSchedules(db) };
     },
   },
   {

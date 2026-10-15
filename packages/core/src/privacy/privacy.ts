@@ -309,6 +309,9 @@ export async function erasePersonalData(
   await tx.learningPlan.deleteMany({ where: { userId } });
   await tx.userEvidence.deleteMany({ where: { userId } });
   await tx.competencyComment.updateMany({ where: { authorId: userId }, data: { authorId: null } });
+  // reports shared with or emailed to them name them no more
+  await tx.$executeRaw`UPDATE "ReportSchedule" SET "userIds" = array_remove("userIds", ${userId}::uuid) WHERE ${userId}::uuid = ANY("userIds")`;
+  await tx.$executeRaw`UPDATE "CustomReport" SET audiences = jsonb_set(audiences, '{userIds}', COALESCE((SELECT jsonb_agg(x) FROM jsonb_array_elements(audiences->'userIds') x WHERE x <> to_jsonb(${userId}::text)), '[]'::jsonb)) WHERE audiences->'userIds' ? ${userId}`;
   // Webhook deliveries carry the person's name and email until they are pruned.
   await tx.$executeRaw`DELETE FROM "WebhookDelivery" WHERE payload -> 'user' ->> 'id' = ${userId}`;
   await tx.message.updateMany({

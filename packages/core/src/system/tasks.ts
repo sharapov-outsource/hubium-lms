@@ -23,6 +23,8 @@ export const CORE_SCHEDULE = {
   'badges.review': '35 * * * *',
   // members of the cohorts linked to learning plan templates get their plans
   'competency.plans.sync': '50 * * * *',
+  // custom reports emailed on their schedules
+  'reports.schedules': '*/15 * * * *',
   'enrol.expire': '5 * * * *',
   'notifications.prune': '41 4 * * *',
   'webhooks.prune': '29 4 * * *',
