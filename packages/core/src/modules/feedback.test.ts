@@ -66,6 +66,18 @@ describe('mod-feedback', () => {
       answers: { [mark]: '5', [liked]: ['Лекции', 'Практика'], [comment]: 'Всё понятно' },
     });
     await runModuleAction(s2, id, 'submit', { answers: { [mark]: 3, [liked]: ['Практика'] } });
+    // one answer each, also when sent twice at once
+    const s3 = await ctxFor(t.db, f.users.student3!);
+    const twice = await Promise.allSettled(
+      [1, 2].map(() => runModuleAction(s3, id, 'submit', { answers: { [mark]: 4 } })),
+    );
+    expect(twice.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(
+      await t.db.feedbackResponse.count({ where: { activityId: id, userId: f.users.student3! } }),
+    ).toBe(1);
+    await t.db.feedbackResponse.deleteMany({
+      where: { activityId: id, userId: f.users.student3! },
+    });
     await expect(
       runModuleAction(s1, id, 'submit', { answers: { [mark]: 1 } }),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
@@ -102,11 +114,12 @@ describe('mod-feedback', () => {
       ['', 5, 'Лекции; Практика'],
       ['', 3, 'Практика'],
     ]);
+    // one for each answer taken (the third learner's too, removed since)
     expect(
       await t.db.notification.count({
         where: { userId: f.users.teacher!, type: 'feedback.submitted' },
       }),
-    ).toBe(2);
+    ).toBe(3);
     // the survey is anonymous: the notification does not say who answered
     expect(
       await t.db.notification.count({

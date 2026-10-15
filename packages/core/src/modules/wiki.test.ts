@@ -46,8 +46,16 @@ describe('mod-wiki', () => {
     const other = (await runModuleAction(s2!, id, 'lock', { pageId: loops.pageId })) as Lock;
     expect(other).toMatchObject({ locked: false, by: await name(f.users.student1!) });
     await expect(
-      runModuleAction(s2!, id, 'save', { pageId: loops.pageId, content: '<p>mine</p>' }),
+      runModuleAction(s2!, id, 'save', {
+        pageId: loops.pageId,
+        baseVersion: 1,
+        content: '<p>mine</p>',
+      }),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
+    // a change names the version it was made on
+    await expect(
+      runModuleAction(s1!, id, 'save', { pageId: loops.pageId, content: '<p>mine</p>' }),
+    ).rejects.toThrow(/baseVersion/);
     // a learner cannot take over; a teacher can
     expect(
       ((await runModuleAction(s2!, id, 'lock', { pageId: loops.pageId, force: true })) as Lock)
@@ -85,6 +93,20 @@ describe('mod-wiki', () => {
     expect(await runModuleQuery(s1!, id, 'page', { pageId: loops.pageId })).toMatchObject({
       version: 3,
       content: '<p>for и while</p>',
+    });
+    // two saves of the same version at once: one is taken, the other told it is too late
+    const both = await Promise.allSettled(
+      [s1!, s2!].map((who, k) =>
+        runModuleAction(who, id, 'save', {
+          pageId: loops.pageId,
+          baseVersion: 3,
+          content: `<p>правка ${k}</p>`,
+        }),
+      ),
+    );
+    expect(both.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(both.find((r) => r.status === 'rejected')).toMatchObject({
+      reason: { code: 'CONFLICT' },
     });
     // only managers delete pages
     await expect(

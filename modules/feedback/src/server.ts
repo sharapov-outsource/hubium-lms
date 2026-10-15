@@ -429,8 +429,13 @@ export const feedback = defineModule<FeedbackSettingsT>({
         const state = feedbackState(a.settings, ctx.now);
         if (state === 'notOpen') throw new Error('The survey is not open yet');
         if (state === 'closed') throw new Error('The survey is closed');
-        if (!a.settings.multipleSubmit && (await mySubmissions(ctx, a)) > 0)
-          throw new ModuleError('CONFLICT', 'You have answered already');
+        if (!a.settings.multipleSubmit) {
+          // one answer each: a second sending at the same moment waits here, then finds it
+          await ctx.db
+            .$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`feedback:${a.id}:${me}`}))::text`;
+          if ((await mySubmissions(ctx, a)) > 0)
+            throw new ModuleError('CONFLICT', 'You have answered already');
+        }
         const items = await feedbackItems(ctx, a.id);
         if (!items.some((i) => ANSWERED.includes(i.type)))
           throw new Error('The survey has no questions yet');

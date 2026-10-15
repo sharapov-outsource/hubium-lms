@@ -242,6 +242,15 @@ export async function wikiCompare(
 
 // ── changing ──
 
+/**
+ * Holds the page until the transaction ends: two saves of one page at a time would both
+ * write the next version (and the second fail on its number); the second now waits and
+ * then finds the page changed.
+ */
+async function lockPage(ctx: ModuleCtx, pageId: string) {
+  await ctx.db.$queryRaw`SELECT 1 FROM "WikiPage" WHERE "id" = ${pageId}::uuid FOR UPDATE`;
+}
+
 /** Saves a new version of a page: content, author and the page's version number. */
 async function addVersion(ctx: ModuleCtx, page: { id: string; version: number }, content: string) {
   const version = page.version + 1;
@@ -405,11 +414,15 @@ export const wiki = defineModule<WikiSettingsT>({
         const content = sanitizeRichText(input.content);
         if (isEmptyRichText(content)) throw new Error('The page is empty');
         if (input.pageId) {
+          // a change is to the version it was made on, or it would overwrite another's
+          if (input.baseVersion === undefined)
+            throw new Error('baseVersion is needed to change a page');
+          await lockPage(ctx, input.pageId);
           const { page, canEdit } = await pageAccess(ctx, a, input.pageId);
           if (!canEdit) throw new ModuleError('FORBIDDEN', 'You cannot change this page');
           if (page.lockedById && page.lockedById !== me && page.lockedUntil! > ctx.now)
             throw new ModuleError('CONFLICT', 'Someone else is changing this page');
-          if (input.baseVersion !== undefined && input.baseVersion !== page.version)
+          if (input.baseVersion !== page.version)
             throw new ModuleError('CONFLICT', 'The page was changed while you were editing it');
           const version = await addVersion(ctx, page, content);
           await ctx.completion.recompute(a.id, me);
@@ -439,6 +452,7 @@ export const wiki = defineModule<WikiSettingsT>({
       input: z.object({ pageId: z.string().uuid(), version: z.number().int().min(1) }),
       async handler(ctx, ref, input) {
         const a = ref as Wiki;
+        await lockPage(ctx, input.pageId);
         const { page, canEdit } = await pageAccess(ctx, a, input.pageId);
         if (!canEdit) throw new ModuleError('FORBIDDEN', 'You cannot change this page');
         if (page.lockedById && page.lockedById !== uid(ctx) && page.lockedUntil! > ctx.now)
