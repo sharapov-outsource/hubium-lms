@@ -123,6 +123,7 @@ export function ItemSetupRow({
   courseId,
   item,
   categories,
+  weighted,
   first,
   last,
   ids,
@@ -147,6 +148,8 @@ export function ItemSetupRow({
     canCalculate: boolean;
   };
   categories: { id: string; label: string }[];
+  /** Its category takes a weighted mean, where the weight counts. */
+  weighted: boolean;
   first: boolean;
   last: boolean;
   /** ID numbers of the course's other items and categories, for formulas. */
@@ -220,19 +223,21 @@ export function ItemSetupRow({
         </Select>
       </Td>
       <Td className="tabular-nums">{item.scale ?? item.gradeMax}</Td>
-      <Td>
-        <Input
-          aria-label={`${t('weight')}: ${item.name}`}
-          className="h-8 w-20"
-          defaultValue={item.weight}
-          inputMode="decimal"
-          disabled={pending}
-          onBlur={(e) => {
-            const v = Number(e.target.value.replace(',', '.'));
-            if (!Number.isNaN(v) && v !== item.weight) patch({ weight: v });
-          }}
-        />
-      </Td>
+      {weighted ? (
+        <Td>
+          <Input
+            aria-label={`${t('weight')}: ${item.name}`}
+            className="h-8 w-20"
+            defaultValue={item.weight}
+            inputMode="decimal"
+            disabled={pending}
+            onBlur={(e) => {
+              const v = Number(e.target.value.replace(',', '.'));
+              if (!Number.isNaN(v) && v !== item.weight) patch({ weight: v });
+            }}
+          />
+        </Td>
+      ) : null}
       <Td>
         <Select
           aria-label={`${t('display')}: ${item.name}`}
@@ -292,12 +297,14 @@ export function ManualItemForm({
   scales,
 }: {
   courseId: string;
-  categories: { id: string; label: string }[];
+  categories: { id: string; label: string; weighted: boolean }[];
   scales: { id: string; name: string }[];
 }) {
   const t = useTranslations('grades');
   const tc = useTranslations('common');
   const [scaleId, setScaleId] = useState('');
+  const [categoryId, setCategoryId] = useState(categories[0]?.id ?? '');
+  const weighted = categories.find((c) => c.id === categoryId)?.weighted ?? false;
   return (
     <ActionForm
       action={createManualItemAction}
@@ -309,7 +316,12 @@ export function ManualItemForm({
       <FormField name="name" label={t('name')} required />
       <div className="grid gap-3 sm:grid-cols-2">
         <FormField name="categoryId" label={t('category')}>
-          <Select id="f-categoryId" name="categoryId" defaultValue={categories[0]?.id}>
+          <Select
+            id="f-categoryId"
+            name="categoryId"
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+          >
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.label}
@@ -345,14 +357,16 @@ export function ManualItemForm({
           disabled={!!scaleId}
         />
         <FormField name="gradePass" type="number" label={t('gradePass')} min={0} />
-        <FormField
-          name="weight"
-          type="number"
-          label={t('weight')}
-          defaultValue="1"
-          min={0}
-          step="any"
-        />
+        {weighted ? (
+          <FormField
+            name="weight"
+            type="number"
+            label={t('weight')}
+            defaultValue="1"
+            min={0}
+            step="any"
+          />
+        ) : null}
       </div>
       <FormField
         name="idNumber"

@@ -166,13 +166,17 @@ export default async function GradesPage({
       ...items.flatMap((i) => (i.idNumber && i.kind !== 'COURSE' ? [i.idNumber] : [])),
       ...categories.flatMap((c) => (c.idNumber && c.parentId ? [c.idNumber] : [])),
     ].sort((x, y) => x.localeCompare(y));
-    const options: { id: string; label: string }[] = [];
+    // weights count only in a weighted mean: elsewhere they are neither shown nor asked for
+    const options: { id: string; label: string; weighted: boolean }[] = [];
     walk(categories, (c, depth) =>
       options.push({
         id: c.id,
         label: `${'— '.repeat(depth)}${c.parentId ? c.name : t('wholeCourse')}`,
+        weighted: c.aggregation === 'WEIGHTED_MEAN',
       }),
     );
+    const weightedParent = (c: Category) =>
+      categories.find((p) => p.id === c.parentId)?.aggregation === 'WEIGHTED_MEAN';
     const itemsOf = (c: Category) =>
       items.filter(
         (i) =>
@@ -196,7 +200,7 @@ export default async function GradesPage({
               {name}{' '}
               <span className="text-sm font-normal text-muted-foreground">
                 · {t(`aggregations.${c.aggregation}`)}
-                {c.parentId && n(c.weight) !== 1 ? ` · ${t('weight')} ${n(c.weight)}` : ''}
+                {c.parentId && weightedParent(c) ? ` · ${t('weight')} ${n(c.weight)}` : ''}
               </span>
             </h3>
             {c.parentId ? (
@@ -240,7 +244,7 @@ export default async function GradesPage({
                   <Th>{t('item')}</Th>
                   <Th>{t('category')}</Th>
                   <Th>{t('gradeMax')}</Th>
-                  <Th>{t('weight')}</Th>
+                  {c.aggregation === 'WEIGHTED_MEAN' ? <Th>{t('weight')}</Th> : null}
                   <Th>{t('display')}</Th>
                   <Th>{t('hidden')}</Th>
                   <Th />
@@ -252,6 +256,7 @@ export default async function GradesPage({
                     key={i.id}
                     courseId={courseId}
                     categories={options}
+                    weighted={c.aggregation === 'WEIGHTED_MEAN'}
                     first={k === 0}
                     last={k === own.length - 1}
                     ids={ids}

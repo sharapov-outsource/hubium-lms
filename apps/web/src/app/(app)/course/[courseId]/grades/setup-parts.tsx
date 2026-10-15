@@ -39,13 +39,16 @@ export function CategoryForm({
 }: {
   courseId: string;
   category?: CategoryValues;
-  parents: { id: string; label: string }[];
+  parents: { id: string; label: string; weighted: boolean }[];
 }) {
   const t = useTranslations('grades');
   const tc = useTranslations('common');
   const router = useRouter();
   const sfx = category?.id ?? 'new';
   const isRoot = !!category && !category.parentId;
+  const [parentId, setParentId] = useState(category?.parentId ?? parents[0]?.id ?? '');
+  // the category's weight counts only in a parent taking a weighted mean
+  const weighted = !isRoot && (parents.find((p) => p.id === parentId)?.weighted ?? false);
   return (
     <ActionForm
       action={saveGradeCategoryAction}
@@ -69,7 +72,8 @@ export function CategoryForm({
             <Select
               id={`gc-parent-${sfx}`}
               name="parentId"
-              defaultValue={category?.parentId ?? parents[0]?.id}
+              value={parentId}
+              onChange={(e) => setParentId(e.target.value)}
             >
               {parents
                 .filter((p) => p.id !== category?.id)
@@ -96,7 +100,7 @@ export function CategoryForm({
             ))}
           </Select>
         </FormField>
-        {isRoot ? null : (
+        {weighted ? (
           <FormField
             id={`gc-weight-${sfx}`}
             name="weight"
@@ -106,6 +110,9 @@ export function CategoryForm({
             label={t('categoryWeight')}
             defaultValue={category?.weight ?? 1}
           />
+        ) : (
+          // kept for when the parent takes a weighted mean again
+          <input type="hidden" name="weight" value={category?.weight ?? 1} />
         )}
         {isRoot ? null : (
           <FormField
