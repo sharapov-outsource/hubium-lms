@@ -185,6 +185,17 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
       revokedReason: true,
     },
   });
+  const certificates = await db.certificateIssue.findMany({
+    where: { userId },
+    select: {
+      certificate: { select: { name: true, courseId: true } },
+      code: true,
+      issuedAt: true,
+      data: true,
+      revokedAt: true,
+      revokedReason: true,
+    },
+  });
   return JSON.parse(
     JSON.stringify({
       exportedAt: ctx.now.toISOString(),
@@ -196,6 +207,7 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
       calendar: events,
       calendarSubscriptions,
       badges,
+      certificates,
       messages,
       notifications,
       notificationPreferences: preferences,
@@ -237,6 +249,8 @@ export async function erasePersonalData(
   // awards name the person in their public assertions
   await tx.badgeAward.deleteMany({ where: { userId } });
   await tx.badgeMark.deleteMany({ where: { userId } });
+  // certificates carry the name, and their codes show it to anyone
+  await tx.certificateIssue.deleteMany({ where: { userId } });
   // Webhook deliveries carry the person's name and email until they are pruned.
   await tx.$executeRaw`DELETE FROM "WebhookDelivery" WHERE payload -> 'user' ->> 'id' = ${userId}`;
   await tx.message.updateMany({

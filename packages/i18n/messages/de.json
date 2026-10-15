@@ -101,7 +101,8 @@
     "signOut": "Abmelden",
     "openMenu": "Menü öffnen",
     "userMenu": "Nutzermenü",
-    "badges": "Meine Auszeichnungen"
+    "badges": "Meine Auszeichnungen",
+    "certificates": "Meine Zertifikate"
   },
   "auth": {
     "signIn": "Anmelden",
@@ -662,7 +663,8 @@
       "stream": "Stream",
       "tutor": "KI-Tutor",
       "permissions": "Rechte",
-      "badges": "Auszeichnungen"
+      "badges": "Auszeichnungen",
+      "certificates": "Zertifikate"
     },
     "editMode": "Bearbeitungsmodus",
     "editOn": "Bearbeiten",
@@ -1410,14 +1412,16 @@
       "calendar_reminder": "Kalendererinnerungen",
       "auth_newSignIn": "Anmeldung von einem neuen Gerät",
       "admin_bulkDone": "Massenaktionen für Benutzer",
-      "badge_awarded": "Erhaltene Auszeichnungen"
+      "badge_awarded": "Erhaltene Auszeichnungen",
+      "certificate_issued": "Ausgestellte Zertifikate"
     },
     "text": {
       "enrolled": "Sie wurden in „{course}“ eingeschrieben",
       "announcementCourse": "{course}: {title}",
       "messageNew": "Neue Nachricht von {name}",
       "calendarReminder": "Morgen: {title}",
-      "badgeAwarded": "Sie haben die Auszeichnung „{name}“ erhalten"
+      "badgeAwarded": "Sie haben die Auszeichnung „{name}“ erhalten",
+      "certificateIssued": "Ihnen wurde das Zertifikat „{name}“ ausgestellt"
     },
     "email": {
       "open": "Öffnen",
@@ -2276,6 +2280,108 @@
       },
       "and": "; und ",
       "or": "; oder "
+    }
+  },
+  "certificates": {
+    "title": "Zertifikate",
+    "new": "Neues Zertifikat",
+    "empty": "Noch keine Zertifikate",
+    "myTitle": "Meine Zertifikate",
+    "myIntro": "Die Ihnen ausgestellten Zertifikate. Den Code auf einem Zertifikat kann jede/r auf der Prüfseite prüfen.",
+    "myEmpty": "Sie haben noch keine Zertifikate",
+    "name": "Name",
+    "orientation": "Ausrichtung",
+    "orientations": {
+      "landscape": "Querformat (A4)",
+      "portrait": "Hochformat (A4)"
+    },
+    "onCompletion": "Bei Kursabschluss ausstellen",
+    "background": "Hintergrund",
+    "backgroundHint": "PNG oder JPEG bis 5 MB, über die ganze Seite gestreckt",
+    "removeBackground": "Hintergrund entfernen",
+    "previewNote": "Die Seite ({w}×{h} mm) ungefähr; genau ist das PDF.",
+    "fields": "Felder",
+    "fieldsHint": "Koordinaten in Millimetern von der linken oberen Ecke: X ist linkes Ende, Mitte oder rechtes Ende der Zeile (je nach Ausrichtung), Y die Oberkante der ersten Zeile. Größe in Punkt; mit einer Breite über null wird der Text umbrochen.",
+    "field": {
+      "kind": "Feld {n}",
+      "text": "Text",
+      "label": "Beschriftung vor dem Wert",
+      "remove": "Feld {n} entfernen",
+      "x": "X, mm",
+      "y": "Y, mm",
+      "size": "Größe, pt",
+      "width": "Breite, mm",
+      "align": "Ausrichtung",
+      "color": "Farbe",
+      "bold": "Fett"
+    },
+    "kinds": {
+      "text": "Text",
+      "name": "Name der/des Empfangenden",
+      "course": "Kursname",
+      "date": "Abschlussdatum",
+      "grade": "Kursbewertung",
+      "code": "Prüfcode",
+      "url": "Prüfadresse"
+    },
+    "align": {
+      "left": "Links",
+      "center": "Mittig",
+      "right": "Rechts"
+    },
+    "addField": "Feld hinzufügen",
+    "resetLayout": "Standardlayout",
+    "status": {
+      "DRAFT": "Entwurf",
+      "ACTIVE": "Wird ausgestellt",
+      "ARCHIVED": "Archiviert"
+    },
+    "onCompletionNote": "Bei Kursabschluss und manuell ausgestellt",
+    "byHandNote": "Manuell ausgestellt",
+    "issuedOn": "Ausgestellt am {date}",
+    "download": "PDF herunterladen",
+    "issuedCount": "{count, plural, one {Einmal ausgestellt} other {# Mal ausgestellt}}",
+    "previewPdf": "Muster-PDF",
+    "activate": "Ausstellung starten",
+    "reactivate": "Wieder ausstellen",
+    "activated": "Das Zertifikat wird ausgestellt",
+    "archive": "Archivieren",
+    "archiveConfirm": "Das Zertifikat wird nicht mehr ausgestellt; ausgestellte bleiben gültig.",
+    "toDraft": "Zurück zum Entwurf",
+    "issues": "Empfänger",
+    "exportCsv": "CSV exportieren",
+    "noIssues": "Das Zertifikat wurde noch nicht ausgestellt",
+    "recipient": "Empfänger/in",
+    "code": "Code",
+    "issued": "Ausgestellt",
+    "state": "Status",
+    "revoked": "Widerrufen",
+    "valid": "Gültig",
+    "revoke": "Widerrufen",
+    "revokeReason": "Grund (für Prüfende sichtbar)",
+    "revokedDone": "Zertifikat widerrufen",
+    "issueByHand": "Manuell ausstellen",
+    "issueByHandHint": "Manuell lässt es sich jeder/m Kursteilnehmenden ausstellen, auch ohne Kursabschluss, und ein widerrufenes erneut.",
+    "learner": "Teilnehmer/in",
+    "issue": "Ausstellen",
+    "issuedDone": "Zertifikat ausgestellt",
+    "verifyTitle": "Zertifikatsprüfung",
+    "verifyIntro": "Geben Sie den Code eines Zertifikats ein, um zu sehen, wem und wofür es ausgestellt wurde und ob es gilt.",
+    "verifyButton": "Prüfen",
+    "badCode": "Ein Code besteht aus 12 Buchstaben und Ziffern: XXXX-XXXX-XXXX.",
+    "certificate": "Zertifikat",
+    "course": "Kurs",
+    "issuer": "Ausgestellt von",
+    "completedOn": "Kurs abgeschlossen",
+    "revokedOn": "Widerrufen am",
+    "notFound": "Kein Zertifikat hat diesen Code.",
+    "verifyAnother": "Anderen Code prüfen",
+    "defaults": {
+      "title": "Zertifikat",
+      "intro": "Hiermit wird bestätigt, dass",
+      "completed": "den Kurs erfolgreich abgeschlossen hat",
+      "date": "Datum: ",
+      "code": "Prüfcode: "
     }
   }
 }

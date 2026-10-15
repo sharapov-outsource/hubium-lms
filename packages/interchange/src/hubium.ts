@@ -3,6 +3,7 @@ import {
   type BadgeCriteriaT,
   type BadgeRuleT,
   buildModuleCtx,
+  CertificateFields,
   checkCriteria,
   compareRank,
   createCourse,
@@ -168,6 +169,19 @@ const CourseJson = z.object({
         criteria: z.unknown(),
         expiresAfterDays: z.number().int().nullable(),
         expiresAt: z.string().nullable(),
+      }),
+    )
+    .default([]),
+  /** Course certificates, without their issues; absent in older archives. */
+  certificates: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        orientation: z.string(),
+        backgroundFileId: z.string().nullable(),
+        fields: z.unknown(),
+        onCompletion: z.boolean(),
       }),
     )
     .default([]),
@@ -397,6 +411,16 @@ export async function exportCourse(
           criteria: x.criteria,
           expiresAfterDays: x.expiresAfterDays,
           expiresAt: x.expiresAt?.toISOString() ?? null,
+        })),
+    certificates: opts.activityIds
+      ? []
+      : (await db.certificate.findMany({ where: { courseId } })).map((x) => ({
+          id: x.id,
+          name: x.name,
+          orientation: x.orientation,
+          backgroundFileId: x.backgroundFileId,
+          fields: x.fields,
+          onCompletion: x.onCompletion,
         })),
     groups: groups.map((g) => ({
       id: g.id,
@@ -959,6 +983,26 @@ async function restoreInto(
       badges.push({ id, imageFileId: x.imageFileId });
     }
 
+    // course certificates, as drafts to look over
+    const certificates: { id: string; backgroundFileId: string | null }[] = [];
+    for (const x of scope.fresh ? b.course.certificates : []) {
+      const id = uuidv7();
+      map.set(x.id, id);
+      await db.certificate.create({
+        data: {
+          id,
+          courseId,
+          name: x.name.slice(0, 255),
+          orientation: x.orientation === 'portrait' ? 'portrait' : 'landscape',
+          fields: CertificateFields.catch([]).parse(x.fields) as unknown as Prisma.InputJsonValue,
+          onCompletion: x.onCompletion,
+          status: 'DRAFT',
+          createdById: ctx.perm.userId ?? null,
+        },
+      });
+      certificates.push({ id, backgroundFileId: x.backgroundFileId });
+    }
+
     let fileCount = 0;
     for (const f of b.files) {
       const contextId = map.get(f.contextId);
@@ -979,6 +1023,12 @@ async function restoreInto(
       fileCount++;
     }
 
+    for (const x of certificates)
+      if (x.backgroundFileId && map.has(x.backgroundFileId))
+        await db.certificate.update({
+          where: { id: x.id },
+          data: { backgroundFileId: map.get(x.backgroundFileId)! },
+        });
     for (const x of badges)
       if (x.imageFileId && map.has(x.imageFileId))
         await db.badge.update({

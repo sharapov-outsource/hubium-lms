@@ -29,9 +29,11 @@ import { forbidden, notFound } from 'next/navigation';
 import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { CommandButton } from '@/components/confirm-button';
+import { RevokeButton } from '@/components/revoke-button';
 import {
   deleteBadgeAction,
   markBadgeAction,
+  revokeBadgeAwardAction,
   saveBadgeIssuerAction,
   setBadgeStatusAction,
 } from '@/server/actions/badges';
@@ -39,7 +41,6 @@ import { db } from '@/server/db';
 import { getContext } from '@/server/session';
 import { BadgeEditor, type BadgeEditorOptions } from './badge-editor';
 import { BadgeImage } from './badge-image';
-import { RevokeAwardButton } from './revoke-award';
 
 // The badge pages of a course (/course/<id>/badges) and of the site (/admin/badges):
 // the same three views, with the course or null.
@@ -360,10 +361,13 @@ export async function BadgeView({
                           </Td>
                           <Td className="text-right">
                             {d.award && !a.revokedAt ? (
-                              <RevokeAwardButton
-                                awardId={a.id}
-                                courseId={courseId}
+                              <RevokeButton
+                                action={revokeBadgeAwardAction}
+                                hidden={{ awardId: a.id, ...(courseId ? { courseId } : {}) }}
                                 name={a.user.name}
+                                label={t('revoke')}
+                                reasonLabel={t('revokeReason')}
+                                done={t('revokedDone')}
                               />
                             ) : null}
                           </Td>

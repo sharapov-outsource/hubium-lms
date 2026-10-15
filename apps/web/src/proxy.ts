@@ -29,8 +29,9 @@ const PUBLIC = [
   '/manifest.webmanifest',
   '/sw.js',
   '/icons/',
-  // badges (and later certificates) are checked by people without an account here
+  // badges and certificates are checked by people without an account here
   '/badge/',
+  '/verify',
 ];
 
 export async function proxy(req: NextRequest) {

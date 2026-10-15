@@ -101,7 +101,8 @@
     "signOut": "Esci",
     "openMenu": "Apri menu",
     "userMenu": "Menu utente",
-    "badges": "I miei badge"
+    "badges": "I miei badge",
+    "certificates": "I miei certificati"
   },
   "auth": {
     "signIn": "Accedi",
@@ -662,7 +663,8 @@
       "stream": "Bacheca",
       "tutor": "Tutor IA",
       "permissions": "Permessi",
-      "badges": "Badge"
+      "badges": "Badge",
+      "certificates": "Certificati"
     },
     "editMode": "Modalità modifica",
     "editOn": "Modifica",
@@ -1410,14 +1412,16 @@
       "calendar_reminder": "Promemoria del calendario",
       "auth_newSignIn": "Accesso da un nuovo dispositivo",
       "admin_bulkDone": "Azioni di massa sugli utenti",
-      "badge_awarded": "Badge ottenuti"
+      "badge_awarded": "Badge ottenuti",
+      "certificate_issued": "Certificati rilasciati"
     },
     "text": {
       "enrolled": "Iscrizione al corso «{course}» effettuata",
       "announcementCourse": "{course}: {title}",
       "messageNew": "Nuovo messaggio da {name}",
       "calendarReminder": "Domani: {title}",
-      "badgeAwarded": "Hai ottenuto il badge «{name}»"
+      "badgeAwarded": "Hai ottenuto il badge «{name}»",
+      "certificateIssued": "Ti è stato rilasciato il certificato «{name}»"
     },
     "email": {
       "open": "Apri",
@@ -2276,6 +2280,108 @@
       },
       "and": "; e ",
       "or": "; oppure "
+    }
+  },
+  "certificates": {
+    "title": "Certificati",
+    "new": "Nuovo certificato",
+    "empty": "Ancora nessun certificato",
+    "myTitle": "I miei certificati",
+    "myIntro": "I certificati che ti sono stati rilasciati. Chiunque può verificare il codice di un certificato nella pagina di verifica.",
+    "myEmpty": "Non hai ancora certificati",
+    "name": "Nome",
+    "orientation": "Orientamento",
+    "orientations": {
+      "landscape": "Orizzontale (A4)",
+      "portrait": "Verticale (A4)"
+    },
+    "onCompletion": "Rilascia al completamento del corso",
+    "background": "Sfondo",
+    "backgroundHint": "PNG o JPEG fino a 5 MB, esteso su tutta la pagina",
+    "removeBackground": "Rimuovi lo sfondo",
+    "previewNote": "La pagina ({w}×{h} mm) all’incirca; il PDF è esatto.",
+    "fields": "Campi",
+    "fieldsHint": "Coordinate in millimetri dall’angolo in alto a sinistra: X è l’estremo sinistro, il centro o l’estremo destro della riga (secondo l’allineamento), Y la parte superiore della prima riga. Dimensione in punti; con una larghezza maggiore di zero il testo va a capo.",
+    "field": {
+      "kind": "Campo {n}",
+      "text": "Testo",
+      "label": "Etichetta prima del valore",
+      "remove": "Rimuovi il campo {n}",
+      "x": "X, mm",
+      "y": "Y, mm",
+      "size": "Dimensione, pt",
+      "width": "Larghezza, mm",
+      "align": "Allineamento",
+      "color": "Colore",
+      "bold": "Grassetto"
+    },
+    "kinds": {
+      "text": "Testo",
+      "name": "Nome del destinatario",
+      "course": "Nome del corso",
+      "date": "Data di completamento",
+      "grade": "Valutazione del corso",
+      "code": "Codice di verifica",
+      "url": "Indirizzo di verifica"
+    },
+    "align": {
+      "left": "A sinistra",
+      "center": "Al centro",
+      "right": "A destra"
+    },
+    "addField": "Aggiungi campo",
+    "resetLayout": "Impaginazione predefinita",
+    "status": {
+      "DRAFT": "Bozza",
+      "ACTIVE": "Rilasciato",
+      "ARCHIVED": "Archiviato"
+    },
+    "onCompletionNote": "Rilasciato al completamento del corso e manualmente",
+    "byHandNote": "Rilasciato manualmente",
+    "issuedOn": "Rilasciato il {date}",
+    "download": "Scarica il PDF",
+    "issuedCount": "{count, plural, one {Rilasciato una volta} other {Rilasciato # volte}}",
+    "previewPdf": "PDF di prova",
+    "activate": "Inizia a rilasciare",
+    "reactivate": "Rilascia di nuovo",
+    "activated": "Il certificato viene rilasciato",
+    "archive": "Archivia",
+    "archiveConfirm": "Il certificato non verrà più rilasciato; quelli già rilasciati restano validi.",
+    "toDraft": "Torna a bozza",
+    "issues": "Destinatari",
+    "exportCsv": "Esporta CSV",
+    "noIssues": "Il certificato non è ancora stato rilasciato",
+    "recipient": "Destinatario",
+    "code": "Codice",
+    "issued": "Rilasciato",
+    "state": "Stato",
+    "revoked": "Revocato",
+    "valid": "Valido",
+    "revoke": "Revoca",
+    "revokeReason": "Motivo (visibile a chi lo verifica)",
+    "revokedDone": "Certificato revocato",
+    "issueByHand": "Rilascia manualmente",
+    "issueByHandHint": "Manualmente si può rilasciare a qualsiasi studente del corso, anche senza completamento, e rilasciare di nuovo un certificato revocato.",
+    "learner": "Studente",
+    "issue": "Rilascia",
+    "issuedDone": "Certificato rilasciato",
+    "verifyTitle": "Verifica del certificato",
+    "verifyIntro": "Inserisci il codice di un certificato per sapere a chi e per cosa è stato rilasciato e se è valido.",
+    "verifyButton": "Verifica",
+    "badCode": "Un codice è di 12 lettere e cifre: XXXX-XXXX-XXXX.",
+    "certificate": "Certificato",
+    "course": "Corso",
+    "issuer": "Rilasciato da",
+    "completedOn": "Corso completato",
+    "revokedOn": "Revocato il",
+    "notFound": "Nessun certificato ha questo codice.",
+    "verifyAnother": "Verifica un altro codice",
+    "defaults": {
+      "title": "Certificato",
+      "intro": "Si attesta che",
+      "completed": "ha completato con successo il corso",
+      "date": "Data: ",
+      "code": "Codice di verifica: "
     }
   }
 }

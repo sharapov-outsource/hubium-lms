@@ -179,6 +179,10 @@ export const coreCapabilities = {
   'badge:award': { level: 'COURSE', archetypes: [M, ET, T] },
   'badge:viewawards': { level: 'COURSE', archetypes: [M, ET, T], risk: ['personal'] },
   'badge:managesite': { level: 'SYSTEM', archetypes: [M] },
+  // certificates: templates set up by editing teachers, issued by hand by teachers
+  'certificate:manage': { level: 'COURSE', archetypes: [M, ET] },
+  'certificate:issue': { level: 'COURSE', archetypes: [M, ET, T] },
+  'certificate:viewissues': { level: 'COURSE', archetypes: [M, ET, T], risk: ['personal'] },
   'mod.lti:manage': { level: 'COURSE', archetypes: [M, ET], risk: ['config'] },
 } as const satisfies Record<string, CapabilityDef>;
 

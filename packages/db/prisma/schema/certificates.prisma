@@ -1,0 +1,54 @@
+// Certificates of a course: a PDF template (background and fields placed by coordinates),
+// issued when a learner completes the course or by hand, and checked by anyone by code.
+
+enum CertificateStatus {
+  /// Being set up: not issued.
+  DRAFT
+  ACTIVE
+  /// Not issued any more; issued ones stay valid.
+  ARCHIVED
+}
+
+model Certificate {
+  id               String            @id @default(uuid(7)) @db.Uuid
+  courseId         String            @db.Uuid
+  name             String
+  /// "landscape" or "portrait" (A4).
+  orientation      String            @default("landscape")
+  /// PNG or JPEG under the fields (component "certificate", area "background", item the certificate).
+  backgroundFileId String?           @db.Uuid
+  /// [{ kind, text, x, y, size, width, align, bold, color }] (see core certificates/template.ts).
+  fields           Json              @default("[]")
+  /// Issued by itself when a learner completes the course.
+  onCompletion     Boolean           @default(true)
+  status           CertificateStatus @default(DRAFT)
+  createdById      String?           @db.Uuid
+  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
+
+  course Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  issues CertificateIssue[]
+
+  @@index([courseId])
+}
+
+model CertificateIssue {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  certificateId String    @db.Uuid
+  userId        String    @db.Uuid
+  /// What anyone checking it enters (XXXX-XXXX-XXXX).
+  code          String    @unique
+  issuedAt      DateTime  @default(now()) @db.Timestamptz(3)
+  /// What it says, as it was when issued: { name, course, completedAt, gradePercent }.
+  data          Json
+  /// Who issued it by hand; null when it came with completion.
+  issuedById    String?   @db.Uuid
+  revokedAt     DateTime? @db.Timestamptz(3)
+  revokedReason String?
+
+  certificate Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([certificateId, userId])
+  @@index([userId])
+}

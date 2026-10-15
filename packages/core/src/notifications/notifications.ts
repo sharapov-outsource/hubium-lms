@@ -37,6 +37,7 @@ const coreTypes = new Map<string, NotificationTypeDef>([
   ['message.new', { email: 'DIGEST', inApp: false, push: true }],
   ['calendar.reminder', { email: 'OFF' }],
   ['badge.awarded', { email: 'IMMEDIATE' }],
+  ['certificate.issued', { email: 'IMMEDIATE' }],
 ]);
 
 export function registerNotificationType(type: string, def: NotificationTypeDef): void {

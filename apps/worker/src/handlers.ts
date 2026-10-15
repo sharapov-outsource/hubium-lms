@@ -25,6 +25,7 @@ import { publishDueAnnouncements } from '@hubium/core/announcements/announcement
 import { BADGES_REVIEW_JOB, reviewAllBadges, reviewBadge } from '@hubium/core/badges/badges';
 import { sendCalendarReminders } from '@hubium/core/calendar/calendar';
 import { syncDueSubscriptions } from '@hubium/core/calendar/subscriptions';
+import { CERTIFICATES_REVIEW_JOB, reviewCertificate } from '@hubium/core/certificates/certificates';
 import { garbageCollectBlobs } from '@hubium/core/files/files';
 import { cleanupUploads } from '@hubium/core/files/uploads';
 import { deliverMail } from '@hubium/core/mail/mail';
@@ -122,6 +123,13 @@ export const coreHandlers: JobHandlerDef[] = [
       return {
         awarded: data?.badgeId ? await reviewBadge(db, data.badgeId) : await reviewAllBadges(db),
       };
+    },
+  },
+  {
+    // when a certificate is switched on: those who have completed the course already
+    name: CERTIFICATES_REVIEW_JOB,
+    async handler(data: { certificateId: string }, { db }) {
+      return { issued: await reviewCertificate(db, data.certificateId) };
     },
   },
   {

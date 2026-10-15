@@ -3,18 +3,23 @@ import {
   compareRank,
   createActivity,
   createManualItem,
+  defaultFields,
   displayCalculations,
   getCourseOutline,
   importGift,
+  issueCertificate,
   markBadge,
   runModuleAction,
   saveBadge,
+  saveCertificate,
   saveCourseField,
   saveGradeCategory,
   saveLetters,
   saveScale,
   setBadgeImage,
   setBadgeStatus,
+  setCertificateBackground,
+  setCertificateStatus,
   setGradeCalculation,
   updateGradeItem,
   updateSection,
@@ -341,6 +346,40 @@ describe('.hubium backup and restore', () => {
     ]);
     expect(await t.db.badgeAward.count({ where: { badgeId: copy.id } })).toBe(0);
     await t.db.badge.delete({ where: { id } });
+  });
+
+  it('carries certificates as drafts with their layout and background, without issues', async () => {
+    const teacher = await ctxFor(t.db, f.users.teacher!);
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const fields = defaultFields('portrait', 'ru');
+    const { id } = await saveCertificate.run(teacher, {
+      courseId: f.courseId,
+      name: 'Слушатель',
+      orientation: 'portrait',
+      fields,
+      onCompletion: false,
+    });
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46]);
+    await setCertificateBackground.run(teacher, { id, name: 'bg.jpg', data: jpeg });
+    await setCertificateStatus.run(teacher, { id, status: 'ACTIVE' });
+    await issueCertificate.run(teacher, { certificateId: id, userId: f.users.student1! });
+
+    const course = await t.db.course.findUniqueOrThrow({ where: { id: f.courseId } });
+    const r = await restoreCourse(admin, await exportCourse(teacher, f.courseId), {
+      categoryId: course.categoryId,
+    });
+    const copy = await t.db.certificate.findFirstOrThrow({ where: { courseId: r.courseId } });
+    expect(copy).toMatchObject({
+      name: 'Слушатель',
+      orientation: 'portrait',
+      onCompletion: false,
+      status: 'DRAFT',
+    });
+    expect(copy.fields).toEqual(fields);
+    const bg = await t.db.file.findUniqueOrThrow({ where: { id: copy.backgroundFileId! } });
+    expect([bg.contextId, bg.component, bg.itemId]).toEqual([r.courseId, 'certificate', copy.id]);
+    expect(await t.db.certificateIssue.count({ where: { certificateId: copy.id } })).toBe(0);
+    await t.db.certificate.delete({ where: { id } });
   });
 
   it('duplicates a course with a new name', async () => {

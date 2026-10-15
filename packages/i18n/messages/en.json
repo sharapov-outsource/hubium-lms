@@ -102,7 +102,8 @@
     "signOut": "Sign out",
     "openMenu": "Open menu",
     "userMenu": "User menu",
-    "badges": "My badges"
+    "badges": "My badges",
+    "certificates": "My certificates"
   },
   "auth": {
     "signIn": "Sign in",
@@ -663,7 +664,8 @@
       "stream": "Stream",
       "tutor": "AI tutor",
       "permissions": "Permissions",
-      "badges": "Badges"
+      "badges": "Badges",
+      "certificates": "Certificates"
     },
     "editMode": "Edit mode",
     "editOn": "Edit",
@@ -1411,14 +1413,16 @@
       "calendar_reminder": "Calendar reminders",
       "auth_newSignIn": "Sign-in from a new device",
       "admin_bulkDone": "Bulk user actions",
-      "badge_awarded": "Badges earned"
+      "badge_awarded": "Badges earned",
+      "certificate_issued": "Certificates issued"
     },
     "text": {
       "enrolled": "You were enrolled in “{course}”",
       "announcementCourse": "{course}: {title}",
       "messageNew": "New message from {name}",
       "calendarReminder": "Tomorrow: {title}",
-      "badgeAwarded": "You have earned the badge “{name}”"
+      "badgeAwarded": "You have earned the badge “{name}”",
+      "certificateIssued": "You have been issued the certificate “{name}”"
     },
     "email": {
       "open": "Open",
@@ -2277,6 +2281,108 @@
       },
       "and": "; and ",
       "or": "; or "
+    }
+  },
+  "certificates": {
+    "title": "Certificates",
+    "new": "New certificate",
+    "empty": "No certificates yet",
+    "myTitle": "My certificates",
+    "myIntro": "The certificates issued to you. Anyone can check the code on a certificate on the verification page.",
+    "myEmpty": "You have no certificates yet",
+    "name": "Name",
+    "orientation": "Orientation",
+    "orientations": {
+      "landscape": "Landscape (A4)",
+      "portrait": "Portrait (A4)"
+    },
+    "onCompletion": "Issue when the course is completed",
+    "background": "Background",
+    "backgroundHint": "PNG or JPEG up to 5 MB, stretched over the whole page",
+    "removeBackground": "Remove the background",
+    "previewNote": "The page ({w}×{h} mm) roughly; the PDF is exact.",
+    "fields": "Fields",
+    "fieldsHint": "Coordinates are in millimetres from the top left corner: X is the left end, middle or right end of the line (as aligned), Y the top of the first line. Size is in points; with a width above zero the text wraps.",
+    "field": {
+      "kind": "Field {n}",
+      "text": "Text",
+      "label": "Label before the value",
+      "remove": "Remove field {n}",
+      "x": "X, mm",
+      "y": "Y, mm",
+      "size": "Size, pt",
+      "width": "Width, mm",
+      "align": "Alignment",
+      "color": "Colour",
+      "bold": "Bold"
+    },
+    "kinds": {
+      "text": "Text",
+      "name": "Recipient's name",
+      "course": "Course name",
+      "date": "Completion date",
+      "grade": "Course grade",
+      "code": "Verification code",
+      "url": "Verification address"
+    },
+    "align": {
+      "left": "Left",
+      "center": "Centre",
+      "right": "Right"
+    },
+    "addField": "Add field",
+    "resetLayout": "Default layout",
+    "status": {
+      "DRAFT": "Draft",
+      "ACTIVE": "Issued",
+      "ARCHIVED": "Archived"
+    },
+    "onCompletionNote": "Issued on course completion and by hand",
+    "byHandNote": "Issued by hand",
+    "issuedOn": "Issued {date}",
+    "download": "Download PDF",
+    "issuedCount": "{count, plural, one {Issued once} other {Issued # times}}",
+    "previewPdf": "Sample PDF",
+    "activate": "Start issuing",
+    "reactivate": "Issue again",
+    "activated": "The certificate is being issued",
+    "archive": "Archive",
+    "archiveConfirm": "The certificate will no longer be issued; those issued stay valid.",
+    "toDraft": "Back to draft",
+    "issues": "Recipients",
+    "exportCsv": "Export CSV",
+    "noIssues": "The certificate has not been issued yet",
+    "recipient": "Recipient",
+    "code": "Code",
+    "issued": "Issued",
+    "state": "State",
+    "revoked": "Revoked",
+    "valid": "Valid",
+    "revoke": "Revoke",
+    "revokeReason": "Reason (shown to whoever checks it)",
+    "revokedDone": "Certificate revoked",
+    "issueByHand": "Issue by hand",
+    "issueByHandHint": "By hand it can be issued to any learner of the course, even one who has not completed it, and a revoked one issued again.",
+    "learner": "Learner",
+    "issue": "Issue",
+    "issuedDone": "Certificate issued",
+    "verifyTitle": "Certificate verification",
+    "verifyIntro": "Enter the code from a certificate to see whom it was issued to, for what, and whether it stands.",
+    "verifyButton": "Verify",
+    "badCode": "A code is 12 letters and digits: XXXX-XXXX-XXXX.",
+    "certificate": "Certificate",
+    "course": "Course",
+    "issuer": "Issued by",
+    "completedOn": "Course completed",
+    "revokedOn": "Revoked on",
+    "notFound": "No certificate has this code.",
+    "verifyAnother": "Check another code",
+    "defaults": {
+      "title": "Certificate",
+      "intro": "This is to certify that",
+      "completed": "has successfully completed the course",
+      "date": "Date: ",
+      "code": "Verification code: "
     }
   }
 }

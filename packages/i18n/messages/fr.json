@@ -101,7 +101,8 @@
     "signOut": "Se déconnecter",
     "openMenu": "Ouvrir le menu",
     "userMenu": "Menu utilisateur",
-    "badges": "Mes badges"
+    "badges": "Mes badges",
+    "certificates": "Mes certificats"
   },
   "auth": {
     "signIn": "Se connecter",
@@ -662,7 +663,8 @@
       "stream": "Fil d’actualité",
       "tutor": "Tuteur IA",
       "permissions": "Permissions",
-      "badges": "Badges"
+      "badges": "Badges",
+      "certificates": "Certificats"
     },
     "editMode": "Mode édition",
     "editOn": "Modifier",
@@ -1410,14 +1412,16 @@
       "calendar_reminder": "Rappels du calendrier",
       "auth_newSignIn": "Connexion depuis un nouvel appareil",
       "admin_bulkDone": "Actions groupées sur les utilisateurs",
-      "badge_awarded": "Badges obtenus"
+      "badge_awarded": "Badges obtenus",
+      "certificate_issued": "Certificats délivrés"
     },
     "text": {
       "enrolled": "Vous avez été inscrit au cours « {course} »",
       "announcementCourse": "{course} : {title}",
       "messageNew": "Nouveau message de {name}",
       "calendarReminder": "Demain : {title}",
-      "badgeAwarded": "Vous avez obtenu le badge « {name} »"
+      "badgeAwarded": "Vous avez obtenu le badge « {name} »",
+      "certificateIssued": "Le certificat « {name} » vous a été délivré"
     },
     "email": {
       "open": "Ouvrir",
@@ -2276,6 +2280,108 @@
       },
       "and": " ; et ",
       "or": " ; ou "
+    }
+  },
+  "certificates": {
+    "title": "Certificats",
+    "new": "Nouveau certificat",
+    "empty": "Aucun certificat pour l’instant",
+    "myTitle": "Mes certificats",
+    "myIntro": "Les certificats qui vous ont été délivrés. Chacun peut vérifier le code d’un certificat sur la page de vérification.",
+    "myEmpty": "Vous n’avez pas encore de certificat",
+    "name": "Nom",
+    "orientation": "Orientation",
+    "orientations": {
+      "landscape": "Paysage (A4)",
+      "portrait": "Portrait (A4)"
+    },
+    "onCompletion": "Délivrer à l’achèvement du cours",
+    "background": "Arrière-plan",
+    "backgroundHint": "PNG ou JPEG jusqu’à 5 Mo, étiré sur toute la page",
+    "removeBackground": "Retirer l’arrière-plan",
+    "previewNote": "La page ({w}×{h} mm) à peu près ; le PDF est exact.",
+    "fields": "Champs",
+    "fieldsHint": "Coordonnées en millimètres depuis le coin supérieur gauche : X est l’extrémité gauche, le milieu ou l’extrémité droite de la ligne (selon l’alignement), Y le haut de la première ligne. Taille en points ; avec une largeur supérieure à zéro, le texte passe à la ligne.",
+    "field": {
+      "kind": "Champ {n}",
+      "text": "Texte",
+      "label": "Libellé avant la valeur",
+      "remove": "Supprimer le champ {n}",
+      "x": "X, mm",
+      "y": "Y, mm",
+      "size": "Taille, pt",
+      "width": "Largeur, mm",
+      "align": "Alignement",
+      "color": "Couleur",
+      "bold": "Gras"
+    },
+    "kinds": {
+      "text": "Texte",
+      "name": "Nom du destinataire",
+      "course": "Nom du cours",
+      "date": "Date d’achèvement",
+      "grade": "Note du cours",
+      "code": "Code de vérification",
+      "url": "Adresse de vérification"
+    },
+    "align": {
+      "left": "À gauche",
+      "center": "Centré",
+      "right": "À droite"
+    },
+    "addField": "Ajouter un champ",
+    "resetLayout": "Mise en page par défaut",
+    "status": {
+      "DRAFT": "Brouillon",
+      "ACTIVE": "Délivré",
+      "ARCHIVED": "Archivé"
+    },
+    "onCompletionNote": "Délivré à l’achèvement du cours et manuellement",
+    "byHandNote": "Délivré manuellement",
+    "issuedOn": "Délivré le {date}",
+    "download": "Télécharger le PDF",
+    "issuedCount": "{count, plural, one {Délivré # fois} other {Délivré # fois}}",
+    "previewPdf": "PDF d’exemple",
+    "activate": "Commencer à délivrer",
+    "reactivate": "Délivrer à nouveau",
+    "activated": "Le certificat est délivré",
+    "archive": "Archiver",
+    "archiveConfirm": "Le certificat ne sera plus délivré ; ceux déjà délivrés restent valides.",
+    "toDraft": "Repasser en brouillon",
+    "issues": "Destinataires",
+    "exportCsv": "Exporter en CSV",
+    "noIssues": "Le certificat n’a encore été délivré à personne",
+    "recipient": "Destinataire",
+    "code": "Code",
+    "issued": "Délivré le",
+    "state": "État",
+    "revoked": "Révoqué",
+    "valid": "Valide",
+    "revoke": "Révoquer",
+    "revokeReason": "Motif (visible par qui le vérifie)",
+    "revokedDone": "Certificat révoqué",
+    "issueByHand": "Délivrer manuellement",
+    "issueByHandHint": "Manuellement, il peut être délivré à tout participant du cours, même sans achèvement, et un certificat révoqué peut l’être à nouveau.",
+    "learner": "Participant",
+    "issue": "Délivrer",
+    "issuedDone": "Certificat délivré",
+    "verifyTitle": "Vérification de certificat",
+    "verifyIntro": "Saisissez le code d’un certificat pour savoir à qui et pour quoi il a été délivré, et s’il est valide.",
+    "verifyButton": "Vérifier",
+    "badCode": "Un code compte 12 lettres et chiffres : XXXX-XXXX-XXXX.",
+    "certificate": "Certificat",
+    "course": "Cours",
+    "issuer": "Délivré par",
+    "completedOn": "Cours achevé le",
+    "revokedOn": "Révoqué le",
+    "notFound": "Aucun certificat ne porte ce code.",
+    "verifyAnother": "Vérifier un autre code",
+    "defaults": {
+      "title": "Certificat",
+      "intro": "Nous certifions que",
+      "completed": "a achevé avec succès le cours",
+      "date": "Date : ",
+      "code": "Code de vérification : "
     }
   }
 }

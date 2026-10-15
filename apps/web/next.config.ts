@@ -25,11 +25,16 @@ const config: NextConfig = {
   ],
   serverExternalPackages: ['pg', 'pg-boss', '@prisma/client', '@prisma/adapter-pg', 'nodemailer'],
   // The content host (SCORM and H5P players) and the API reference read browser bundles
-  // from disk.
+  // from disk, and certificates a font.
   outputFileTracingIncludes: {
     '/c/**': [
       '../../node_modules/.pnpm/scorm-again@*/node_modules/scorm-again/dist/scorm*.min.js',
       '../../node_modules/.pnpm/h5p-standalone@*/node_modules/h5p-standalone/dist/**/*.{js,css,woff,woff2,svg,gif}',
+    ],
+    // certificates are drawn in Roboto (core certificates/pdf.ts reads it from disk)
+    '/api/certificates/**': [
+      '../../node_modules/.pnpm/roboto-fontface@*/node_modules/roboto-fontface/package.json',
+      '../../node_modules/.pnpm/roboto-fontface@*/node_modules/roboto-fontface/fonts/roboto/Roboto-{Regular,Bold}.woff',
     ],
     '/api/v1/**': [
       '../../node_modules/.pnpm/@scalar+api-reference@*/node_modules/@scalar/api-reference/dist/browser/standalone.js',

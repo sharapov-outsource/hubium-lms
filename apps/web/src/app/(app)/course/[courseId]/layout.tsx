@@ -105,6 +105,23 @@ export default async function CourseLayout({
               })) > 0),
         },
         {
+          key: 'certificates',
+          href: `${base}/certificates`,
+          label: t('tabs.certificates'),
+          show:
+            !access.isGuest &&
+            ((await ctx.perm.can('certificate:manage', courseId)) ||
+              (await db.certificate.count({
+                where: {
+                  courseId,
+                  OR: [
+                    { status: 'ACTIVE' },
+                    { status: 'ARCHIVED', issues: { some: { userId: ctx.perm.userId ?? '' } } },
+                  ],
+                },
+              })) > 0),
+        },
+        {
           key: 'reports',
           href: `${base}/reports`,
           label: t('tabs.reports'),
