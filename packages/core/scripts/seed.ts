@@ -9,6 +9,7 @@ const { serverModules } = await import('@hubium/modules');
 await import('../src/bootstrap.ts');
 registerModules(serverModules as never);
 const { seed } = await import('../src/seed/seed.ts');
+const { stopBoss } = await import('../src/jobs/jobs.ts');
 
 const profile = process.argv.includes('--profile')
   ? process.argv[process.argv.indexOf('--profile') + 1]
@@ -35,5 +36,7 @@ try {
   });
   console.log('Seed complete:', result);
 } finally {
+  // activities of the demo queue jobs (course progress): the queue's connections end too
+  await stopBoss();
   await db.$disconnect();
 }
