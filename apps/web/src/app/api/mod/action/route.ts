@@ -9,7 +9,11 @@ export async function POST(req: Request) {
   const ctx = await getContext();
   if (ctx.actor.kind !== 'user')
     return Response.json(
-      { ok: false, code: 'UNAUTHENTICATED', message: 'Sign in' },
+      {
+        ok: false,
+        code: 'UNAUTHENTICATED',
+        message: (await getTranslations('errors'))('UNAUTHENTICATED'),
+      },
       { status: 401 },
     );
   try {
@@ -24,7 +28,7 @@ export async function POST(req: Request) {
     const data = await runModuleAction(ctx, activityId, action, input);
     return Response.json({ ok: true, data });
   } catch (e) {
-    const r = toActionError(e);
+    const r = toActionError(e, ctx.locale);
     // module forms show only the message: say what was wrong (a file too big, malware, …),
     // and in the user's language when nothing more specific is known
     const why = Object.values(r.fieldErrors ?? {}).flat();

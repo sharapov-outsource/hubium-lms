@@ -56,7 +56,7 @@ export async function actionInputFromForm(form: {
  * or a ModuleError that names its status.
  */
 function userError(e: unknown): unknown {
-  if (e instanceof ModuleError) return new AppError(e.status, e.message, { cause: e });
+  if (e instanceof ModuleError) return new AppError(e.status, e.msg ?? e.message, { cause: e });
   return e instanceof Error && Object.getPrototypeOf(e) === Error.prototype && !('code' in e)
     ? new AppError('BAD_REQUEST', e.message, { cause: e })
     : e;

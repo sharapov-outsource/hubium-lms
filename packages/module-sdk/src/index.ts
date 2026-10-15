@@ -1,6 +1,9 @@
 import type { Readable } from 'node:stream';
 import type { Prisma } from '@hubium/db';
 import type { z } from 'zod';
+import { isMsg, type Msg } from './msg.ts';
+
+export { isMsg, Msg, type MsgValues, msg, renderMsg } from './msg.ts';
 
 // Contract between core and activity modules. Modules depend only on this package
 // (and db types); core implements ModuleCtx and calls the hooks.
@@ -473,12 +476,16 @@ export function defineAction<I extends z.ZodType, O>(a: ModuleAction<I, O>): Mod
  * this one answers 404, 403 or 409 (e.g. "Discussion not found").
  */
 export class ModuleError extends Error {
+  /** The message for people (see msg); `message` is its English text. */
+  readonly msg: Msg | undefined;
+
   constructor(
-    readonly status: 'NOT_FOUND' | 'FORBIDDEN' | 'CONFLICT',
-    message: string,
+    readonly status: 'BAD_REQUEST' | 'NOT_FOUND' | 'FORBIDDEN' | 'CONFLICT',
+    message: string | Msg,
   ) {
-    super(message);
+    super(String(message));
     this.name = 'ModuleError';
+    this.msg = isMsg(message) ? message : undefined;
   }
 }
 

@@ -2,7 +2,7 @@
 
 import type { ActionResult } from '@hubium/core/operation';
 import { FieldErrorsContext } from '@hubium/module-sdk/form';
-import { Button, type ButtonProps, Field, Input } from '@hubium/ui';
+import { Alert, Button, type ButtonProps, Field, Input } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { useTranslations } from 'next-intl';
 import { createContext, type ReactNode, useContext, useRef, useState, useTransition } from 'react';
@@ -13,17 +13,22 @@ const FormState = createContext<{ result: AnyResult; pending: boolean }>({
   pending: false,
 });
 
-const KNOWN = [
-  'VALIDATION',
-  'FORBIDDEN',
-  'NOT_FOUND',
-  'CONFLICT',
-  'UNAUTHENTICATED',
-  'INTERNAL',
-  'BAD_REQUEST',
-  'RATE_LIMITED',
-  'UNAVAILABLE',
-];
+/** Whether the form has a field for an error's key (itself, a part of it, or its whole). */
+function hasField(form: HTMLFormElement | null, key: string): boolean {
+  if (!form) return false;
+  for (const el of Array.from(form.elements)) {
+    const name = (el as HTMLInputElement).name;
+    if (
+      name &&
+      (name === key ||
+        name.startsWith(`${key}.`) ||
+        name.startsWith(`${key}[`) ||
+        key.startsWith(`${name}.`))
+    )
+      return true;
+  }
+  return false;
+}
 
 /** Every field error of the surrounding form (for composite inputs). */
 export function useFormErrors(): Record<string, string[]> {
@@ -60,6 +65,8 @@ export function ActionForm<T>({
   const t = useTranslations('errors');
   const ref = useRef<HTMLFormElement>(null);
   const [result, setResult] = useState<AnyResult>(null);
+  /** Errors no field of the form shows: shown over the form. */
+  const [general, setGeneral] = useState<string[]>([]);
   const [pending, start] = useTransition();
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -72,13 +79,19 @@ export function ActionForm<T>({
       if (!r) return;
       setResult(r);
       if (r.ok) {
+        setGeneral([]);
         if (success) toast.success(success);
         if (resetOnSuccess) ref.current?.reset();
         onSuccess?.(r.data);
       } else {
-        const generic = KNOWN.includes(r.code) ? t(r.code as 'INTERNAL') : r.message;
-        toast.error(r.code === 'CONFLICT' ? r.message : generic);
-        const first = r.fieldErrors ? Object.keys(r.fieldErrors)[0] : undefined;
+        // the message comes in the page's language and says why
+        const fields = Object.entries(r.fieldErrors ?? {});
+        const orphans = fields.filter(([k]) => !hasField(ref.current, k)).flatMap(([, v]) => v);
+        setGeneral(orphans);
+        toast.error(
+          orphans[0] ?? (r.code === 'VALIDATION' && fields.length ? t('VALIDATION') : r.message),
+        );
+        const first = fields.find(([k]) => hasField(ref.current, k))?.[0];
         if (first) (ref.current?.elements.namedItem(first) as HTMLElement | null)?.focus?.();
       }
     });
@@ -88,6 +101,19 @@ export function ActionForm<T>({
     <FormState.Provider value={{ result, pending }}>
       <FieldErrorsContext.Provider value={result && !result.ok ? result.fieldErrors : undefined}>
         <form ref={ref} onSubmit={onSubmit} className={className} id={id} noValidate>
+          {general.length ? (
+            <Alert variant="destructive" className="col-span-full">
+              {general.length > 1 ? (
+                <ul className="list-disc pl-5">
+                  {general.map((m) => (
+                    <li key={m}>{m}</li>
+                  ))}
+                </ul>
+              ) : (
+                general[0]
+              )}
+            </Alert>
+          ) : null}
           {children}
         </form>
       </FieldErrorsContext.Provider>

@@ -574,7 +574,23 @@
     "INTERNAL": "Errore interno. Riprovare.",
     "BAD_REQUEST": "Richiesta non valida",
     "RATE_LIMITED": "Troppe richieste. Attendere qualche istante.",
-    "UNAVAILABLE": "Un servizio necessario non è disponibile. Riprova più tardi."
+    "UNAVAILABLE": "Un servizio necessario non è disponibile. Riprova più tardi.",
+    "inUse": "Questo valore è già in uso",
+    "field": {
+      "required": "Campo obbligatorio",
+      "invalid": "Valore non valido",
+      "tooShort": "{n, plural, one {Almeno # carattere} other {Almeno # caratteri}}",
+      "tooLong": "{n, plural, one {Al massimo # carattere} other {Al massimo # caratteri}}",
+      "tooSmall": "Almeno {n}",
+      "above": "Più di {n}",
+      "tooBig": "Al massimo {n}",
+      "below": "Meno di {n}",
+      "tooFew": "Scegline almeno {n}",
+      "tooMany": "Scegline al massimo {n}",
+      "email": "Inserisci un indirizzo email",
+      "url": "Inserisci un indirizzo web",
+      "option": "Scegli una delle opzioni"
+    }
   },
   "editor": {
     "bold": "Grassetto",

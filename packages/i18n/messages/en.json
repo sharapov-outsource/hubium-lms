@@ -575,7 +575,23 @@
     "INTERNAL": "Internal error. Please try again.",
     "BAD_REQUEST": "Bad request",
     "RATE_LIMITED": "Too many requests. Please wait a moment.",
-    "UNAVAILABLE": "A required service is unavailable. Please try again later."
+    "UNAVAILABLE": "A required service is unavailable. Please try again later.",
+    "inUse": "This value is already in use",
+    "field": {
+      "required": "Required",
+      "invalid": "Invalid value",
+      "tooShort": "{n, plural, one {At least # character} other {At least # characters}}",
+      "tooLong": "{n, plural, one {At most # character} other {At most # characters}}",
+      "tooSmall": "At least {n}",
+      "above": "More than {n}",
+      "tooBig": "At most {n}",
+      "below": "Less than {n}",
+      "tooFew": "Choose at least {n}",
+      "tooMany": "Choose at most {n}",
+      "email": "Enter an email address",
+      "url": "Enter a web address",
+      "option": "Choose one of the options"
+    }
   },
   "editor": {
     "bold": "Bold",

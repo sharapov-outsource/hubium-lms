@@ -1,6 +1,7 @@
 import 'server-only';
 import { type ActionResult, toActionError, withActorScope } from '@hubium/core';
 import { APIError } from 'better-auth/api';
+import { getLocale } from 'next-intl/server';
 import { getContext, requireNoGate } from './session';
 
 export type { ActionResult };
@@ -33,7 +34,8 @@ export async function runAction<T>(
     // Better Auth refusals carry a message meant for the person
     if (e instanceof APIError)
       return { ok: false, code: String(e.status), message: e.body?.message ?? e.message };
-    return toActionError(e);
+    // what went wrong, in the language of the page
+    return toActionError(e, await getLocale().catch(() => 'en'));
   }
 }
 

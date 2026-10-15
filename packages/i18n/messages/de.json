@@ -574,7 +574,23 @@
     "INTERNAL": "Interner Fehler. Bitte versuchen Sie es erneut.",
     "BAD_REQUEST": "Ungültige Anfrage",
     "RATE_LIMITED": "Zu viele Anfragen. Bitte warten Sie einen Moment.",
-    "UNAVAILABLE": "Ein benötigter Dienst ist nicht erreichbar. Bitte versuchen Sie es später erneut."
+    "UNAVAILABLE": "Ein benötigter Dienst ist nicht erreichbar. Bitte versuchen Sie es später erneut.",
+    "inUse": "Dieser Wert wird bereits verwendet",
+    "field": {
+      "required": "Pflichtfeld",
+      "invalid": "Ungültiger Wert",
+      "tooShort": "Mindestens {n} Zeichen",
+      "tooLong": "Höchstens {n} Zeichen",
+      "tooSmall": "Mindestens {n}",
+      "above": "Mehr als {n}",
+      "tooBig": "Höchstens {n}",
+      "below": "Weniger als {n}",
+      "tooFew": "Wählen Sie mindestens {n}",
+      "tooMany": "Wählen Sie höchstens {n}",
+      "email": "Geben Sie eine E-Mail-Adresse ein",
+      "url": "Geben Sie eine Webadresse ein",
+      "option": "Wählen Sie eine der Optionen"
+    }
   },
   "editor": {
     "bold": "Fett",

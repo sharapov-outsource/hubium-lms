@@ -574,7 +574,23 @@
     "INTERNAL": "Erreur interne. Veuillez réessayer.",
     "BAD_REQUEST": "Requête incorrecte",
     "RATE_LIMITED": "Trop de requêtes. Veuillez patienter un instant.",
-    "UNAVAILABLE": "Un service nécessaire est indisponible. Réessayez plus tard."
+    "UNAVAILABLE": "Un service nécessaire est indisponible. Réessayez plus tard.",
+    "inUse": "Cette valeur est déjà utilisée",
+    "field": {
+      "required": "Champ obligatoire",
+      "invalid": "Valeur non valide",
+      "tooShort": "{n, plural, one {Au moins # caractère} other {Au moins # caractères}}",
+      "tooLong": "{n, plural, one {Au plus # caractère} other {Au plus # caractères}}",
+      "tooSmall": "Au moins {n}",
+      "above": "Plus de {n}",
+      "tooBig": "Au plus {n}",
+      "below": "Moins de {n}",
+      "tooFew": "Choisissez-en au moins {n}",
+      "tooMany": "Choisissez-en au plus {n}",
+      "email": "Saisissez une adresse e-mail",
+      "url": "Saisissez une adresse web",
+      "option": "Choisissez l’une des options"
+    }
   },
   "editor": {
     "bold": "Gras",
