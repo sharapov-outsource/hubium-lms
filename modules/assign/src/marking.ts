@@ -2,6 +2,7 @@ import { randomInt } from 'node:crypto';
 import type { Prisma } from '@hubium/db';
 import type { ActivityRef, ModuleCtx } from '@hubium/module-sdk';
 import { type GradeRange, type GradingMethod, Guide, Rubric } from '@hubium/module-sdk/grading';
+import { inVisibleGroups } from '@hubium/module-sdk/groups';
 import type { AssignSettingsT } from './config.ts';
 
 // Marking, as Moodle's assignment: a workflow of marking stages (grades reach students and
@@ -145,12 +146,19 @@ export function participantLabel(
   return hide ? word(number ?? 0) : user.name;
 }
 
-/** Students the user marks: everyone, or with allocation only those allocated to them. */
+/**
+ * Students the user marks: everyone, or in separate groups (for a marker who cannot see all
+ * groups) their groups' members; with allocation, only those allocated to them. The list,
+ * grading, the download of all work and the to-do count all go by this.
+ */
 export async function markedBy(ctx: ModuleCtx, a: Assign, userIds: string[]) {
-  if (!allocating(a) || (await ctx.perm.can('mod.assign:manageallocations', a.id))) return userIds;
   const me = ctx.actor.kind === 'user' ? ctx.actor.userId : null;
-  const flags = await flagsFor(ctx.db, a, userIds);
-  return userIds.filter((id) => flags.get(id)?.allocatedMarkerId === me);
+  const seen = me
+    ? await inVisibleGroups(ctx.db, a, me, await ctx.perm.can('group:accessall', a.id), userIds)
+    : userIds;
+  if (!allocating(a) || (await ctx.perm.can('mod.assign:manageallocations', a.id))) return seen;
+  const flags = await flagsFor(ctx.db, a, seen);
+  return seen.filter((id) => flags.get(id)?.allocatedMarkerId === me);
 }
 
 // ── rubrics and marking guides ─────────────────────────────────────────────────────

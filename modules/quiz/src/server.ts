@@ -9,6 +9,7 @@ import {
   ModuleError,
 } from '@hubium/module-sdk';
 import { bool, isoDate, optionalNumber } from '@hubium/module-sdk/fields';
+import { visibleGroupFilter } from '@hubium/module-sdk/groups';
 import { invalidIpListEntries } from '@hubium/module-sdk/net';
 import {
   type Behaviour,
@@ -806,6 +807,22 @@ export function reviewAllowed(s: QuizSettingsT, closeAt: Date | null, now: Date)
 
 type Quiz = ActivityRef<QuizSettingsT>;
 
+/**
+ * Whose attempts the user sees as a teacher (results, grading, review, the to-do count):
+ * everyone's, or in separate groups, for a teacher who cannot see all groups, those of the
+ * members of their groups.
+ */
+export async function attemptsSeenBy(
+  ctx: ModuleCtx,
+  a: Pick<ActivityRef, 'id' | 'courseId' | 'groupingId' | 'groupMode'>,
+): Promise<Prisma.QuizAttemptWhereInput> {
+  const me = ctx.actor.kind === 'user' ? ctx.actor.userId : null;
+  const groups = me
+    ? await visibleGroupFilter(ctx.db, a, me, await ctx.perm.can('group:accessall', a.id))
+    : null;
+  return groups ? { user: { groupMembers: { some: { groupId: { in: groups } } } } } : {};
+}
+
 const scaled = (sum: unknown, max: number, gradeMax: number) =>
   sum === null || sum === undefined || !max ? null : (Number(sum) / max) * gradeMax;
 
@@ -987,7 +1004,12 @@ export async function readReview(ctx: ModuleCtx, a: Quiz, attemptId: string) {
   });
   if (!at || at.activityId !== a.id) return null;
   const own = ctx.actor.kind === 'user' && at.userId === ctx.actor.userId;
-  const teacher = await ctx.perm.can('mod.quiz:viewreports', a.id);
+  const teacher =
+    (await ctx.perm.can('mod.quiz:viewreports', a.id)) &&
+    (own ||
+      (await ctx.db.quizAttempt.count({
+        where: { id: at.id, ...(await attemptsSeenBy(ctx, a)) },
+      })) > 0);
   if (!own && !teacher) return null;
   if (!teacher && !at.preview && at.state === 'IN_PROGRESS') return 'inProgress' as const;
   const e = await effectiveQuiz(ctx.db, a, at.userId);
@@ -1845,6 +1867,10 @@ export const quiz = defineModule<QuizSettingsT>({
           include: { attempt: true },
         });
         if (!qa || qa.attempt.activityId !== a.id) throw new Error('Not found');
+        const seen = await ctx.db.quizAttempt.count({
+          where: { id: qa.attemptId, ...(await attemptsSeenBy(ctx, a)) },
+        });
+        if (!seen) throw new ModuleError('FORBIDDEN', 'This attempt is of another group');
         if (qa.attempt.state !== 'FINISHED') throw new Error('The attempt is not finished');
         const max = Number(qa.maxMark);
         if (input.mark > max) throw new Error(`Mark must be at most ${max}`);
@@ -1896,7 +1922,13 @@ export const quiz = defineModule<QuizSettingsT>({
     for (const a of acts) {
       if (await ctx.perm.can('mod.quiz:grade', a.id)) {
         const n = await ctx.db.quizAttempt.count({
-          where: { activityId: a.id, needsManualGrading: true, state: 'FINISHED', preview: false },
+          where: {
+            activityId: a.id,
+            needsManualGrading: true,
+            state: 'FINISHED',
+            preview: false,
+            ...(await attemptsSeenBy(ctx, a)),
+          },
         });
         if (n)
           out.push({

@@ -20,6 +20,7 @@ import { cn } from '@hubium/ui/cn';
 import Link from 'next/link';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import {
+  attemptsSeenBy,
   type QuizSettingsT,
   readAttempt,
   readQuizOverview,
@@ -551,7 +552,12 @@ async function OverviewTab({ activity: a, ctx }: Props) {
       })
     : null;
   const toGrade = await ctx.db.quizAttempt.count({
-    where: { activityId: a.id, needsManualGrading: true, preview: false },
+    where: {
+      activityId: a.id,
+      needsManualGrading: true,
+      preview: false,
+      ...(await attemptsSeenBy(ctx, a)),
+    },
   });
   return (
     <div className="grid gap-4">
@@ -641,7 +647,7 @@ async function EditTab({ activity: a, ctx }: Props) {
 async function ResultsTab({ activity: a, ctx }: Props) {
   const [t, format] = await Promise.all([getTranslations('mod.quiz'), getFormatter()]);
   const attempts = await ctx.db.quizAttempt.findMany({
-    where: { activityId: a.id, preview: false },
+    where: { activityId: a.id, preview: false, ...(await attemptsSeenBy(ctx, a)) },
     orderBy: [{ user: { lastName: 'asc' } }, { attemptNumber: 'asc' }],
     include: {
       user: { select: { name: true } },
@@ -741,7 +747,13 @@ async function ResultsTab({ activity: a, ctx }: Props) {
 async function GradingTab({ activity: a, ctx }: Props) {
   const t = await getTranslations('mod.quiz');
   const pending = await ctx.db.quizAttempt.findMany({
-    where: { activityId: a.id, needsManualGrading: true, preview: false, state: 'FINISHED' },
+    where: {
+      activityId: a.id,
+      needsManualGrading: true,
+      preview: false,
+      state: 'FINISHED',
+      ...(await attemptsSeenBy(ctx, a)),
+    },
     include: { user: { select: { name: true } } },
     orderBy: { finishedAt: 'asc' },
   });

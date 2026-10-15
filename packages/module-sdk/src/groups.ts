@@ -40,3 +40,24 @@ export async function visibleGroupFilter(
   if (a.groupMode !== 'SEPARATE' || canSeeAll) return null;
   return userGroupIds(db, a, userId);
 }
+
+/**
+ * Of `userIds`, those whose work the viewer may see: everyone, or in separate groups, for a
+ * viewer who cannot see all groups, the members of the viewer's groups.
+ */
+export async function inVisibleGroups(
+  db: Pick<Prisma.TransactionClient, 'groupMember'>,
+  a: Activity & Pick<ActivityRef, 'groupMode'>,
+  viewerId: string,
+  canSeeAll: boolean,
+  userIds: string[],
+): Promise<string[]> {
+  const groups = await visibleGroupFilter(db, a, viewerId, canSeeAll);
+  if (!groups) return userIds;
+  const rows = await db.groupMember.findMany({
+    where: { groupId: { in: groups }, userId: { in: userIds } },
+    select: { userId: true },
+  });
+  const seen = new Set(rows.map((r) => r.userId));
+  return userIds.filter((id) => seen.has(id));
+}
