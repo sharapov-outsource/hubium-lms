@@ -156,6 +156,21 @@ describe('mod-scorm', () => {
       where: { activityId_userId: { activityId: scormId, userId: f.users.student1! } },
     });
     expect(c.state).toBe('COMPLETE_PASS');
+
+    // the same link reloaded after finishing opens the attempt for review only
+    expect(await (await content(g, ['player'])).text()).toContain('"commit":null');
+    // and a commit long after it finished changes nothing
+    await t.db.scormAttempt.update({
+      where: { id: attempt.id },
+      data: { finishedAt: new Date(Date.now() - 3_600_000) },
+    });
+    const late = await commit({
+      core: { lesson_status: 'passed', exit: '', session_time: '00:00:10', score: { raw: '100' } },
+    });
+    expect(await late.json()).toEqual({ result: false, errorCode: 101 });
+    expect((await t.db.scormAttempt.findUniqueOrThrow({ where: { id: attempt.id } })).score).toBe(
+      85,
+    );
   });
 
   it('rejects malformed commits and foreign attempts', async () => {
@@ -180,6 +195,17 @@ describe('mod-scorm', () => {
   it('new attempts after finishing, within the limit', async () => {
     const s1 = await ctxFor(t.db, f.users.student1!);
     expect(await runModuleAction(s1, scormId, 'newAttempt', {})).toEqual({ attempt: 2 });
+    // the first attempt's link no longer writes once a later attempt has started
+    const sco = await t.db.scormSco.findFirstOrThrow({ where: { packageId } });
+    const first = await t.db.scormAttempt.findFirstOrThrow({
+      where: { activityId: scormId, userId: f.users.student1, attemptNumber: 1 },
+    });
+    const old = await content(
+      { userId: f.users.student1!, data: { attempt: first.id, sco: sco.id } },
+      ['commit'],
+      { method: 'POST', body: JSON.stringify({ cmi: { core: { lesson_status: 'passed' } } }) },
+    );
+    expect(await old.json()).toEqual({ result: false, errorCode: 101 });
     await expect(runModuleAction(s1, scormId, 'newAttempt', {})).rejects.toThrow(
       'Finish the current attempt',
     );

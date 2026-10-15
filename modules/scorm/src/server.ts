@@ -200,7 +200,8 @@ export async function updateResults(ctx: ModuleCtx, a: Scorm, attemptId: string)
     data: {
       score,
       lastAccessAt: ctx.now,
-      finishedAt: done ? (attempt.finishedAt ?? ctx.now) : null,
+      // a finished attempt stays finished, whatever a later commit reports
+      finishedAt: attempt.finishedAt ?? (done ? ctx.now : null),
     },
   });
   const all = await ctx.db.scormAttempt.findMany({
@@ -219,6 +220,28 @@ export async function updateResults(ctx: ModuleCtx, a: Scorm, attemptId: string)
   await ctx.completion.recompute(a.id, attempt.userId);
 }
 
+/** Commits the session that finished an attempt still sends on its way out. */
+const FINISH_GRACE_MS = 10 * 60_000;
+
+/**
+ * Whether an attempt takes no more data: a later attempt has started, or it finished
+ * (longer than `grace` ago). A player link stays valid for hours, so this is what stops a
+ * reload from replaying a finished attempt for a better score.
+ */
+async function attemptClosed(
+  ctx: ModuleCtx,
+  a: Scorm,
+  attempt: { id: string; userId: string; finishedAt: Date | null },
+  grace = 0,
+) {
+  const latest = await currentAttempt(ctx.db, a.id, attempt.userId, false);
+  if (latest?.id !== attempt.id) return true;
+  return !!attempt.finishedAt && ctx.now.getTime() - attempt.finishedAt.getTime() > grace;
+}
+
+/** A commit the runtime may not make (stale link, closed attempt): refused, not a fault. */
+class RefusedCommit extends Error {}
+
 /** Applies a commit from the runtime to the learner's track. */
 export async function commitTrack(
   ctx: ModuleCtx,
@@ -228,11 +251,13 @@ export async function commitTrack(
 ) {
   const attempt = await ctx.db.scormAttempt.findUnique({ where: { id: grant.attemptId } });
   if (!attempt || attempt.activityId !== a.id || attempt.userId !== grant.userId) {
-    throw new Error('Unknown attempt');
+    throw new RefusedCommit('Unknown attempt');
   }
+  if (await attemptClosed(ctx, a, attempt, FINISH_GRACE_MS))
+    throw new RefusedCommit('The attempt is closed');
   const pkg = await ctx.db.scormPackage.findUniqueOrThrow({ where: { activityId: a.id } });
   const sco = await ctx.db.scormSco.findUnique({ where: { id: grant.scoId } });
-  if (!sco || sco.packageId !== pkg.id) throw new Error('Unknown SCO');
+  if (!sco || sco.packageId !== pkg.id) throw new RefusedCommit('Unknown SCO');
   const f = trackFromCmi(pkg.version, body);
   const prev = await ctx.db.scormTrack.findUnique({
     where: { attemptId_scoId: { attemptId: attempt.id, scoId: sco.id } },
@@ -533,7 +558,9 @@ export const scorm = defineModule<ScormSettingsT>({
         await commitTrack(ctx, a, { userId: grant.userId, attemptId, scoId }, body);
         return ok({ result: true, errorCode: 0 });
       } catch (e) {
-        logger.error({ err: e, activityId: a.id, attemptId, scoId }, 'SCORM commit failed');
+        if (e instanceof RefusedCommit)
+          logger.warn({ activityId: a.id, attemptId, scoId }, `SCORM commit refused: ${e.message}`);
+        else logger.error({ err: e, activityId: a.id, attemptId, scoId }, 'SCORM commit failed');
         return ok({ result: false, errorCode: 101 });
       }
     }
@@ -541,10 +568,19 @@ export const scorm = defineModule<ScormSettingsT>({
     if (kind === 'player') {
       const sco = await ctx.db.scormSco.findUnique({ where: { id: scoId } });
       if (!sco || sco.packageId !== pkg.id) return new Response('Not found', { status: 404 });
+      // a link to an attempt that has finished since opens it for review only
+      const attempt = attemptId
+        ? await ctx.db.scormAttempt.findUnique({ where: { id: attemptId } })
+        : null;
+      const review =
+        !!grant.data.review ||
+        !attempt ||
+        attempt.userId !== grant.userId ||
+        (await attemptClosed(ctx, a, attempt));
       const track = attemptId
         ? await ctx.db.scormTrack.findUnique({ where: { attemptId_scoId: { attemptId, scoId } } })
         : null;
-      if (track && !grant.data.review) {
+      if (track && !review) {
         // the new session's time is added on top of what was recorded so far
         await ctx.db.scormTrack.update({
           where: { id: track.id },
@@ -562,7 +598,7 @@ export const scorm = defineModule<ScormSettingsT>({
           : user.name;
       const cmi = initialCmi(pkg.version, { id: grant.userId, name }, track, {
         masteryScore: sco.masteryScore,
-        review: !!grant.data.review,
+        review,
       });
       return new Response(
         playerHtml({
@@ -571,7 +607,7 @@ export const scorm = defineModule<ScormSettingsT>({
           version: pkg.version,
           cmi,
           scoHref: sco.href,
-          review: !!grant.data.review,
+          review,
         }),
         {
           headers: {
