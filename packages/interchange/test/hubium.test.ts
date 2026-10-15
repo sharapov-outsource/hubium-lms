@@ -41,6 +41,7 @@ import {
   duplicateActivity,
   duplicateCourse,
   exportCourse,
+  freeShortName,
   importActivities,
   readBackup,
   restoreCourse,
@@ -944,6 +945,17 @@ describe('.hubium backup and restore', () => {
         ratings: [],
       },
     ]);
+  });
+
+  it('gives a course from an archive a free short name that fits', async () => {
+    expect(await freeShortName(t.db, 'BRAND-NEW')).toBe('BRAND-NEW');
+    expect(await freeShortName(t.db, 'BACKUP1')).toMatch(/^BACKUP1-\d+$/);
+    // a Moodle course's name may be 255 characters long
+    const long = 'L'.repeat(150);
+    expect(await freeShortName(t.db, long)).toBe('L'.repeat(100));
+    const f = await courseFixture(t.db, 'L'.repeat(100));
+    expect(f.courseId).toBeTruthy();
+    expect(await freeShortName(t.db, long)).toBe(`${'L'.repeat(98)}-1`);
   });
 
   it('rejects foreign archives', async () => {

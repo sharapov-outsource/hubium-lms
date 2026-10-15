@@ -552,6 +552,19 @@ async function buildArchive(
   return zipSync(out, { level: 6 });
 }
 
+/** The short name of a course made from an archive: the one it had, or with -1, -2… when
+ *  that is taken, cut to fit the 100 characters a short name may have (Moodle's run to 255). */
+export async function freeShortName(db: RequestContext['db'], name: string): Promise<string> {
+  const MAX = 100;
+  const base = name.trim().slice(0, MAX) || 'IMPORT';
+  let candidate = base;
+  for (let i = 1; await db.course.findUnique({ where: { shortName: candidate } }); i++) {
+    const suffix = `-${i}`;
+    candidate = `${base.slice(0, MAX - suffix.length)}${suffix}`;
+  }
+  return candidate;
+}
+
 export interface RestoreReport {
   courseId: string;
   sections: number;
@@ -650,11 +663,7 @@ export async function restoreCourse(
   const b = readBackup(zip);
   const src = b.course.course;
 
-  let shortName = target.shortName ?? src.shortName;
-  if (!target.shortName) {
-    for (let i = 1; await ctx.db.course.findUnique({ where: { shortName } }); i++)
-      shortName = `${src.shortName}-${i}`;
-  }
+  const shortName = target.shortName ?? (await freeShortName(ctx.db, src.shortName));
   const sectionsCount = Math.max(0, splitSections(b.course.sections).top.length - 1);
   const { id: courseId } = await createCourse.run(ctx, {
     categoryId: target.categoryId,

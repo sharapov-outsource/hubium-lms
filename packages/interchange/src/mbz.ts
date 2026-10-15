@@ -44,7 +44,7 @@ import {
   gunzipLimited,
   unzipLimited,
 } from './archive.ts';
-import { addMissingSections, discardCourse, restoreCompetencies } from './hubium.ts';
+import { addMissingSections, discardCourse, freeShortName, restoreCompetencies } from './hubium.ts';
 import {
   answerFormat,
   datasetFromOptions,
@@ -1078,14 +1078,12 @@ export async function importMbz(
   const fullName =
     target.fullName ??
     (txt(courseXml.fullname) || txt(info.original_course_fullname) || 'Imported course');
-  let shortName =
+  const shortName =
     target.shortName ??
-    (txt(courseXml.shortname) || txt(info.original_course_shortname) || 'IMPORT');
-  if (!target.shortName) {
-    const base = shortName;
-    for (let i = 1; await ctx.db.course.findUnique({ where: { shortName } }); i++)
-      shortName = `${base}-${i}`;
-  }
+    (await freeShortName(
+      ctx.db,
+      txt(courseXml.shortname) || txt(info.original_course_shortname) || 'IMPORT',
+    ));
   const { id: courseId } = await createCourse.run(ctx, {
     categoryId: target.categoryId,
     fullName,
