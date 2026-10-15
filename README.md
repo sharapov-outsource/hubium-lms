@@ -235,7 +235,7 @@ sudo bash install-hubium.sh upgrade --version 1.2.0
 
 The upgrade does the following:
 
-1. Backs up the database to `/var/backups/hubium`.
+1. Stops the application and backs up the database to `/var/backups/hubium`, keeping the three latest copies.
 2. Fetches the new release.
 3. Applies its migrations.
 4. Restarts the services.

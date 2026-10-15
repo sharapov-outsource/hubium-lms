@@ -1228,15 +1228,32 @@ backup_dir() {
   printf '/var/backups/hubium/hubium-%s-%s.dump' "$current" "$(date -u +%Y%m%dT%H%M%SZ)"
 }
 
+# Keeps the three latest dumps made before upgrades; older ones go.
+prune_backups() {
+  local old
+  while read -r old; do
+    [[ -n $old ]] && run rm -f "$old"
+  done < <(find /var/backups/hubium -maxdepth 1 -name 'hubium-*.dump' -printf '%T@ %p\n' 2>/dev/null |
+    sort -rn | tail -n +4 | cut -d' ' -f2-)
+}
+
 upgrade_docker() {
   local file
   if [[ $BACKUP == yes ]]; then
     file=$(backup_dir)
     if grep -q "^COMPOSE_PROFILES=.*db" "$PREFIX/.env"; then
+      # nothing writes to the database while it is copied; the upgrade starts them again
+      local app=(web worker)
+      has_module video && app+=(worker-media)
+      step "Stopping the application"
+      run dc stop "${app[@]}"
       step "Backing up the database to $file"
-      [[ $DRY_RUN == yes ]] || dc exec -T db pg_dump -U hubium -Fc hubium >"$file" ||
+      if [[ $DRY_RUN != yes ]] && ! dc exec -T db pg_dump -U hubium -Fc hubium >"$file"; then
+        run dc start "${app[@]}"
         die "The backup failed; nothing was upgraded."
+      fi
       ok "$(du -h "$file" 2>/dev/null | cut -f1) written"
+      prune_backups
     else
       warn "The database is external: back it up with your own tools before you continue."
       confirm "Continue?" || die "Nothing was upgraded."
@@ -1264,22 +1281,26 @@ upgrade_native() {
   previous=$(readlink -f "$PREFIX/current")
   step "Unpacking Hubium $VERSION"
   unpack_release
-  if [[ $BACKUP == yes ]]; then
-    file=$(backup_dir)
-    if [[ $DB == bundled ]]; then
-      step "Backing up the database to $file"
-      [[ $DRY_RUN == yes ]] || (cd /tmp && runuser -u postgres -- pg_dump -p "${PGPORT:-5432}" -Fc hubium) >"$file" ||
-        die "The backup failed; nothing was upgraded."
-      ok "$(du -h "$file" 2>/dev/null | cut -f1) written"
-    else
-      warn "The database is external: back it up with your own tools before you continue."
-      confirm "Continue?" || die "Nothing was upgraded."
-    fi
-  fi
   local units=(hubium-web hubium-worker)
   has_module video && units+=(hubium-worker-media)
+  if [[ $BACKUP == yes && $DB != bundled ]]; then
+    warn "The database is external: back it up with your own tools before you continue."
+    confirm "Continue?" || die "Nothing was upgraded."
+  fi
+  # stopped before the copy, so nothing writes to the database while it is taken
   step "Stopping the services"
   run systemctl stop "${units[@]}"
+  if [[ $BACKUP == yes && $DB == bundled ]]; then
+    file=$(backup_dir)
+    step "Backing up the database to $file"
+    if [[ $DRY_RUN != yes ]] &&
+      ! (cd /tmp && runuser -u postgres -- pg_dump -p "${PGPORT:-5432}" -Fc hubium) >"$file"; then
+      run systemctl start "${units[@]}"
+      die "The backup failed; nothing was upgraded."
+    fi
+    ok "$(du -h "$file" 2>/dev/null | cut -f1) written"
+    prune_backups
+  fi
   step "Migrating the database"
   if ! hubium_as "$RELEASE_DIR" migrate --seed "${SEED_PROFILE:-minimal}"; then
     warn "Migration failed: the services of $current are started again."
