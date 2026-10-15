@@ -155,10 +155,17 @@ export default async function GradesPage({
   );
 
   if (view === 'setup') {
-    const [{ categories, items }, scales] = await Promise.all([
+    const [{ categories, items }, scales, given] = await Promise.all([
       gradebookStructure(ctx.db, courseId),
       listScales(ctx.db, courseId),
+      // what deleting a manual item takes along, said before it is deleted
+      ctx.db.grade.groupBy({
+        by: ['gradeItemId'],
+        where: { item: { courseId, kind: 'MANUAL' }, finalGrade: { not: null } },
+        _count: { _all: true },
+      }),
     ]);
+    const gradesIn = new Map(given.map((g) => [g.gradeItemId, g._count._all]));
     const root = categories.find((c) => !c.parentId)!;
     // formulas as written, and the ID numbers they can use
     const formulas = displayCalculations(items, categories);
@@ -274,6 +281,7 @@ export default async function GradesPage({
                       formula: formulas.get(i.id) ?? null,
                       needsUpdate: i.needsUpdate,
                       canCalculate: i.kind === 'MANUAL' && i.gradeType === 'VALUE',
+                      grades: gradesIn.get(i.id) ?? 0,
                     }}
                   />
                 ))}

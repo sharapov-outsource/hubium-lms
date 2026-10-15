@@ -284,6 +284,7 @@ export function SectionMenu({
   const { pending, run } = useRun();
   const [editOpen, setEditOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [delOpen, setDelOpen] = useState(false);
   const sub = !!section.parentId;
   const targets = sections.filter((s) => s.id !== section.parentId);
   const [target, setTarget] = useState(targets[0]?.id ?? '');
@@ -337,10 +338,7 @@ export function SectionMenu({
                 {section.visible ? t('hide') : t('show')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive"
-                onSelect={() => run(() => sectionCommandAction(courseId, section.id, 'delete'))}
-              >
+              <DropdownMenuItem className="text-destructive" onSelect={() => setDelOpen(true)}>
                 <Trash2 />
                 {t(sub ? 'deleteSubsection' : 'deleteSection')}
               </DropdownMenuItem>
@@ -380,6 +378,30 @@ export function SectionMenu({
           </DialogContent>
         </Dialog>
       ) : null}
+      <Dialog open={delOpen} onOpenChange={setDelOpen}>
+        <DialogContent
+          title={t(sub ? 'deleteSubsection' : 'deleteSection')}
+          description={t('deleteSectionConfirm')}
+          closeLabel={tc('close')}
+        >
+          <p className="text-sm text-muted-foreground">{t('deleteSectionBin')}</p>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">{tc('cancel')}</Button>
+            </DialogClose>
+            <Button
+              variant="destructive"
+              disabled={pending}
+              onClick={() => {
+                setDelOpen(false);
+                run(() => sectionCommandAction(courseId, section.id, 'delete'));
+              }}
+            >
+              {tc('delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent
           title={t(sub ? 'editSubsection' : 'editSection')}

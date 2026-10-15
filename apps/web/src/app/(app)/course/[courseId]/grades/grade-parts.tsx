@@ -1,11 +1,12 @@
 'use client';
 
-import { Badge, Button, Checkbox, Input, Select, Td, Tr } from '@hubium/ui';
+import { Badge, Checkbox, Input, Select, Td, Tr } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
+import { CommandButton } from '@/components/confirm-button';
 import {
   createManualItemAction,
   deleteGradeItemAction,
@@ -146,6 +147,8 @@ export function ItemSetupRow({
     needsUpdate: boolean;
     /** Manual items graded in points may calculate. */
     canCalculate: boolean;
+    /** Grades given in it, which deleting it takes along. */
+    grades: number;
   };
   categories: { id: string; label: string }[];
   /** Its category takes a weighted mean, where the weight counts. */
@@ -271,20 +274,15 @@ export function ItemSetupRow({
           />
         ) : null}
         {item.kind === 'MANUAL' ? (
-          <Button
+          <CommandButton
             size="sm"
             variant="ghost"
             disabled={pending}
-            onClick={() =>
-              start(async () => {
-                const r = await deleteGradeItemAction(courseId, item.id);
-                if (!r.ok) toast.error(r.message);
-                router.refresh();
-              })
-            }
+            run={deleteGradeItemAction.bind(null, courseId, item.id)}
+            confirm={t('deleteItemConfirm', { name: item.name, count: item.grades })}
           >
             {t('delete')}
-          </Button>
+          </CommandButton>
         ) : null}
       </Td>
     </Tr>

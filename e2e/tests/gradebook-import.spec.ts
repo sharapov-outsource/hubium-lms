@@ -67,6 +67,9 @@ test('gradebook: importing a sheet in two steps, and exporting ODS', async ({ pa
       .filter({ hasText: ITEM })
       .getByRole('button', { name: 'Удалить' })
       .click();
+    const ask = page.getByRole('dialog');
+    await expect(ask).toContainText(`«${ITEM}»`);
+    await ask.getByRole('button', { name: 'Подтвердить' }).click();
     await expect(page.getByRole('row').filter({ hasText: ITEM })).toHaveCount(0);
   } finally {
     await cleanup();

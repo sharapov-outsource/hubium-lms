@@ -141,6 +141,10 @@ export default async function EnrolmentPage({ params }: { params: Promise<{ cour
                 variant="ghost"
                 size="sm"
                 run={removeMethodAction.bind(null, courseId, m.id)}
+                confirm={t('cohortRemoveConfirm', {
+                  name: m.cohort?.name ?? m.name,
+                  count: m._count.enrolments,
+                })}
               >
                 {t('remove')}
               </CommandButton>

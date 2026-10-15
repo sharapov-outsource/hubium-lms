@@ -692,6 +692,7 @@
     "subsectionTitle": "Subsection name",
     "subsectionSummary": "Subsection description",
     "deleteSectionConfirm": "Delete this empty section?",
+    "deleteSectionBin": "Activities of this section in the recycle bin move to the first section and stay in the bin.",
     "addActivity": "Add activity",
     "chooseActivity": "What would you like to add?",
     "activities": "Activities",
@@ -851,6 +852,7 @@
     "noGroup": "No group"
   },
   "enrolment": {
+    "cohortRemoveConfirm": "Turn off the sync with “{name}”? The participants enrolled through it ({count}) are unenrolled: their roles, course group and chat memberships go.",
     "title": "Enrolment methods",
     "manual": "Manual enrolment",
     "manualHint": "Teachers enrol users on the Participants page",
@@ -1035,6 +1037,7 @@
     "importTitle": "Import from CSV"
   },
   "grades": {
+    "deleteItemConfirm": "Delete the item “{name}” with its grades ({count}) and their history?",
     "title": "Grades",
     "grader": "Grader report",
     "setup": "Setup",

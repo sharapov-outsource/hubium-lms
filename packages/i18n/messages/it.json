@@ -691,6 +691,7 @@
     "subsectionTitle": "Nome della sottosezione",
     "subsectionSummary": "Descrizione della sottosezione",
     "deleteSectionConfirm": "Eliminare questa sezione vuota?",
+    "deleteSectionBin": "Le attività di questa sezione nel cestino passano alla prima sezione e restano nel cestino.",
     "addActivity": "Aggiungi attività",
     "chooseActivity": "Cosa si desidera aggiungere?",
     "activities": "Attività",
@@ -850,6 +851,7 @@
     "noGroup": "Nessun gruppo"
   },
   "enrolment": {
+    "cohortRemoveConfirm": "Disattivare la sincronizzazione con «{name}»? I partecipanti iscritti tramite essa ({count}) vengono disiscritti: ruoli, gruppi e chat del corso vengono rimossi.",
     "title": "Metodi d’iscrizione",
     "manual": "Iscrizione manuale",
     "manualHint": "I docenti iscrivono gli utenti dalla pagina Partecipanti",
@@ -1034,6 +1036,7 @@
     "importTitle": "Importa da CSV"
   },
   "grades": {
+    "deleteItemConfirm": "Eliminare l’elemento «{name}» con i suoi voti ({count}) e la loro cronologia?",
     "title": "Valutazioni",
     "grader": "Registro valutatore",
     "setup": "Configurazione",

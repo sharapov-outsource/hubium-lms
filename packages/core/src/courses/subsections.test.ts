@@ -4,10 +4,12 @@ import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { ValidationError } from '../errors.ts';
 import {
   createActivity,
+  deleteActivity,
   getActivityAccess,
   getCourseOutline,
   moveActivity,
   moveActivityStep,
+  restoreActivity,
 } from './activities.ts';
 import {
   addSection,
@@ -134,8 +136,27 @@ describe('subsections', () => {
       refused(/activities/),
     );
     await moveActivity.run(teacher, { id: page.id, sectionId: s2 });
+    // one in the recycle bin stays there, in the general section, and comes back
+    const binned = await createActivity.run(teacher, {
+      courseId: f.courseId,
+      sectionId: sub,
+      moduleKey: 'page',
+      name: 'В корзине',
+      settings: { content: '<p>y</p>' },
+    });
+    await deleteActivity.run(teacher, { id: binned.id });
     await deleteSection.run(teacher, { id: sub });
     expect(await t.db.courseSection.count({ where: { parentId: s2 } })).toBe(0);
+    const general = await t.db.courseSection.findFirstOrThrow({
+      where: { courseId: f.courseId, parentId: null },
+      orderBy: { rank: 'asc' },
+    });
+    expect(await t.db.activity.findUniqueOrThrow({ where: { id: binned.id } })).toMatchObject({
+      sectionId: general.id,
+      deletedAt: expect.any(Date),
+    });
+    await restoreActivity.run(teacher, { id: binned.id });
+    expect((await sectionItems(t.db, general.id)).map((x) => x.id).at(-1)).toBe(binned.id);
     // sections of the course keep their own order
     const { id: s3 } = await addSection.run(teacher, { courseId: f.courseId, title: 'Тема 3' });
     const top = await t.db.courseSection.findMany({

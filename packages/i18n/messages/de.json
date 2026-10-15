@@ -691,6 +691,7 @@
     "subsectionTitle": "Name des Unterabschnitts",
     "subsectionSummary": "Beschreibung des Unterabschnitts",
     "deleteSectionConfirm": "Diesen leeren Abschnitt löschen?",
+    "deleteSectionBin": "Aktivitäten dieses Abschnitts im Papierkorb wandern in den ersten Abschnitt und bleiben im Papierkorb.",
     "addActivity": "Aktivität hinzufügen",
     "chooseActivity": "Was möchten Sie hinzufügen?",
     "activities": "Aktivitäten",
@@ -850,6 +851,7 @@
     "noGroup": "Keine Gruppe"
   },
   "enrolment": {
+    "cohortRemoveConfirm": "Synchronisierung mit „{name}“ beenden? Die darüber eingeschriebenen Teilnehmenden ({count}) werden ausgetragen: ihre Rollen, Kursgruppen- und Chat-Mitgliedschaften entfallen.",
     "title": "Einschreibemethoden",
     "manual": "Manuelle Einschreibung",
     "manualHint": "Trainer/innen schreiben Nutzer/innen auf der Seite „Teilnehmer/innen“ ein",
@@ -1034,6 +1036,7 @@
     "importTitle": "Aus CSV importieren"
   },
   "grades": {
+    "deleteItemConfirm": "Element „{name}“ mit seinen Bewertungen ({count}) und deren Verlauf löschen?",
     "title": "Bewertungen",
     "grader": "Bewerterübersicht",
     "setup": "Einrichtung",

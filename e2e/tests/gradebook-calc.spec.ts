@@ -73,4 +73,6 @@ async function deleteItem(page: Page, name: string) {
     .filter({ hasText: name })
     .getByRole('button', { name: 'Удалить' })
     .click();
+  // the item goes with its grades: asked first
+  await page.getByRole('dialog').getByRole('button', { name: 'Подтвердить' }).click();
 }

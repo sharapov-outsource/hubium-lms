@@ -530,7 +530,18 @@ export const deleteSection = defineOperation({
       throw new ValidationError({ id: ['Move or delete the activities in this section first'] });
     if (await ctx.tx.courseSection.count({ where: { parentId: id } }))
       throw new ValidationError({ id: ['Move or delete the subsections in this section first'] });
-    await ctx.tx.activity.deleteMany({ where: { sectionId: id } });
+    // What is in the recycle bin stays there, in the general section, to be restored or
+    // deleted for good as any other: not wiped with the section, past the modules' clean-up.
+    const binned = await ctx.tx.activity.findMany({
+      where: { sectionId: id },
+      orderBy: { rank: 'asc' },
+      select: { id: true },
+    });
+    for (const a of binned)
+      await ctx.tx.activity.update({
+        where: { id: a.id },
+        data: { sectionId: first!.id, rank: await rankAtEnd(ctx.tx, first!.id) },
+      });
     await ctx.tx.courseSection.delete({ where: { id } });
     return { id };
   },
