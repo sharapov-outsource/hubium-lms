@@ -1,6 +1,7 @@
 import { withClientIp } from '@hubium/core/client-ip';
 import { openDuringMaintenance } from '@hubium/core/system/maintenance';
 import { type NextRequest, NextResponse } from 'next/server';
+import { gateRedirect } from './server/gate';
 import { ltiOrigins } from './server/lti-origins';
 import { currentMaintenance, isSiteAdminRequest, maintenanceResponse } from './server/maintenance';
 import {
@@ -67,6 +68,7 @@ export async function proxy(req: NextRequest) {
     !pathname.startsWith('/_next') &&
     !/\.[a-z0-9]+$/i.test(pathname);
   let res: NextResponse;
+  let gate: string | null = null;
   if (!isPage) {
     res = NextResponse.next({ request: { headers } });
   } else if (pathname !== '/' && !PUBLIC.some((p) => pathname.startsWith(p)) && !hasSession) {
@@ -74,6 +76,13 @@ export async function proxy(req: NextRequest) {
     url.pathname = '/login';
     url.search = `?next=${encodeURIComponent(pathname + req.nextUrl.search)}`;
     res = NextResponse.redirect(url);
+  } else if (
+    hasSession &&
+    !PUBLIC.some((p) => pathname.startsWith(p)) &&
+    (gate = await gateRedirect(req))
+  ) {
+    // policies to accept, a password to change: nothing else until then, menu links included
+    res = NextResponse.redirect(new URL(gate, req.url));
   } else {
     const nonce = Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString('base64');
     const csp = buildCsp({

@@ -152,7 +152,7 @@ export default async function SecuritySettings({
                       {format.relativeTime(new Date(s.updatedAt))}
                     </p>
                   </div>
-                  {current ? null : <RevokeButtons token={s.token} label={t('revoke')} />}
+                  {current ? null : <RevokeButtons id={s.id} label={t('revoke')} />}
                 </li>
               );
             })}

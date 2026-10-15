@@ -1,9 +1,11 @@
 import 'server-only';
 import {
   type Actor,
+  accountGate,
   anonymousAccess,
   type Capability,
   clientIp,
+  gateError,
   isSwitchableRole,
   loadUserAccess,
   noteUserAccess,
@@ -38,6 +40,16 @@ export const getCurrentUser = cache(async () => {
 });
 
 export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
+
+/** Refuses while the signed-in person has a step to take first (accountGate). */
+export async function requireNoGate(): Promise<void> {
+  const ctx = await getContext();
+  // while logged in as someone, their steps stay theirs
+  if (ctx.actor.kind !== 'user' || ctx.actor.realUserId) return;
+  const user = await getCurrentUser();
+  const gate = user ? await accountGate(db, user) : null;
+  if (gate) throw gateError(gate);
+}
 
 export async function requireUser(): Promise<CurrentUser> {
   const user = await getCurrentUser();

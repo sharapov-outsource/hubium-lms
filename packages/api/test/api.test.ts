@@ -614,6 +614,25 @@ describe('REST API v1', () => {
     }
   });
 
+  it('serves no one who has a step to take first, as the site does', async () => {
+    const token = await mint(f.users.student2!, ['read']);
+    await t.db.user.update({
+      where: { id: f.users.student2! },
+      data: { mustChangePassword: true },
+    });
+    try {
+      const r = await call(token, '/me');
+      expect(r.status).toBe(403);
+      expect(await r.json()).toMatchObject({ code: 'GATE_PASSWORD' });
+    } finally {
+      await t.db.user.update({
+        where: { id: f.users.student2! },
+        data: { mustChangePassword: false },
+      });
+    }
+    expect((await call(token, '/me')).status).toBe(200);
+  });
+
   it('manages webhooks for administrators', async () => {
     type Hook = { id: string; secret?: string; enabled: boolean };
     const read = async <T>(r: Response | Promise<Response>) => (await (await r).json()) as T;

@@ -1,15 +1,23 @@
 import 'server-only';
 import { type ActionResult, toActionError, withActorScope } from '@hubium/core';
 import { APIError } from 'better-auth/api';
-import { getContext } from './session';
+import { getContext, requireNoGate } from './session';
 
 export type { ActionResult };
 
-/** Runs a server-action body and maps thrown errors to a serialisable result. */
-export async function runAction<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
+/**
+ * Runs a server-action body and maps thrown errors to a serialisable result. Someone with a
+ * step to take first (accountGate) is refused, except by the actions of that step's page
+ * (`duringGate`).
+ */
+export async function runAction<T>(
+  fn: () => Promise<T>,
+  opts: { duringGate?: boolean } = {},
+): Promise<ActionResult<T>> {
   try {
     // events logged by the action record who is really behind a "log in as" session
     const { actor } = await getContext();
+    if (!opts.duringGate) await requireNoGate();
     return { ok: true, data: await withActorScope(actor, fn) };
   } catch (e) {
     // Next.js uses thrown errors for redirect()/notFound(); let them through.

@@ -4,15 +4,7 @@ import { Button } from '@hubium/ui';
 import { useTransition } from 'react';
 import { revokeOtherSessionsAction, revokeSessionAction } from '@/server/actions/account';
 
-export function RevokeButtons({
-  token,
-  all,
-  label,
-}: {
-  token?: string;
-  all?: boolean;
-  label: string;
-}) {
+export function RevokeButtons({ id, all, label }: { id?: string; all?: boolean; label: string }) {
   const [pending, start] = useTransition();
   return (
     <Button
@@ -22,7 +14,7 @@ export function RevokeButtons({
       onClick={() =>
         start(
           async () =>
-            void (all ? await revokeOtherSessionsAction() : await revokeSessionAction(token!)),
+            void (all ? await revokeOtherSessionsAction() : await revokeSessionAction(id!)),
         )
       }
     >

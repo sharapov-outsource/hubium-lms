@@ -111,6 +111,14 @@ test('password policy: rules in the forms, refusals and expiry', async ({ page }
     await page.locator('form button[type=submit]').click();
     await page.waitForURL(/\/settings\/security\?required=password/);
     await expect(page.getByText('Срок действия вашего пароля истёк')).toBeVisible();
+    // the menu leads nowhere else until then, though its links do not reload the page
+    await Promise.all([
+      page.waitForResponse((r) => new URL(r.url()).pathname === '/my-courses'),
+      page.getByRole('link', { name: 'Мои курсы' }).first().click(),
+    ]);
+    await page.waitForLoadState('networkidle');
+    await expect(page).toHaveURL(/\/settings\/security\?required=password/);
+    await expect(page.getByText('Срок действия вашего пароля истёк')).toBeVisible();
     await expect(
       page.getByText('Не короче 12 символов; нужны: спецсимвол, например ! или %'),
     ).toBeVisible();

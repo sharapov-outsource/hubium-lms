@@ -1,4 +1,4 @@
-import { getSetting, hasMentees, hasReports, pendingPolicies } from '@hubium/core';
+import { accountGate, GATE_PAGES, getSetting, hasMentees, hasReports } from '@hubium/core';
 import { Alert } from '@hubium/ui';
 import { headers } from 'next/headers';
 import Link from 'next/link';
@@ -16,20 +16,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const ctx = await getContext();
   // While logged in as someone, their own obligations (policies, password, 2FA) stay theirs.
   const loggedInAs = ctx.actor.kind === 'user' && !!ctx.actor.realUserId;
-  // New mandatory policy versions must be accepted before anything else.
-  if (!loggedInAs && (await pendingPolicies(db, user.id)).length) redirect('/policies');
-  // A password set by an administrator must be replaced, and admins may be required to
-  // use two-factor sign-in: until then only the security settings are reachable.
+  // New mandatory policy versions, a password set by an administrator (or expired) and,
+  // when required, two-factor sign-in for administrators come before anything else; proxy.ts
+  // checks the same on every page, server actions and API tokens refuse until then.
   const path = (await headers()).get('x-hubium-path') ?? '';
-  if (!loggedInAs && path !== '/settings/security') {
-    if (user.mustChangePassword) redirect('/settings/security?required=password');
-    if (
-      user.isSiteAdmin &&
-      !user.twoFactorEnabled &&
-      (await getSetting(db, 'auth.require2faForAdmins'))
-    )
-      redirect('/settings/security?required=2fa');
-  }
+  const gate = loggedInAs ? null : await accountGate(db, user);
+  if (gate && path !== new URL(GATE_PAGES[gate], 'http://x').pathname) redirect(GATE_PAGES[gate]);
   const items: NavItem[] = [
     { href: '/dashboard', label: 'nav.dashboard', icon: 'home', mobile: true },
     { href: '/my-courses', label: 'nav.myCourses', icon: 'courses', mobile: true },

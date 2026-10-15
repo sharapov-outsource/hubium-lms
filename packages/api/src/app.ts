@@ -17,6 +17,7 @@ import {
   displayCalculations,
   enrolUsers,
   flattenTree,
+  gateError,
   getActivityAccess,
   getCategoryTree,
   getCourseAccess,
@@ -567,6 +568,8 @@ export function createApi(opts: ApiOptions) {
       return c.json({ code: 'UNAUTHENTICATED', message: 'Missing or invalid token' }, 401, {
         'WWW-Authenticate': 'Bearer',
       });
+    // policies to accept, a password to change: on the site first, as for its pages
+    if (r.gate) return c.json({ code: `GATE_${r.gate}`, message: gateError(r.gate).message }, 403);
     const rl = limiter(r.tokenId);
     c.header('X-RateLimit-Limit', String(rl.limit));
     c.header('X-RateLimit-Remaining', String(rl.remaining));

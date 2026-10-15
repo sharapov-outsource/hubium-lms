@@ -6,7 +6,9 @@ import { formToObject, runAction } from '../action';
 import { getContext } from '../session';
 
 export async function acceptPoliciesAction(versionIds: string[]) {
-  return runAction(async () => acceptPolicies(await getContext(), versionIds));
+  return runAction(async () => acceptPolicies(await getContext(), versionIds), {
+    duringGate: true,
+  });
 }
 
 export async function savePolicyAction(fd: FormData) {

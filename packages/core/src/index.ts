@@ -3,6 +3,7 @@ export * from './ai/index.ts';
 export * from './announcements/announcements.ts';
 export * from './api-tokens/tokens.ts';
 export * from './auth/devices.ts';
+export * from './auth/gate.ts';
 export * from './auth/ldap.ts';
 export * from './auth/lockout.ts';
 export * from './auth/password-policy.ts';

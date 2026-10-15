@@ -12,6 +12,7 @@ import { fromAcceptLanguage } from '@hubium/i18n';
 import { createTranslator } from '@hubium/i18n/packs';
 import type { NextRequest } from 'next/server';
 import { db } from './db';
+import { sessionToken } from './session-cookie';
 
 // Maintenance mode at the edge of the app (proxy.ts): the state is read at most every few
 // seconds, so turning it on or off from the CLI or another instance takes effect quickly.
@@ -49,9 +50,7 @@ const adminUser = { isSiteAdmin: true, status: 'ACTIVE', deletedAt: null } as co
  * "log in as" session (so that they can look around and come back).
  */
 export async function isSiteAdminRequest(req: NextRequest): Promise<boolean> {
-  const cookie = req.cookies.getAll().find((c) => c.name.endsWith('hubium.session_token'));
-  // the cookie holds "<token>.<signature>"; the token alone finds the session
-  const token = cookie ? decodeURIComponent(cookie.value).split('.')[0] : '';
+  const token = sessionToken(req.cookies.getAll());
   if (!token) return false;
   const session = await db.session
     .findFirst({

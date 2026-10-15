@@ -3,6 +3,7 @@ import type { Db } from '@hubium/db';
 import type { Locale } from '@hubium/i18n';
 import { z } from 'zod';
 import { loadUserAccess, Permissions } from '../access/permissions.ts';
+import { type AccountGate, accountGate } from '../auth/gate.ts';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
@@ -101,7 +102,13 @@ export async function authenticateApiToken(
   db: Db,
   raw: string,
   meta: { ip?: string | null; locale?: Locale; now?: Date } = {},
-): Promise<{ ctx: RequestContext; scopes: ApiScope[]; tokenId: string } | null> {
+): Promise<{
+  ctx: RequestContext;
+  scopes: ApiScope[];
+  tokenId: string;
+  /** A step the owner has to take on the site first: the token serves nothing until then. */
+  gate: AccountGate | null;
+} | null> {
   if (!raw.startsWith(PREFIX) || raw.length > 200) return null;
   const now = meta.now ?? new Date();
   const t = await db.apiToken.findUnique({
@@ -126,6 +133,7 @@ export async function authenticateApiToken(
   const locale = [meta.locale, u.locale].find((l): l is Locale => !!l && enabled.includes(l));
   return {
     tokenId: t.id,
+    gate: await accountGate(db, u),
     scopes: t.scopes.filter((s): s is ApiScope => (API_SCOPES as readonly string[]).includes(s)),
     ctx: {
       db,
