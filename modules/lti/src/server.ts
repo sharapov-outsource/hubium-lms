@@ -42,7 +42,7 @@ export * from './protocol.ts';
 const LineItem = z.object({
   n: z.number().int().min(1),
   label: z.string().max(255),
-  scoreMaximum: z.number().positive(),
+  scoreMaximum: z.number().positive().max(10_000),
   resourceId: z.string().max(255).default(''),
   tag: z.string().max(255).default(''),
 });
@@ -58,7 +58,8 @@ export const LtiSettings = z.object({
   /** Set by Deep Linking: the launch URL of the chosen content. */
   contentUrl: z.string().max(2000).default(''),
   contentTitle: z.string().max(255).default(''),
-  lineItems: z.array(LineItem).default([]),
+  /** Columns the tool added over AGS (the default one is the activity's own). */
+  lineItems: z.array(LineItem).max(100).default([]),
 });
 
 export type LtiSettingsT = z.output<typeof LtiSettings>;
@@ -449,12 +450,21 @@ async function handleAgs(ctx: ModuleCtx, req: Request, activityId: string, rest:
   const tool = await bearer(ctx.db, req, needs);
   if (!tool || tool.id !== found.tool.id) return fail(401, 'Invalid token');
   const items = lineItemsOf(act, s);
-  const saveSettings = async (next: LtiSettingsT) => {
+  // What the tool writes is held to the settings' schema, as a teacher's form is: settings
+  // that do not parse would stop the activity launching for everyone. The tool is told why.
+  const saveSettings = async (next: LtiSettingsT): Promise<Response | null> => {
+    const parsed = LtiSettings.safeParse(next);
+    if (!parsed.success)
+      return fail(
+        400,
+        parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; '),
+      );
     await ctx.db.activity.update({
       where: { id: act.id },
-      data: { settings: next as unknown as Prisma.InputJsonValue },
+      data: { settings: parsed.data as unknown as Prisma.InputJsonValue },
     });
     await ctx.grades.syncItems(act.id);
+    return null;
   };
 
   if (!rest.length) {
@@ -483,7 +493,8 @@ async function handleAgs(ctx: ModuleCtx, req: Request, activityId: string, rest:
         resourceId: String(body.resourceId ?? ''),
         tag: String(body.tag ?? ''),
       };
-      await saveSettings({ ...s, lineItems: [...s.lineItems, li] });
+      const refused = await saveSettings({ ...s, lineItems: [...s.lineItems, li] });
+      if (refused) return refused;
       return json(lineItemJson(act, li), 201, 'application/vnd.ims.lis.v2.lineitem+json');
     }
     return fail(405, 'Method not allowed');
@@ -498,11 +509,12 @@ async function handleAgs(ctx: ModuleCtx, req: Request, activityId: string, rest:
       return json(lineItemJson(act, li), 200, 'application/vnd.ims.lis.v2.lineitem+json');
     if (req.method === 'PUT') {
       const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+      let refused: Response | null;
       if (n === 0) {
         const max = Number(body.scoreMaximum);
-        await saveSettings({ ...s, gradeMax: max > 0 ? max : s.gradeMax });
+        refused = await saveSettings({ ...s, gradeMax: max > 0 ? max : s.gradeMax });
       } else {
-        await saveSettings({
+        refused = await saveSettings({
           ...s,
           lineItems: s.lineItems.map((x) =>
             x.n === n
@@ -516,6 +528,7 @@ async function handleAgs(ctx: ModuleCtx, req: Request, activityId: string, rest:
           ),
         });
       }
+      if (refused) return refused;
       const fresh = lineItemsOf(act, (await loadLti(ctx.db, act.id))!.settings).find(
         (x) => x.n === n,
       )!;
@@ -523,7 +536,11 @@ async function handleAgs(ctx: ModuleCtx, req: Request, activityId: string, rest:
     }
     if (req.method === 'DELETE') {
       if (n === 0) return fail(400, 'The default line item cannot be deleted');
-      await saveSettings({ ...s, lineItems: s.lineItems.filter((x) => x.n !== n) });
+      const refused = await saveSettings({
+        ...s,
+        lineItems: s.lineItems.filter((x) => x.n !== n),
+      });
+      if (refused) return refused;
       return new Response(null, { status: 204 });
     }
     return fail(405, 'Method not allowed');

@@ -224,6 +224,22 @@ describe('mod-lti (LTI 1.3 platform)', () => {
       endpoint(`ags/${ltiId}/lineitems/1`),
     );
     expect(await t.db.gradeItem.count({ where: { activityId: ltiId } })).toBe(2);
+    // what the settings cannot hold is refused, and the activity still launches
+    for (const [method, path, body] of [
+      ['PUT', 'lineitems/0', { scoreMaximum: 20_000 }],
+      ['POST', 'lineitems', { label: 'Огромный', scoreMaximum: 50_000 }],
+    ] as const)
+      expect(
+        (
+          await http('anon', method, `ags/${ltiId}/${path}`, {
+            headers: auth,
+            body: JSON.stringify(body),
+          })
+        ).status,
+      ).toBe(400);
+    expect(
+      (await t.db.activity.findUniqueOrThrow({ where: { id: ltiId } })).settings,
+    ).toMatchObject({ gradeMax: 100 });
     const list = (await (
       await http('anon', 'GET', `ags/${ltiId}/lineitems?tag=quiz`, { headers: auth })
     ).json()) as unknown[];
