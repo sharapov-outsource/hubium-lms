@@ -10,6 +10,7 @@ import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { separateGroupsOf } from '../groups/visibility.ts';
+import { enqueue } from '../jobs/jobs.ts';
 import { writeOds } from '../lib/sheets.ts';
 import { writeXlsx } from '../lib/xlsx.ts';
 import { optionalText } from '../lib/zod.ts';
@@ -158,11 +159,52 @@ export async function recomputeAllTotals(tx: Tx, courseId: string): Promise<void
     select: { userId: true },
     distinct: ['userId'],
   });
-  await recomputeCourseTotals(
+  await recomputeTotalsOf(
     tx,
     courseId,
     users.map((u) => u.userId),
   );
+}
+
+/** Worker job: everyone's totals in a course, a batch at a time (see recalcCourseTotals). */
+export const GRADES_RECALC_JOB = 'grades.recalc.course';
+/** Up to this many people the totals are worked out at once, in the change's transaction. */
+const TOTALS_AT_ONCE = 200;
+
+/**
+ * Totals of these people after a change: at once for a few, by the worker for more (a
+ * change of the course's categories, items or formulas touches everyone, and thousands
+ * in one transaction would outlast it). The worker's run covers the whole course.
+ */
+export async function recomputeTotalsOf(tx: Tx, courseId: string, userIds: string[]) {
+  if (userIds.length <= TOTALS_AT_ONCE) return recomputeCourseTotals(tx, courseId, userIds);
+  await enqueue(
+    GRADES_RECALC_JOB,
+    { courseId },
+    {
+      tx: tx as Prisma.TransactionClient,
+      singletonKey: courseId,
+      singletonSeconds: 30,
+      singletonNextSlot: true,
+    },
+  );
+}
+
+/** The worker's part: everyone enrolled, TOTALS_AT_ONCE people to a transaction. */
+export async function recalcCourseTotals(db: Db, courseId: string): Promise<number> {
+  const users = (
+    await db.enrolment.findMany({
+      where: { courseId },
+      select: { userId: true },
+      distinct: ['userId'],
+    })
+  ).map((u) => u.userId);
+  for (let i = 0; i < users.length; i += TOTALS_AT_ONCE)
+    await db.$transaction(
+      (tx) => recomputeCourseTotals(tx, courseId, users.slice(i, i + TOTALS_AT_ONCE)),
+      { timeout: 60_000 },
+    );
+  return users.length;
 }
 
 /** Writes one grade (respecting locks and overrides) and records it in the history. */
@@ -299,8 +341,14 @@ export async function recomputeCourseTotals(
     }),
   ]);
   const calculated = await calculationPlan(tx, categories, items);
+  const byUser = new Map<string, GradeRow[]>();
+  for (const g of grades) {
+    const list = byUser.get(g.userId);
+    if (list) list.push(g);
+    else byUser.set(g.userId, [g]);
+  }
   for (const userId of userIds) {
-    const mine: GradeRow[] = grades.filter((g) => g.userId === userId);
+    const mine: GradeRow[] = byUser.get(userId) ?? [];
     // calculated items first, each after what it uses, then the total over everything
     for (const item of calculated) {
       const value = calculate(item.calculation!, (r) => {
@@ -465,7 +513,7 @@ export async function setActivityGrades(
       { source: 'module', changedById: g.gradedById },
     );
   }
-  await recomputeCourseTotals(tx, a.courseId, [...new Set(grades.map((g) => g.userId))]);
+  await recomputeTotalsOf(tx, a.courseId, [...new Set(grades.map((g) => g.userId))]);
 }
 
 provideModuleServices({
@@ -741,7 +789,7 @@ export const updateGradeItem = defineOperation({
       where: { courseId: item.courseId },
       select: { userId: true },
     });
-    await recomputeCourseTotals(ctx.tx, item.courseId, [...new Set(users.map((u) => u.userId))]);
+    await recomputeTotalsOf(ctx.tx, item.courseId, [...new Set(users.map((u) => u.userId))]);
     return { id };
   },
 });
@@ -768,7 +816,7 @@ export const deleteManualItem = defineOperation({
       where: { courseId: item.courseId },
       select: { userId: true },
     });
-    await recomputeCourseTotals(ctx.tx, item.courseId, [...new Set(users.map((u) => u.userId))]);
+    await recomputeTotalsOf(ctx.tx, item.courseId, [...new Set(users.map((u) => u.userId))]);
     return { id };
   },
 });
@@ -867,7 +915,7 @@ const AGGREGATIONS = ['NATURAL', 'MEAN', 'WEIGHTED_MEAN', 'HIGHEST', 'LOWEST', '
 
 async function recomputeEveryone(tx: Tx, courseId: string) {
   const users = await tx.enrolment.findMany({ where: { courseId }, select: { userId: true } });
-  await recomputeCourseTotals(tx, courseId, [...new Set(users.map((u) => u.userId))]);
+  await recomputeTotalsOf(tx, courseId, [...new Set(users.map((u) => u.userId))]);
 }
 
 /** Ids of a category and everything below it. */

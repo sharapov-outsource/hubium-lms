@@ -33,6 +33,7 @@ import { purgeRecycleBin } from '@hubium/core/courses/recyclebin';
 import { pruneEventLog } from '@hubium/core/events/prune';
 import { garbageCollectBlobs, reconcileBlobObjects } from '@hubium/core/files/files';
 import { cleanupUploads } from '@hubium/core/files/uploads';
+import { GRADES_RECALC_JOB, recalcCourseTotals } from '@hubium/core/grades/gradebook';
 import { deliverMail } from '@hubium/core/mail/mail';
 import {
   deliverNotifications,
@@ -169,6 +170,12 @@ export const coreHandlers: JobHandlerDef[] = [
     name: COMPLETION_RECOMPUTE_JOB,
     async handler(data: { activityId: string }, { db }) {
       return { users: await recomputeActivityForAll(db, data.activityId) };
+    },
+  },
+  {
+    name: GRADES_RECALC_JOB,
+    async handler(data: { courseId: string }, { db }) {
+      return { users: await recalcCourseTotals(db, data.courseId) };
     },
   },
   {

@@ -8,12 +8,7 @@ import { logEvent } from '../events/log.ts';
 import { readSheet } from '../lib/sheets.ts';
 import { defineOperation } from '../operation.ts';
 import { parseCsv } from '../users/users.ts';
-import {
-  gradeLocked,
-  decimalToNumber as num,
-  recomputeCourseTotals,
-  writeGrade,
-} from './gradebook.ts';
+import { gradeLocked, decimalToNumber as num, recomputeTotalsOf, writeGrade } from './gradebook.ts';
 import { scaleValue } from './scales.ts';
 
 // Importing grades from a spreadsheet (CSV, XLSX or ODS), as Moodle's import: the first
@@ -259,7 +254,7 @@ async function applyRows(
       touched.add(r.user.id);
     }
   }
-  await recomputeCourseTotals(tx, courseId, [...touched]);
+  await recomputeTotalsOf(tx, courseId, [...touched]);
   await logEvent(tx, {
     name: 'grade.imported',
     actorId: changedById,
