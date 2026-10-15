@@ -617,12 +617,15 @@ export async function searchMessageableUsers(
   const term = q.trim();
   if (term.length < 2) return [];
   const like = { contains: term, mode: Prisma.QueryMode.insensitive };
+  const exact = { equals: term, mode: Prisma.QueryMode.insensitive };
+  // by name; an address or login only whole, or a piece of one would tell it letter by
+  // letter to someone who never sees addresses
   const candidates = await ctx.db.user.findMany({
     where: {
       id: { not: self },
       status: 'ACTIVE',
       kind: 'PERSON',
-      OR: [{ name: like }, { email: like }, { username: like }],
+      OR: [{ name: like }, { email: exact }, { username: exact }],
     },
     select: { id: true, name: true, image: true },
     orderBy: { name: 'asc' },

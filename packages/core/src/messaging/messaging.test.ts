@@ -123,6 +123,14 @@ describe('messaging', () => {
     expect((await canMessage(t.db, { id: outsider.id }, f.users.student3!)).ok).toBe(true);
     const found = await searchMessageableUsers(await as(outsider.id), 'Иванов');
     expect(found.map((u) => u.id)).toContain(f.users.student3);
+    // addresses are not shown to learners, so a piece of one finds nobody; the whole
+    // address or login does
+    const ids = async (q: string) =>
+      (await searchMessageableUsers(await as(outsider.id), q)).map((u) => u.id);
+    for (const piece of ['student3@hub', 'udent3', '@hubium.local'])
+      expect(await ids(piece)).not.toContain(f.users.student3);
+    expect(await ids('student3@hubium.local')).toContain(f.users.student3);
+    expect(await ids('student3')).toContain(f.users.student3);
   });
 
   it('blocking stops delivery in both directions', async () => {
