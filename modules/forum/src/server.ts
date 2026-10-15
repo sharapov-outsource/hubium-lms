@@ -684,7 +684,21 @@ export const forum = defineModule<ForumSettingsT>({
       return { posts, ratingsGiven, grades };
     },
     async erase(ctx, userId) {
-      // Keep thread structure for other participants; drop the author's words.
+      // Keep thread structure for other participants; drop the author's words and files.
+      const posts = await ctx.db.forumPost.findMany({
+        where: { authorId: userId },
+        select: { id: true, discussion: { select: { activityId: true } } },
+      });
+      for (const p of posts) {
+        const files = await ctx.files.list(p.discussion.activityId, 'attachment', p.id);
+        if (files.length)
+          await ctx.files.remove(
+            p.discussion.activityId,
+            'attachment',
+            files.map((f) => f.id),
+            p.id,
+          );
+      }
       await ctx.db.forumPost.updateMany({
         where: { authorId: userId },
         data: { contentHtml: '', deletedAt: ctx.now },

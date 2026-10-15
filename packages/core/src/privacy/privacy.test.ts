@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { createApiToken } from '../api-tokens/tokens.ts';
+import { resetFeedToken, userForFeedToken } from '../calendar/calendar.ts';
 import { openDirectConversation, sendMessage } from '../messaging/messaging.ts';
 import { runModuleAction } from '../modules/actions.ts';
+import { buildModuleCtx } from '../modules/module-ctx.ts';
 import { deleteUser } from '../users/users.ts';
 import {
   acceptPolicies,
@@ -78,14 +80,85 @@ describe('privacy', () => {
         model: 'mock',
       },
     });
+    // sign-in records, second factor and links that work without signing in
+    await t.db.knownDevice.create({
+      data: {
+        userId: victim,
+        fingerprint: 'f'.repeat(64),
+        label: 'Firefox, Linux',
+        lastIp: '203.0.113.7',
+      },
+    });
+    await t.db.session.create({
+      data: {
+        userId: victim,
+        token: 'victim-session',
+        expiresAt: new Date(Date.now() + 86_400_000),
+        ipAddress: '203.0.113.7',
+        userAgent: 'Firefox',
+      },
+    });
+    await t.db.twoFactor.create({ data: { userId: victim, secret: 'x', backupCodes: 'y' } });
+    await t.db.recoveryPassphrase.create({ data: { userId: victim, name: 'Сейф', hash: 'h' } });
+    await t.db.passwordHistory.create({ data: { userId: victim, hash: 'old-hash' } });
+    await t.db.verification.create({
+      data: {
+        identifier: 'reset-password:abc',
+        value: victim,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+    const feed = await resetFeedToken(t.db, victim);
+    // files of a forum post, a workshop submission and a database entry
+    const sys = buildModuleCtx(await ctxFor(t.db, 'system'));
+    const post = await t.db.forumPost.findFirstOrThrow({ where: { authorId: victim } });
+    await sys.files.store(forum.id, 'attachment', {
+      name: 'p.txt',
+      data: Buffer.from('p'),
+      itemId: post.id,
+    });
+    const workshop = await f.addActivity('workshop', 'Семинар', {});
+    const work = await t.db.workshopSubmission.create({
+      data: { activityId: workshop.id, authorId: victim, title: 'Моя работа' },
+    });
+    await sys.files.store(workshop.id, 'submission', {
+      name: 'w.txt',
+      data: Buffer.from('w'),
+      itemId: work.id,
+    });
+    const data = await f.addActivity('data', 'База', {});
+    const entry = await t.db.dataRecord.create({ data: { activityId: data.id, userId: victim } });
+    await sys.files.store(data.id, 'content', {
+      name: 'd.txt',
+      data: Buffer.from('d'),
+      itemId: entry.id,
+    });
+    const files = { component: { in: ['mod.forum', 'mod.workshop', 'mod.data'] } };
+    expect(await t.db.file.count({ where: files })).toBe(3);
+
     const exported = await exportUserData(s3, victim);
     expect(exported.ai.gradingSuggestions[0]).toMatchObject({ feedbackDraft: 'Черновик отзыва' });
     expect(exported.pushDevices).toHaveLength(1);
+    expect(exported.knownDevices).toEqual([expect.objectContaining({ lastIp: '203.0.113.7' })]);
+    expect(exported.sessions).toEqual([expect.objectContaining({ ipAddress: '203.0.113.7' })]);
+    expect(JSON.stringify(exported.sessions)).not.toContain('victim-session');
 
     const admin = await ctxFor(t.db, 'admin@test.local');
     await deleteUser.run(admin, { id: victim });
     expect(await t.db.gradingSuggestion.count({ where: { userId: victim } })).toBe(0);
     expect(await t.db.pushSubscription.count({ where: { userId: victim } })).toBe(0);
+    for (const n of [
+      await t.db.knownDevice.count({ where: { userId: victim } }),
+      await t.db.twoFactor.count({ where: { userId: victim } }),
+      await t.db.recoveryPassphrase.count({ where: { userId: victim } }),
+      await t.db.passwordHistory.count({ where: { userId: victim } }),
+      await t.db.calendarFeedToken.count({ where: { userId: victim } }),
+      await t.db.verification.count({ where: { value: victim } }),
+      await t.db.roleAssignment.count({ where: { userId: victim } }),
+      await t.db.file.count({ where: files }),
+    ])
+      expect(n).toBe(0);
+    expect(await userForFeedToken(t.db, feed)).toBeNull();
 
     const u = await t.db.user.findUniqueOrThrow({ where: { id: victim } });
     expect(u).toMatchObject({ status: 'DELETED', username: null });

@@ -358,6 +358,7 @@ export const deleteUser = defineOperation({
         lastName: 'user',
         image: null,
         customFields: {},
+        twoFactorEnabled: false,
       },
     });
     await logEvent(ctx.tx, {

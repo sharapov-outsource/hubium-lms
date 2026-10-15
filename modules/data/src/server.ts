@@ -555,6 +555,20 @@ export const data = defineModule<DataSettingsT>({
     },
     async erase(ctx, userId) {
       await ctx.db.dataRating.deleteMany({ where: { raterId: userId } });
+      const records = await ctx.db.dataRecord.findMany({
+        where: { userId },
+        select: { id: true, activityId: true },
+      });
+      for (const r of records) {
+        const files = await ctx.files.list(r.activityId, 'content', r.id);
+        if (files.length)
+          await ctx.files.remove(
+            r.activityId,
+            'content',
+            files.map((f) => f.id),
+            r.id,
+          );
+      }
       await ctx.db.dataRecord.deleteMany({ where: { userId } });
     },
   },

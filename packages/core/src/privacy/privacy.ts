@@ -56,6 +56,8 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
     log,
     suggestions,
     devices,
+    knownDevices,
+    sessions,
     relations,
   ] = await Promise.all([
     db.enrolment.findMany({
@@ -140,6 +142,14 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
     db.pushSubscription.findMany({
       where: { userId },
       select: { userAgent: true, createdAt: true, lastUsedAt: true },
+    }),
+    db.knownDevice.findMany({
+      where: { userId },
+      select: { label: true, lastIp: true, firstSeenAt: true, lastSeenAt: true },
+    }),
+    db.session.findMany({
+      where: { userId },
+      select: { ipAddress: true, userAgent: true, createdAt: true, expiresAt: true },
     }),
     // mentors and parents who follow the user, and the users they follow
     db.userRelation.findMany({
@@ -265,6 +275,8 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
       files: files.map((f) => ({ ...f, size: Number(f.size) })),
       ai: { tutorConversations: tutor, consents: aiConsents, gradingSuggestions: suggestions },
       pushDevices: devices,
+      knownDevices,
+      sessions,
       policies,
       apiTokens: tokens,
       mentors: relations
@@ -319,6 +331,16 @@ export async function erasePersonalData(
     data: { body: '', deletedAt: ctx.now },
   });
   await tx.userBlock.deleteMany({ where: { OR: [{ userId }, { blockedUserId: userId }] } });
+  // where and how they signed in, their second factor and the links that work without
+  // signing in (calendar feed, password reset, unlock)
+  await tx.knownDevice.deleteMany({ where: { userId } });
+  await tx.twoFactor.deleteMany({ where: { userId } });
+  await tx.recoveryPassphrase.deleteMany({ where: { userId } });
+  await tx.passwordHistory.deleteMany({ where: { userId } });
+  await tx.calendarFeedToken.deleteMany({ where: { userId } });
+  await tx.verification.deleteMany({ where: { value: userId } });
+  // no roles anywhere: course statistics read grades, not roles
+  await tx.roleAssignment.deleteMany({ where: { userId } });
   // the account row stays (anonymised), so its relations do not go with it by cascade
   await tx.userRelation.deleteMany({ where: { OR: [{ mentorId: userId }, { menteeId: userId }] } });
   const mctx = buildModuleCtx(ctx, tx);

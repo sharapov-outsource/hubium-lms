@@ -534,6 +534,20 @@ export const workshop = defineModule<WorkshopSettingsT>({
     },
     async erase(ctx, userId) {
       await ctx.db.workshopAssessment.deleteMany({ where: { reviewerId: userId } });
+      const subs = await ctx.db.workshopSubmission.findMany({
+        where: { authorId: userId },
+        select: { id: true, activityId: true },
+      });
+      for (const s of subs) {
+        const files = await ctx.files.list(s.activityId, 'submission', s.id);
+        if (files.length)
+          await ctx.files.remove(
+            s.activityId,
+            'submission',
+            files.map((f) => f.id),
+            s.id,
+          );
+      }
       await ctx.db.workshopSubmission.deleteMany({ where: { authorId: userId } });
     },
   },

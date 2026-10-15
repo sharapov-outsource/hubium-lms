@@ -160,9 +160,13 @@ export async function resetFeedToken(db: Tx, userId: string): Promise<string> {
   return token;
 }
 
+/** Whose feed a token opens: an active account's only. */
 export async function userForFeedToken(db: Tx, token: string): Promise<string | null> {
-  const row = await db.calendarFeedToken.findUnique({ where: { tokenHash: sha256Hex(token) } });
-  return row?.userId ?? null;
+  const row = await db.calendarFeedToken.findUnique({
+    where: { tokenHash: sha256Hex(token) },
+    select: { user: { select: { id: true, status: true, deletedAt: true } } },
+  });
+  return row && row.user.status === 'ACTIVE' && !row.user.deletedAt ? row.user.id : null;
 }
 
 function icsDate(d: Date, allDay = false): string {
