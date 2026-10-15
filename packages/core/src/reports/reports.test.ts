@@ -378,13 +378,42 @@ describe('custom reports', () => {
     await expect(viewReport(await ctxFor(t.db, student3.id), id, {})).rejects.toBeInstanceOf(
       ForbiddenError,
     );
+    const manager = await role('manager');
     await saveReport.run(admin, {
       id,
       name: 'Всем вошедшим?',
-      audiences: { roleIds: [user.id, guest.id, student.id] },
+      audiences: { roleIds: [user.id, guest.id, student.id, manager.id] },
     });
+    // roles held across the site only: a course role would open the whole site's data to
+    // every assistant of any course, and stay after their enrolment ended
     const r = await t.db.customReport.findUniqueOrThrow({ where: { id } });
-    expect((r.audiences as AudiencesT).roleIds).toEqual([student.id]);
+    expect((r.audiences as AudiencesT).roleIds).toEqual([manager.id]);
+  });
+
+  it('opens a report to a role held across the site, not in some course', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    // a teacher of some course, holding the role there only
+    const course = await t.db.course.findFirstOrThrow({ where: { deletedAt: null } });
+    const teacher = await t.db.user.findFirstOrThrow({ where: { username: 'assistant' } });
+    const teacherRole = await t.db.role.findFirstOrThrow({
+      where: { shortName: 'editingteacher' },
+    });
+    const { id } = await saveReport.run(admin, {
+      name: 'Оценки',
+      source: 'users',
+      columns: [{ field: 'user.fullName' }],
+    });
+    // stored before roles were checked when saved
+    await t.db.customReport.update({
+      where: { id },
+      data: { audiences: { all: false, roleIds: [teacherRole.id], cohortIds: [], userIds: [] } },
+    });
+    await t.db.roleAssignment.create({
+      data: { userId: teacher.id, roleId: teacherRole.id, contextId: course.id },
+    });
+    await expect(viewReport(await ctxFor(t.db, teacher.id), id, {})).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
   });
 
   it('works out the next run in the site time zone', () => {

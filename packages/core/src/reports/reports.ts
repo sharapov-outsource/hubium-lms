@@ -1,4 +1,10 @@
-import { type CustomReport, type Db, Prisma, type ReportSchedule } from '@hubium/db';
+import {
+  type CustomReport,
+  type Db,
+  Prisma,
+  type ReportSchedule,
+  SYSTEM_CONTEXT_ID,
+} from '@hubium/db';
 import { createTranslator } from '@hubium/i18n/packs';
 import { fromZonedValue, toZonedValue } from '@hubium/module-sdk/zoned';
 import { z } from 'zod';
@@ -105,10 +111,16 @@ export const saveReport = defineOperation({
       throw new ValidationError({ columns: [m] }, m);
     }
     const audiences = Audiences.parse(i.audiences ?? old?.audiences ?? {});
-    // the implicit roles (guest, authenticated user) are never assigned: they let nobody in
+    // roles held across the site (as Moodle's report audiences): a course role would open
+    // the whole site's data to anyone teaching some course; the implicit roles (guest,
+    // authenticated user) are never assigned at all
     if (audiences.roleIds.length) {
       const held = await ctx.tx.role.findMany({
-        where: { id: { in: audiences.roleIds }, isProtected: false },
+        where: {
+          id: { in: audiences.roleIds },
+          isProtected: false,
+          assignableLevels: { has: 'SYSTEM' },
+        },
         select: { id: true },
       });
       audiences.roleIds = audiences.roleIds.filter((id) => held.some((r) => r.id === id));
@@ -178,7 +190,9 @@ export const duplicateReport = defineOperation({
 async function inAudience(db: Tx, a: AudiencesT, userId: string): Promise<boolean> {
   if (a.all || a.userIds.includes(userId)) return true;
   if (a.roleIds.length) {
-    const n = await db.roleAssignment.count({ where: { userId, roleId: { in: a.roleIds } } });
+    const n = await db.roleAssignment.count({
+      where: { userId, roleId: { in: a.roleIds }, contextId: SYSTEM_CONTEXT_ID },
+    });
     if (n) return true;
   }
   if (a.cohortIds.length) {
@@ -503,7 +517,7 @@ async function recipients(db: Tx, s: ReportSchedule, r: CustomReport) {
     for (const u of a.userIds) ids.add(u);
     if (a.roleIds.length)
       for (const x of await db.roleAssignment.findMany({
-        where: { roleId: { in: a.roleIds } },
+        where: { roleId: { in: a.roleIds }, contextId: SYSTEM_CONTEXT_ID },
         select: { userId: true },
         distinct: ['userId'],
       }))
