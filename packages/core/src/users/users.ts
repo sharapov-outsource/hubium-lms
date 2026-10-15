@@ -1,4 +1,5 @@
 import { type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
+import { parseCsv } from '@hubium/module-sdk/csv';
 import { hashPassword } from 'better-auth/crypto';
 import { z } from 'zod';
 import { unlockAccount } from '../auth/lockout.ts';
@@ -407,43 +408,7 @@ export const assignSystemRole = defineOperation({
 
 // ── CSV bulk upload ────────────────────────────────────────────────────────────
 
-/** Minimal RFC 4180 CSV parser (quotes, escaped quotes, CRLF). Separator auto-detected (, or ;). */
-export function parseCsv(text: string): string[][] {
-  const src = text.replace(/^﻿/, '');
-  const firstLine = src.split(/\r?\n/, 1)[0] ?? '';
-  const sep =
-    (firstLine.match(/;/g)?.length ?? 0) > (firstLine.match(/,/g)?.length ?? 0) ? ';' : ',';
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = '';
-  let quoted = false;
-  for (let i = 0; i < src.length; i++) {
-    const ch = src[i]!;
-    if (quoted) {
-      if (ch === '"') {
-        if (src[i + 1] === '"') {
-          field += '"';
-          i++;
-        } else quoted = false;
-      } else field += ch;
-      continue;
-    }
-    if (ch === '"') quoted = true;
-    else if (ch === sep) {
-      row.push(field);
-      field = '';
-    } else if (ch === '\n' || ch === '\r') {
-      if (ch === '\r' && src[i + 1] === '\n') i++;
-      row.push(field);
-      field = '';
-      if (row.some((f) => f.trim() !== '')) rows.push(row);
-      row = [];
-    } else field += ch;
-  }
-  row.push(field);
-  if (row.some((f) => f.trim() !== '')) rows.push(row);
-  return rows;
-}
+export { parseCsv };
 
 export interface BulkUploadResult {
   created: number;
