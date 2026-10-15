@@ -136,6 +136,20 @@ export interface RetrievedChunk {
   score: number;
 }
 
+let iterative: Promise<boolean> | undefined;
+
+/** Whether pgvector scans an HNSW index iteratively (0.8 and later), asked once. */
+function iterativeScan(db: Db): Promise<boolean> {
+  iterative ??= db.$queryRaw<{ v: string }[]>`
+    SELECT extversion AS v FROM pg_extension WHERE extname = 'vector'`
+    .then(([row]) => {
+      const [major = 0, minor = 0] = (row?.v ?? '0').split('.').map(Number);
+      return major > 0 || minor >= 8;
+    })
+    .catch(() => false);
+  return iterative;
+}
+
 /**
  * Hybrid retrieval restricted to `activityIds` (plus the course summary): vector
  * similarity when embeddings are configured, full-text otherwise, merged with reciprocal
@@ -166,12 +180,21 @@ export async function retrieveChunks(
   if (embedder) {
     const [q] = await embedder.embed([query], 'query');
     const vec = `[${q!.join(',')}]`;
-    const near = await db.$queryRaw<{ id: string }[]>`
+    const nearest = (tx: Prisma.TransactionClient | Db) => tx.$queryRaw<{ id: string }[]>`
       SELECT "id" FROM "ContentChunk"
       WHERE "courseId" = ${courseId}::uuid AND ${allowed}
         AND "embedding" IS NOT NULL AND "embeddingModel" = ${embedder.model}
       ORDER BY "embedding" <=> ${vec}::vector
       LIMIT ${k * 3}`;
+    // The HNSW index finds the nearest vectors of the whole site and the course filter comes
+    // after: with many courses that leaves few or none. An iterative scan (pgvector 0.8)
+    // goes on until enough of the course's are found.
+    const near = (await iterativeScan(db))
+      ? await db.$transaction(async (tx) => {
+          await tx.$executeRaw`SET LOCAL hnsw.iterative_scan = strict_order`;
+          return nearest(tx);
+        })
+      : await nearest(db);
     lists.push(near);
   }
 
