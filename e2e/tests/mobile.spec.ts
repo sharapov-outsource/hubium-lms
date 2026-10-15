@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { setSetting, sql } from './db';
 import { ADMIN, DEMO_PASSWORD, expectNoSideScroll, login } from './helpers';
 
@@ -112,4 +112,18 @@ test('sign-in and security administration fit 375 px', async ({ page }) => {
     '/admin/cohorts',
   ])
     await expectNoSideScroll(page, path);
+});
+
+test('every item of the main menu is reachable on a phone', async ({ page }) => {
+  await login(page, ADMIN.login, ADMIN.password);
+  await page.goto('/dashboard');
+  // the bottom bar holds the main few: the rest are behind the menu button
+  await page.getByRole('button', { name: 'Открыть меню' }).click();
+  const menu = page.getByRole('dialog').getByRole('navigation', { name: 'Основная навигация' });
+  for (const item of ['Каталог', 'Отчёты', 'Администрирование'])
+    await expect(menu.getByRole('link', { name: item })).toBeVisible();
+  await menu.getByRole('link', { name: 'Каталог' }).click();
+  await page.waitForURL(/\/catalog/);
+  // the menu closes on the page it led to
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });

@@ -14,6 +14,7 @@ import { SiteLogo } from '@/components/site-logo';
 import { buildInfo } from '@/lib/build-info';
 import { db } from '@/server/db';
 import type { CurrentUser } from '@/server/session';
+import { MobileMenu } from './mobile-menu';
 import { type NavItem, navIcon } from './nav-items';
 import { NavLink } from './nav-link';
 import { UserMenu } from './user-menu';
@@ -85,6 +86,23 @@ export async function AppShell({
           </aside>
           <div className="flex min-w-0 flex-col">
             <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background/90 px-4 backdrop-blur sm:px-6">
+              <MobileMenu
+                label={t('nav.openMenu')}
+                title={t('nav.main')}
+                closeLabel={t('common.close')}
+              >
+                {items.map((it) => (
+                  <NavLink
+                    key={it.href}
+                    href={it.href}
+                    icon={navIcon(it.icon)}
+                    label={t(it.label)}
+                    exact={it.exact}
+                    badge={it.badge}
+                    liveBadge={it.liveBadge}
+                  />
+                ))}
+              </MobileMenu>
               <div className="lg:hidden">
                 <SiteLogo
                   name={settings['site.name']}
