@@ -458,6 +458,20 @@ export const selfEnrol = defineOperation({
       data: { method: 'self', groupId },
       origin: ctx.origin,
     });
+    // the course's welcome, when it has one, by notification and email
+    if (method.welcome.trim()) {
+      const course = await ctx.tx.course.findUniqueOrThrow({
+        where: { id: courseId },
+        select: { fullName: true },
+      });
+      await notifyUsers(ctx.tx, [userId], {
+        type: 'enrol.enrolled',
+        title: { key: 'notifications.text.enrolled', values: { course: course.fullName } },
+        body: method.welcome.trim(),
+        url: `/course/${courseId}`,
+        courseId,
+      });
+    }
     return { courseId, welcome: method.welcome };
   },
 });

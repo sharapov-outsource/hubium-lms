@@ -56,8 +56,19 @@ describe('enrolment rules', () => {
       data: { status: 'SUSPENDED', endsAt: new Date(Date.now() - 1000) },
     });
     expect(await canView(f.users.student2!)).toBe(false);
+    await t.db.enrolmentMethod.updateMany({
+      where: { courseId: f.courseId, type: 'SELF' },
+      data: { welcome: 'Добро пожаловать! Начните с вводного раздела.' },
+    });
     await selfEnrol.run(await ctxFor(t.db, f.users.student2!), { courseId: f.courseId });
     expect(await canView(f.users.student2!)).toBe(true);
+    // the course's welcome reaches them
+    expect(
+      await t.db.notification.findFirst({
+        where: { userId: f.users.student2!, type: 'enrol.enrolled', courseId: f.courseId },
+        select: { body: true },
+      }),
+    ).toEqual({ body: 'Добро пожаловать! Начните с вводного раздела.' });
     // a second self enrolment is a conflict while the first one is current
     await expect(
       selfEnrol.run(await ctxFor(t.db, f.users.student2!), { courseId: f.courseId }),
