@@ -9,8 +9,19 @@ import { useState } from 'react';
 import { authClient } from '@/lib/auth-client';
 import { withIssuer } from '@/lib/totp-uri';
 
-/** `issuer`: the site name, shown for the account in authenticator apps. */
-export function TwoFactorPanel({ enabled, issuer }: { enabled: boolean; issuer: string }) {
+/**
+ * `issuer`: the site name, shown for the account in authenticator apps. Without a password
+ * here (`hasPassword` false) there is nothing to confirm with: a recent sign-in stands for it.
+ */
+export function TwoFactorPanel({
+  enabled,
+  issuer,
+  hasPassword,
+}: {
+  enabled: boolean;
+  issuer: string;
+  hasPassword: boolean;
+}) {
   const t = useTranslations('settings');
   const ta = useTranslations('auth');
   const tc = useTranslations('common');
@@ -24,13 +35,19 @@ export function TwoFactorPanel({ enabled, issuer }: { enabled: boolean; issuer: 
 
   async function submitPassword(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    await confirm(purpose, String(new FormData(e.currentTarget).get('password') ?? ''));
+  }
+
+  /** Turns 2FA on or off, or makes new backup codes, confirmed by the password if any. */
+  async function confirm(what: 'toggle' | 'codes', password?: string) {
     setError(null);
     setPending(true);
-    const password = String(new FormData(e.currentTarget).get('password') ?? '');
-    if (purpose === 'codes') {
+    const refused = (e: { code?: string } | null) =>
+      setError(e?.code === 'SESSION_NOT_FRESH' ? t('signInAgainFor2fa') : ta('invalidCredentials'));
+    if (what === 'codes') {
       const r = await authClient.twoFactor.generateBackupCodes({ password });
       setPending(false);
-      if (r.error || !r.data) return setError(ta('invalidCredentials'));
+      if (r.error || !r.data) return refused(r.error);
       setSetup({ uri: '', codes: r.data.backupCodes });
       setStep('codes');
       return;
@@ -38,7 +55,7 @@ export function TwoFactorPanel({ enabled, issuer }: { enabled: boolean; issuer: 
     if (enabled) {
       const r = await authClient.twoFactor.disable({ password });
       setPending(false);
-      if (r.error) return setError(ta('invalidCredentials'));
+      if (r.error) return refused(r.error);
       toast.success(t('twoFactorDisabled'));
       setStep('idle');
       router.refresh();
@@ -46,9 +63,16 @@ export function TwoFactorPanel({ enabled, issuer }: { enabled: boolean; issuer: 
     }
     const r = await authClient.twoFactor.enable({ password });
     setPending(false);
-    if (r.error || !r.data || r.data.method !== 'totp') return setError(ta('invalidCredentials'));
+    if (r.error || !r.data || r.data.method !== 'totp') return refused(r.error);
     setSetup({ uri: withIssuer(r.data.totpURI, issuer), codes: r.data.backupCodes });
     setStep('verify');
+  }
+
+  /** The password step, or straight on without a password to ask for. */
+  function start(what: 'toggle' | 'codes') {
+    setPurpose(what);
+    if (hasPassword) setStep('password');
+    else void confirm(what);
   }
 
   async function submitCode(e: React.FormEvent<HTMLFormElement>) {
@@ -65,27 +89,22 @@ export function TwoFactorPanel({ enabled, issuer }: { enabled: boolean; issuer: 
 
   if (step === 'idle') {
     return (
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant={enabled ? 'outline' : 'primary'}
-          onClick={() => {
-            setPurpose('toggle');
-            setStep('password');
-          }}
-        >
-          {enabled ? t('twoFactorDisable') : t('twoFactorEnable')}
-        </Button>
-        {enabled ? (
+      <div className="grid gap-3">
+        {error ? <Alert variant="destructive">{error}</Alert> : null}
+        <div className="flex flex-wrap gap-2">
           <Button
-            variant="outline"
-            onClick={() => {
-              setPurpose('codes');
-              setStep('password');
-            }}
+            variant={enabled ? 'outline' : 'primary'}
+            disabled={pending}
+            onClick={() => start('toggle')}
           >
-            {t('twoFactorNewCodes')}
+            {enabled ? t('twoFactorDisable') : t('twoFactorEnable')}
           </Button>
-        ) : null}
+          {enabled ? (
+            <Button variant="outline" disabled={pending} onClick={() => start('codes')}>
+              {t('twoFactorNewCodes')}
+            </Button>
+          ) : null}
+        </div>
       </div>
     );
   }

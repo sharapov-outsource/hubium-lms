@@ -249,6 +249,7 @@
     "timezoneDefault": "Par défaut du site",
     "requiredPasswordExpired": "Votre mot de passe a expiré. Choisissez-en un nouveau pour continuer.",
     "twoFactorNewCodes": "Nouveaux codes de secours",
+    "signInAgainFor2fa": "Pour modifier l'authentification à deux facteurs, déconnectez-vous puis reconnectez-vous.",
     "recovery": {
       "title": "Phrases de récupération",
       "hint": "Si le téléphone avec votre application est perdu, connectez-vous en saisissant l'une de ces phrases au lieu d'un code. Chaque phrase ne sert qu'une fois. Notez-les et gardez-les loin du téléphone.",

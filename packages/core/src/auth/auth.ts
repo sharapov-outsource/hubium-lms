@@ -112,6 +112,37 @@ const EMAIL_SIGN_IN_PATHS = new Set(['/sign-up/email', '/sign-in/email', '/sign-
 
 /** What the registration form sends; anything else (a username, an avatar URL, a time
  *  zone, a theme) is not the person's to choose at sign-up. */
+/** Two-factor changes Better Auth confirms with the password, when there is one. */
+const TWO_FACTOR_CHANGES = new Set([
+  '/two-factor/enable',
+  '/two-factor/disable',
+  '/two-factor/generate-backup-codes',
+]);
+/** How recent a sign-in stands for the password of someone who has none here. */
+const RECENT_SIGN_IN_MS = 10 * 60_000;
+
+/**
+ * Someone who signs in elsewhere (single sign-on, OAuth, LDAP) has no password here to
+ * confirm a two-factor change with; signing in within the last minutes stands for it, so a
+ * session left open somewhere cannot turn two-factor sign-in off.
+ */
+async function requireRecentSignInWithoutPassword(
+  db: Db,
+  c: Parameters<Parameters<typeof createAuthMiddleware>[0]>[0],
+) {
+  const session = await getSessionFromCtx(c);
+  if (!session) return;
+  const local = await db.account.count({
+    where: { userId: session.user.id, providerId: 'credential', password: { not: null } },
+  });
+  if (local) return;
+  if (Date.now() - new Date(session.session.createdAt).getTime() > RECENT_SIGN_IN_MS)
+    throw new APIError('FORBIDDEN', {
+      code: 'SESSION_NOT_FRESH',
+      message: 'Sign in again to change two-factor sign-in',
+    });
+}
+
 const SIGN_UP_FIELDS = new Set([
   'email',
   'password',
@@ -271,6 +302,7 @@ export function createAuth({
         // zone that breaks date formatting.
         if (c.path === '/update-user') throw new APIError('NOT_FOUND');
         if (c.path === '/sign-up/email') checkSignUpBody(c.body);
+        if (TWO_FACTOR_CHANGES.has(c.path)) await requireRecentSignInWithoutPassword(db, c);
         const passwordField = PASSWORD_FIELDS[c.path];
         if (passwordField) {
           const body = (c.body ?? {}) as Record<string, unknown>;
@@ -511,7 +543,9 @@ export function createAuth({
     plugins: [
       username({ minUsernameLength: 3, maxUsernameLength: 50 }),
       // The settings page swaps in the site name before showing the QR code.
-      twoFactor({ issuer: 'Hubium LMS' }),
+      // without a password here (single sign-on, OAuth, LDAP) a recent sign-in confirms
+      // instead: see requireRecentSignInWithoutPassword
+      twoFactor({ issuer: 'Hubium LMS', allowPasswordless: true }),
       admin({ defaultRole: 'user', adminRoles: [] }),
       loginAs(db),
       recoveryPassphrase(db, baseURL),

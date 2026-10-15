@@ -24,6 +24,7 @@
     "@aws-sdk/lib-storage": "3.1150.0",
     "@aws-sdk/s3-request-presigner": "3.1150.0",
     "@better-auth/sso": "1.7.7",
+    "@better-auth/utils": "0.4.2",
     "@hubium/ai": "workspace:*",
     "@hubium/db": "workspace:*",
     "@hubium/editor": "workspace:*",

@@ -146,6 +146,7 @@ export async function addRecoveryPassphraseAction(fd: FormData) {
         name: v.name ?? '',
         passphrase: v.passphrase ?? '',
         password: v.password ?? '',
+        code: v.code ?? '',
       });
       revalidatePath('/settings/security');
       return null;

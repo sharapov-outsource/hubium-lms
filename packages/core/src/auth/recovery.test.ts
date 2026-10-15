@@ -1,5 +1,8 @@
+import { createOTP } from '@better-auth/utils/otp';
+import { symmetricEncrypt } from 'better-auth/crypto';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { capturedJobs, ctxFor, useTestDb } from '../../test/helpers.ts';
+import { getEnv } from '../env.ts';
 import { ForbiddenError, ValidationError } from '../errors.ts';
 import { createUser } from '../users/users.ts';
 import { createAuth } from './auth.ts';
@@ -96,6 +99,34 @@ describe('recovery passphrases', () => {
       actor: { kind: 'user' as const, userId, isSiteAdmin: false, realUserId: 'x' },
     };
     await expect(listRecoveryPassphrases(as)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('take a code from the app instead of a password when the account has none', async () => {
+    // someone who signs in through single sign-on: no password here
+    const sso = await t.db.user.create({
+      data: { email: 'sso@example.org', name: 'S O', firstName: 'S', lastName: 'O' },
+    });
+    await t.db.account.create({
+      data: { userId: sso.id, providerId: 'keycloak', accountId: 'k1' },
+    });
+    const totp = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
+    await t.db.twoFactor.create({
+      data: {
+        userId: sso.id,
+        secret: await symmetricEncrypt({ key: getEnv().APP_SECRET, data: totp }),
+        backupCodes: '[]',
+        verified: true,
+      },
+    });
+    await t.db.user.update({ where: { id: sso.id }, data: { twoFactorEnabled: true } });
+    const ctx = await ctxFor(t.db, sso.id);
+    const input = { name: 'Safe', passphrase: PHRASE, password: '' };
+    await expect(
+      addRecoveryPassphrase.run(ctx, { ...input, code: '000000' }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    const code = await createOTP(totp, { period: 30, digits: 6 }).totp();
+    await addRecoveryPassphrase.run(ctx, { ...input, code });
+    expect((await listRecoveryPassphrases(ctx)).map((p) => p.name)).toEqual(['Safe']);
   });
 
   it('signs in once instead of a code and emails the owner', async () => {

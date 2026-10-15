@@ -249,6 +249,7 @@
     "timezoneDefault": "Predefinito del sito",
     "requiredPasswordExpired": "La tua password è scaduta. Scegline una nuova per continuare.",
     "twoFactorNewCodes": "Nuovi codici di backup",
+    "signInAgainFor2fa": "Per modificare l'autenticazione a due fattori, esci e accedi di nuovo.",
     "recovery": {
       "title": "Frasi di recupero",
       "hint": "Se perdi il telefono con l'app di autenticazione, accedi digitando una di queste frasi al posto del codice. Ogni frase funziona una sola volta. Scrivile e conservale lontano dal telefono.",

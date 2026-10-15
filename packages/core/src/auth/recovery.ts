@@ -1,10 +1,12 @@
-import type { Db } from '@hubium/db';
+import { createOTP } from '@better-auth/utils/otp';
+import type { Db, Prisma } from '@hubium/db';
 import type { BetterAuthPlugin } from 'better-auth';
 import { APIError, createAuthEndpoint } from 'better-auth/api';
 import { expireCookie, setSessionCookie } from 'better-auth/cookies';
-import { hashPassword, verifyPassword } from 'better-auth/crypto';
+import { hashPassword, symmetricDecrypt, verifyPassword } from 'better-auth/crypto';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
+import { getEnv } from '../env.ts';
 import { ForbiddenError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { sendAuthEmail } from '../mail/mail.ts';
@@ -17,6 +19,18 @@ import { getAllSettings, userLocale } from '../settings/settings.ts';
 // like passwords, and failures count towards Better Auth's two-factor lockout.
 
 export const MAX_RECOVERY_PASSPHRASES = 5;
+
+/** Whether `code` is the current one of the person's authenticator app, as Better Auth checks. */
+async function totpCodeValid(
+  db: Db | Prisma.TransactionClient,
+  userId: string,
+  code: string,
+): Promise<boolean> {
+  const tf = await db.twoFactor.findFirst({ where: { userId }, select: { secret: true } });
+  if (!tf || !/^\d{6}$/.test(code.trim())) return false;
+  const secret = await symmetricDecrypt({ key: getEnv().APP_SECRET, data: tf.secret });
+  return createOTP(secret, { period: 30, digits: 6 }).verify(code.trim());
+}
 const MIN_WORDS = 4;
 const MIN_LENGTH = 20;
 // Better Auth's defaults for its two-factor lockout (the same TwoFactor columns)
@@ -59,7 +73,9 @@ export const addRecoveryPassphrase = defineOperation({
   input: z.object({
     name: z.string().trim().min(1).max(100),
     passphrase: z.string().max(500),
-    password: z.string().max(200),
+    password: z.string().max(200).default(''),
+    /** From the authenticator app, for someone without a password here. */
+    code: z.string().max(20).default(''),
   }),
   async handler(ctx, input) {
     const userId = ownUser(ctx);
@@ -73,11 +89,13 @@ export const addRecoveryPassphrase = defineOperation({
       where: { userId, providerId: 'credential' },
       select: { password: true },
     });
-    if (
-      !account?.password ||
-      !(await verifyPassword({ hash: account.password, password: input.password }))
-    )
-      throw new ValidationError({ password: ['Invalid password'] });
+    if (account?.password) {
+      if (!(await verifyPassword({ hash: account.password, password: input.password })))
+        throw new ValidationError({ password: ['Invalid password'] });
+    } else if (!(await totpCodeValid(ctx.tx, userId, input.code))) {
+      // signs in elsewhere (single sign-on, LDAP): the authenticator app confirms instead
+      throw new ValidationError({ code: ['Invalid code'] });
+    }
     const problems = passphraseProblems(input.passphrase);
     if (problems.length) throw new ValidationError({ passphrase: problems });
     if ((await ctx.tx.recoveryPassphrase.count({ where: { userId } })) >= MAX_RECOVERY_PASSPHRASES)

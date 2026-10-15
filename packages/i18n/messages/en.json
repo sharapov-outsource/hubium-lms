@@ -250,6 +250,7 @@
     "timezoneDefault": "Site default",
     "requiredPasswordExpired": "Your password has expired. Choose a new one to continue.",
     "twoFactorNewCodes": "New backup codes",
+    "signInAgainFor2fa": "To change two-factor authentication, sign out and sign in again.",
     "recovery": {
       "title": "Recovery phrases",
       "hint": "If the phone with your authenticator is lost, sign in by typing one of these phrases instead of a code. Each phrase works once. Write them down and keep them away from the phone.",

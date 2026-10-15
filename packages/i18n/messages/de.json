@@ -249,6 +249,7 @@
     "timezoneDefault": "Standard der Website",
     "requiredPasswordExpired": "Ihr Passwort ist abgelaufen. Wählen Sie ein neues, um fortzufahren.",
     "twoFactorNewCodes": "Neue Backup-Codes",
+    "signInAgainFor2fa": "Um die Zwei-Faktor-Authentifizierung zu ändern, melden Sie sich ab und erneut an.",
     "recovery": {
       "title": "Wiederherstellungssätze",
       "hint": "Wenn das Telefon mit Ihrer Authenticator-App verloren geht, melden Sie sich mit einem dieser Sätze statt eines Codes an. Jeder Satz funktioniert einmal. Schreiben Sie sie auf und bewahren Sie sie getrennt vom Telefon auf.",

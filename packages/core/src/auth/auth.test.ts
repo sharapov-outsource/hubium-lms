@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { capturedJobs, useTestDb } from '../../test/helpers.ts';
 import { withClientIp } from '../client-ip.ts';
@@ -153,6 +154,28 @@ describe('auth', () => {
       true,
       false,
     ]);
+  });
+
+  it('lets people without a password here change two-factor sign-in soon after signing in', async () => {
+    const sso = await t.db.user.create({
+      data: { email: 'sso-2fa@example.org', name: 'S F', firstName: 'S', lastName: 'F' },
+    });
+    await t.db.account.create({
+      data: { userId: sso.id, providerId: 'keycloak', accountId: 'kc-2fa' },
+    });
+    const session = await (await auth.$context).internalAdapter.createSession(sso.id);
+    const signed = `${session.token}.${createHmac('sha256', 's'.repeat(40)).update(session.token).digest('base64')}`;
+    const headers = new Headers({ cookie: `hubium.session_token=${encodeURIComponent(signed)}` });
+    // no password to confirm with: a recent sign-in through the provider stands for it
+    const on = await auth.api.enableTwoFactor({ body: {}, headers });
+    expect(on).toMatchObject({ totpURI: expect.stringMatching(/^otpauth:/) });
+    await t.db.session.update({
+      where: { token: session.token },
+      data: { createdAt: new Date(Date.now() - 3_600_000) },
+    });
+    await expect(auth.api.generateBackupCodes({ body: {}, headers })).rejects.toMatchObject({
+      body: { code: 'SESSION_NOT_FRESH' },
+    });
   });
 
   it('follows the "require email verification" setting', async () => {

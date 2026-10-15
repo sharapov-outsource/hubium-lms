@@ -48,10 +48,14 @@ export default async function SecuritySettings({
   const sessions = await auth.api.listSessions({ headers: await headers() });
   const ctx = await getContext();
   const impersonating = ctx.actor.kind === 'user' && !!ctx.actor.realUserId;
-  const { passwordChangedAt } = await db.user.findUniqueOrThrow({
-    where: { id: user.id },
-    select: { passwordChangedAt: true },
-  });
+  const [{ passwordChangedAt }, localPasswords] = await Promise.all([
+    db.user.findUniqueOrThrow({ where: { id: user.id }, select: { passwordChangedAt: true } }),
+    // someone who signs in only elsewhere (single sign-on, OAuth, LDAP) has none here
+    db.account.count({
+      where: { userId: user.id, providerId: 'credential', password: { not: null } },
+    }),
+  ]);
+  const hasPassword = localPasswords > 0;
   return (
     <div className="grid gap-6">
       {required === 'password' && user.mustChangePassword ? (
@@ -110,7 +114,11 @@ export default async function SecuritySettings({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <TwoFactorPanel enabled={user.twoFactorEnabled} issuer={settings['site.name']} />
+          <TwoFactorPanel
+            enabled={user.twoFactorEnabled}
+            issuer={settings['site.name']}
+            hasPassword={hasPassword}
+          />
         </CardContent>
       </Card>
       {user.twoFactorEnabled && !impersonating ? (
@@ -122,6 +130,7 @@ export default async function SecuritySettings({
           <CardContent>
             <RecoveryPassphrases
               max={MAX_RECOVERY_PASSPHRASES}
+              hasPassword={hasPassword}
               items={(await listRecoveryPassphrases(ctx)).map((p) => ({
                 id: p.id,
                 name: p.name,

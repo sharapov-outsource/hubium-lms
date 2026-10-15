@@ -1381,6 +1381,9 @@ importers:
       '@better-auth/sso':
         specifier: 1.7.7
         version: 1.7.7(f8f7771348666ede4d324c48f81a7b96)
+      '@better-auth/utils':
+        specifier: 0.4.2
+        version: 0.4.2
       '@hubium/ai':
         specifier: workspace:*
         version: link:../ai

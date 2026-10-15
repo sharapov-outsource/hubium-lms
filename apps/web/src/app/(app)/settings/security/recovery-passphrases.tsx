@@ -10,15 +10,21 @@ import {
   deleteRecoveryPassphraseAction,
 } from '@/server/actions/account';
 
-/** Recovery phrases for a lost authenticator; shown while two-factor is on. */
+/**
+ * Recovery phrases for a lost authenticator; shown while two-factor is on. A new one is
+ * confirmed with the password, or without one here with a code from the app.
+ */
 export function RecoveryPassphrases({
   items,
   max,
+  hasPassword,
 }: {
   items: { id: string; name: string; created: string }[];
   max: number;
+  hasPassword: boolean;
 }) {
   const t = useTranslations('settings');
+  const ta = useTranslations('auth');
   const tc = useTranslations('common');
   const [pending, start] = useTransition();
   return (
@@ -72,12 +78,21 @@ export function RecoveryPassphrases({
             autoComplete="off"
             label={t('recovery.phrase2')}
           />
-          <FormField
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            label={t('confirmPassword')}
-          />
+          {hasPassword ? (
+            <FormField
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              label={t('confirmPassword')}
+            />
+          ) : (
+            <FormField
+              name="code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              label={ta('code')}
+            />
+          )}
           <div>
             <SubmitButton>{t('recovery.add')}</SubmitButton>
           </div>
