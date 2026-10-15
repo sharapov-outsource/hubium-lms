@@ -6,12 +6,13 @@ import { z } from 'zod';
 import { roleName } from '../access/roles.ts';
 import type { RequestContext } from '../context.ts';
 import { requireCourseView } from '../courses/courses.ts';
-import { activeCourseUserIds } from '../enrol/participants.ts';
+import { courseLearnerIds } from '../enrol/participants.ts';
 import { getEnv } from '../env.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { deleteFiles, storeFile } from '../files/files.ts';
 import { getStorage } from '../files/storage.ts';
+import { courseGradePercent } from '../grades/course-grade.ts';
 import { enqueue } from '../jobs/jobs.ts';
 import { notifyUsers } from '../notifications/notifications.ts';
 import { defineOperation } from '../operation.ts';
@@ -69,20 +70,8 @@ async function loadBadge(db: Tx, id: string) {
   return b;
 }
 
-/** Learners who may earn a course badge: active participants with a student's role. */
-async function courseLearners(tx: Tx, courseId: string): Promise<string[]> {
-  const active = await activeCourseUserIds(tx, courseId);
-  if (!active.length) return [];
-  const rows = await tx.roleAssignment.findMany({
-    where: { contextId: courseId, userId: { in: active }, role: { archetype: 'STUDENT' } },
-    select: { userId: true },
-    distinct: ['userId'],
-  });
-  return rows.map((r) => r.userId);
-}
-
 async function mayEarn(tx: Tx, badge: Badge, userId: string): Promise<boolean> {
-  if (badge.courseId) return (await courseLearners(tx, badge.courseId)).includes(userId);
+  if (badge.courseId) return (await courseLearnerIds(tx, badge.courseId)).includes(userId);
   const u = await tx.user.findUnique({ where: { id: userId }, select: { status: true } });
   return u?.status === 'ACTIVE';
 }
@@ -333,17 +322,6 @@ async function factsFor(tx: Tx, badge: Badge, c: BadgeCriteriaT, userId: string)
   } satisfies BadgeFacts;
 }
 
-async function courseGradePercent(tx: Tx, courseId: string, userId: string) {
-  const item = await tx.gradeItem.findFirst({ where: { courseId, kind: 'COURSE' } });
-  if (!item || !Number(item.gradeMax)) return null;
-  const g = await tx.grade.findUnique({
-    where: { gradeItemId_userId: { gradeItemId: item.id, userId } },
-    select: { finalGrade: true },
-  });
-  if (g?.finalGrade === null || g?.finalGrade === undefined) return null;
-  return (Number(g.finalGrade) / Number(item.gradeMax)) * 100;
-}
-
 /** The recipient as the assertion names them: their email, or their id when they have none. */
 async function recipientOf(tx: Tx, userId: string) {
   const u = await tx.user.findUniqueOrThrow({
@@ -433,7 +411,7 @@ export async function checkCourseBadges(tx: Tx, courseId: string, userId: string
 
 /** Everyone who may have earned the badge and does not have it yet. */
 async function candidates(tx: Tx, badge: Badge): Promise<string[]> {
-  if (badge.courseId) return courseLearners(tx, badge.courseId);
+  if (badge.courseId) return courseLearnerIds(tx, badge.courseId);
   const rules = checkCriteria(badge.criteria, true).rules;
   const ids = new Set<string>();
   for (const r of rules) {
@@ -658,7 +636,7 @@ export async function badgeDetail(ctx: RequestContext, id: string) {
           where: {
             id: {
               // a revoked or expired award can be given again
-              in: (await courseLearners(ctx.db, b.courseId)).filter(
+              in: (await courseLearnerIds(ctx.db, b.courseId)).filter(
                 (u) => !awards.some((a) => a.userId === u && isValid(a, ctx.now)),
               ),
             },

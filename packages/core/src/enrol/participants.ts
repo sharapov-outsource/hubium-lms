@@ -25,3 +25,18 @@ export async function activeCourseUserIds(
   });
   return rows.map((r) => r.userId);
 }
+
+/** Learners of a course: active participants holding a student's role (by archetype) in it. */
+export async function courseLearnerIds(
+  db: Db | Prisma.TransactionClient,
+  courseId: string,
+): Promise<string[]> {
+  const active = await activeCourseUserIds(db, courseId);
+  if (!active.length) return [];
+  const rows = await db.roleAssignment.findMany({
+    where: { contextId: courseId, userId: { in: active }, role: { archetype: 'STUDENT' } },
+    select: { userId: true },
+    distinct: ['userId'],
+  });
+  return rows.map((r) => r.userId);
+}

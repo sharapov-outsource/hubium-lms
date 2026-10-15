@@ -4,12 +4,13 @@ import type { Certificate, Db, Prisma } from '@hubium/db';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { requireCourseView } from '../courses/courses.ts';
-import { activeCourseUserIds } from '../enrol/participants.ts';
+import { courseLearnerIds } from '../enrol/participants.ts';
 import { getEnv } from '../env.ts';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { deleteFiles, registerFileArea, storeFile } from '../files/files.ts';
 import { getStorage } from '../files/storage.ts';
+import { courseGradePercent } from '../grades/course-grade.ts';
 import { enqueue } from '../jobs/jobs.ts';
 import { notifyUsers } from '../notifications/notifications.ts';
 import { defineOperation } from '../operation.ts';
@@ -43,18 +44,6 @@ async function loadCertificate(db: Tx, id: string) {
   const c = await db.certificate.findUnique({ where: { id } });
   if (!c) throw new NotFoundError('Certificate');
   return c;
-}
-
-/** Learners who may be issued a course's certificate: active participants with a student's role. */
-async function courseLearners(tx: Tx, courseId: string): Promise<string[]> {
-  const active = await activeCourseUserIds(tx, courseId);
-  if (!active.length) return [];
-  const rows = await tx.roleAssignment.findMany({
-    where: { contextId: courseId, userId: { in: active }, role: { archetype: 'STUDENT' } },
-    select: { userId: true },
-    distinct: ['userId'],
-  });
-  return rows.map((r) => r.userId);
 }
 
 export const fieldsOf = (c: Pick<Certificate, 'fields'>): CertificateFieldT[] =>
@@ -235,17 +224,6 @@ export interface IssueData {
   gradePercent: number | null;
 }
 
-async function courseGradePercent(tx: Tx, courseId: string, userId: string) {
-  const item = await tx.gradeItem.findFirst({ where: { courseId, kind: 'COURSE' } });
-  if (!item || !Number(item.gradeMax)) return null;
-  const g = await tx.grade.findUnique({
-    where: { gradeItemId_userId: { gradeItemId: item.id, userId } },
-    select: { finalGrade: true },
-  });
-  if (g?.finalGrade === null || g?.finalGrade === undefined) return null;
-  return Math.round((Number(g.finalGrade) / Number(item.gradeMax)) * 1000) / 10;
-}
-
 async function snapshot(tx: Tx, c: Certificate, userId: string): Promise<IssueData> {
   const [user, course, completion, gradePercent] = await Promise.all([
     tx.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true } }),
@@ -260,7 +238,8 @@ async function snapshot(tx: Tx, c: Certificate, userId: string): Promise<IssueDa
     name: user.name,
     course: course.fullName,
     completedAt: completion?.completedAt?.toISOString() ?? null,
-    gradePercent,
+    // to a tenth, as the certificate prints it
+    gradePercent: gradePercent === null ? null : Math.round(gradePercent * 10) / 10,
   };
 }
 
@@ -324,7 +303,7 @@ export async function issueIfEarned(
     select: { completedAt: true },
   });
   if (!done?.completedAt) return false;
-  if (!(await courseLearners(tx, c.courseId)).includes(userId)) return false;
+  if (!(await courseLearnerIds(tx, c.courseId)).includes(userId)) return false;
   await createIssue(tx, c, userId, { now, issuedById: null });
   return true;
 }
@@ -364,7 +343,7 @@ export const issueCertificate = defineOperation({
     const c = await loadCertificate(ctx.tx, certificateId);
     if (c.status !== 'ACTIVE')
       throw new ValidationError({ certificateId: ['The certificate is not being issued'] });
-    if (!(await courseLearners(ctx.tx, c.courseId)).includes(userId))
+    if (!(await courseLearnerIds(ctx.tx, c.courseId)).includes(userId))
       throw new ValidationError({ userId: ['This person is not a learner of the course'] });
     const old = await ctx.tx.certificateIssue.findUnique({
       where: { certificateId_userId: { certificateId, userId } },
@@ -482,7 +461,7 @@ export async function certificateDetail(ctx: RequestContext, id: string) {
       ? await ctx.db.user.findMany({
           where: {
             id: {
-              in: (await courseLearners(ctx.db, c.courseId)).filter(
+              in: (await courseLearnerIds(ctx.db, c.courseId)).filter(
                 (u) => !issues.some((i) => i.userId === u && !i.revokedAt),
               ),
             },

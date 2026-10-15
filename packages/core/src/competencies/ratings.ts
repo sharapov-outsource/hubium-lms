@@ -2,7 +2,7 @@ import { type Competency, type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubiu
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { requireCourseView } from '../courses/courses.ts';
-import { activeCourseUserIds } from '../enrol/participants.ts';
+import { courseLearnerIds } from '../enrol/participants.ts';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { defineOperation } from '../operation.ts';
@@ -334,17 +334,6 @@ export const setActivityCompetency = defineOperation({
 
 // ── rating ───────────────────────────────────────────────────────────────────
 
-async function courseLearners(tx: Tx, courseId: string): Promise<string[]> {
-  const active = await activeCourseUserIds(tx, courseId);
-  if (!active.length) return [];
-  const rows = await tx.roleAssignment.findMany({
-    where: { contextId: courseId, userId: { in: active }, role: { archetype: 'STUDENT' } },
-    select: { userId: true },
-    distinct: ['userId'],
-  });
-  return rows.map((r) => r.userId);
-}
-
 /** A teacher rates a learner on a competency of the course (null removes the rating). */
 export const rateInCourse = defineOperation({
   name: 'competency.rate',
@@ -363,7 +352,7 @@ export const rateInCourse = defineOperation({
       }))
     )
       throw new ValidationError({ competencyId: ['The competency is not in the course'] });
-    if (!(await courseLearners(ctx.tx, i.courseId)).includes(i.userId))
+    if (!(await courseLearnerIds(ctx.tx, i.courseId)).includes(i.userId))
       throw new ValidationError({ userId: ['This person is not a learner of the course'] });
     await addEvidence(ctx.tx, {
       userId: i.userId,
@@ -555,7 +544,7 @@ export async function courseCompetencies(ctx: RequestContext, courseId: string) 
 /** Learners × the course's competencies, with their ratings in the course. */
 export async function courseBreakdown(ctx: RequestContext, courseId: string) {
   await ctx.perm.require('competency:viewratings', courseId);
-  const learners = await courseLearners(ctx.db, courseId);
+  const learners = await courseLearnerIds(ctx.db, courseId);
   const [users, links, ratings] = await Promise.all([
     ctx.db.user.findMany({
       where: { id: { in: learners } },
