@@ -723,6 +723,7 @@
     "done": "Completato",
     "completionManual": "Da segnare manualmente",
     "completionAuto": "Completamento automatico",
+    "completionFailed": "Non superato",
     "progress": "Completato al {percent}%",
     "notEnrolled": "Nessuna iscrizione a questo corso",
     "hiddenCourse": "Nascosto agli studenti",

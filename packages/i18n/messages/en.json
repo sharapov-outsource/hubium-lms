@@ -724,6 +724,7 @@
     "done": "Done",
     "completionManual": "Mark it yourself",
     "completionAuto": "Completed automatically",
+    "completionFailed": "Failed",
     "progress": "{percent}% complete",
     "notEnrolled": "You are not enrolled in this course",
     "hiddenCourse": "Hidden from students",

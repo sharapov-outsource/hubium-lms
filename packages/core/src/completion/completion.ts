@@ -15,7 +15,10 @@ import { emitWebhook } from '../webhooks/events.ts';
 
 type Tx = Prisma.TransactionClient | Db;
 
-/** Recomputes the course progress percentage for one user. */
+/**
+ * Recomputes the course progress percentage for one user. Activities count when completed
+ * or passed, not failed, as Moodle's.
+ */
 export async function recomputeCourseProgress(
   tx: Tx,
   courseId: string,
@@ -35,7 +38,7 @@ export async function recomputeCourseProgress(
         where: {
           userId,
           activityId: { in: tracked.map((t) => t.id) },
-          state: { not: 'INCOMPLETE' },
+          state: { in: ['COMPLETE', 'COMPLETE_PASS'] },
         },
       })
     : 0;

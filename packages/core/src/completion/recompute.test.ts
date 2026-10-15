@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { capturedJobs, ctxFor, useTestDb } from '../../test/helpers.ts';
 import { updateActivity } from '../courses/activities.ts';
-import { recomputeActivityForAll, toggleManualCompletion } from './completion.ts';
+import {
+  recomputeActivityForAll,
+  recomputeCourseProgress,
+  toggleManualCompletion,
+} from './completion.ts';
 
 describe('completion rule changes', () => {
   const t = useTestDb();
@@ -87,5 +91,37 @@ describe('completion rule changes', () => {
         done: false,
       }),
     ).rejects.toThrow(/enrolled/);
+  });
+
+  it('counts a failed activity towards neither progress nor completing the course', async () => {
+    const f = await courseFixture(t.db, 'COMPL3');
+    const page = await f.addActivity(
+      'page',
+      'Лекция',
+      { content: '<p>Текст</p>' },
+      { completionMode: 'MANUAL' },
+    );
+    const exam = await f.addActivity(
+      'page',
+      'Итоговый тест',
+      { content: '<p>Текст</p>' },
+      { completionMode: 'MANUAL' },
+    );
+    const s1 = await ctxFor(t.db, f.users.student1!);
+    await toggleManualCompletion.run(s1, { activityId: page.id, done: true });
+    // a pass mark not reached, as a quiz's "pass" rule gives
+    await t.db.activityCompletion.create({
+      data: { activityId: exam.id, userId: f.users.student1!, state: 'COMPLETE_FAIL' },
+    });
+    expect(await recomputeCourseProgress(t.db, f.courseId, f.users.student1!)).toBe(50);
+    const row = await t.db.courseCompletion.findUniqueOrThrow({
+      where: { courseId_userId: { courseId: f.courseId, userId: f.users.student1! } },
+    });
+    expect(row.completedAt).toBeNull();
+    await t.db.activityCompletion.update({
+      where: { activityId_userId: { activityId: exam.id, userId: f.users.student1! } },
+      data: { state: 'COMPLETE_PASS' },
+    });
+    expect(await recomputeCourseProgress(t.db, f.courseId, f.users.student1!)).toBe(100);
   });
 });

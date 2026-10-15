@@ -24,6 +24,7 @@ import {
   Pencil,
   Plus,
   Trash2,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -64,18 +65,21 @@ export function CompletionToggle({
   activityId: string;
   manual: boolean;
   state: string;
-  labels: { mark: string; done: string; auto: string };
+  labels: { mark: string; done: string; auto: string; failed: string };
 }) {
   const { pending, run } = useRun();
-  const done = state !== 'INCOMPLETE';
+  // a failed activity (a pass mark not reached) is not done
+  const done = state === 'COMPLETE' || state === 'COMPLETE_PASS';
+  const failed = state === 'COMPLETE_FAIL';
   if (!manual) {
     return (
       <span
         title={labels.auto}
-        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${done ? 'bg-success-soft text-success' : 'bg-muted text-muted-foreground'}`}
+        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${done ? 'bg-success-soft text-success' : failed ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}
       >
         {done ? <Check className="size-3" aria-hidden /> : null}
-        {done ? labels.done : labels.auto}
+        {failed ? <X className="size-3" aria-hidden /> : null}
+        {done ? labels.done : failed ? labels.failed : labels.auto}
       </span>
     );
   }

@@ -723,6 +723,7 @@
     "done": "Terminé",
     "completionManual": "À marquer vous-même",
     "completionAuto": "Achevé automatiquement",
+    "completionFailed": "Échoué",
     "progress": "{percent} % achevé",
     "notEnrolled": "Vous n’êtes pas inscrit à ce cours",
     "hiddenCourse": "Caché aux étudiants",

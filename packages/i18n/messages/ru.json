@@ -724,6 +724,7 @@
     "done": "Выполнено",
     "completionManual": "Отметьте вручную",
     "completionAuto": "Выполняется автоматически",
+    "completionFailed": "Не сдано",
     "progress": "Выполнено {percent}%",
     "notEnrolled": "Вы не записаны на этот курс",
     "hiddenCourse": "Курс скрыт от студентов",

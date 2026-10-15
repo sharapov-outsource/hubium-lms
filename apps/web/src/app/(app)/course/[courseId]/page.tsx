@@ -173,7 +173,12 @@ export default async function CoursePage({
             activityId={a.id}
             manual={a.completionMode === 'MANUAL'}
             state={completion}
-            labels={{ mark: t('markDone'), done: t('done'), auto: t('completionAuto') }}
+            labels={{
+              mark: t('markDone'),
+              done: t('done'),
+              auto: t('completionAuto'),
+              failed: t('completionFailed'),
+            }}
           />
         ) : null}
         {menu}
