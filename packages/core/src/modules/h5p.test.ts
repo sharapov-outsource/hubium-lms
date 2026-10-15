@@ -1,9 +1,11 @@
 import { h5pFixture } from '@hubium/mod-h5p/fixtures';
-import { extractPackage } from '@hubium/mod-h5p/server';
+import { extractPackage, key } from '@hubium/mod-h5p/server';
+import { PermanentJobError } from '@hubium/module-sdk';
 import { strToU8, unzipSync, zipSync } from 'fflate';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { capturedJobs, ctxFor, useTestDb } from '../../test/helpers.ts';
+import { getStorage } from '../files/storage.ts';
 import { appendUploadChunk, createUpload } from '../files/uploads.ts';
 import { runModuleAction } from './actions.ts';
 import { buildModuleCtx } from './module-ctx.ts';
@@ -162,6 +164,9 @@ describe('mod-h5p', () => {
     await expect(extractPackage(sys, bare)).rejects.toThrow(
       'does not include the library H5P.HubiumCheck-1.0',
     );
+    // what the package is fails at every try: the job is not retried, and what it stored goes
+    await expect(extractPackage(sys, bare)).rejects.toBeInstanceOf(PermanentJobError);
+    expect(await getStorage().head(key(bare, 'h5p.json'))).toBeNull();
     expect(await t.db.h5pPackage.findUniqueOrThrow({ where: { id: bare } })).toMatchObject({
       status: 'FAILED',
     });

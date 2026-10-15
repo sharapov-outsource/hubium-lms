@@ -398,6 +398,9 @@ importers:
       '@hubium/log':
         specifier: workspace:*
         version: link:../../packages/log
+      '@hubium/module-sdk':
+        specifier: workspace:*
+        version: link:../../packages/module-sdk
       '@hubium/modules':
         specifier: workspace:*
         version: link:../../packages/modules

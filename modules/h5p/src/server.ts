@@ -15,7 +15,13 @@ import {
   parseSettings,
 } from '@hubium/module-sdk';
 import { bool, optionalNumber } from '@hubium/module-sdk/fields';
-import { contentTypeFor, extractZip } from '@hubium/module-sdk/zip';
+import {
+  contentTypeFor,
+  extractZip,
+  permanent,
+  StorageFailure,
+  stored,
+} from '@hubium/module-sdk/zip';
 import { z } from 'zod';
 import { allowedFile, checkPackage, gradeOf, resultOf } from './package.ts';
 
@@ -104,32 +110,38 @@ export async function extractPackage(ctx: ModuleCtx, packageId: string) {
   const pkg = await ctx.db.h5pPackage.findUniqueOrThrow({ where: { id: packageId } });
   if (!pkg.fileId) throw new Error('No package file');
   const work = await mkdtemp(path.join(tmpdir(), 'hubium-h5p-'));
+  const kept: string[] = [];
   try {
     const zipPath = path.join(work, 'package.h5p');
     const src = await ctx.files.open(pkg.fileId);
     await pipeline(src.stream, createWriteStream(zipPath));
     const old = (pkg.files as string[]) ?? [];
-    const kept: string[] = [];
     // h5p.json and each library's library.json, read while the files are stored
     const meta = new Map<string, string>();
     let totalBytes = 0;
-    await extractZip(zipPath, async (p, stream, size) => {
-      if (!allowedFile(p)) return void (await finished(stream.resume()));
-      if (p === 'h5p.json' || /^[^/]+\/library\.json$/.test(p)) {
-        const chunks: Buffer[] = [];
-        for await (const c of stream) chunks.push(c as Buffer);
-        const buf = Buffer.concat(chunks);
-        meta.set(p, buf.toString('utf8'));
-        await ctx.storage.put(key(packageId, p), buf, 'application/json');
-      } else {
-        await ctx.storage.put(key(packageId, p), stream, contentTypeFor(p));
-      }
-      kept.push(p);
-      totalBytes += size;
-    });
-    const h5pJson = meta.get('h5p.json');
-    if (h5pJson === undefined) throw new Error('h5p.json is missing: this is not an H5P package');
-    const info = checkPackage(kept, h5pJson, (dir) => meta.get(`${dir}/library.json`) ?? null);
+    let info: ReturnType<typeof checkPackage>;
+    // What the package is goes wrong the same way at every try; what storage does may not.
+    try {
+      await extractZip(zipPath, async (p, stream, size) => {
+        if (!allowedFile(p)) return void (await finished(stream.resume()));
+        kept.push(p);
+        if (p === 'h5p.json' || /^[^/]+\/library\.json$/.test(p)) {
+          const chunks: Buffer[] = [];
+          for await (const c of stream) chunks.push(c as Buffer);
+          const buf = Buffer.concat(chunks);
+          meta.set(p, buf.toString('utf8'));
+          await stored(ctx.storage.put(key(packageId, p), buf, 'application/json'));
+        } else {
+          await stored(ctx.storage.put(key(packageId, p), stream, contentTypeFor(p)));
+        }
+        totalBytes += size;
+      });
+      const h5pJson = meta.get('h5p.json');
+      if (h5pJson === undefined) throw new Error('h5p.json is missing: this is not an H5P package');
+      info = checkPackage(kept, h5pJson, (dir) => meta.get(`${dir}/library.json`) ?? null);
+    } catch (e) {
+      throw e instanceof StorageFailure ? e.cause : permanent(e);
+    }
     const stale = old.filter((f) => !kept.includes(f));
     if (stale.length) await ctx.storage.delete(stale.map((f) => key(packageId, f)));
     await ctx.db.h5pPackage.update({
@@ -145,6 +157,9 @@ export async function extractPackage(ctx: ModuleCtx, packageId: string) {
     });
     return info;
   } catch (e) {
+    // what this run stored and the package did not have before goes again
+    const junk = kept.filter((f) => !((pkg.files as string[]) ?? []).includes(f));
+    if (junk.length) await ctx.storage.delete(junk.map((f) => key(packageId, f))).catch(() => {});
     await ctx.db.h5pPackage.update({
       where: { id: packageId },
       data: { status: 'FAILED', error: e instanceof Error ? e.message.slice(0, 1000) : 'Error' },

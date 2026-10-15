@@ -482,6 +482,18 @@ export class ModuleError extends Error {
   }
 }
 
+/**
+ * A job failure that trying again cannot mend: a package that is no SCORM or H5P package, a
+ * video ffmpeg cannot read. The job ends there, recorded as failed by the module, instead
+ * of being retried; any other error is taken as passing (storage, database) and retried.
+ */
+export class PermanentJobError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'PermanentJobError';
+  }
+}
+
 /** Typed helper so query handlers infer their input from the zod schema. */
 export function defineQuery<I extends z.ZodType, O>(q: ModuleQuery<I, O>): ModuleQuery {
   return q as unknown as ModuleQuery;

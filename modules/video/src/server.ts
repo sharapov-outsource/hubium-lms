@@ -7,6 +7,7 @@ import { pipeline } from 'node:stream/promises';
 import type { Prisma } from '@hubium/db';
 import { type ActivityRef, defineAction, defineModule, type ModuleCtx } from '@hubium/module-sdk';
 import { bool } from '@hubium/module-sdk/fields';
+import { permanent } from '@hubium/module-sdk/zip';
 import { z } from 'zod';
 import {
   addWatched,
@@ -154,57 +155,71 @@ export async function transcodeAsset(ctx: ModuleCtx, assetId: string): Promise<V
     });
   };
   const work = await mkdtemp(path.join(tmpdir(), 'hubium-video-'));
+  // ffprobe and ffmpeg fail the same way at every try on what they cannot read; storage
+  // and the database may not
+  const media = <T>(p: Promise<T>) =>
+    p.catch((e) => {
+      throw permanent(e);
+    });
+  const written: string[] = [];
   try {
     await status({ status: 'PROCESSING', progress: 0, error: null });
     const input = path.join(work, 'source');
     const src = await ctx.files.open(asset.sourceFileId);
     await pipeline(src.stream, createWriteStream(input));
-    const info = await probe(input);
+    const info = await media(probe(input));
     const ladder = ladderFor(info.height);
     const out = path.join(work, 'out');
     for (let i = 0; i < ladder.length; i++)
       await mkdir(path.join(out, `v${i}`), { recursive: true });
     let lastReport = 0;
-    await run(FFMPEG, hlsArgs({ input, outDir: out, ladder, hasAudio: info.hasAudio }), (chunk) => {
-      const t = progressSeconds(chunk);
-      if (t === null || !info.duration) return;
-      const pct = Math.min(95, Math.round((t / info.duration) * 95));
-      if (Date.now() - lastReport > 2000) {
-        lastReport = Date.now();
-        void status({ progress: pct }).catch(() => {});
-      }
-    });
+    await media(
+      run(FFMPEG, hlsArgs({ input, outDir: out, ladder, hasAudio: info.hasAudio }), (chunk) => {
+        const t = progressSeconds(chunk);
+        if (t === null || !info.duration) return;
+        const pct = Math.min(95, Math.round((t / info.duration) * 95));
+        if (Date.now() - lastReport > 2000) {
+          lastReport = Date.now();
+          void status({ progress: pct }).catch(() => {});
+        }
+      }),
+    );
     // poster at 10% and a scrubbing sprite
-    await run(FFMPEG, [
-      '-y',
-      '-v',
-      'error',
-      '-ss',
-      String(Math.max(0, info.duration * 0.1)),
-      '-i',
-      input,
-      '-frames:v',
-      '1',
-      '-vf',
-      'scale=-2:720',
-      path.join(out, 'poster.jpg'),
-    ]);
+    await media(
+      run(FFMPEG, [
+        '-y',
+        '-v',
+        'error',
+        '-ss',
+        String(Math.max(0, info.duration * 0.1)),
+        '-i',
+        input,
+        '-frames:v',
+        '1',
+        '-vf',
+        'scale=-2:720',
+        path.join(out, 'poster.jpg'),
+      ]),
+    );
     const plan = spritePlan(info.duration || 1);
-    await run(FFMPEG, [
-      '-y',
-      '-v',
-      'error',
-      '-i',
-      input,
-      '-vf',
-      `fps=1/${plan.interval},scale=${plan.width}:${plan.height}:force_original_aspect_ratio=decrease,pad=${plan.width}:${plan.height}:(ow-iw)/2:(oh-ih)/2,tile=${plan.cols}x${plan.rows}`,
-      '-frames:v',
-      '1',
-      path.join(out, 'sprite.jpg'),
-    ]);
+    await media(
+      run(FFMPEG, [
+        '-y',
+        '-v',
+        'error',
+        '-i',
+        input,
+        '-vf',
+        `fps=1/${plan.interval},scale=${plan.width}:${plan.height}:force_original_aspect_ratio=decrease,pad=${plan.width}:${plan.height}:(ow-iw)/2:(oh-ih)/2,tile=${plan.cols}x${plan.rows}`,
+        '-frames:v',
+        '1',
+        path.join(out, 'sprite.jpg'),
+      ]),
+    );
     await writeFile(path.join(out, 'sprite.vtt'), spriteVtt(plan, info.duration, 'sprite.jpg'));
     const files = await listFilesRec(out);
     for (const f of files) {
+      written.push(f);
       await ctx.storage.put(
         storageKey(assetId, f),
         createReadStream(path.join(out, f)),
@@ -238,6 +253,10 @@ export async function transcodeAsset(ctx: ModuleCtx, assetId: string): Promise<V
     }
     return outputs;
   } catch (e) {
+    // what this run stored and the asset did not have before goes again
+    const prevFiles = (asset.outputs as VideoOutputs).files ?? [];
+    const junk = written.filter((f) => !prevFiles.includes(f));
+    if (junk.length) await removeOutputs(ctx, assetId, { files: junk }).catch(() => {});
     await status({
       status: 'FAILED',
       error: e instanceof Error ? e.message.slice(0, 2000) : 'Error',

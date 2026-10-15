@@ -1,5 +1,6 @@
 import type { Readable } from 'node:stream';
 import yauzl from 'yauzl';
+import { PermanentJobError } from './index.ts';
 
 // Unpacking packages that modules serve (SCORM, H5P): every file streamed out of a zip,
 // with zip-slip and zip-bomb limits, and the content type of a packaged file.
@@ -127,3 +128,22 @@ export function contentTypeFor(file: string): string {
   };
   return map[ext] ?? 'application/octet-stream';
 }
+
+/** An error of storage while a package is unpacked: passing, so the job is tried again,
+ *  unlike what the package itself is. */
+export class StorageFailure extends Error {
+  constructor(override readonly cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.name = 'StorageFailure';
+  }
+}
+
+/** A storage write whose failure is told apart from the package's (see StorageFailure). */
+export const stored = <T>(p: Promise<T>): Promise<T> =>
+  p.catch((e) => {
+    throw new StorageFailure(e);
+  });
+
+/** What is wrong with the package: the job ends without trying again. */
+export const permanent = (e: unknown) =>
+  new PermanentJobError(e instanceof Error ? e.message : String(e), { cause: e });

@@ -6,6 +6,7 @@ import {
   siteLocale,
 } from '@hubium/core';
 import type { Db } from '@hubium/db';
+import { PermanentJobError } from '@hubium/module-sdk';
 import { coreHandlers, type JobHandlerDef } from './handlers.ts';
 import { serverModules } from './modules.ts';
 
@@ -48,7 +49,13 @@ function moduleJobs(): JobHandlerDef[] {
       name: j.name,
       queue: j.queue ?? 'default',
       async handler(data: never, { db }: { db: Db }) {
-        return j.handler(buildModuleCtx(await systemCtx(db)), data);
+        try {
+          return await j.handler(buildModuleCtx(await systemCtx(db)), data);
+        } catch (e) {
+          // the module recorded the failure: trying again would fail the same way
+          if (e instanceof PermanentJobError) return { failed: e.message };
+          throw e;
+        }
       },
     })),
   );

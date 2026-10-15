@@ -15,6 +15,7 @@ import {
   parseSettings,
 } from '@hubium/module-sdk';
 import { bool, optionalNumber } from '@hubium/module-sdk/fields';
+import { permanent, StorageFailure, stored } from '@hubium/module-sdk/zip';
 import { z } from 'zod';
 import {
   contentTypeFor,
@@ -112,25 +113,34 @@ export async function extractPackage(ctx: ModuleCtx, packageId: string): Promise
   const pkg = await ctx.db.scormPackage.findUniqueOrThrow({ where: { id: packageId } });
   if (!pkg.fileId) throw new Error('No package file');
   const work = await mkdtemp(path.join(tmpdir(), 'hubium-scorm-'));
+  const written: string[] = [];
   try {
     const zipPath = path.join(work, 'package.zip');
     const src = await ctx.files.open(pkg.fileId);
     await pipeline(src.stream, createWriteStream(zipPath));
     let manifestXml = '';
     const old = (pkg.files as string[]) ?? [];
-    const { files, totalBytes } = await extractZip(zipPath, async (p, stream) => {
-      if (p.toLowerCase() === 'imsmanifest.xml') {
-        const chunks: Buffer[] = [];
-        for await (const c of stream) chunks.push(c as Buffer);
-        const buf = Buffer.concat(chunks);
-        manifestXml = buf.toString('utf8');
-        await ctx.storage.put(key(packageId, p), buf, 'application/xml');
-      } else {
-        await ctx.storage.put(key(packageId, p), stream, contentTypeFor(p));
-      }
-    });
-    if (!manifestXml) throw new Error('imsmanifest.xml is missing: this is not a SCORM package');
-    const manifest = parseManifest(manifestXml);
+    let { files, totalBytes } = { files: [] as string[], totalBytes: 0 };
+    let manifest: Manifest;
+    // What the package is goes wrong the same way at every try; what storage does may not.
+    try {
+      ({ files, totalBytes } = await extractZip(zipPath, async (p, stream) => {
+        written.push(p);
+        if (p.toLowerCase() === 'imsmanifest.xml') {
+          const chunks: Buffer[] = [];
+          for await (const c of stream) chunks.push(c as Buffer);
+          const buf = Buffer.concat(chunks);
+          manifestXml = buf.toString('utf8');
+          await stored(ctx.storage.put(key(packageId, p), buf, 'application/xml'));
+        } else {
+          await stored(ctx.storage.put(key(packageId, p), stream, contentTypeFor(p)));
+        }
+      }));
+      if (!manifestXml) throw new Error('imsmanifest.xml is missing: this is not a SCORM package');
+      manifest = parseManifest(manifestXml);
+    } catch (e) {
+      throw e instanceof StorageFailure ? e.cause : permanent(e);
+    }
     const stale = old.filter((f) => !files.includes(f));
     if (stale.length) await ctx.storage.delete(stale.map((f) => key(packageId, f)));
     // keep SCO ids (and learners' tracks) when a package is replaced
@@ -156,6 +166,9 @@ export async function extractPackage(ctx: ModuleCtx, packageId: string): Promise
     });
     return manifest;
   } catch (e) {
+    // what this run stored and the package did not have before goes again
+    const junk = written.filter((f) => !((pkg.files as string[]) ?? []).includes(f));
+    if (junk.length) await ctx.storage.delete(junk.map((f) => key(packageId, f))).catch(() => {});
     await ctx.db.scormPackage.update({
       where: { id: packageId },
       data: { status: 'FAILED', error: e instanceof Error ? e.message.slice(0, 1000) : 'Error' },
