@@ -272,6 +272,7 @@
       "markTooHigh": "Die Punktzahl darf höchstens {max} betragen",
       "closeAfterOpen": "Das Schlussdatum muss nach dem Öffnungsdatum liegen",
       "notAddress": "Keine Adresse: {entries}"
-    }
+    },
+    "minutes": "{n} Min."
   }
 }

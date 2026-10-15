@@ -84,7 +84,7 @@ export default async function CohortsPage() {
                     name="login"
                     label={t('addMember')}
                     id={`login-${c.id}`}
-                    placeholder="email / login"
+                    placeholder={tc('emailOrLogin')}
                     className="min-w-56"
                   />
                   <SubmitButton variant="secondary">{tc('add')}</SubmitButton>

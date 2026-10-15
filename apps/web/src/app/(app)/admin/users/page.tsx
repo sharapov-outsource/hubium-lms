@@ -122,7 +122,7 @@ export default async function UsersPage({
                   <span className="sr-only">{tc('select')}</span>
                 </Th>
                 <Th>{tc('name')}</Th>
-                <Th>Email</Th>
+                <Th>{t('email')}</Th>
                 <Th>{tc('status')}</Th>
                 <Th>{t('user.lastLogin')}</Th>
               </Tr>
@@ -139,7 +139,7 @@ export default async function UsersPage({
                     </Link>
                     {u.isSiteAdmin ? (
                       <Badge variant="accent" className="ml-2">
-                        admin
+                        {t('user.adminBadge')}
                       </Badge>
                     ) : null}
                     {u.username ? (

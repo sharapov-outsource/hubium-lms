@@ -28,6 +28,7 @@
     "display": "Visualizzazione",
     "displayList": "Elenco dei file",
     "displayDownload": "Scarica direttamente il file singolo",
-    "empty": "Ancora nessun file caricato"
+    "empty": "Ancora nessun file caricato",
+    "downloadFile": "Scarica {name}"
   }
 }

@@ -74,7 +74,7 @@ export function GradeCell({
     const next = raw === '' ? null : Number(raw);
     setEditing(false);
     if (next !== null && (Number.isNaN(next) || next < 0 || next > max)) {
-      toast.error(`0–${max}`);
+      toast.error(t('rangeHint', { max }));
       setDraft(value === null ? '' : String(value));
       return;
     }

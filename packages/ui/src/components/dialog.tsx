@@ -14,13 +14,14 @@ export function DialogContent({
   description,
   children,
   className,
-  closeLabel = 'Close',
+  closeLabel,
 }: {
   title: ReactNode;
   description?: ReactNode;
   children?: ReactNode;
   className?: string;
-  closeLabel?: string;
+  /** The close button's name, in the page's language (the kit has no texts of its own). */
+  closeLabel: string;
 }) {
   return (
     <D.Portal>

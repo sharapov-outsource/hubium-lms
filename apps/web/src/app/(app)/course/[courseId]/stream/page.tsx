@@ -30,7 +30,7 @@ export default async function CourseStreamPage({
     <div className="grid max-w-3xl gap-4">
       <h2 className="sr-only">{t('title')}</h2>
       {canPost ? <AnnouncementComposer courseId={courseId} groups={groups} /> : null}
-      <AnnouncementList items={items} canManage={canPost} emptyText={t('empty')} />
+      <AnnouncementList items={items} canManage={canPost} groups={groups} emptyText={t('empty')} />
     </div>
   );
 }

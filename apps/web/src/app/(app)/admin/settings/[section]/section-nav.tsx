@@ -4,15 +4,14 @@ import Link from 'next/link';
 export function SectionNav({
   items,
   active,
+  label,
 }: {
   items: { key: string; href: string; label: string }[];
   active: string;
+  label: string;
 }) {
   return (
-    <nav
-      className="scrollbar-hairline flex gap-1 overflow-x-auto lg:flex-col"
-      aria-label="Settings sections"
-    >
+    <nav className="scrollbar-hairline flex gap-1 overflow-x-auto lg:flex-col" aria-label={label}>
       {items.map((i) => (
         <Link
           key={i.key}

@@ -703,7 +703,9 @@ async function ResultsTab({ activity: a, ctx }: Props) {
                 <Td className="text-sm text-muted-foreground">
                   {format.dateTime(x.startedAt, { dateStyle: 'short', timeStyle: 'short' })}
                 </Td>
-                <Td className="text-sm">{mins === null ? t(`state.${x.state}`) : `${mins} min`}</Td>
+                <Td className="text-sm">
+                  {mins === null ? t(`state.${x.state}`) : t('minutes', { n: mins })}
+                </Td>
                 <Td className="tabular-nums">
                   {x.needsManualGrading ? (
                     <Badge variant="warning">{t('needsGrading')}</Badge>

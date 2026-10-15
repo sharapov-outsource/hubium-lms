@@ -22,19 +22,14 @@
     "no": "No",
     "close": "Close",
     "confirm": "Confirm",
-    "loading": "Loading…",
     "none": "None",
-    "all": "All",
     "name": "Name",
-    "description": "Description",
     "status": "Status",
     "created": "Created",
-    "updated": "Updated",
     "never": "Never",
     "previous": "Previous",
     "next": "Next",
     "pageOf": "Page {page} of {pages}",
-    "studentsCount": "{count, plural, one {# student} other {# students}}",
     "usersCount": "{count, plural, one {# user} other {# users}}",
     "skipToContent": "Skip to content",
     "buildDate": "Built {date}",
@@ -44,23 +39,13 @@
     "notFoundText": "It may have been removed, or you may not have access to it.",
     "toHome": "Go home",
     "required": "Required",
-    "optional": "optional",
     "language": "Language",
     "theme": "Theme",
     "themeLight": "Light",
     "themeDark": "Dark",
     "themeSystem": "System",
-    "open": "Open",
-    "view": "View",
-    "download": "Download",
     "upload": "Upload",
-    "submit": "Submit",
-    "reset": "Reset",
     "apply": "Apply",
-    "more": "More",
-    "visible": "Visible",
-    "hidden": "Hidden",
-    "enabled": "Enabled",
     "disabled": "Disabled",
     "errorText": "Please try again. If it keeps happening, give the administrator the code below.",
     "errorCode": "Error code",
@@ -84,7 +69,10 @@
       "noFiles": "No files chosen"
     },
     "inLanguage": "{label} ({language})",
-    "select": "Select"
+    "select": "Select",
+    "done": "Done",
+    "remove": "Remove",
+    "emailOrLogin": "Email or username"
   },
   "nav": {
     "main": "Main navigation",
@@ -95,7 +83,6 @@
     "catalog": "Catalog",
     "calendar": "Calendar",
     "messages": "Messages",
-    "notifications": "Notifications",
     "admin": "Administration",
     "profile": "Profile",
     "settings": "Settings",
@@ -105,7 +92,8 @@
     "badges": "My badges",
     "certificates": "My certificates",
     "plans": "Learning plans",
-    "reports": "Reports"
+    "reports": "Reports",
+    "breadcrumb": "Breadcrumb"
   },
   "auth": {
     "signIn": "Sign in",
@@ -199,7 +187,6 @@
   },
   "dashboard": {
     "title": "Welcome, {name}",
-    "subtitle": "Your courses, deadlines and tasks will appear here",
     "adminHint": "You are a site administrator. Start by configuring the site and users.",
     "toAdmin": "Open administration",
     "continue": "Continue",
@@ -210,7 +197,6 @@
     "noUpcoming": "Nothing coming up",
     "todo": "To do",
     "noTodo": "All done",
-    "progress": "Progress",
     "allCourses": "All my courses"
   },
   "settings": {
@@ -272,10 +258,6 @@
     "permissionCheck": "Check permissions",
     "siteSettings": "Site settings",
     "environment": "Environment",
-    "general": "General",
-    "branding": "Branding",
-    "registration": "Registration",
-    "authentication": "Sign-in",
     "email": "Email",
     "stats": {
       "users": "Users",
@@ -329,7 +311,8 @@
       "lockedUntil": "Sign-in is locked after failed attempts until {until}.",
       "unlock": "Unlock",
       "unlocked": "Account unlocked",
-      "anyStatus": "Any status"
+      "anyStatus": "Any status",
+      "adminBadge": "administrator"
     },
     "role": {
       "new": "New role",
@@ -364,7 +347,14 @@
         "USER": "Authenticated user",
         "NONE": "No archetype"
       },
-      "name": "Name"
+      "name": "Name",
+      "risks": {
+        "config": "configuration",
+        "personal": "personal data",
+        "xss": "XSS",
+        "spam": "spam",
+        "dataloss": "data loss"
+      }
     },
     "check": {
       "title": "Check permissions",
@@ -386,7 +376,8 @@
         "not-allowed": "No role grants this capability"
       },
       "roleRow": "Role “{role}” assigned at {at}: base {base}, final {final}",
-      "userNotFound": "User not found"
+      "userNotFound": "User not found",
+      "capability": "Capability"
     },
     "settings": {
       "siteName": "Site name",
@@ -439,7 +430,9 @@
       "maintenanceMessagePlaceholder": "We are doing some maintenance. Please come back later.",
       "maintenanceUntil": "Expected end",
       "maintenanceUntilHint": "Shown to users; API clients learn from it when to retry (Retry-After).",
-      "maintenanceCli": "The same from the server command line:"
+      "maintenanceCli": "The same from the server command line:",
+      "sectionsNav": "Settings sections",
+      "sampleLink": "Link"
     },
     "env": {
       "title": "Environment",
@@ -489,7 +482,6 @@
     "grades": "Grades",
     "languages": "Languages",
     "modules": "Modules",
-    "security": "Security",
     "sso": "Single sign-on",
     "bulk": {
       "title": "Act on the selected",
@@ -521,12 +513,20 @@
       "result": "Done for {done} of {total}"
     },
     "courseFields": "Course fields",
-    "maintenance": "Maintenance",
     "maintenanceOn": "Maintenance mode is on: only administrators can use the site.",
     "maintenanceSettings": "Maintenance settings",
     "tasks": "Tasks",
     "badges": "Badges",
-    "competencies": "Competencies"
+    "competencies": "Competencies",
+    "sections": {
+      "general": "General",
+      "branding": "Branding",
+      "registration": "Registration",
+      "authentication": "Sign-in",
+      "security": "Security",
+      "email": "Email",
+      "maintenance": "Maintenance"
+    }
   },
   "email": {
     "footer": "You received this email because you have an account on this site.",
@@ -1118,14 +1118,11 @@
     "allCategories": "All categories",
     "empty": "No courses found",
     "coursesCount": "{count, plural, one {# course} other {# courses}}",
-    "open": "Open",
     "enrol": "Enrol",
     "enrolKey": "Enrolment key",
-    "enrolled": "You are enrolled",
     "selfDisabled": "Self-enrolment is closed. Please contact the teacher.",
     "guestNotice": "You are viewing this course as a guest.",
     "guestCanEnrol": "You are viewing this course as a guest. Enrol to do its activities and get grades.",
-    "signInToEnrol": "Sign in to enrol",
     "guest": "Guest access",
     "teachers": "Teachers",
     "starts": "Starts",
@@ -1186,7 +1183,6 @@
       "certificates": "Certificates",
       "competencies": "Competencies"
     },
-    "editMode": "Edit mode",
     "editOn": "Edit",
     "editOff": "Done",
     "general": "General",
@@ -1233,16 +1229,13 @@
     "deleteCourse": "Delete course",
     "deleteCourseConfirm": "Move the course to the recycle bin? An administrator can restore it.",
     "viewAs": "View as",
-    "viewAsStudent": "View as student",
     "stopViewAs": "Return to my role",
     "viewingAs": "You are viewing the course as “{role}”",
     "markDone": "Mark as done",
     "done": "Done",
-    "completionManual": "Mark it yourself",
     "completionAuto": "Completed automatically",
     "completionFailed": "Failed",
     "progress": "{percent}% complete",
-    "notEnrolled": "You are not enrolled in this course",
     "hiddenCourse": "Hidden from students",
     "stealthBadge": "Link only",
     "reset": "Reset the course",
@@ -1280,7 +1273,6 @@
     "accessAny": "any of the conditions",
     "nestedAll": "A set of conditions, all to be met: {n}",
     "nestedAny": "A set of conditions, one is enough: {n}",
-    "addCondition": "Add condition",
     "conditionTypes": {
       "date": "Date",
       "completion": "Activity completion",
@@ -1305,8 +1297,6 @@
     "groupMode": "Group mode",
     "saved": "Saved",
     "created": "Activity added",
-    "backToCourse": "Back to course",
-    "openEdit": "Activity settings",
     "condDate": "{op} {date}",
     "condCompletion": "“{name}” is {state}",
     "condGroup": "member of group {name}",
@@ -1333,7 +1323,6 @@
     "condGrouping": "member of grouping {name}"
   },
   "participants": {
-    "title": "Participants",
     "enrol": "Enrol users",
     "enrolTitle": "Enrol users",
     "searchUsers": "Find users by name, email or username",
@@ -1353,20 +1342,12 @@
     "enrolledN": "Enrolled: {count}",
     "endsAt": "Enrolment ends",
     "noParticipants": "No participants",
-    "method": "Enrolment method",
-    "methods": {
-      "MANUAL": "Manual",
-      "SELF": "Self",
-      "COHORT": "Cohort",
-      "GUEST": "Guest"
-    },
     "allRoles": "All roles",
     "allGroups": "All groups",
     "noGroup": "No group"
   },
   "enrolment": {
     "cohortRemoveConfirm": "Turn off the sync with “{name}”? The participants enrolled through it ({count}) are unenrolled: their roles, course group and chat memberships go.",
-    "title": "Enrolment methods",
     "manual": "Manual enrolment",
     "manualHint": "Teachers enrol users on the Participants page",
     "self": "Self-enrolment",
@@ -1423,7 +1404,8 @@
       "groupingHint": "Optional; a new one is made from the name",
       "create": "Create groups",
       "done": "Groups created"
-    }
+    },
+    "csvSample": "group;grouping;user\nGroup 1;Stream A;jsmith\nGroup 2;Stream A;mary.jones@example.org"
   },
   "completionReport": {
     "title": "Completion",
@@ -1439,7 +1421,6 @@
     }
   },
   "reports": {
-    "title": "Reports",
     "participation": "Participation",
     "participationHint": "How often students opened each activity",
     "views": "Views",
@@ -1448,7 +1429,157 @@
     "logs": "Event log",
     "event": "Event",
     "time": "Time",
-    "user": "User"
+    "user": "User",
+    "events": {
+      "activity": {
+        "viewed": "Activity viewed",
+        "created": "Activity added",
+        "updated": "Activity changed",
+        "deleted": "Activity deleted"
+      },
+      "course": {
+        "created": "Course created",
+        "updated": "Course settings changed",
+        "reset": "Course reset"
+      },
+      "user": {
+        "enrolled": "Participant enrolled"
+      },
+      "role": {
+        "assigned": "Role assigned",
+        "unassigned": "Role removed",
+        "override": {
+          "changed": "Permissions changed"
+        }
+      },
+      "group": {
+        "created": "Group created"
+      },
+      "grouping": {
+        "created": "Grouping created"
+      },
+      "grade": {
+        "updated": "Grade changed",
+        "imported": "Grades imported",
+        "calculation": {
+          "updated": "Grade formula changed"
+        },
+        "scale": {
+          "created": "Scale created"
+        },
+        "letters": {
+          "changed": "Grade letters changed"
+        }
+      },
+      "completion": {
+        "manual": "Marked as done"
+      },
+      "announcement": {
+        "created": "Announcement posted"
+      },
+      "competency": {
+        "rated": "Competency rated"
+      },
+      "badge": {
+        "awarded": "Badge awarded",
+        "revoked": "Badge revoked",
+        "status": "Badge status changed"
+      },
+      "certificate": {
+        "issued": "Certificate issued",
+        "revoked": "Certificate revoked",
+        "restored": "Certificate restored",
+        "status": "Certificate status changed"
+      },
+      "assign": {
+        "submission": {
+          "saved": "Assignment submission saved"
+        },
+        "graded": "Assignment graded",
+        "gradingform": {
+          "saved": "Assessment form saved"
+        },
+        "identities": {
+          "revealed": "Identities revealed"
+        },
+        "override": "Personal dates set",
+        "extension": "Extension granted",
+        "workflow": "Marking state changed"
+      },
+      "quiz": {
+        "attempt": {
+          "started": "Quiz attempt started",
+          "finished": "Quiz attempt finished"
+        },
+        "override": {
+          "saved": "Personal quiz settings saved"
+        },
+        "regraded": "Quiz regraded"
+      },
+      "lesson": {
+        "attempt": {
+          "started": "Lesson started",
+          "finished": "Lesson finished"
+        }
+      },
+      "book": {
+        "chapter": {
+          "created": "Book chapter added",
+          "updated": "Book chapter changed",
+          "deleted": "Book chapter deleted"
+        }
+      },
+      "choice": {
+        "answered": "Choice answered",
+        "responses": {
+          "deleted": "Choice answers deleted"
+        }
+      },
+      "data": {
+        "entry": {
+          "created": "Database entry added"
+        },
+        "entries": {
+          "imported": "Database entries imported"
+        }
+      },
+      "feedback": {
+        "submitted": "Feedback submitted"
+      },
+      "forum": {
+        "discussion": {
+          "created": "Discussion started",
+          "deleted": "Discussion deleted"
+        },
+        "post": {
+          "deleted": "Forum post deleted"
+        },
+        "graded": "Forum graded"
+      },
+      "glossary": {
+        "entry": {
+          "created": "Glossary entry added"
+        }
+      },
+      "livesession": {
+        "joined": "Joined a live session"
+      },
+      "lti": {
+        "launch": "External tool opened",
+        "score": "External tool sent a grade"
+      },
+      "video": {
+        "uploaded": "Video uploaded"
+      },
+      "wiki": {
+        "page": {
+          "created": "Wiki page created"
+        }
+      },
+      "workshop": {
+        "phase": "Workshop phase changed"
+      }
+    }
   },
   "calendar": {
     "title": "Calendar",
@@ -1540,7 +1671,6 @@
     "title": "Courses",
     "new": "Create course",
     "bin": "Course recycle bin",
-    "deleted": "Deleted",
     "restore": "Restore"
   },
   "cohorts": {
@@ -1548,7 +1678,6 @@
     "new": "New cohort",
     "name": "Name",
     "idNumber": "ID number",
-    "members": "Members",
     "addMember": "Add member",
     "empty": "No cohorts yet",
     "importTitle": "Import from CSV"
@@ -1569,7 +1698,6 @@
     "import": "Import grades",
     "noItems": "No graded items in this course yet",
     "noStudents": "No students in this course",
-    "manualItem": "Manual grade item",
     "newItem": "Add grade item",
     "name": "Name",
     "idNumber": "ID number",
@@ -1598,8 +1726,6 @@
     "onlyGraded": "Aggregate only non-empty grades",
     "saved": "Grade saved",
     "overridden": "Overridden",
-    "clear": "Clear",
-    "courseTotal": "Course total",
     "editHint": "Click a cell to change the grade. Enter saves, Esc cancels.",
     "delete": "Delete",
     "kind": {
@@ -1626,7 +1752,6 @@
     "emptyCategory": "No items in this category yet",
     "scale": "Scale",
     "points": "Points",
-    "scales": "Scales",
     "siteScales": "Site scales",
     "courseScales": "Course scales",
     "scaleItems": "Grades of the scale from worst to best, one per line",
@@ -1717,7 +1842,8 @@
         "noStudent": "No student {value} in the course",
         "notAGrade": "{item}: \"{value}\" is not a grade"
       }
-    }
+    },
+    "rangeHint": "From 0 to {max}"
   },
   "qbank": {
     "title": "Question bank",
@@ -1771,7 +1897,6 @@
     "caseSensitive": "Case sensitive",
     "value": "Value",
     "tolerance": "Tolerance",
-    "pairs": "Pairs",
     "pairQuestion": "Question",
     "pairAnswer": "Match",
     "addPair": "Add pair",
@@ -1781,8 +1906,6 @@
     "graderInfo": "Information for graders",
     "saved": "Question saved",
     "deleteConfirm": "Delete the question? If quizzes use it, it will be hidden instead.",
-    "edit": "Edit",
-    "used": "in use",
     "back": "Back to question bank",
     "fractions": {
       "p100": "100%",
@@ -1926,7 +2049,10 @@
       "answerN": "Answer {n}",
       "notANumber": "not a number",
       "noVariants": "Generate the items of every variable to see the answers."
-    }
+    },
+    "deleteCategory": "Delete category",
+    "deleteCategoryConfirm": "Delete the empty category “{name}”?",
+    "categoryDeleted": "Category deleted"
   },
   "notifications": {
     "title": "Notifications",
@@ -1936,7 +2062,6 @@
     "unreadOnly": "Unread only",
     "all": "All",
     "markAllRead": "Mark all as read",
-    "markRead": "Mark read",
     "viewAll": "All notifications",
     "loadMore": "Load more",
     "types": {
@@ -1995,7 +2120,8 @@
       "pushOn": "Push notifications enabled",
       "pushOff": "Push notifications disabled",
       "pushDenied": "The browser blocked notifications — allow them in the site settings.",
-      "pushUnsupported": "This browser does not support push notifications."
+      "pushUnsupported": "This browser does not support push notifications.",
+      "pushFailed": "Notifications could not be turned on in this browser"
     },
     "unsubscribe": {
       "title": "Unsubscribe",
@@ -2054,13 +2180,10 @@
     "saved": "Saved",
     "messageUser": "Message",
     "cannotMessage": "You cannot message this user",
-    "live": "Live updates connected",
-    "reconnecting": "Reconnecting…",
     "attachmentsTooLarge": "Attachments are larger than 9 MB: send them in parts or as a link."
   },
   "announcements": {
     "title": "Announcements",
-    "stream": "Stream",
     "new": "New announcement",
     "subject": "Title",
     "content": "Text",
@@ -2075,14 +2198,14 @@
     "allGroups": "All participants",
     "empty": "No announcements yet",
     "posted": "Announcement published",
-    "scheduledOk": "Announcement scheduled",
     "delete": "Delete",
     "deleteConfirm": "Delete this announcement?",
     "edit": "Edit",
     "save": "Save",
     "site": "Site announcements",
     "siteHint": "Shown on the dashboard to every user",
-    "recent": "New in your courses"
+    "recent": "New in your courses",
+    "saved": "Announcement saved"
   },
   "adminLti": {
     "title": "LTI 1.3 tools",
@@ -2342,10 +2465,21 @@
     "inputTokens": "Input tokens",
     "outputTokens": "Output tokens",
     "cacheRead": "From cache",
-    "topCourses": "Top courses by usage"
+    "topCourses": "Top courses by usage",
+    "effortLevels": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    },
+    "statuses": {
+      "OK": "OK",
+      "ERROR": "Error",
+      "REFUSED": "Refused",
+      "LIMITED": "Over the limit",
+      "PENDING": "In progress"
+    }
   },
   "apiTokens": {
-    "title": "API tokens",
     "new": "New token",
     "hint": "A token lets programs use the REST API on your behalf. See the <docs>API documentation</docs>.",
     "name": "Name",

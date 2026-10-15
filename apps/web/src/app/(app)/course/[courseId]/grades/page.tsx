@@ -32,7 +32,7 @@ import {
   Th,
   Tr,
 } from '@hubium/ui';
-import { Download } from 'lucide-react';
+import { Download, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { forbidden } from 'next/navigation';
 import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
@@ -665,6 +665,8 @@ export default async function GradesPage({
                         const i = col.item;
                         const g = r.cell.get(`${u.id}:${i.id}`);
                         const v = n(g?.finalGrade);
+                        // a locked item or grade keeps its value: shown, not edited
+                        const locked = i.locked || !!g?.locked;
                         return (
                           <td
                             key={i.id}
@@ -674,8 +676,17 @@ export default async function GradesPage({
                                 : 'px-1 py-1 tabular-nums'
                             }
                           >
-                            {i.kind === 'COURSE' || !canEdit || i.locked ? (
-                              <span className="px-1">{display(v, i)}</span>
+                            {i.kind === 'COURSE' || !canEdit || locked ? (
+                              <span className="inline-flex items-center gap-1 px-1">
+                                {display(v, i)}
+                                {locked && i.kind !== 'COURSE' ? (
+                                  <Lock
+                                    className="size-3 text-muted-foreground"
+                                    role="img"
+                                    aria-label={t('locked')}
+                                  />
+                                ) : null}
+                              </span>
                             ) : (
                               <GradeCell
                                 courseId={courseId}

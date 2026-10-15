@@ -107,7 +107,7 @@ export default async function PermissionCheckPage({
             <Field label={t('user')} htmlFor="user">
               <Input id="user" name="user" defaultValue={sp.user} required />
             </Field>
-            <Field label="Capability" htmlFor="cap">
+            <Field label={t('capability')} htmlFor="cap">
               <Select id="cap" name="cap" defaultValue={sp.cap}>
                 {[...capabilities.keys()].map((c) => (
                   <option key={c}>{c}</option>

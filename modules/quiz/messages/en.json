@@ -272,6 +272,7 @@
       "markTooHigh": "Mark must be at most {max}",
       "closeAfterOpen": "Close date must be after open date",
       "notAddress": "Not an address: {entries}"
-    }
+    },
+    "minutes": "{n} min"
   }
 }

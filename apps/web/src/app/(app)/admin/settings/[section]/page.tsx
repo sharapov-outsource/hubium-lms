@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: { params: Promise<{ section: 
   const { section } = await params;
   if (!SECTIONS.includes(section as Section)) return {};
   const t = await getTranslations('admin');
-  return { title: `${t('siteSettings')}: ${t(section)}` };
+  return { title: `${t('siteSettings')}: ${t(`sections.${section as Section}`)}` };
 }
 
 export default async function SettingsSectionPage({
@@ -327,7 +327,12 @@ export default async function SettingsSectionPage({
     <div className="grid gap-6 lg:grid-cols-[12rem_1fr]">
       <SectionNav
         active={section}
-        items={SECTIONS.map((k) => ({ key: k, href: `/admin/settings/${k}`, label: t(k) }))}
+        label={t('settings.sectionsNav')}
+        items={SECTIONS.map((k) => ({
+          key: k,
+          href: `/admin/settings/${k}`,
+          label: t(`sections.${k}`),
+        }))}
       />
       <Card>
         <CardContent className="pt-5">{body}</CardContent>

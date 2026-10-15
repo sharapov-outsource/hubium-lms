@@ -7,6 +7,7 @@ import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { CommandButton } from '@/components/confirm-button';
 import {
   deleteQuestionAction,
+  deleteQuestionCategoryAction,
   importGiftAction,
   saveQuestionCategoryAction,
 } from '@/server/actions/grades';
@@ -37,6 +38,30 @@ export function DeleteQuestionButton({ courseId, id }: { courseId: string; id: s
       run={() => deleteQuestionAction(courseId, id)}
     >
       {t('remove')}
+    </CommandButton>
+  );
+}
+
+/** Deletes an empty category, after asking. */
+export function DeleteCategoryButton({
+  courseId,
+  id,
+  name,
+}: {
+  courseId: string;
+  id: string;
+  name: string;
+}) {
+  const t = useTranslations('qbank');
+  return (
+    <CommandButton
+      size="sm"
+      variant="ghost"
+      confirm={t('deleteCategoryConfirm', { name })}
+      success={t('categoryDeleted')}
+      run={() => deleteQuestionCategoryAction(courseId, id)}
+    >
+      {t('deleteCategory')}
     </CommandButton>
   );
 }

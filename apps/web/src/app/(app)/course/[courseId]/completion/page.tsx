@@ -79,6 +79,7 @@ export default async function CompletionPage({
                     state={state}
                     label={`${l.name} — ${report.activities[i]!.name}: ${t(`states.${state}`)}`}
                     canOverride={canOverride}
+                    overrideLabel={t('override')}
                   />
                 </td>
               ))}

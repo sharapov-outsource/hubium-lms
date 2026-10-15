@@ -55,7 +55,7 @@ export function BrandingForm({ accent, hasLogo }: { accent: string; hasLogo: boo
                 {tc('save')}
               </span>
               <span className="text-sm underline" style={{ color: palette.light.accent }}>
-                Link
+                {t('sampleLink')}
               </span>
             </div>
             <div
@@ -69,7 +69,7 @@ export function BrandingForm({ accent, hasLogo }: { accent: string; hasLogo: boo
                 {tc('save')}
               </span>
               <span className="text-sm underline" style={{ color: palette.dark.accent }}>
-                Link
+                {t('sampleLink')}
               </span>
             </div>
           </div>

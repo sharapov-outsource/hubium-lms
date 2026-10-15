@@ -6,10 +6,13 @@ import {
   roleName,
 } from '@hubium/core';
 import { Alert, Badge } from '@hubium/ui';
+import { LogOut } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { AutoLinks } from '@/components/auto-links';
+import { CommandButton } from '@/components/confirm-button';
+import { leaveCourseAction } from '@/server/actions/courses';
 import { db } from '@/server/db';
 import { courseName, sectionTitle } from '@/server/page-title';
 import { getContext, getSwitchedRole, requireUser } from '@/server/session';
@@ -38,8 +41,10 @@ export default async function CourseLayout({
   // a hidden course does not exist for those who may not see hidden courses: no name,
   // description or enrolment form
   if (!access.course.visible && !access.canViewHidden) notFound();
-  const [t, locale, path, switched] = await Promise.all([
+  const [t, tn, tcat, locale, path, switched] = await Promise.all([
     getTranslations('course'),
+    getTranslations('nav'),
+    getTranslations('catalog'),
     getLocale(),
     categoryPath(db, access.course.categoryId),
     getSwitchedRole(),
@@ -160,6 +165,14 @@ export default async function CourseLayout({
         },
       ].filter((x) => x.show)
     : [];
+  // who enrolled themselves may leave, as the catalog let them in
+  const selfEnrolled =
+    !viewingAs &&
+    !!ctx.perm.userId &&
+    !!(await db.enrolment.findFirst({
+      where: { courseId, userId: ctx.perm.userId, method: { type: 'SELF' } },
+      select: { id: true },
+    }));
   return (
     <div>
       {viewingAs ? (
@@ -171,7 +184,7 @@ export default async function CourseLayout({
       {access.isGuest && access.canView && !viewingAs ? <GuestNotice courseId={courseId} /> : null}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <nav aria-label="breadcrumb" className="mb-1 text-xs text-muted-foreground">
+          <nav aria-label={tn('breadcrumb')} className="mb-1 text-xs text-muted-foreground">
             {path.map((c, i) => (
               <span key={c.id}>
                 {i > 0 ? ' / ' : ''}
@@ -188,13 +201,26 @@ export default async function CourseLayout({
             ) : null}
           </h1>
         </div>
-        {!viewingAs && switchable.length ? (
-          <ViewAsMenu
-            courseId={courseId}
-            roles={switchable.map((r) => ({ id: r.id, name: roleLabel(r) }))}
-            label={t('viewAs')}
-          />
-        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {!viewingAs && switchable.length ? (
+            <ViewAsMenu
+              courseId={courseId}
+              roles={switchable.map((r) => ({ id: r.id, name: roleLabel(r) }))}
+              label={t('viewAs')}
+            />
+          ) : null}
+          {selfEnrolled ? (
+            <CommandButton
+              variant="outline"
+              size="sm"
+              confirm={tcat('leaveConfirm')}
+              run={leaveCourseAction.bind(null, courseId)}
+            >
+              <LogOut aria-hidden />
+              {tcat('leave')}
+            </CommandButton>
+          ) : null}
+        </div>
       </div>
       {tabs.length > 1 ? (
         <CourseTabs items={tabs} base={base} label={access.course.fullName} />

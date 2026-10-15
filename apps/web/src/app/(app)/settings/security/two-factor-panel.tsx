@@ -181,7 +181,7 @@ export function TwoFactorPanel({
             router.refresh();
           }}
         >
-          OK
+          {tc('done')}
         </Button>
       </div>
     </div>

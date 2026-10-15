@@ -22,7 +22,12 @@ import { forbidden } from 'next/navigation';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { titled } from '@/server/page-title';
 import { getContext } from '@/server/session';
-import { CategoryForm, DeleteQuestionButton, GiftImportForm } from './bank-parts';
+import {
+  CategoryForm,
+  DeleteCategoryButton,
+  DeleteQuestionButton,
+  GiftImportForm,
+} from './bank-parts';
 
 export const generateMetadata = titled('course', 'tabs.questionBank');
 
@@ -77,6 +82,12 @@ export default async function QuestionBankPage({
       <div className="grid content-start gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="mr-auto text-lg font-semibold">{current.name || t('defaultCategory')}</h2>
+          {/* only an empty category below the default one can go */}
+          {current.parentId &&
+          !current._count.questions &&
+          !categories.some((c) => c.parentId === current.id) ? (
+            <DeleteCategoryButton courseId={courseId} id={current.id} name={current.name} />
+          ) : null}
           {ai.QUIZGEN ? (
             <Button asChild size="sm">
               <Link href={`${base}/ai?category=${current.id}`}>

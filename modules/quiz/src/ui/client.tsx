@@ -197,6 +197,7 @@ export function SlotEditor({
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [cat, setCat] = useState(categories[0]?.id ?? '');
   const [count, setCount] = useState('1');
+  const [subcats, setSubcats] = useState(false);
   const [filter, setFilter] = useState('');
   const [perPage, setPerPage] = useState('1');
   const shown = questions.filter((q) => q.name.toLowerCase().includes(filter.toLowerCase()));
@@ -399,10 +400,24 @@ export function SlotEditor({
                     onChange={(e) => setCount(e.target.value)}
                   />
                 </Field>
+                <label htmlFor="rnd-subcats" className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    id="rnd-subcats"
+                    checked={subcats}
+                    onChange={(e) => setSubcats(e.target.checked)}
+                  />
+                  {t('includeSubcats')}
+                </label>
                 <Button
                   variant="secondary"
                   disabled={pending}
-                  onClick={() => run('addRandom', { categoryId: cat, count: Number(count) || 1 })}
+                  onClick={() =>
+                    run('addRandom', {
+                      categoryId: cat,
+                      count: Number(count) || 1,
+                      includeSubcats: subcats,
+                    })
+                  }
                 >
                   {t('add')}
                 </Button>

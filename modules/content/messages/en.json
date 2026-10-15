@@ -28,6 +28,7 @@
     "display": "Display",
     "displayList": "File list",
     "displayDownload": "Download the single file directly",
-    "empty": "No files uploaded yet"
+    "empty": "No files uploaded yet",
+    "downloadFile": "Download {name}"
   }
 }

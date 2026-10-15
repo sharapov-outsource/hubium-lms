@@ -114,9 +114,10 @@ describe('mod-data', () => {
       'Темы',
       'Сайт',
       'Обложка',
-      'user',
-      'added',
-      'approved',
+      // the last columns in the teacher's language
+      'User',
+      'Added',
+      'Approved',
     ]);
     expect(sheet.find((r) => r[0] === 'Дюна')!.slice(0, 6)).toEqual([
       'Дюна',

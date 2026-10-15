@@ -93,16 +93,16 @@ describe('locale resolution', () => {
 describe('translator', () => {
   it('interpolates and pluralises Russian forms', () => {
     const t = createTranslator('ru');
-    expect(t('common.studentsCount', { count: 1 })).toBe('1 студент');
-    expect(t('common.studentsCount', { count: 3 })).toBe('3 студента');
-    expect(t('common.studentsCount', { count: 5 })).toBe('5 студентов');
-    expect(t('common.studentsCount', { count: 21 })).toBe('21 студент');
+    expect(t('common.usersCount', { count: 1 })).toBe('1 пользователь');
+    expect(t('common.usersCount', { count: 3 })).toBe('3 пользователя');
+    expect(t('common.usersCount', { count: 5 })).toBe('5 пользователей');
+    expect(t('common.usersCount', { count: 21 })).toBe('21 пользователь');
   });
 
   it('pluralises English', () => {
     const t = createTranslator('en');
-    expect(t('common.studentsCount', { count: 1 })).toBe('1 student');
-    expect(t('common.studentsCount', { count: 2 })).toBe('2 students');
+    expect(t('common.usersCount', { count: 1 })).toBe('1 user');
+    expect(t('common.usersCount', { count: 2 })).toBe('2 users');
   });
 
   it('translates module strings and returns unknown keys as they are', () => {
@@ -111,7 +111,7 @@ describe('translator', () => {
   });
 
   it('an unknown language falls back to the site language, then the base', () => {
-    expect(createTranslator('xx', 'ru')('common.studentsCount', { count: 2 })).toBe('2 студента');
-    expect(createTranslator('xx')('common.studentsCount', { count: 2 })).toBe('2 students');
+    expect(createTranslator('xx', 'ru')('common.usersCount', { count: 2 })).toBe('2 пользователя');
+    expect(createTranslator('xx')('common.usersCount', { count: 2 })).toBe('2 users');
   });
 });

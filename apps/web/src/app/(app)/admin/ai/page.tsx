@@ -173,7 +173,9 @@ export default async function AdminAiPage() {
                   <Tr key={`${r.feature}-${r.status}`}>
                     <Td>{ta(`features.${r.feature}`)}</Td>
                     <Td>
-                      <Badge variant={r.status === 'OK' ? 'success' : 'warning'}>{r.status}</Badge>
+                      <Badge variant={r.status === 'OK' ? 'success' : 'warning'}>
+                        {t(`statuses.${r.status}`)}
+                      </Badge>
                     </Td>
                     <Td className="tabular-nums">{format.number(r.requests)}</Td>
                     <Td className="tabular-nums">{format.number(r.inputTokens)}</Td>

@@ -98,6 +98,21 @@ describe('texts for people come from the language packs', () => {
     expect(findings(refusal, (body) => /message:/.test(body) && !/\bcode:/.test(body))).toEqual([]);
   });
 
+  it("the interface's labels and hints come from the packs", () => {
+    // what to type rather than words: addresses, keys, scopes, a role's short name
+    const SAMPLE = /:\/\/|^-----|=|^[A-Z0-9-]+$/;
+    const IDENTIFIERS = new Set(['tutor', 'openid email profile', 'email']);
+    const attr = /\b(aria-label|placeholder|title|alt)="([^"{}]*[A-Za-z]{3,}[^"{}]*)"/g;
+    const found: string[] = [];
+    for (const { path, src } of files) {
+      if (!path.endsWith('.tsx')) continue;
+      for (const m of src.matchAll(attr))
+        if (!SAMPLE.test(m[2]!) && !IDENTIFIERS.has(m[2]!))
+          found.push(`${path}:${src.slice(0, m.index).split('\n').length}: ${m[0]}`);
+    }
+    expect(found).toEqual([]);
+  });
+
   it('import reports are written in the language of whoever imports', () => {
     const report = /(warnings|errors|left)\.push\(/g;
     expect(findings(report, (args) => /^\(\s*['"`]/.test(args))).toEqual([]);

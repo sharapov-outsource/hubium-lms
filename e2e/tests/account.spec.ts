@@ -266,7 +266,7 @@ test('recovery phrase instead of a code, and new backup codes', async ({ page })
   await page.getByRole('button', { name: 'Подтвердить' }).click();
   await expect(page.getByTestId('backup-codes')).toBeVisible();
   const first = await page.getByTestId('backup-codes').innerText();
-  await page.getByRole('button', { name: 'OK' }).click();
+  await page.getByRole('button', { name: 'Готово' }).click();
 
   try {
     // backup codes can be issued again
@@ -274,7 +274,7 @@ test('recovery phrase instead of a code, and new backup codes', async ({ page })
     await page.locator('#tf-password').fill(DEMO_PASSWORD);
     await page.getByRole('button', { name: 'Подтвердить' }).click();
     await expect(page.getByTestId('backup-codes')).not.toHaveText(first);
-    await page.getByRole('button', { name: 'OK' }).click();
+    await page.getByRole('button', { name: 'Готово' }).click();
 
     await expect(page.getByRole('heading', { name: 'Фразы восстановления' })).toBeVisible();
     await expectAccessible(page);

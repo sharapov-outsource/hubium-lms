@@ -111,12 +111,7 @@ export default async function GroupsPage({ params }: { params: Promise<{ courseI
             <CardTitle>{t('importTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <CsvImport
-              run={importGroupsAction.bind(null, courseId)}
-              sample={
-                'group;grouping;user\nГруппа 1;Поток А;ivanov\nГруппа 2;Поток А;petrova@example.org'
-              }
-            />
+            <CsvImport run={importGroupsAction.bind(null, courseId)} sample={t('csvSample')} />
           </CardContent>
         </Card>
       </div>

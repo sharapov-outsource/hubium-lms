@@ -418,7 +418,8 @@ const FileInput = z.object({
 /** Spreadsheet rows of the entries the user may see: a column per field, then who and when. */
 export async function recordSheet(ctx: ModuleCtx, a: ActivityRef) {
   const r = await dataRecords(ctx, a, { all: true });
-  const header = [...r.fields.map((f) => f.name), 'user', 'added', 'approved'];
+  const say = (key: string) => msg(`mod.data.sheet.${key}`).in(ctx.locale);
+  const header = [...r.fields.map((f) => f.name), say('user'), say('added'), say('approved')];
   const fileOf = (id: string) => r.files[id];
   return [
     header,
@@ -426,7 +427,7 @@ export async function recordSheet(ctx: ModuleCtx, a: ActivityRef) {
       ...r.fields.map((f) => valueText(f, x.values[f.id] ?? '', fileOf)),
       x.user?.name ?? '',
       x.createdAt.toISOString(),
-      x.approved ? 'yes' : 'no',
+      x.approved ? say('yes') : say('no'),
     ]),
   ];
 }

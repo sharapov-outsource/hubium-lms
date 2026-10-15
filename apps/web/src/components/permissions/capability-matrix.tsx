@@ -93,7 +93,7 @@ export function CapabilityMatrix({
                       <code className="font-mono text-sm">{cap}</code>
                       {risk.map((r) => (
                         <Badge key={r} variant="warning">
-                          {r}
+                          {t(`risks.${r as 'config'}`)}
                         </Badge>
                       ))}
                       {defaults ? (

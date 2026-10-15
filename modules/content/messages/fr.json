@@ -28,6 +28,7 @@
     "display": "Affichage",
     "displayList": "Liste des fichiers",
     "displayDownload": "Télécharger directement le fichier unique",
-    "empty": "Aucun fichier déposé pour l’instant"
+    "empty": "Aucun fichier déposé pour l’instant",
+    "downloadFile": "Télécharger {name}"
   }
 }

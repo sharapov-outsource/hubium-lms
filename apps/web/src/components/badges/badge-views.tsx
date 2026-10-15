@@ -444,7 +444,7 @@ export async function BadgeView({
                     name="login"
                     id="mark-login"
                     label={t('learner')}
-                    placeholder="email / login"
+                    placeholder={tc('emailOrLogin')}
                   />
                 )}
                 <p className="text-xs text-muted-foreground">{t('awardByHandHint')}</p>

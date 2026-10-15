@@ -21,19 +21,14 @@
     "no": "Non",
     "close": "Fermer",
     "confirm": "Confirmer",
-    "loading": "Chargement…",
     "none": "Aucun",
-    "all": "Tous",
     "name": "Nom",
-    "description": "Description",
     "status": "Statut",
     "created": "Créé",
-    "updated": "Modifié",
     "never": "Jamais",
     "previous": "Précédent",
     "next": "Suivant",
     "pageOf": "Page {page} sur {pages}",
-    "studentsCount": "{count, plural, one {# étudiant} other {# étudiants}}",
     "usersCount": "{count, plural, one {# utilisateur} other {# utilisateurs}}",
     "skipToContent": "Aller au contenu",
     "buildDate": "Compilé le {date}",
@@ -43,23 +38,13 @@
     "notFoundText": "Elle a peut-être été supprimée, ou vous n’y avez pas accès.",
     "toHome": "Retour à l’accueil",
     "required": "Obligatoire",
-    "optional": "facultatif",
     "language": "Langue",
     "theme": "Thème",
     "themeLight": "Clair",
     "themeDark": "Sombre",
     "themeSystem": "Système",
-    "open": "Ouvrir",
-    "view": "Afficher",
-    "download": "Télécharger",
     "upload": "Déposer",
-    "submit": "Envoyer",
-    "reset": "Réinitialiser",
     "apply": "Appliquer",
-    "more": "Plus",
-    "visible": "Visible",
-    "hidden": "Caché",
-    "enabled": "Activé",
     "disabled": "Désactivé",
     "errorText": "Veuillez réessayer. Si le problème persiste, communiquez le code ci-dessous à l’administrateur.",
     "errorCode": "Code d’erreur",
@@ -83,7 +68,10 @@
       "noFiles": "Aucun fichier choisi"
     },
     "inLanguage": "{label} ({language})",
-    "select": "Sélectionner"
+    "select": "Sélectionner",
+    "done": "Terminé",
+    "remove": "Retirer",
+    "emailOrLogin": "E-mail ou identifiant"
   },
   "nav": {
     "main": "Navigation principale",
@@ -94,7 +82,6 @@
     "catalog": "Catalogue",
     "calendar": "Calendrier",
     "messages": "Messages",
-    "notifications": "Notifications",
     "admin": "Administration",
     "profile": "Profil",
     "settings": "Paramètres",
@@ -104,7 +91,8 @@
     "badges": "Mes badges",
     "certificates": "Mes certificats",
     "plans": "Plans de formation",
-    "reports": "Rapports"
+    "reports": "Rapports",
+    "breadcrumb": "Fil d’Ariane"
   },
   "auth": {
     "signIn": "Se connecter",
@@ -198,7 +186,6 @@
   },
   "dashboard": {
     "title": "Bienvenue, {name}",
-    "subtitle": "Vos cours, échéances et tâches apparaîtront ici",
     "adminHint": "Vous êtes administrateur du site. Commencez par configurer le site et les utilisateurs.",
     "toAdmin": "Ouvrir l’administration",
     "continue": "Continuer",
@@ -209,7 +196,6 @@
     "noUpcoming": "Rien de prévu",
     "todo": "À faire",
     "noTodo": "Tout est fait",
-    "progress": "Progression",
     "allCourses": "Tous mes cours"
   },
   "settings": {
@@ -271,10 +257,6 @@
     "permissionCheck": "Vérifier les permissions",
     "siteSettings": "Paramètres du site",
     "environment": "Environnement",
-    "general": "Général",
-    "branding": "Identité visuelle",
-    "registration": "Création de comptes",
-    "authentication": "Connexion",
     "email": "E-mail",
     "stats": {
       "users": "Utilisateurs",
@@ -328,7 +310,8 @@
       "lockedUntil": "La connexion est verrouillée après des échecs jusqu'au {until}.",
       "unlock": "Déverrouiller",
       "unlocked": "Compte déverrouillé",
-      "anyStatus": "Tous les états"
+      "anyStatus": "Tous les états",
+      "adminBadge": "administrateur"
     },
     "role": {
       "new": "Nouveau rôle",
@@ -363,7 +346,14 @@
         "USER": "Utilisateur authentifié",
         "NONE": "Aucun archétype"
       },
-      "name": "Nom"
+      "name": "Nom",
+      "risks": {
+        "config": "configuration",
+        "personal": "données personnelles",
+        "xss": "XSS",
+        "spam": "spam",
+        "dataloss": "perte de données"
+      }
     },
     "check": {
       "title": "Vérifier les permissions",
@@ -385,7 +375,8 @@
         "not-allowed": "Aucun rôle n’accorde cette capacité"
       },
       "roleRow": "Rôle « {role} » attribué dans {at} : base {base}, résultat {final}",
-      "userNotFound": "Utilisateur introuvable"
+      "userNotFound": "Utilisateur introuvable",
+      "capability": "Capacité"
     },
     "settings": {
       "siteName": "Nom du site",
@@ -438,7 +429,9 @@
       "maintenanceMessagePlaceholder": "Une maintenance est en cours. Merci de revenir plus tard.",
       "maintenanceUntil": "Fin prévue",
       "maintenanceUntilHint": "Affichée aux utilisateurs ; les clients de l’API y apprennent quand réessayer (Retry-After).",
-      "maintenanceCli": "La même chose depuis la ligne de commande du serveur :"
+      "maintenanceCli": "La même chose depuis la ligne de commande du serveur :",
+      "sectionsNav": "Sections des paramètres",
+      "sampleLink": "Lien"
     },
     "env": {
       "title": "Environnement",
@@ -488,7 +481,6 @@
     "grades": "Notes",
     "languages": "Langues",
     "modules": "Modules",
-    "security": "Sécurité",
     "sso": "Authentification unique",
     "bulk": {
       "title": "Agir sur la sélection",
@@ -520,12 +512,20 @@
       "result": "Effectué pour {done} sur {total}"
     },
     "courseFields": "Champs de cours",
-    "maintenance": "Maintenance",
     "maintenanceOn": "Le mode maintenance est actif : seuls les administrateurs peuvent utiliser le site.",
     "maintenanceSettings": "Réglages de la maintenance",
     "tasks": "Tâches",
     "badges": "Badges",
-    "competencies": "Compétences"
+    "competencies": "Compétences",
+    "sections": {
+      "general": "Général",
+      "branding": "Identité visuelle",
+      "registration": "Création de comptes",
+      "authentication": "Connexion",
+      "security": "Sécurité",
+      "email": "E-mail",
+      "maintenance": "Maintenance"
+    }
   },
   "email": {
     "footer": "Vous recevez cet e-mail car vous avez un compte sur ce site.",
@@ -1117,14 +1117,11 @@
     "allCategories": "Toutes les catégories",
     "empty": "Aucun cours trouvé",
     "coursesCount": "{count, plural, one {# cours} other {# cours}}",
-    "open": "Ouvrir",
     "enrol": "M’inscrire",
     "enrolKey": "Clé d’inscription",
-    "enrolled": "Vous êtes inscrit",
     "selfDisabled": "L’auto-inscription est fermée. Veuillez contacter l’enseignant.",
     "guestNotice": "Vous consultez ce cours en tant qu’invité.",
     "guestCanEnrol": "Vous consultez ce cours en tant qu’invité. Inscrivez-vous pour faire ses activités et recevoir des notes.",
-    "signInToEnrol": "Connectez-vous pour vous inscrire",
     "guest": "Accès invité",
     "teachers": "Enseignants",
     "starts": "Début",
@@ -1185,7 +1182,6 @@
       "certificates": "Certificats",
       "competencies": "Compétences"
     },
-    "editMode": "Mode édition",
     "editOn": "Modifier",
     "editOff": "Terminé",
     "general": "Généralités",
@@ -1232,16 +1228,13 @@
     "deleteCourse": "Supprimer le cours",
     "deleteCourseConfirm": "Placer le cours dans la corbeille ? Un administrateur pourra le restaurer.",
     "viewAs": "Voir en tant que",
-    "viewAsStudent": "Voir en tant qu’étudiant",
     "stopViewAs": "Revenir à mon rôle",
     "viewingAs": "Vous consultez le cours en tant que « {role} »",
     "markDone": "Marquer comme terminé",
     "done": "Terminé",
-    "completionManual": "À marquer vous-même",
     "completionAuto": "Achevé automatiquement",
     "completionFailed": "Échoué",
     "progress": "{percent} % achevé",
-    "notEnrolled": "Vous n’êtes pas inscrit à ce cours",
     "hiddenCourse": "Caché aux étudiants",
     "stealthBadge": "Accessible par lien",
     "reset": "Réinitialiser le cours",
@@ -1279,7 +1272,6 @@
     "accessAny": "l’une des conditions",
     "nestedAll": "Un ensemble de conditions, toutes à remplir : {n}",
     "nestedAny": "Un ensemble de conditions, une seule suffit : {n}",
-    "addCondition": "Ajouter une condition",
     "conditionTypes": {
       "date": "Date",
       "completion": "Achèvement d’activité",
@@ -1304,8 +1296,6 @@
     "groupMode": "Mode de groupe",
     "saved": "Enregistré",
     "created": "Activité ajoutée",
-    "backToCourse": "Retour au cours",
-    "openEdit": "Paramètres de l’activité",
     "condDate": "{op} {date}",
     "condCompletion": "« {name} » : {state}",
     "condGroup": "membre du groupe {name}",
@@ -1332,7 +1322,6 @@
     "condGrouping": "membre du groupement {name}"
   },
   "participants": {
-    "title": "Participants",
     "enrol": "Inscrire des utilisateurs",
     "enrolTitle": "Inscrire des utilisateurs",
     "searchUsers": "Rechercher des utilisateurs par nom, e-mail ou nom d’utilisateur",
@@ -1352,20 +1341,12 @@
     "enrolledN": "Inscrits : {count}",
     "endsAt": "Fin de l’inscription",
     "noParticipants": "Aucun participant",
-    "method": "Méthode d’inscription",
-    "methods": {
-      "MANUAL": "Manuelle",
-      "SELF": "Auto-inscription",
-      "COHORT": "Cohorte",
-      "GUEST": "Invité"
-    },
     "allRoles": "Tous les rôles",
     "allGroups": "Tous les groupes",
     "noGroup": "Aucun groupe"
   },
   "enrolment": {
     "cohortRemoveConfirm": "Arrêter la synchronisation avec « {name} » ? Les participants inscrits par elle ({count}) sont désinscrits : leurs rôles, groupes et discussions du cours sont retirés.",
-    "title": "Méthodes d’inscription",
     "manual": "Inscription manuelle",
     "manualHint": "Les enseignants inscrivent les utilisateurs depuis la page Participants",
     "self": "Auto-inscription",
@@ -1422,7 +1403,8 @@
       "groupingHint": "Facultatif ; créé à partir du nom s'il n'existe pas",
       "create": "Créer les groupes",
       "done": "Groupes créés"
-    }
+    },
+    "csvSample": "group;grouping;user\nGroupe 1;Promotion A;jdupont\nGroupe 2;Promotion A;marie.martin@example.org"
   },
   "completionReport": {
     "title": "Achèvement",
@@ -1438,7 +1420,6 @@
     }
   },
   "reports": {
-    "title": "Rapports",
     "participation": "Participation",
     "participationHint": "Combien de fois les étudiants ont ouvert chaque activité",
     "views": "Consultations",
@@ -1447,7 +1428,157 @@
     "logs": "Journal des événements",
     "event": "Événement",
     "time": "Heure",
-    "user": "Utilisateur"
+    "user": "Utilisateur",
+    "events": {
+      "activity": {
+        "viewed": "Activité consultée",
+        "created": "Activité ajoutée",
+        "updated": "Activité modifiée",
+        "deleted": "Activité supprimée"
+      },
+      "course": {
+        "created": "Cours créé",
+        "updated": "Paramètres du cours modifiés",
+        "reset": "Cours réinitialisé"
+      },
+      "user": {
+        "enrolled": "Participant inscrit"
+      },
+      "role": {
+        "assigned": "Rôle attribué",
+        "unassigned": "Rôle retiré",
+        "override": {
+          "changed": "Permissions modifiées"
+        }
+      },
+      "group": {
+        "created": "Groupe créé"
+      },
+      "grouping": {
+        "created": "Groupement créé"
+      },
+      "grade": {
+        "updated": "Note modifiée",
+        "imported": "Notes importées",
+        "calculation": {
+          "updated": "Formule de note modifiée"
+        },
+        "scale": {
+          "created": "Barème créé"
+        },
+        "letters": {
+          "changed": "Lettres de notes modifiées"
+        }
+      },
+      "completion": {
+        "manual": "Marqué comme terminé"
+      },
+      "announcement": {
+        "created": "Annonce publiée"
+      },
+      "competency": {
+        "rated": "Compétence évaluée"
+      },
+      "badge": {
+        "awarded": "Badge attribué",
+        "revoked": "Badge révoqué",
+        "status": "Statut du badge modifié"
+      },
+      "certificate": {
+        "issued": "Certificat délivré",
+        "revoked": "Certificat révoqué",
+        "restored": "Certificat rétabli",
+        "status": "Statut du certificat modifié"
+      },
+      "assign": {
+        "submission": {
+          "saved": "Travail enregistré"
+        },
+        "graded": "Devoir noté",
+        "gradingform": {
+          "saved": "Formulaire d’évaluation enregistré"
+        },
+        "identities": {
+          "revealed": "Identités révélées"
+        },
+        "override": "Dates personnelles définies",
+        "extension": "Prolongation accordée",
+        "workflow": "État de correction modifié"
+      },
+      "quiz": {
+        "attempt": {
+          "started": "Tentative de test commencée",
+          "finished": "Tentative de test terminée"
+        },
+        "override": {
+          "saved": "Paramètres personnels du test enregistrés"
+        },
+        "regraded": "Test recorrigé"
+      },
+      "lesson": {
+        "attempt": {
+          "started": "Leçon commencée",
+          "finished": "Leçon terminée"
+        }
+      },
+      "book": {
+        "chapter": {
+          "created": "Chapitre de livre ajouté",
+          "updated": "Chapitre de livre modifié",
+          "deleted": "Chapitre de livre supprimé"
+        }
+      },
+      "choice": {
+        "answered": "Réponse au sondage",
+        "responses": {
+          "deleted": "Réponses du sondage supprimées"
+        }
+      },
+      "data": {
+        "entry": {
+          "created": "Entrée de base de données ajoutée"
+        },
+        "entries": {
+          "imported": "Entrées de base de données importées"
+        }
+      },
+      "feedback": {
+        "submitted": "Questionnaire envoyé"
+      },
+      "forum": {
+        "discussion": {
+          "created": "Discussion lancée",
+          "deleted": "Discussion supprimée"
+        },
+        "post": {
+          "deleted": "Message du forum supprimé"
+        },
+        "graded": "Forum noté"
+      },
+      "glossary": {
+        "entry": {
+          "created": "Article de glossaire ajouté"
+        }
+      },
+      "livesession": {
+        "joined": "Session en direct rejointe"
+      },
+      "lti": {
+        "launch": "Outil externe ouvert",
+        "score": "Note envoyée par l’outil externe"
+      },
+      "video": {
+        "uploaded": "Vidéo téléversée"
+      },
+      "wiki": {
+        "page": {
+          "created": "Page de wiki créée"
+        }
+      },
+      "workshop": {
+        "phase": "Phase de l’atelier modifiée"
+      }
+    }
   },
   "calendar": {
     "title": "Calendrier",
@@ -1539,7 +1670,6 @@
     "title": "Cours",
     "new": "Créer un cours",
     "bin": "Corbeille des cours",
-    "deleted": "Supprimé",
     "restore": "Restaurer"
   },
   "cohorts": {
@@ -1547,7 +1677,6 @@
     "new": "Nouvelle cohorte",
     "name": "Nom",
     "idNumber": "Numéro d’identification",
-    "members": "Membres",
     "addMember": "Ajouter un membre",
     "empty": "Aucune cohorte pour l’instant",
     "importTitle": "Importer depuis un CSV"
@@ -1568,7 +1697,6 @@
     "import": "Importer des notes",
     "noItems": "Aucun élément évalué dans ce cours pour l’instant",
     "noStudents": "Aucun étudiant dans ce cours",
-    "manualItem": "Élément d’évaluation manuel",
     "newItem": "Ajouter un élément d’évaluation",
     "name": "Nom",
     "idNumber": "Numéro d'identification",
@@ -1597,8 +1725,6 @@
     "onlyGraded": "Ne calculer qu’avec les notes non vides",
     "saved": "Note enregistrée",
     "overridden": "Modifiée manuellement",
-    "clear": "Effacer",
-    "courseTotal": "Total du cours",
     "editHint": "Cliquez sur une cellule pour modifier la note. Entrée enregistre, Échap annule.",
     "delete": "Supprimer",
     "kind": {
@@ -1625,7 +1751,6 @@
     "emptyCategory": "Aucun élément dans cette catégorie pour l’instant",
     "scale": "Barème",
     "points": "Points",
-    "scales": "Barèmes",
     "siteScales": "Barèmes du site",
     "courseScales": "Barèmes du cours",
     "scaleItems": "Valeurs du barème, de la moins bonne à la meilleure, une par ligne",
@@ -1716,7 +1841,8 @@
         "noStudent": "Aucun étudiant {value} dans le cours",
         "notAGrade": "{item} : « {value} » n'est pas une note"
       }
-    }
+    },
+    "rangeHint": "De 0 à {max}"
   },
   "qbank": {
     "title": "Banque de questions",
@@ -1770,7 +1896,6 @@
     "caseSensitive": "Sensible à la casse",
     "value": "Valeur",
     "tolerance": "Marge d’erreur",
-    "pairs": "Paires",
     "pairQuestion": "Question",
     "pairAnswer": "Correspondance",
     "addPair": "Ajouter une paire",
@@ -1780,8 +1905,6 @@
     "graderInfo": "Informations pour les évaluateurs",
     "saved": "Question enregistrée",
     "deleteConfirm": "Supprimer la question ? Si des tests l’utilisent, elle sera cachée à la place.",
-    "edit": "Modifier",
-    "used": "utilisée",
     "back": "Retour à la banque de questions",
     "fractions": {
       "p100": "100 %",
@@ -1925,7 +2048,10 @@
       "answerN": "Réponse {n}",
       "notANumber": "pas un nombre",
       "noVariants": "Générez les valeurs de chaque variable pour voir les réponses."
-    }
+    },
+    "deleteCategory": "Supprimer la catégorie",
+    "deleteCategoryConfirm": "Supprimer la catégorie vide « {name} » ?",
+    "categoryDeleted": "Catégorie supprimée"
   },
   "notifications": {
     "title": "Notifications",
@@ -1935,7 +2061,6 @@
     "unreadOnly": "Non lues uniquement",
     "all": "Toutes",
     "markAllRead": "Tout marquer comme lu",
-    "markRead": "Marquer comme lue",
     "viewAll": "Toutes les notifications",
     "loadMore": "Afficher plus",
     "types": {
@@ -1994,7 +2119,8 @@
       "pushOn": "Notifications push activées",
       "pushOff": "Notifications push désactivées",
       "pushDenied": "Le navigateur a bloqué les notifications : autorisez-les dans les paramètres du site.",
-      "pushUnsupported": "Ce navigateur ne prend pas en charge les notifications push."
+      "pushUnsupported": "Ce navigateur ne prend pas en charge les notifications push.",
+      "pushFailed": "Impossible d’activer les notifications dans ce navigateur"
     },
     "unsubscribe": {
       "title": "Désabonnement",
@@ -2053,13 +2179,10 @@
     "saved": "Enregistré",
     "messageUser": "Envoyer un message",
     "cannotMessage": "Vous ne pouvez pas envoyer de message à cet utilisateur",
-    "live": "Mises à jour en direct connectées",
-    "reconnecting": "Reconnexion…",
     "attachmentsTooLarge": "Les pièces jointes dépassent 9 Mo : envoyez-les en plusieurs fois ou sous forme de lien."
   },
   "announcements": {
     "title": "Annonces",
-    "stream": "Fil d’actualité",
     "new": "Nouvelle annonce",
     "subject": "Titre",
     "content": "Texte",
@@ -2074,14 +2197,14 @@
     "allGroups": "Tous les participants",
     "empty": "Aucune annonce pour l’instant",
     "posted": "Annonce publiée",
-    "scheduledOk": "Annonce programmée",
     "delete": "Supprimer",
     "deleteConfirm": "Supprimer cette annonce ?",
     "edit": "Modifier",
     "save": "Enregistrer",
     "site": "Annonces du site",
     "siteHint": "Affichées sur le tableau de bord de chaque utilisateur",
-    "recent": "Nouveautés dans vos cours"
+    "recent": "Nouveautés dans vos cours",
+    "saved": "Annonce enregistrée"
   },
   "adminLti": {
     "title": "Outils LTI 1.3",
@@ -2341,10 +2464,21 @@
     "inputTokens": "Jetons en entrée",
     "outputTokens": "Jetons en sortie",
     "cacheRead": "Depuis le cache",
-    "topCourses": "Cours les plus consommateurs"
+    "topCourses": "Cours les plus consommateurs",
+    "effortLevels": {
+      "low": "faible",
+      "medium": "moyenne",
+      "high": "élevée"
+    },
+    "statuses": {
+      "OK": "OK",
+      "ERROR": "Erreur",
+      "REFUSED": "Refusé",
+      "LIMITED": "Au-delà de la limite",
+      "PENDING": "En cours"
+    }
   },
   "apiTokens": {
-    "title": "Jetons d’API",
     "new": "Nouveau jeton",
     "hint": "Un jeton permet à des programmes d’utiliser l’API REST en votre nom. Consultez la <docs>documentation de l’API</docs>.",
     "name": "Nom",

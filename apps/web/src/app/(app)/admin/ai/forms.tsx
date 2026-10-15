@@ -218,9 +218,9 @@ export function FeatureForm({
         <FormField id={`f-effort-${f.feature}`} name="effort" label={t('effort')}>
           <Select id={`f-effort-${f.feature}`} name="effort" defaultValue={f.effort ?? ''}>
             <option value="">{t('effortDefault')}</option>
-            <option value="low">low</option>
-            <option value="medium">medium</option>
-            <option value="high">high</option>
+            <option value="low">{t('effortLevels.low')}</option>
+            <option value="medium">{t('effortLevels.medium')}</option>
+            <option value="high">{t('effortLevels.high')}</option>
           </Select>
         </FormField>
       </div>

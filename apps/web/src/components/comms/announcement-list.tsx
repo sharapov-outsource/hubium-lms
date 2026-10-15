@@ -2,6 +2,7 @@ import { RichText } from '@hubium/editor/client';
 import { Avatar, Badge } from '@hubium/ui';
 import { Pin, PinOff, Trash2 } from 'lucide-react';
 import { getFormatter, getTranslations } from 'next-intl/server';
+import { AnnouncementEditButton } from '@/components/comms/announcement-composer';
 import { CommandButton } from '@/components/confirm-button';
 import { deleteAnnouncementAction, pinAnnouncementAction } from '@/server/actions/announcements';
 
@@ -11,7 +12,9 @@ export interface AnnouncementView {
   title: string;
   contentHtml: string;
   pinned: boolean;
+  notify: boolean;
   publishAt: Date;
+  groupId: string | null;
   author: { name: string; image: string | null } | null;
   group: { name: string } | null;
   course?: { id: string; fullName: string } | null;
@@ -20,11 +23,14 @@ export interface AnnouncementView {
 export async function AnnouncementList({
   items,
   canManage,
+  groups,
   emptyText,
   compact,
 }: {
   items: AnnouncementView[];
   canManage: boolean;
+  /** The course's groups, for an announcement edited to one of them. */
+  groups?: { id: string; name: string }[];
   emptyText?: string;
   compact?: boolean;
 }) {
@@ -65,6 +71,19 @@ export async function AnnouncementList({
               {a.group ? <Badge>{a.group.name}</Badge> : null}
               {canManage ? (
                 <div className="flex gap-1">
+                  <AnnouncementEditButton
+                    courseId={a.courseId}
+                    groups={groups}
+                    announcement={{
+                      id: a.id,
+                      title: a.title,
+                      contentHtml: a.contentHtml,
+                      publishAt: a.publishAt.toISOString(),
+                      groupId: a.groupId,
+                      pinned: a.pinned,
+                      notify: a.notify,
+                    }}
+                  />
                   <CommandButton
                     size="icon"
                     variant="ghost"

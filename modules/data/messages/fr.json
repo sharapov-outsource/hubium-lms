@@ -165,6 +165,13 @@
         "picture": "{name} : une image est requise"
       },
       "closeAfterOpen": "La base de données doit fermer après son ouverture"
+    },
+    "sheet": {
+      "user": "Utilisateur",
+      "added": "Ajouté",
+      "approved": "Approuvé",
+      "yes": "oui",
+      "no": "non"
     }
   }
 }

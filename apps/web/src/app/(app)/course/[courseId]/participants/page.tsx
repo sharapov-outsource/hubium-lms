@@ -1,5 +1,18 @@
 import { getCourseAccess, listGroupNames, listParticipants, roleName } from '@hubium/core';
-import { Avatar, Badge, Button, Input, Select, Table, TBody, Td, THead, Th, Tr } from '@hubium/ui';
+import {
+  Avatar,
+  Badge,
+  Button,
+  EmptyState,
+  Input,
+  Select,
+  Table,
+  TBody,
+  Td,
+  THead,
+  Th,
+  Tr,
+} from '@hubium/ui';
 import { forbidden } from 'next/navigation';
 import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
 import { Pagination } from '@/components/pagination';
@@ -102,90 +115,94 @@ export default async function ParticipantsPage({
         ) : null}
       </div>
       <p className="text-sm text-muted-foreground">{t('enrolledN', { count: res.total })}</p>
-      <Table>
-        <THead>
-          <Tr>
-            <Th>{tc('name')}</Th>
-            <Th>{t('roles')}</Th>
-            <Th>{t('groups')}</Th>
-            {res.showEnrolments ? <Th>{t('status')}</Th> : null}
-            <Th>{t('lastAccess')}</Th>
-            {canManage ? <Th className="text-right">{tc('actions')}</Th> : null}
-          </Tr>
-        </THead>
-        <TBody>
-          {res.users.map((u) => {
-            const e = u.enrolments[0];
-            const current =
-              e &&
-              e.status === 'ACTIVE' &&
-              (!e.endsAt || e.endsAt > now) &&
-              (!e.startsAt || e.startsAt <= now);
-            return (
-              <Tr key={u.id}>
-                <Td>
-                  <div className="flex items-center gap-2">
-                    <Avatar name={u.name} src={u.image} size={28} />
-                    <div>
-                      <a href={`/profile/${u.id}`} className="font-medium hover:underline">
-                        {u.name}
-                      </a>
-                      {canManage && !u.emailPlaceholder ? (
-                        <p className="text-xs text-muted-foreground">{u.email}</p>
-                      ) : null}
-                    </div>
-                  </div>
-                </Td>
-                <Td>
-                  <div className="flex flex-wrap gap-1">
-                    {u.roleAssignments.map((ra) => (
-                      <Badge key={ra.id} variant="accent">
-                        {roleLabel(ra.role)}
-                      </Badge>
-                    ))}
-                  </div>
-                </Td>
-                <Td className="text-sm">
-                  {u.groupMembers.map((g) => g.group.name).join(', ') || (
-                    <span className="text-muted-foreground">{t('noGroup')}</span>
-                  )}
-                </Td>
-                {res.showEnrolments ? (
+      {res.users.length ? (
+        <Table>
+          <THead>
+            <Tr>
+              <Th>{tc('name')}</Th>
+              <Th>{t('roles')}</Th>
+              <Th>{t('groups')}</Th>
+              {res.showEnrolments ? <Th>{t('status')}</Th> : null}
+              <Th>{t('lastAccess')}</Th>
+              {canManage ? <Th className="text-right">{tc('actions')}</Th> : null}
+            </Tr>
+          </THead>
+          <TBody>
+            {res.users.map((u) => {
+              const e = u.enrolments[0];
+              const current =
+                e &&
+                e.status === 'ACTIVE' &&
+                (!e.endsAt || e.endsAt > now) &&
+                (!e.startsAt || e.startsAt <= now);
+              return (
+                <Tr key={u.id}>
                   <Td>
-                    <Badge variant={current ? 'success' : 'warning'}>
-                      {e?.status === 'SUSPENDED'
-                        ? t('suspended')
-                        : current
-                          ? t('active')
-                          : t('notCurrent')}
-                    </Badge>
-                    {e?.endsAt ? (
-                      <p className="text-xs text-muted-foreground">
-                        {t('endsAt')}: {format.dateTime(e.endsAt, { dateStyle: 'medium' })}
-                      </p>
-                    ) : null}
+                    <div className="flex items-center gap-2">
+                      <Avatar name={u.name} src={u.image} size={28} />
+                      <div>
+                        <a href={`/profile/${u.id}`} className="font-medium hover:underline">
+                          {u.name}
+                        </a>
+                        {canManage && !u.emailPlaceholder ? (
+                          <p className="text-xs text-muted-foreground">{u.email}</p>
+                        ) : null}
+                      </div>
+                    </div>
                   </Td>
-                ) : null}
-                <Td className="whitespace-nowrap text-sm text-muted-foreground">
-                  {u.courseAccesses[0]
-                    ? format.relativeTime(u.courseAccesses[0].lastAccessAt)
-                    : tc('never')}
-                </Td>
-                {canManage ? (
-                  <Td className="text-right">
-                    <ParticipantActions
-                      courseId={courseId}
-                      user={{ id: u.id, name: u.name, suspended: e?.status === 'SUSPENDED' }}
-                      roles={canRoles ? roles.map((r) => ({ id: r.id, name: roleLabel(r) })) : []}
-                      current={u.roleAssignments.map((ra) => ra.roleId)}
-                    />
+                  <Td>
+                    <div className="flex flex-wrap gap-1">
+                      {u.roleAssignments.map((ra) => (
+                        <Badge key={ra.id} variant="accent">
+                          {roleLabel(ra.role)}
+                        </Badge>
+                      ))}
+                    </div>
                   </Td>
-                ) : null}
-              </Tr>
-            );
-          })}
-        </TBody>
-      </Table>
+                  <Td className="text-sm">
+                    {u.groupMembers.map((g) => g.group.name).join(', ') || (
+                      <span className="text-muted-foreground">{t('noGroup')}</span>
+                    )}
+                  </Td>
+                  {res.showEnrolments ? (
+                    <Td>
+                      <Badge variant={current ? 'success' : 'warning'}>
+                        {e?.status === 'SUSPENDED'
+                          ? t('suspended')
+                          : current
+                            ? t('active')
+                            : t('notCurrent')}
+                      </Badge>
+                      {e?.endsAt ? (
+                        <p className="text-xs text-muted-foreground">
+                          {t('endsAt')}: {format.dateTime(e.endsAt, { dateStyle: 'medium' })}
+                        </p>
+                      ) : null}
+                    </Td>
+                  ) : null}
+                  <Td className="whitespace-nowrap text-sm text-muted-foreground">
+                    {u.courseAccesses[0]
+                      ? format.relativeTime(u.courseAccesses[0].lastAccessAt)
+                      : tc('never')}
+                  </Td>
+                  {canManage ? (
+                    <Td className="text-right">
+                      <ParticipantActions
+                        courseId={courseId}
+                        user={{ id: u.id, name: u.name, suspended: e?.status === 'SUSPENDED' }}
+                        roles={canRoles ? roles.map((r) => ({ id: r.id, name: roleLabel(r) })) : []}
+                        current={u.roleAssignments.map((ra) => ra.roleId)}
+                      />
+                    </Td>
+                  ) : null}
+                </Tr>
+              );
+            })}
+          </TBody>
+        </Table>
+      ) : (
+        <EmptyState title={t('noParticipants')} />
+      )}
       <Pagination
         page={res.page}
         pageSize={res.pageSize}

@@ -165,6 +165,13 @@
         "picture": "{name}: serve un’immagine"
       },
       "closeAfterOpen": "Il database deve chiudere dopo l’apertura"
+    },
+    "sheet": {
+      "user": "Utente",
+      "added": "Aggiunto",
+      "approved": "Approvato",
+      "yes": "sì",
+      "no": "no"
     }
   }
 }

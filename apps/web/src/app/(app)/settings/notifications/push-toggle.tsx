@@ -38,7 +38,7 @@ export function PushToggle({ publicKey }: { publicKey: string }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(sub.toJSON()),
     });
-    if (!r.ok) throw new Error('subscribe failed');
+    if (!r.ok) throw new Error(t('pushFailed'));
     setState('on');
     toast.success(t('pushOn'));
   }
@@ -77,7 +77,9 @@ export function PushToggle({ publicKey }: { publicKey: string }) {
               try {
                 await (state === 'on' ? disable() : enable());
               } catch (e) {
-                toast.error(e instanceof Error ? e.message : String(e));
+                // the browser's own words name no remedy: say what did not happen
+                toast.error(t('pushFailed'));
+                console.error(e);
               } finally {
                 setBusy(false);
               }

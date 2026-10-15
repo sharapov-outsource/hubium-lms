@@ -272,6 +272,7 @@
       "markTooHigh": "La note doit être au plus {max}",
       "closeAfterOpen": "La date de fermeture doit suivre la date d’ouverture",
       "notAddress": "Pas une adresse : {entries}"
-    }
+    },
+    "minutes": "{n} min"
   }
 }

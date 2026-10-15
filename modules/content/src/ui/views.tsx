@@ -65,7 +65,7 @@ export async function FileView({ activity, ctx }: ViewProps<{ display: 'list' | 
             {formatSize(Number(f.size))}
             <a
               href={`${f.url}?download`}
-              aria-label={`Download ${f.name}`}
+              aria-label={t('downloadFile', { name: f.name })}
               className="hover:text-foreground"
             >
               <Download className="size-4" />

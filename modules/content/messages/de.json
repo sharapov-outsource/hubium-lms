@@ -28,6 +28,7 @@
     "display": "Anzeige",
     "displayList": "Dateiliste",
     "displayDownload": "Einzelne Datei direkt herunterladen",
-    "empty": "Noch keine Dateien hochgeladen"
+    "empty": "Noch keine Dateien hochgeladen",
+    "downloadFile": "{name} herunterladen"
   }
 }

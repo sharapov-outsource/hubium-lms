@@ -13,6 +13,7 @@ export function CompletionCell({
   state,
   label,
   canOverride,
+  overrideLabel,
 }: {
   courseId: string;
   activityId: string;
@@ -20,6 +21,8 @@ export function CompletionCell({
   state: string;
   label: string;
   canOverride: boolean;
+  /** What pressing the cell does, said after its state. */
+  overrideLabel: string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -41,8 +44,8 @@ export function CompletionCell({
   return (
     <button
       type="button"
-      title={label}
-      aria-label={label}
+      title={`${label}. ${overrideLabel}`}
+      aria-label={`${label}. ${overrideLabel}`}
       disabled={pending}
       className="rounded p-1 hover:bg-muted"
       onClick={() =>

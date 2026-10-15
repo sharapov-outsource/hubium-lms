@@ -165,6 +165,13 @@
         "picture": "{name}: a picture is needed"
       },
       "closeAfterOpen": "The database must close after it opens"
+    },
+    "sheet": {
+      "user": "User",
+      "added": "Added",
+      "approved": "Approved",
+      "yes": "yes",
+      "no": "no"
     }
   }
 }

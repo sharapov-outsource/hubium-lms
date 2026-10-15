@@ -128,7 +128,14 @@ export default async function ReportsPage({ params }: { params: Promise<{ course
                       {format.dateTime(l.createdAt, { dateStyle: 'short', timeStyle: 'medium' })}
                     </Td>
                     <Td>{l.actorId ? (actorNames.get(l.actorId) ?? '—') : '—'}</Td>
-                    <Td className="font-mono text-xs">{l.name}</Td>
+                    <Td>
+                      {/* an event the packs do not name shows its code */}
+                      {t.has(`events.${l.name}` as never) ? (
+                        t(`events.${l.name}` as never)
+                      ) : (
+                        <span className="font-mono text-xs">{l.name}</span>
+                      )}
+                    </Td>
                   </Tr>
                 ))}
               </TBody>

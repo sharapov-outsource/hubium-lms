@@ -272,6 +272,7 @@
       "markTooHigh": "Il punteggio deve essere al massimo {max}",
       "closeAfterOpen": "La data di chiusura deve seguire la data di apertura",
       "notAddress": "Non è un indirizzo: {entries}"
-    }
+    },
+    "minutes": "{n} min"
   }
 }
