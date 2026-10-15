@@ -244,6 +244,13 @@ export async function recomputeCourseTotals(
 ): Promise<void> {
   if (!userIds.length) return;
   const { total } = await ensureCourseGradebook(tx, courseId);
+  // One recompute per person at a time, until the transaction ends: another one, running
+  // with a grade of its own, would work out the total without this transaction's grade and
+  // write it over (or both would create the total row). Taken in one order, so two
+  // recomputes of several people cannot wait on each other.
+  await tx.$executeRaw`
+    SELECT pg_advisory_xact_lock(hashtextextended(${`grades:${courseId}:`} || u, 0))
+      FROM unnest(${[...new Set(userIds)].sort()}::text[]) AS u ORDER BY u`;
   const [categories, items, grades] = await Promise.all([
     tx.gradeCategory.findMany({ where: { courseId } }),
     tx.gradeItem.findMany({
