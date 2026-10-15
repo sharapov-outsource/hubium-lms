@@ -255,9 +255,19 @@ export function buildModuleCtx(
       appOrigin: () => (process.env.APP_URL ?? 'http://localhost:3000').replace(/\/+$/, ''),
     },
     async log(event, data) {
+      // modules name the activity and the person concerned in the data: the course log
+      // filters by course
+      const str = (v: unknown) => (typeof v === 'string' ? v : null);
+      const activityId = str(data?.activityId);
+      const activity = activityId
+        ? await tx.activity.findUnique({ where: { id: activityId }, select: { courseId: true } })
+        : null;
       await logEvent(tx, {
         name: event,
         actorId: ctx.actor.kind === 'user' ? ctx.actor.userId : null,
+        courseId: activity?.courseId ?? null,
+        contextId: activity ? activityId : null,
+        relatedUserId: str(data?.userId),
         data: (data ?? {}) as Prisma.InputJsonValue,
         origin: ctx.origin,
         ip: ctx.ip,
