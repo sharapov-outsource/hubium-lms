@@ -10,7 +10,7 @@ import {
 } from '@hubium/module-sdk';
 import { csvFile, parseCsv } from '@hubium/module-sdk/csv';
 import { bool, isoDate } from '@hubium/module-sdk/fields';
-import { userGroupIds, visibleGroupFilter } from '@hubium/module-sdk/groups';
+import { groupsWhere, userGroupIds, visibleGroupFilter } from '@hubium/module-sdk/groups';
 import {
   aggregateRatings,
   inRatingWindow,
@@ -154,9 +154,11 @@ async function visibleWhere(ctx: ModuleCtx, a: Db): Promise<Prisma.DataRecordWhe
   return {
     activityId: a.id,
     OR: [
+      // separate groups: their groups' entries, and those of no group (a teacher's, an
+      // import, entries from before the mode), as the forum shows its discussions for all
       {
         approved: true,
-        ...(groups ? { groupId: { in: groups } } : {}),
+        ...(groups ? { OR: [{ groupId: { in: groups } }, { groupId: null }] } : {}),
       },
       ...(user ? [{ userId: user }] : []),
     ],
@@ -869,10 +871,19 @@ export const data = defineModule<DataSettingsT>({
       summary:
         'Add entries from CSV text whose header row names the fields (files and pictures are left out); yours, approved',
       capability: 'mod.data:manageentries',
-      input: z.object({ csv: z.string().max(5_000_000) }),
+      input: z.object({
+        csv: z.string().max(5_000_000),
+        /** The group the entries are of; none: seen by every group. */
+        groupId: z.string().uuid().nullable().default(null),
+      }),
       async handler(ctx, ref, input) {
         const a = ref as Db;
         const user = me(ctx);
+        if (
+          input.groupId &&
+          !(await ctx.db.group.count({ where: { id: input.groupId, ...groupsWhere(a) } }))
+        )
+          throw new Error('Unknown group');
         const fields = await dataFields(ctx.db, a.id);
         const [header, ...rows] = parseCsv(input.csv);
         if (!header) throw new Error('The file is empty');
@@ -897,7 +908,13 @@ export const data = defineModule<DataSettingsT>({
             continue;
           }
           const record = await ctx.db.dataRecord.create({
-            data: { activityId: a.id, userId: user, approved: true, createdAt: ctx.now },
+            data: {
+              activityId: a.id,
+              userId: user,
+              groupId: input.groupId,
+              approved: true,
+              createdAt: ctx.now,
+            },
           });
           await writeContents(ctx.db, record.id, values);
           created++;

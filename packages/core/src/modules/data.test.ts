@@ -153,4 +153,32 @@ describe('mod-data', () => {
     ]);
     expect(await t.db.dataRecord.count({ where: { activityId: copy } })).toBe(0);
   });
+
+  it('separate groups show everyone the entries of no group', async () => {
+    const f = await courseFixture(t.db, 'DATAGRP');
+    const { id } = await f.addActivity('data', 'Справочник', {}, { groupMode: 'SEPARATE' });
+    const [teacher, s1, s2] = await Promise.all(
+      [f.users.teacher!, f.users.student1!, f.users.student2!].map((u) => ctxFor(t.db, u)),
+    );
+    await runModuleAction(teacher!, id, 'addField', { type: 'text', name: 'Термин' });
+    const [ga, gb] = [
+      await t.db.group.create({ data: { courseId: f.courseId, name: 'А' } }),
+      await t.db.group.create({ data: { courseId: f.courseId, name: 'Б' } }),
+    ];
+    await t.db.groupMember.createMany({
+      data: [
+        { groupId: ga.id, userId: f.users.student1! },
+        { groupId: gb.id, userId: f.users.student2! },
+      ],
+    });
+    await runModuleAction(teacher!, id, 'importCsv', { csv: 'Термин\nАтом\nИон\n' });
+    await runModuleAction(teacher!, id, 'importCsv', {
+      csv: 'Термин\nТолько для А\n',
+      groupId: ga.id,
+    });
+    const total = async (ctx: Ctx) =>
+      ((await runModuleQuery(ctx, id, 'entries', {})) as Page).total;
+    expect(await total(s1!)).toBe(3);
+    expect(await total(s2!)).toBe(2);
+  });
 });
