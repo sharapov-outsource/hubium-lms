@@ -450,6 +450,12 @@ export const purgeActivity = defineOperation({
   authorize: (ctx, i) => authorizeActivity(ctx, i.id),
   async handler(ctx, { id }) {
     const a = await ctx.tx.activity.findUniqueOrThrow({ where: { id } });
+    // Grades of the bin's activities already count nowhere; a live one would take its
+    // grades out of the totals without them being worked out again.
+    if (!a.deletedAt)
+      throw new ValidationError({
+        id: ['Only activities in the recycle bin can be deleted for good'],
+      });
     const m = requireModule(a.moduleKey);
     await m.lifecycle?.onDelete?.(buildModuleCtx(ctx, ctx.tx), toActivityRef(a));
     await ctx.tx.calendarEvent.deleteMany({ where: { activityId: id } });

@@ -38,7 +38,10 @@ describe('restrictions on what is deleted', () => {
     await restoreActivity.run(admin, { id: first.id });
     expect(await opens(next.id)).toBe(false);
 
-    // deleted for good, it is taken out of the restrictions
+    // deleted for good, from the recycle bin only, it is taken out of the restrictions
+    await expect(purgeActivity.run(admin, { id: first.id })).rejects.toMatchObject({
+      fieldErrors: { id: [expect.stringMatching(/recycle bin/)] },
+    });
     await deleteActivity.run(admin, { id: first.id });
     await purgeActivity.run(admin, { id: first.id });
     const stored = async () => ({
