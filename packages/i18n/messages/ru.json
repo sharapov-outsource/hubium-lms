@@ -802,7 +802,8 @@
       "letterFromZero": "Одна из буквенных оценок должна начинаться с 0%",
       "chooseSheet": "Выберите файл CSV, XLSX или ODS",
       "invalidData": "Недопустимые данные",
-      "giftMissing": "Вставьте текст GIFT или выберите файл"
+      "giftMissing": "Вставьте текст GIFT или выберите файл",
+      "importLocked": "Оценка за «{item}» заблокирована"
     },
     "groups": {
       "groupNameTaken": "Группа с таким названием уже есть",
@@ -815,7 +816,11 @@
       "tooManyLines": "Не больше {n} строк",
       "nobodyWithRole": "Ни у кого здесь нет этой роли",
       "groupExists": "Группа «{clash}» уже есть",
-      "namePattern": "В названии нужен @ или #"
+      "namePattern": "В названии нужен @ или #",
+      "noGroupName": "Нет названия группы",
+      "noCohortName": "Нет названия глобальной группы",
+      "noSuchUser": "Такого пользователя нет",
+      "notInCourse": "Не записан на курс"
     },
     "messaging": {
       "onlySenderDeletes": "Удалить сообщение может только отправитель",

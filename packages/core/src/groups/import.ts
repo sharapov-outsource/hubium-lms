@@ -138,12 +138,13 @@ export const importCourseGroups = defineOperation({
       const line: ImportLine = { line: r.line, target: name, user: login };
       plan.lines.push(line);
       if (!name) {
-        line.error = 'No group name';
+        line.error = msg('errors.groups.noGroupName').in(ctx.locale);
         continue;
       }
       const user = login ? users.get(login.toLowerCase()) : undefined;
-      if (login && !user) line.error = 'No such user';
-      else if (user && !inCourse.has(user.id)) line.error = 'Not enrolled in the course';
+      if (login && !user) line.error = msg('errors.groups.noSuchUser').in(ctx.locale);
+      else if (user && !inCourse.has(user.id))
+        line.error = msg('errors.groups.notInCourse').in(ctx.locale);
       if (line.error) continue;
       const key = name.toLowerCase();
       if (!groupIds.has(key) && !newGroups.has(key))
@@ -251,12 +252,12 @@ export const importCohorts = defineOperation({
       const line: ImportLine = { line: r.line, target: name || idNumber, user: login };
       plan.lines.push(line);
       if (!name && !(idNumber && byIdNumber.has(idNumber.toLowerCase()))) {
-        line.error = 'No cohort name';
+        line.error = msg('errors.groups.noCohortName').in(ctx.locale);
         continue;
       }
       const user = login ? users.get(login.toLowerCase()) : undefined;
       if (login && !user) {
-        line.error = 'No such user';
+        line.error = msg('errors.groups.noSuchUser').in(ctx.locale);
         continue;
       }
       const key = keyOf(name, idNumber);

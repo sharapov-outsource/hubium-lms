@@ -801,7 +801,8 @@
       "letterFromZero": "Una lettera deve iniziare da 0%",
       "chooseSheet": "Scegli un file CSV, XLSX o ODS",
       "invalidData": "Dati non validi",
-      "giftMissing": "Incolla testo GIFT o scegli un file"
+      "giftMissing": "Incolla testo GIFT o scegli un file",
+      "importLocked": "Il voto di «{item}» è bloccato"
     },
     "groups": {
       "groupNameTaken": "Esiste già un gruppo con questo nome",
@@ -814,7 +815,11 @@
       "tooManyLines": "Al massimo {n} righe",
       "nobodyWithRole": "Nessuno ha questo ruolo qui",
       "groupExists": "Esiste già un gruppo \"{clash}\"",
-      "namePattern": "Il nome deve contenere @ o #"
+      "namePattern": "Il nome deve contenere @ o #",
+      "noGroupName": "Nessun nome di gruppo",
+      "noCohortName": "Nessun nome di coorte",
+      "noSuchUser": "Questo utente non esiste",
+      "notInCourse": "Non iscritto al corso"
     },
     "messaging": {
       "onlySenderDeletes": "Solo il mittente può eliminare un messaggio",

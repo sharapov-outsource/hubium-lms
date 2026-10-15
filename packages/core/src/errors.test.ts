@@ -30,8 +30,21 @@ describe('errors for people', () => {
         kind: z.enum(['a', 'b']),
         own: z.string().max(1, 'Own words'),
         keyed: z.string().max(1, 'errors.field.invalid'),
+        values: z
+          .string()
+          .superRefine((_v, c) =>
+            c.addIssue({ code: 'custom', message: 'errors.field.tooShort', params: { n: 7 } }),
+          ),
       })
-      .safeParse({ code: 'x', count: 9, email: 'no', kind: 'c', own: 'xx', keyed: 'xx' });
+      .safeParse({
+        code: 'x',
+        count: 9,
+        email: 'no',
+        kind: 'c',
+        own: 'xx',
+        keyed: 'xx',
+        values: '',
+      });
     expect(toActionError(r.error, 'ru').fieldErrors).toEqual({
       name: ['Обязательное поле'],
       code: ['Не короче 3 символов'],
@@ -40,6 +53,7 @@ describe('errors for people', () => {
       kind: ['Выберите один из вариантов'],
       own: ['Own words'],
       keyed: ['Недопустимое значение'],
+      values: ['Не короче 7 символов'],
     });
   });
 

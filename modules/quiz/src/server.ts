@@ -85,7 +85,11 @@ export const QuizSettings = z
       .superRefine((s, c) => {
         const bad = invalidIpListEntries(s);
         if (bad.length)
-          c.addIssue({ code: 'custom', message: `Not an address: ${bad.join(', ')}` });
+          c.addIssue({
+            code: 'custom',
+            message: 'mod.quiz.errors.notAddress',
+            params: { entries: bad.join(', ') },
+          });
       }),
     /** Minutes to wait after the first attempt, and after each later one. */
     delay1Min: z.coerce

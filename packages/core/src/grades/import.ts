@@ -244,7 +244,10 @@ async function applyRows(
     for (const c of r.changes) {
       const item = items.find((i) => i.id === c.itemId)!;
       if (await gradeLocked(tx, item, r.user.id)) {
-        locked.push({ line: r.line, message: `The grade of “${item.name}” is locked` });
+        locked.push({
+          line: r.line,
+          message: msg('errors.grades.importLocked', { item: item.name }).in(ctx.locale),
+        });
         continue;
       }
       const feedback = c.feedback === undefined ? undefined : sanitizeRichText(c.feedback);

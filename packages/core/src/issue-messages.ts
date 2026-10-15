@@ -1,11 +1,11 @@
-import { msg } from '@hubium/module-sdk';
+import { type MsgInput, msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { MsgOrText } from './errors.ts';
 
 // What a field that fails its schema says to people. zod's own messages ("Too small:
 // expected string to have >=3 characters") are for developers: they become messages of the
 // language packs by the kind of issue. A schema's own message stays; one that is a key of the
-// packs ("errors.…", "mod.…") becomes that message.
+// packs ("errors.…", "mod.…") becomes that message, a custom issue's params its values.
 
 const zodEnglish = z.locales.en().localeError;
 const KEY = /^(errors|mod)\.[\w.]+$/;
@@ -23,7 +23,12 @@ const NUMERIC = new Set(['number', 'int', 'bigint']);
 
 /** A schema's issue as a message for people. */
 export function issueMsg(issue: z.core.$ZodIssue): MsgOrText {
-  if (!zodDefault(issue)) return KEY.test(issue.message) ? msg(issue.message) : issue.message;
+  if (!zodDefault(issue)) {
+    if (!KEY.test(issue.message)) return issue.message;
+    // a custom issue's params are its message's values
+    const params = issue.code === 'custom' ? issue.params : undefined;
+    return msg(issue.message, params as MsgInput | undefined);
+  }
   switch (issue.code) {
     case 'invalid_type':
       return issue.message.endsWith('received undefined')

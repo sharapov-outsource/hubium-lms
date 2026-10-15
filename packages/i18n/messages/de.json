@@ -801,7 +801,8 @@
       "letterFromZero": "Eine Buchstabenbewertung muss bei 0 % beginnen",
       "chooseSheet": "Wählen Sie eine CSV-, XLSX- oder ODS-Datei",
       "invalidData": "Ungültige Daten",
-      "giftMissing": "Fügen Sie GIFT-Text ein oder wählen Sie eine Datei"
+      "giftMissing": "Fügen Sie GIFT-Text ein oder wählen Sie eine Datei",
+      "importLocked": "Die Bewertung für „{item}“ ist gesperrt"
     },
     "groups": {
       "groupNameTaken": "Eine Gruppe mit diesem Namen existiert bereits",
@@ -814,7 +815,11 @@
       "tooManyLines": "Höchstens {n} Zeilen",
       "nobodyWithRole": "Niemand hat hier diese Rolle",
       "groupExists": "Eine Gruppe „{clash}“ existiert bereits",
-      "namePattern": "Der Name braucht @ oder #"
+      "namePattern": "Der Name braucht @ oder #",
+      "noGroupName": "Kein Gruppenname",
+      "noCohortName": "Kein Name der globalen Gruppe",
+      "noSuchUser": "Diesen Benutzer gibt es nicht",
+      "notInCourse": "Nicht im Kurs eingeschrieben"
     },
     "messaging": {
       "onlySenderDeletes": "Nur die Absender/in kann eine Nachricht löschen",

@@ -270,7 +270,8 @@
       "otherGroup": "Cette tentative appartient à un autre groupe",
       "notFinished": "La tentative n’est pas terminée",
       "markTooHigh": "La note doit être au plus {max}",
-      "closeAfterOpen": "La date de fermeture doit suivre la date d’ouverture"
+      "closeAfterOpen": "La date de fermeture doit suivre la date d’ouverture",
+      "notAddress": "Pas une adresse : {entries}"
     }
   }
 }

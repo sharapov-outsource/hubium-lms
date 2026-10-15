@@ -118,7 +118,7 @@ test.describe
         buffer: Buffer.from(eicar.join('')),
       });
       await page.getByRole('button', { name: 'Сохранить черновик' }).click();
-      await expect(page.getByText('Malware detected: Eicar-Test-Signature')).toBeVisible();
+      await expect(page.getByText('Обнаружено вредоносное ПО: Eicar-Test-Signature')).toBeVisible();
       await expect(page.getByRole('link', { name: 'calculator.com' })).toHaveCount(0);
     });
 

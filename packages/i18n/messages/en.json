@@ -802,7 +802,8 @@
       "letterFromZero": "One letter must start at 0%",
       "chooseSheet": "Choose a CSV, XLSX or ODS file",
       "invalidData": "Invalid data",
-      "giftMissing": "Paste GIFT text or choose a file"
+      "giftMissing": "Paste GIFT text or choose a file",
+      "importLocked": "The grade of “{item}” is locked"
     },
     "groups": {
       "groupNameTaken": "A group with this name already exists",
@@ -815,7 +816,11 @@
       "tooManyLines": "At most {n} lines",
       "nobodyWithRole": "Nobody has this role here",
       "groupExists": "A group named \"{clash}\" already exists",
-      "namePattern": "The name needs @ or #"
+      "namePattern": "The name needs @ or #",
+      "noGroupName": "No group name",
+      "noCohortName": "No cohort name",
+      "noSuchUser": "No such user",
+      "notInCourse": "Not enrolled in the course"
     },
     "messaging": {
       "onlySenderDeletes": "Only the sender can delete a message",

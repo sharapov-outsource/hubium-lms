@@ -270,7 +270,8 @@
       "otherGroup": "Dieser Versuch gehört zu einer anderen Gruppe",
       "notFinished": "Der Versuch ist nicht beendet",
       "markTooHigh": "Die Punktzahl darf höchstens {max} betragen",
-      "closeAfterOpen": "Das Schlussdatum muss nach dem Öffnungsdatum liegen"
+      "closeAfterOpen": "Das Schlussdatum muss nach dem Öffnungsdatum liegen",
+      "notAddress": "Keine Adresse: {entries}"
     }
   }
 }

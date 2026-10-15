@@ -254,7 +254,9 @@ test('groups and cohorts from CSV, checked before import', async ({ page }) => {
     await page.goto(`/course/${course!.id}/groups`);
     await upload('group;grouping;user\nCSV-Альфа;CSV-Поток;student1\nCSV-Бета;CSV-Поток;nobody');
     await expect(page.getByText('новые: CSV-Альфа')).toBeVisible();
-    await expect(page.getByText('Строка 3 (CSV-Бета, nobody): No such user')).toBeVisible();
+    await expect(
+      page.getByText('Строка 3 (CSV-Бета, nobody): Такого пользователя нет'),
+    ).toBeVisible();
     await expectAccessible(page);
     await page.getByRole('button', { name: 'Импортировать' }).click();
     await expect(page.getByText('Импорт выполнен:')).toBeVisible();
