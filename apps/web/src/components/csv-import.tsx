@@ -2,6 +2,7 @@
 
 import type { ImportPlan } from '@hubium/core/groups/import';
 import type { ActionResult } from '@hubium/core/operation';
+import { decodeCsv } from '@hubium/module-sdk/csv';
 import { Alert, Button } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { useRouter } from 'next/navigation';
@@ -51,7 +52,7 @@ export function CsvImport({
         onChange={async (e) => {
           const f = e.currentTarget.files?.[0];
           setPlan(null);
-          setCsv(f ? await f.text() : null);
+          setCsv(f ? decodeCsv(new Uint8Array(await f.arrayBuffer())) : null);
         }}
       />
       <div className="flex flex-wrap gap-2">

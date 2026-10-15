@@ -1,7 +1,8 @@
+import { type Msg, msg } from '@hubium/module-sdk';
+import { decodeCsv, parseCsv } from '@hubium/module-sdk/csv';
 import { XMLParser } from 'fast-xml-parser';
 import { strToU8, unzipSync, zipSync } from 'fflate';
 import { ValidationError } from '../errors.ts';
-import { parseCsv } from '../users/users.ts';
 import type { Cell } from './xlsx.ts';
 
 // Spreadsheets in and out without a spreadsheet library: CSV (UTF-8, or Windows-1251 as
@@ -16,7 +17,7 @@ export const SHEET_LIMITS = {
   columns: 500,
 } as const;
 
-const refuse = (message: string): never => {
+const refuse = (message: Msg): never => {
   throw new ValidationError({ file: [message] });
 };
 
@@ -35,7 +36,7 @@ const parser = new XMLParser({
 function parseXml(bytes: Uint8Array | undefined): XNode[] {
   if (!bytes) return [];
   const xml = new TextDecoder().decode(bytes);
-  if (/<!DOCTYPE|<!ENTITY/i.test(xml)) refuse('The file is not a plain spreadsheet');
+  if (/<!DOCTYPE|<!ENTITY/i.test(xml)) refuse(msg('errors.sheets.notPlain'));
   return parser.parse(xml) as XNode[];
 }
 
@@ -92,13 +93,13 @@ function unzip(data: Uint8Array, wanted: (name: string) => boolean) {
       filter: (f) => {
         if (!wanted(f.name)) return false;
         total += f.originalSize;
-        if (total > SHEET_LIMITS.unpacked) refuse('The file unpacks to too much data');
+        if (total > SHEET_LIMITS.unpacked) refuse(msg('errors.sheets.unpacksTooMuch'));
         return true;
       },
     });
   } catch (e) {
     if (e instanceof ValidationError) throw e;
-    return refuse('The file is damaged');
+    return refuse(msg('errors.sheets.damaged'));
   }
 }
 
@@ -123,21 +124,23 @@ function readXlsx(data: Uint8Array): string[][] {
     // phonetic runs are readings, not the text
     .map((si) => textOf(kids(si), ['rPh', 'phoneticPr']));
   const sheet = find(parseXml(files[sheetPath]), 'sheetData');
-  if (!sheet) refuse('The workbook has no sheet');
+  if (!sheet) refuse(msg('errors.sheets.noSheet'));
   const rows: string[][] = [];
   let next = 0;
   for (const row of kids(sheet!)) {
     if (tagOf(row) !== 'row') continue;
     const r = Number(attr(row, 'r') ?? next + 1) - 1;
     next = r + 1;
-    if (r >= SHEET_LIMITS.rows + 1) refuse(`At most ${SHEET_LIMITS.rows} rows`);
+    if (r >= SHEET_LIMITS.rows + 1)
+      refuse(msg('errors.sheets.tooManyRows', { n: SHEET_LIMITS.rows }));
     const cells: string[] = [];
     let col = 0;
     for (const c of kids(row)) {
       if (tagOf(c) !== 'c') continue;
       const ref = attr(c, 'r');
       col = ref ? columnOf(ref) : col;
-      if (col >= SHEET_LIMITS.columns) refuse(`At most ${SHEET_LIMITS.columns} columns`);
+      if (col >= SHEET_LIMITS.columns)
+        refuse(msg('errors.sheets.tooManyColumns', { n: SHEET_LIMITS.columns }));
       const type = attr(c, 't');
       const v = textOf(kids(c).filter((x) => tagOf(x) === 'v'));
       cells[col] =
@@ -166,7 +169,7 @@ function readXlsx(data: Uint8Array): string[][] {
 function readOds(data: Uint8Array): string[][] {
   const files = unzip(data, (n) => n === 'content.xml' || n === 'mimetype');
   const table = find(parseXml(files['content.xml']), 'table:table');
-  if (!table) refuse('The spreadsheet has no sheet');
+  if (!table) refuse(msg('errors.sheets.noSheet'));
   const rows: string[][] = [];
   // empty rows and cells are written as repeats (to the end of the sheet): they count only
   // when something follows them
@@ -206,7 +209,7 @@ function readOds(data: Uint8Array): string[][] {
           continue;
         }
         if (cells.length + emptyCells + repeat > SHEET_LIMITS.columns)
-          refuse(`At most ${SHEET_LIMITS.columns} columns`);
+          refuse(msg('errors.sheets.tooManyColumns', { n: SHEET_LIMITS.columns }));
         for (let k = 0; k < emptyCells; k++) cells.push('');
         emptyCells = 0;
         for (let k = 0; k < repeat; k++) cells.push(value);
@@ -217,7 +220,7 @@ function readOds(data: Uint8Array): string[][] {
         continue;
       }
       if (rows.length + emptyRows + repeat > SHEET_LIMITS.rows + 1)
-        refuse(`At most ${SHEET_LIMITS.rows} rows`);
+        refuse(msg('errors.sheets.tooManyRows', { n: SHEET_LIMITS.rows }));
       for (let k = 0; k < emptyRows; k++) rows.push([]);
       emptyRows = 0;
       for (let k = 0; k < repeat; k++) rows.push([...cells]);
@@ -228,15 +231,9 @@ function readOds(data: Uint8Array): string[][] {
 }
 
 function readCsv(data: Uint8Array): string[][] {
-  let text: string;
-  try {
-    text = new TextDecoder('utf-8', { fatal: true }).decode(data);
-  } catch {
-    // Excel saves CSV in the system's code page; in Russian that is Windows-1251
-    text = new TextDecoder('windows-1251').decode(data);
-  }
-  const rows = parseCsv(text);
-  if (rows.length > SHEET_LIMITS.rows + 1) refuse(`At most ${SHEET_LIMITS.rows} rows`);
+  const rows = parseCsv(decodeCsv(data));
+  if (rows.length > SHEET_LIMITS.rows + 1)
+    refuse(msg('errors.sheets.tooManyRows', { n: SHEET_LIMITS.rows }));
   return rows;
 }
 
@@ -247,7 +244,7 @@ function readCsv(data: Uint8Array): string[][] {
  */
 export function readSheet(data: Uint8Array): string[][] {
   if (data.length > SHEET_LIMITS.bytes)
-    refuse(`The file is larger than ${SHEET_LIMITS.bytes / 1024 / 1024} MB`);
+    refuse(msg('errors.sheets.tooLarge', { n: SHEET_LIMITS.bytes / 1024 / 1024 }));
   const zip = data[0] === 0x50 && data[1] === 0x4b;
   let rows: string[][];
   if (zip) {
@@ -258,7 +255,7 @@ export function readSheet(data: Uint8Array): string[][] {
       'application/vnd.oasis.opendocument.spreadsheet'
     )
       rows = readOds(data);
-    else return refuse('Not a spreadsheet: use CSV, XLSX or ODS');
+    else return refuse(msg('errors.sheets.notSheet'));
   } else rows = readCsv(data);
   return rows.map((r) => {
     let end = r.length;

@@ -285,9 +285,9 @@
       "siteRolesHint": "Менеджер и создатель курсов действуют во всех категориях",
       "emailOrUsername": "Нужна почта или логин",
       "uploadTitle": "Загрузка пользователей",
-      "uploadHint": "CSV в UTF-8, разделитель «,» или «;». Обязательные столбцы: firstname, lastname, password и email или username. Необязательные: lang, mustchangepassword.",
+      "uploadHint": "CSV (UTF-8 или Windows-1251, разделитель «,» или «;»), XLSX или ODS: выгрузку пользователей можно исправить и загрузить обратно. Столбцы: firstname, lastname и email или username; для новых пользователей — password. Необязательные: lang, mustchangepassword, status (active или suspended). Строка с уже занятым логином (а без логина — почтой) обновляет этого пользователя, и её пустые ячейки ничего не меняют.",
       "uploadFile": "CSV-файл",
-      "uploadResult": "Создано: {created}. Ошибок: {errors}.",
+      "uploadResult": "Создано: {created}. Обновлено: {updated}. Ошибок: {errors}.",
       "uploadLine": "Строка {line}: {message}",
       "relations": {
         "title": "Наставники и родители",
@@ -312,7 +312,8 @@
       "unlock": "Разблокировать",
       "unlocked": "Учётная запись разблокирована",
       "anyStatus": "Любое состояние",
-      "adminBadge": "администратор"
+      "adminBadge": "администратор",
+      "uploadSheet": "Файл CSV, XLSX или ODS"
     },
     "role": {
       "new": "Новая роль",
@@ -602,7 +603,8 @@
       "slug": "Строчные латинские буквы, цифры и дефисы",
       "identifier": "Только латинские буквы, цифры и _",
       "httpUrl": "Допустимы только адреса http(s)",
-      "userOrGroup": "Выберите участника или группу"
+      "userOrGroup": "Выберите участника или группу",
+      "username": "Строчные латинские буквы, цифры и . _ -, от 3 до 50 символов"
     },
     "common": {
       "shortNameInUse": "Это краткое название уже занято",
@@ -921,8 +923,10 @@
       "deleteSelf": "Нельзя удалить самого себя",
       "adminBeforeDelete": "Перед удалением снимите права администратора",
       "roleNotForSite": "Эту роль нельзя назначить на уровне сайта",
-      "usersHeader": "В заголовке должны быть: firstname, lastname, password и email или username",
-      "emailOrUsername": "Нужен email или имя пользователя"
+      "usersHeader": "В заголовке должны быть: firstname, lastname и email или username",
+      "emailOrUsername": "Нужен email или имя пользователя",
+      "statusValue": "Статус — active или suspended",
+      "passwordForNew": "Новому пользователю нужен пароль"
     },
     "ai": {
       "apiKeyRequired": "Нужен ключ API",
@@ -1083,6 +1087,16 @@
       "resolvesInternal": "{host} указывает на внутренний адрес; чтобы разрешить его, добавьте его в SSRF_ALLOW_HOSTS",
       "unresolvable": "Не удаётся найти адрес {host}",
       "redirects": "Слишком много перенаправлений"
+    },
+    "sheets": {
+      "notPlain": "Файл не является обычной таблицей",
+      "unpacksTooMuch": "Файл распаковывается в слишком большой объём данных",
+      "damaged": "Файл повреждён",
+      "noSheet": "В файле нет листа",
+      "tooManyRows": "Не больше {n} строк",
+      "tooManyColumns": "Не больше {n} столбцов",
+      "tooLarge": "Файл больше {n} МБ",
+      "notSheet": "Это не таблица: используйте CSV, XLSX или ODS"
     }
   },
   "editor": {

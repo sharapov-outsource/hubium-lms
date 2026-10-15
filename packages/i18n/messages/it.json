@@ -284,9 +284,9 @@
       "siteRolesHint": "Manager e creatore di corsi valgono in tutte le categorie",
       "emailOrUsername": "Indicare l’email o il nome utente",
       "uploadTitle": "Caricamento utenti",
-      "uploadHint": "CSV in UTF-8, separato da «,» o «;». Colonne obbligatorie: firstname, lastname, password e email o username. Facoltative: lang, mustchangepassword.",
+      "uploadHint": "CSV (UTF-8 o Windows-1251, separato da «,» o «;»), XLSX o ODS: un’esportazione degli utenti può essere modificata e caricata di nuovo. Colonne: firstname, lastname e email o username; password per i nuovi utenti. Facoltative: lang, mustchangepassword, status (active o suspended). Una riga il cui nome utente (o, in sua assenza, l’e-mail) esiste già aggiorna quell’utente, e le sue celle vuote non cambiano nulla.",
       "uploadFile": "File CSV",
-      "uploadResult": "Creati: {created}. Errori: {errors}.",
+      "uploadResult": "Creati: {created}. Aggiornati: {updated}. Errori: {errors}.",
       "uploadLine": "Riga {line}: {message}",
       "relations": {
         "title": "Mentori e genitori",
@@ -311,7 +311,8 @@
       "unlock": "Sblocca",
       "unlocked": "Account sbloccato",
       "anyStatus": "Qualsiasi stato",
-      "adminBadge": "amministratore"
+      "adminBadge": "amministratore",
+      "uploadSheet": "File CSV, XLSX o ODS"
     },
     "role": {
       "new": "Nuovo ruolo",
@@ -601,7 +602,8 @@
       "slug": "Lettere minuscole, cifre e trattini",
       "identifier": "Solo lettere, cifre e _",
       "httpUrl": "Sono ammessi solo indirizzi http(s)",
-      "userOrGroup": "Scegli un partecipante o un gruppo"
+      "userOrGroup": "Scegli un partecipante o un gruppo",
+      "username": "Lettere latine minuscole, cifre e . _ -, da 3 a 50 caratteri"
     },
     "common": {
       "shortNameInUse": "Questo nome breve è già in uso",
@@ -920,8 +922,10 @@
       "deleteSelf": "Non puoi eliminare te stesso",
       "adminBeforeDelete": "Rimuovi i diritti di amministratore prima di eliminare",
       "roleNotForSite": "Questo ruolo non può essere assegnato a livello di sito",
-      "usersHeader": "L’intestazione deve contenere: firstname, lastname, password e email o username",
-      "emailOrUsername": "Serve l’email o il nome utente"
+      "usersHeader": "L’intestazione deve contenere: firstname, lastname e email o username",
+      "emailOrUsername": "Serve l’email o il nome utente",
+      "statusValue": "Lo stato è active o suspended",
+      "passwordForNew": "Un nuovo utente ha bisogno di una password"
     },
     "ai": {
       "apiKeyRequired": "È richiesta una chiave API",
@@ -1082,6 +1086,16 @@
       "resolvesInternal": "{host} punta a un indirizzo interno; aggiungilo a SSRF_ALLOW_HOSTS per consentirlo",
       "unresolvable": "Impossibile risolvere {host}",
       "redirects": "Troppi reindirizzamenti"
+    },
+    "sheets": {
+      "notPlain": "Il file non è un semplice foglio di calcolo",
+      "unpacksTooMuch": "Il file si decomprime in troppi dati",
+      "damaged": "Il file è danneggiato",
+      "noSheet": "Il file non ha alcun foglio",
+      "tooManyRows": "Al massimo {n} righe",
+      "tooManyColumns": "Al massimo {n} colonne",
+      "tooLarge": "Il file supera {n} MB",
+      "notSheet": "Non è un foglio di calcolo: usa CSV, XLSX o ODS"
     }
   },
   "editor": {

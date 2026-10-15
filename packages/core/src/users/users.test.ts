@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { ForbiddenError, ValidationError } from '../errors.ts';
+import { readSheet } from '../lib/sheets.ts';
 import { getAllSettings, setSettings } from '../settings/settings.ts';
+import { exportUsers } from './bulk.ts';
 import {
   bulkUploadUsers,
   createUser,
@@ -216,17 +218,37 @@ describe('users service', () => {
     expect(await t.db.account.count({ where: { userId: s.id } })).toBe(0);
   });
 
-  it('CSV upload creates valid rows and reports errors per line', async () => {
+  it('CSV upload creates valid rows, updates known users and reports errors per line', async () => {
     const ctx = await ctxFor(t.db, 'admin@test.local');
     const csv = [
       'username;firstname;lastname;password;email',
       'csv1;Анна;Первая;Password123;csv1@example.com',
       'csv2;Борис;Второй;short;',
       'csv3;Вера;Третья;Password123;',
-      'csv1;Дубль;Дублев;Password123;dup@example.com',
+      // csv1 is known by now: an update, its empty password left as it is
+      'csv1;Анна;Изменённая;;anna@example.com',
+      'csv4;Глеб;Безпароля;;',
     ].join('\n');
     const r = await bulkUploadUsers.run(ctx, { csv });
-    expect(r.created).toBe(2);
-    expect(r.errors.map((e) => e.line)).toEqual([3, 5]);
+    expect(r).toMatchObject({ created: 2, updated: 1 });
+    expect(r.errors.map((e) => e.line)).toEqual([3, 6]);
+    const anna = await t.db.user.findUniqueOrThrow({ where: { username: 'csv1' } });
+    expect([anna.lastName, anna.email]).toEqual(['Изменённая', 'anna@example.com']);
+  });
+
+  it('a user export edited in a spreadsheet uploads again', async () => {
+    const ctx = await ctxFor(t.db, 'admin@test.local');
+    const s = await t.db.user.findUniqueOrThrow({ where: { email: 'student2@hubium.local' } });
+    const rows = readSheet((await exportUsers(ctx, { ids: [s.id] }, 'xlsx')) as Uint8Array);
+    const col = (n: string) => rows[0]!.indexOf(n);
+    rows[1]![col('lastname')] = 'Новикова';
+    rows[1]![col('status')] = 'suspended';
+    expect(await bulkUploadUsers.run(ctx, { rows })).toEqual({
+      created: 0,
+      updated: 1,
+      errors: [],
+    });
+    const u = await t.db.user.findUniqueOrThrow({ where: { id: s.id } });
+    expect([u.firstName, u.lastName, u.status]).toEqual([s.firstName, 'Новикова', 'SUSPENDED']);
   });
 });

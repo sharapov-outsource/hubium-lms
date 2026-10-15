@@ -44,6 +44,7 @@ import { checkUpload, consumeUpload, getUpload } from '@hubium/core/files/upload
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { createTranslator } from '@hubium/i18n/packs';
 import { msg } from '@hubium/module-sdk';
+import { decodeCsv } from '@hubium/module-sdk/csv';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getLocale } from 'next-intl/server';
@@ -118,7 +119,8 @@ export async function importFrameworkAction(fd: FormData) {
     const file = fd.get('file');
     if (!(file instanceof File) || !file.size)
       throw new ValidationError({ file: [msg('errors.common.chooseCsv')] });
-    const r = await importFrameworkCsv.run(await getContext(), { csv: await file.text() });
+    const csv = decodeCsv(new Uint8Array(await file.arrayBuffer()));
+    const r = await importFrameworkCsv.run(await getContext(), { csv });
     revalidatePath(ADMIN);
     return r;
   });

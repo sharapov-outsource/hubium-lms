@@ -4,6 +4,15 @@ import { ADMIN, chooseOption, DEMO_PASSWORD, expectAccessible, login } from './h
 
 const stamp = Date.now();
 
+/** Text in Windows-1251 (Latin and Cyrillic letters only). */
+const cp1251 = (s: string) =>
+  Buffer.from(
+    [...s].map((ch) => {
+      const c = ch.codePointAt(0)!;
+      return c < 0x80 ? c : c === 0x401 ? 0xa8 : c === 0x451 ? 0xb8 : c - 0x350;
+    }),
+  );
+
 test('admin creates a user, assigns a site role, the user signs in', async ({ page }) => {
   await login(page, ADMIN.login, ADMIN.password);
   await page.goto('/admin/users');
@@ -227,6 +236,19 @@ test('bulk actions on selected users: suspend, enrol, export, delete', async ({ 
     expect(csv).toContain('username,email,firstname,lastname');
     expect(csv).toContain('bulk-a@example.org,Анна,Массова');
 
+    // edited in Excel, which saves CSV in Windows-1251 in Russian, it uploads again
+    await page.goto('/admin/users/upload');
+    await page.getByLabel('Файл CSV, XLSX или ODS').setInputFiles({
+      name: 'users.csv',
+      mimeType: 'text/csv',
+      buffer: cp1251(csv.replace(/^\uFEFF/, '').replace('Массова', 'Массовая')),
+    });
+    await page.getByRole('button', { name: 'Загрузить' }).click();
+    await expect(page.getByText('Создано: 0. Обновлено: 2. Ошибок: 0.')).toBeVisible();
+    await howMany('"User"', `id = ANY($1) AND "lastName" = 'Массовая'`).toBe(1);
+
+    await page.goto('/admin/users?q=bulk-');
+    await page.getByLabel('Выбрать всех на странице').check();
     await chooseOption(page.locator('#bulk-action'), 'delete');
     await page.getByRole('button', { name: 'Выполнить' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Удалить' }).click();

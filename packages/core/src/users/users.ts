@@ -5,7 +5,7 @@ import { hashPassword } from 'better-auth/crypto';
 import { z } from 'zod';
 import { unlockAccount } from '../auth/lockout.ts';
 import { assertPasswordAllowed, recordPasswordChange } from '../auth/password-policy.ts';
-import type { RequestContext } from '../context.ts';
+import type { MutationContext, RequestContext } from '../context.ts';
 import { assertCanAssignRole } from '../enrol/enrol.ts';
 import {
   AppError,
@@ -16,8 +16,9 @@ import {
 } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { issueMsg } from '../issue-messages.ts';
+import { SHEET_LIMITS } from '../lib/sheets.ts';
 import { localeCode, optionalLocale, timeZone } from '../lib/zod.ts';
-import { defineOperation } from '../operation.ts';
+import { defineOperation, type Operation, parseInput } from '../operation.ts';
 import { erasePersonalData } from '../privacy/privacy.ts';
 import {
   CSV_PREFIX,
@@ -45,7 +46,7 @@ export const UserCreateInput = z
       .string()
       .trim()
       .toLowerCase()
-      .regex(USERNAME_RE, 'username: 3–50 chars, a-z 0-9 . _ -')
+      .regex(USERNAME_RE, 'errors.field.username')
       .optional()
       .or(z.literal('').transform(() => undefined)),
     firstName: z.string().trim().min(1).max(100),
@@ -429,19 +430,47 @@ export { parseCsv };
 
 export interface BulkUploadResult {
   created: number;
+  updated: number;
   errors: { line: number; message: string }[];
 }
 
+/** The status column of a user export: suspended or not. */
+const STATUSES: Record<string, boolean> = { active: false, suspended: true };
+
+/** An operation's checks and work in a transaction the caller holds (a row of an upload). */
+async function runIn<I extends z.ZodType, O>(
+  op: Operation<I, O>,
+  ctx: MutationContext,
+  raw: unknown,
+): Promise<O> {
+  const input = parseInput(op.input, raw);
+  await op.authorize?.(ctx, input);
+  return op.handler(ctx, input);
+}
+
+/**
+ * Users from a sheet (CSV text, or the rows of a CSV, XLSX or ODS file): a row whose username
+ * (or, without one, email) is a user's already updates that user, so a user export edited in
+ * a spreadsheet can be uploaded again; any other row creates one.
+ */
 export const bulkUploadUsers = defineOperation({
   name: 'user.bulkUpload',
-  input: z.object({ csv: z.string().min(1).max(5_000_000) }),
+  input: z.union([
+    z.object({ csv: z.string().min(1).max(5_000_000) }),
+    z.object({
+      rows: z
+        .array(z.array(z.string()))
+        .min(1)
+        .max(SHEET_LIMITS.rows + 1),
+    }),
+  ]),
   authorize: (ctx) => ctx.perm.require('user:create'),
   mutation: false,
-  async handler(ctx, { csv }): Promise<BulkUploadResult> {
-    const rows = parseCsv(csv);
-    const header = (rows.shift() ?? []).map((h) => h.trim().toLowerCase());
+  async handler(ctx, input): Promise<BulkUploadResult> {
+    const [first, ...rows] = 'rows' in input ? input.rows : parseCsv(input.csv);
+    const header = (first ?? []).map((h) => h.trim().toLowerCase());
     const col = (name: string) => header.indexOf(name);
-    const required = ['firstname', 'lastname', 'password'];
+    const required = ['firstname', 'lastname'];
     const missing = required.filter((r) => col(r) < 0);
     if (missing.length || (col('email') < 0 && col('username') < 0)) {
       throw new ValidationError({
@@ -456,14 +485,53 @@ export const bulkUploadUsers = defineOperation({
       throw new ValidationError({
         csv: [msg('errors.auth.unknownProfileFields', { unknown: unknown.join(', ') })],
       });
-    const result: BulkUploadResult = { created: 0, errors: [] };
+    const result: BulkUploadResult = { created: 0, updated: 0, errors: [] };
     for (const [i, r] of rows.entries()) {
+      // a sheet keeps its empty rows, so that line numbers are the sheet's
+      if (r.every((c) => !c.trim())) continue;
       const get = (n: string) => (col(n) >= 0 ? (r[col(n)] ?? '').trim() : undefined);
       const customFields = Object.fromEntries(
         custom.map((h) => [h.slice(CSV_PREFIX.length), get(h) ?? '']),
       );
       try {
+        const status = get('status')?.toLowerCase();
+        if (status && !(status in STATUSES))
+          throw new ValidationError({ status: [msg('errors.users.statusValue')] });
+        const username = get('username')?.toLowerCase();
+        const email = get('email')?.toLowerCase();
+        const existing =
+          username || email
+            ? await ctx.db.user.findFirst({
+                where: { deletedAt: null, ...(username ? { username } : { email }) },
+                select: { id: true, status: true },
+              })
+            : null;
+        const must = get('mustchangepassword');
         await ctx.db.$transaction(async (tx) => {
+          if (existing) {
+            const c = { ...ctx, tx };
+            // empty cells keep what the user has
+            await runIn(updateUser, c, {
+              id: existing.id,
+              firstName: get('firstname') || undefined,
+              lastName: get('lastname') || undefined,
+              email: get('email') || undefined,
+              locale: get('lang') || undefined,
+              ...(custom.length ? { customFields } : {}),
+              password: get('password') || undefined,
+            });
+            if (must === '1' || must === '0')
+              await tx.user.update({
+                where: { id: existing.id },
+                data: { mustChangePassword: must === '1' },
+              });
+            const suspended = status ? STATUSES[status] : undefined;
+            if (suspended !== undefined && suspended !== (existing.status === 'SUSPENDED'))
+              await runIn(setUserSuspended, c, { id: existing.id, suspended });
+            return;
+          }
+          if (!get('password'))
+            throw new ValidationError({ password: [msg('errors.users.passwordForNew')] });
           const user = await createUserRecord(tx, {
             email: get('email'),
             username: get('username'),
@@ -472,9 +540,11 @@ export const bulkUploadUsers = defineOperation({
             password: get('password') ?? '',
             locale: get('lang') || undefined,
             emailVerified: true,
-            mustChangePassword: get('mustchangepassword') === '1',
+            mustChangePassword: must === '1',
             customFields,
           });
+          if (status === 'suspended')
+            await tx.user.update({ where: { id: user.id }, data: { status: 'SUSPENDED' } });
           await logEvent(tx, {
             name: 'user.created',
             actorId: ctx.perm.userId,
@@ -483,7 +553,8 @@ export const bulkUploadUsers = defineOperation({
             origin: ctx.origin,
           });
         });
-        result.created++;
+        if (existing) result.updated++;
+        else result.created++;
       } catch (e) {
         const message =
           e instanceof ValidationError

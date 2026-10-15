@@ -285,9 +285,9 @@
       "siteRolesHint": "Manager and course creator apply in every category",
       "emailOrUsername": "Email or username is required",
       "uploadTitle": "Upload users",
-      "uploadHint": "UTF-8 CSV, separated by “,” or “;”. Required columns: firstname, lastname, password and email or username. Optional: lang, mustchangepassword.",
+      "uploadHint": "CSV (UTF-8 or Windows-1251, separated by “,” or “;”), XLSX or ODS: a user export can be edited and uploaded again. Columns: firstname, lastname and email or username; password for new users. Optional: lang, mustchangepassword, status (active or suspended). A row whose username (or, without one, email) is taken updates that user, and its empty cells change nothing.",
       "uploadFile": "CSV file",
-      "uploadResult": "Created: {created}. Errors: {errors}.",
+      "uploadResult": "Created: {created}. Updated: {updated}. Errors: {errors}.",
       "uploadLine": "Line {line}: {message}",
       "relations": {
         "title": "Mentors and parents",
@@ -312,7 +312,8 @@
       "unlock": "Unlock",
       "unlocked": "Account unlocked",
       "anyStatus": "Any status",
-      "adminBadge": "administrator"
+      "adminBadge": "administrator",
+      "uploadSheet": "CSV, XLSX or ODS file"
     },
     "role": {
       "new": "New role",
@@ -602,7 +603,8 @@
       "slug": "Lowercase letters, digits and dashes",
       "identifier": "Letters, digits and _ only",
       "httpUrl": "Only http(s) addresses are allowed",
-      "userOrGroup": "Choose a participant or a group"
+      "userOrGroup": "Choose a participant or a group",
+      "username": "Lowercase Latin letters, digits and . _ -, 3–50 characters"
     },
     "common": {
       "shortNameInUse": "Short name already in use",
@@ -921,8 +923,10 @@
       "deleteSelf": "You cannot delete yourself",
       "adminBeforeDelete": "Remove admin rights before deleting",
       "roleNotForSite": "Role cannot be assigned at site level",
-      "usersHeader": "Header must include: firstname, lastname, password and email or username",
-      "emailOrUsername": "Email or username is required"
+      "usersHeader": "Header must include: firstname, lastname and email or username",
+      "emailOrUsername": "Email or username is required",
+      "statusValue": "Status is active or suspended",
+      "passwordForNew": "A new user needs a password"
     },
     "ai": {
       "apiKeyRequired": "An API key is required",
@@ -1083,6 +1087,16 @@
       "resolvesInternal": "{host} resolves to an internal address; add it to SSRF_ALLOW_HOSTS to allow it",
       "unresolvable": "Cannot resolve {host}",
       "redirects": "Too many redirects"
+    },
+    "sheets": {
+      "notPlain": "The file is not a plain spreadsheet",
+      "unpacksTooMuch": "The file unpacks to too much data",
+      "damaged": "The file is damaged",
+      "noSheet": "The file has no sheet",
+      "tooManyRows": "At most {n} rows",
+      "tooManyColumns": "At most {n} columns",
+      "tooLarge": "The file is larger than {n} MB",
+      "notSheet": "Not a spreadsheet: use CSV, XLSX or ODS"
     }
   },
   "editor": {

@@ -33,6 +33,7 @@ import {
 } from '@hubium/core';
 import { BRANDING_CONTEXT, storeFile } from '@hubium/core/files/files';
 import { enqueue } from '@hubium/core/jobs/jobs';
+import { readSheet } from '@hubium/core/lib/sheets';
 import { renderActionEmail } from '@hubium/core/mail/mail';
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { createTranslator } from '@hubium/i18n/packs';
@@ -132,8 +133,8 @@ export async function uploadUsersAction(fd: FormData) {
     const file = fd.get('file');
     if (!(file instanceof File) || file.size === 0)
       throw new ValidationError({ file: [msg('errors.common.chooseCsv')] });
-    const csv = Buffer.from(await file.arrayBuffer()).toString('utf8');
-    const r = await bulkUploadUsers.run(await getContext(), { csv });
+    const rows = readSheet(new Uint8Array(await file.arrayBuffer()));
+    const r = await bulkUploadUsers.run(await getContext(), { rows });
     revalidatePath('/admin/users');
     return r;
   });

@@ -1,5 +1,17 @@
 // CSV for imports and exports shared by core and modules.
 
+/**
+ * The text of a CSV file: UTF-8, or Windows-1251 when it is not valid UTF-8 (Excel saves CSV
+ * in the system's code page, which in Russian is Windows-1251).
+ */
+export function decodeCsv(data: Uint8Array): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(data);
+  } catch {
+    return new TextDecoder('windows-1251').decode(data);
+  }
+}
+
 /** Minimal RFC 4180 CSV parser (quotes, escaped quotes, CRLF). Separator auto-detected (, or ;). */
 export function parseCsv(text: string): string[][] {
   const src = text.replace(/^﻿/, '');

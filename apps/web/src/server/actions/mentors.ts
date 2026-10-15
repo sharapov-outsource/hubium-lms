@@ -8,6 +8,7 @@ import {
   ValidationError,
 } from '@hubium/core';
 import { msg } from '@hubium/module-sdk';
+import { decodeCsv } from '@hubium/module-sdk/csv';
 import { revalidatePath } from 'next/cache';
 import { runAction } from '../action';
 import { getContext } from '../session';
@@ -53,7 +54,7 @@ export async function uploadRelationsAction(fd: FormData) {
     const file = fd.get('file');
     if (!(file instanceof File) || file.size === 0)
       throw new ValidationError({ file: [msg('errors.common.chooseCsv')] });
-    const csv = Buffer.from(await file.arrayBuffer()).toString('utf8');
+    const csv = decodeCsv(new Uint8Array(await file.arrayBuffer()));
     return bulkUploadUserRelations.run(await getContext(), { csv });
   });
 }

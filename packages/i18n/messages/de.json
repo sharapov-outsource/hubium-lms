@@ -284,9 +284,9 @@
       "siteRolesHint": "Manager/in und Kursersteller/in gelten in allen Kursbereichen",
       "emailOrUsername": "E-Mail oder Anmeldename ist erforderlich",
       "uploadTitle": "Nutzer/innen hochladen",
-      "uploadHint": "CSV in UTF-8, getrennt durch „,“ oder „;“. Pflichtspalten: firstname, lastname, password sowie email oder username. Optional: lang, mustchangepassword.",
+      "uploadHint": "CSV (UTF-8 oder Windows-1251, getrennt durch „,“ oder „;“), XLSX oder ODS: Ein Benutzerexport kann bearbeitet und wieder hochgeladen werden. Spalten: firstname, lastname sowie email oder username; für neue Benutzer password. Optional: lang, mustchangepassword, status (active oder suspended). Eine Zeile, deren Benutzername (oder ohne ihn deren E-Mail) schon vergeben ist, aktualisiert diesen Benutzer, und ihre leeren Zellen ändern nichts.",
       "uploadFile": "CSV-Datei",
-      "uploadResult": "Angelegt: {created}. Fehler: {errors}.",
+      "uploadResult": "Angelegt: {created}. Aktualisiert: {updated}. Fehler: {errors}.",
       "uploadLine": "Zeile {line}: {message}",
       "relations": {
         "title": "Mentor/innen und Eltern",
@@ -311,7 +311,8 @@
       "unlock": "Entsperren",
       "unlocked": "Konto entsperrt",
       "anyStatus": "Jeder Status",
-      "adminBadge": "Administrator"
+      "adminBadge": "Administrator",
+      "uploadSheet": "CSV-, XLSX- oder ODS-Datei"
     },
     "role": {
       "new": "Neue Rolle",
@@ -601,7 +602,8 @@
       "slug": "Kleinbuchstaben, Ziffern und Bindestriche",
       "identifier": "Nur Buchstaben, Ziffern und _",
       "httpUrl": "Nur http(s)-Adressen sind erlaubt",
-      "userOrGroup": "Wählen Sie eine teilnehmende Person oder eine Gruppe"
+      "userOrGroup": "Wählen Sie eine teilnehmende Person oder eine Gruppe",
+      "username": "Kleine lateinische Buchstaben, Ziffern und . _ -, 3–50 Zeichen"
     },
     "common": {
       "shortNameInUse": "Dieser Kurzname ist bereits vergeben",
@@ -920,8 +922,10 @@
       "deleteSelf": "Sie können sich nicht selbst löschen",
       "adminBeforeDelete": "Entziehen Sie vor dem Löschen die Administratorrechte",
       "roleNotForSite": "Diese Rolle kann nicht auf Website-Ebene zugewiesen werden",
-      "usersHeader": "Die Kopfzeile muss enthalten: firstname, lastname, password und email oder username",
-      "emailOrUsername": "E-Mail oder Benutzername ist erforderlich"
+      "usersHeader": "Die Kopfzeile muss enthalten: firstname, lastname und email oder username",
+      "emailOrUsername": "E-Mail oder Benutzername ist erforderlich",
+      "statusValue": "Status ist active oder suspended",
+      "passwordForNew": "Ein neuer Benutzer braucht ein Passwort"
     },
     "ai": {
       "apiKeyRequired": "Ein API-Schlüssel ist erforderlich",
@@ -1082,6 +1086,16 @@
       "resolvesInternal": "{host} verweist auf eine interne Adresse; fügen Sie ihn zu SSRF_ALLOW_HOSTS hinzu, um ihn zu erlauben",
       "unresolvable": "{host} kann nicht aufgelöst werden",
       "redirects": "Zu viele Weiterleitungen"
+    },
+    "sheets": {
+      "notPlain": "Die Datei ist keine einfache Tabelle",
+      "unpacksTooMuch": "Die Datei entpackt sich zu zu vielen Daten",
+      "damaged": "Die Datei ist beschädigt",
+      "noSheet": "Die Datei hat kein Tabellenblatt",
+      "tooManyRows": "Höchstens {n} Zeilen",
+      "tooManyColumns": "Höchstens {n} Spalten",
+      "tooLarge": "Die Datei ist größer als {n} MB",
+      "notSheet": "Keine Tabelle: Verwenden Sie CSV, XLSX oder ODS"
     }
   },
   "editor": {

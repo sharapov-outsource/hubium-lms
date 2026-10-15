@@ -14,7 +14,12 @@ export function UploadForm() {
   return (
     <div className="grid max-w-xl gap-4">
       <ActionForm action={uploadUsersAction} onSuccess={(r) => setResult(r)} className="grid gap-4">
-        <FormField name="file" type="file" accept=".csv,text/csv" label={t('uploadFile')} />
+        <FormField
+          name="file"
+          type="file"
+          accept=".csv,.xlsx,.ods,text/csv"
+          label={t('uploadSheet')}
+        />
         <div>
           <SubmitButton>{tc('upload')}</SubmitButton>
         </div>
@@ -22,7 +27,11 @@ export function UploadForm() {
       {result ? (
         <Alert variant={result.errors.length ? 'warning' : 'success'}>
           <p className="font-medium">
-            {t('uploadResult', { created: result.created, errors: result.errors.length })}
+            {t('uploadResult', {
+              created: result.created,
+              updated: result.updated,
+              errors: result.errors.length,
+            })}
           </p>
           {result.errors.length ? (
             <ul className="mt-2 list-disc pl-5">
