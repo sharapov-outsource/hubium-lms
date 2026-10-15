@@ -6,7 +6,8 @@
   "author": "Alexander S. <alexander@sharapov.biz>",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./fixtures": "./src/fixtures.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

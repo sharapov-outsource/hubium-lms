@@ -8,8 +8,8 @@ import {
 import { ctxFor, useTestDb } from '@hubium/core/testing';
 import { courseFixture } from '@hubium/core/testing/course-fixture';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { mbzFixture } from '../src/fixtures.ts';
 import { importMbz, type MbzReport, readMbz } from '../src/mbz.ts';
-import { mbzFixture } from './mbz-fixture.ts';
 
 describe('.mbz import', () => {
   const t = useTestDb();

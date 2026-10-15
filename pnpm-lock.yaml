@@ -429,6 +429,9 @@ importers:
       '@hubium/ai':
         specifier: workspace:*
         version: link:../packages/ai
+      '@hubium/interchange':
+        specifier: workspace:*
+        version: link:../packages/interchange
       '@hubium/mod-h5p':
         specifier: workspace:*
         version: link:../modules/h5p

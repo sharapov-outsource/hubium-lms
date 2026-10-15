@@ -1,10 +1,12 @@
+import { writeFile } from 'node:fs/promises';
+import { mbzFixture } from '@hubium/interchange/fixtures';
 import { expect, test } from '@playwright/test';
 import { deleteCourse, sql } from './db';
 import { ADMIN, expectAccessible, login } from './helpers';
 
 // The admin backs a course up (the worker writes the archive), downloads it, restores it
 // through the import page (the worker does the restore), duplicates the course, and
-// round-trips the bank via Moodle XML.
+// round-trips the bank via Moodle XML. A Moodle backup goes in through the same page.
 
 // Courses created here are removed again, so the demo data does not grow with every run.
 const created: string[] = [];
@@ -68,4 +70,25 @@ test('course backup, restore, duplicate and Moodle XML', async ({ page }, info) 
   const xml = await page.request.get(`/course/${c!.id}/question-bank/export?format=xml`);
   expect(xml.status()).toBe(200);
   expect(await xml.text()).toContain('<quiz>');
+});
+
+test('a Moodle backup (.mbz) imported through the import page', async ({ page }, info) => {
+  test.slow();
+  const file = info.outputPath('backup-moodle2-course-2-py.mbz');
+  await writeFile(file, await mbzFixture());
+  await login(page, ADMIN.login, ADMIN.password);
+  await page.goto('/course/import');
+  await page.locator('#import-file').setInputFiles(file);
+  await page.getByRole('button', { name: 'Импортировать' }).click();
+  await expect(page.getByText(/^Готово: разделов \d+, элементов 17,/)).toBeVisible({
+    timeout: 60_000,
+  });
+  // what the import could not take is listed with the result
+  await expect(page.getByRole('listitem').filter({ hasText: '(imscp)' })).toBeVisible();
+  await page.getByRole('link', { name: 'Открыть курс' }).click();
+  await page.waitForURL(/\/course\/[0-9a-f-]{36}$/);
+  created.push(new URL(page.url()).pathname.split('/').at(-1)!);
+  await expect(page.getByRole('heading', { name: 'Python из Moodle' })).toBeVisible();
+  for (const name of ['Введение', 'Тест', 'Задание'])
+    await expect(page.getByRole('link', { name, exact: true })).toBeVisible();
 });

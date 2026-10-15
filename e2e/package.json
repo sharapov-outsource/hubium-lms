@@ -12,6 +12,7 @@
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
     "@hubium/ai": "workspace:*",
+    "@hubium/interchange": "workspace:*",
     "@hubium/mod-h5p": "workspace:*",
     "@hubium/mod-scorm": "workspace:*",
     "@playwright/test": "1.64.0",
