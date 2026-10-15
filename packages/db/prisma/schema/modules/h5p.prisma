@@ -1,0 +1,55 @@
+// mod-h5p: H5P packages played on the content origin, and learners' results from xAPI.
+
+enum H5pPackageStatus {
+  PROCESSING
+  READY
+  FAILED
+}
+
+model H5pPackage {
+  id          String           @id @default(uuid(7)) @db.Uuid
+  activityId  String           @unique @db.Uuid
+  fileId      String?          @db.Uuid
+  status      H5pPackageStatus @default(PROCESSING)
+  error       String?
+  /**
+   * From h5p.json.
+   */
+  title       String           @default("")
+  mainLibrary String           @default("")
+  /**
+   * Paths of the extracted files, relative to mod/h5p/<id>/.
+   */
+  files       Json             @default("[]")
+  totalBytes  BigInt           @default(0)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+}
+
+/**
+ * One finished run of the content: the result of a top-level "completed" or "answered"
+ * xAPI statement.
+ */
+model H5pAttempt {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  activityId    String   @db.Uuid
+  userId        String   @db.Uuid
+  attemptNumber Int
+  rawScore      Float?
+  maxScore      Float?
+  /**
+   * 0..1
+   */
+  scaled        Float?
+  completion    Boolean  @default(false)
+  success       Boolean?
+  durationSec   Int?
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, userId, attemptNumber])
+}

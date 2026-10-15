@@ -15,8 +15,8 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
- * Untrusted content (SCORM) on the content origin. Answered only on CONTENT_HOST when it
- * is configured; the signed token in the path is the only credential (no cookies).
+ * Untrusted content (SCORM, H5P) on the content origin. Answered only on CONTENT_HOST when
+ * it is configured; the signed token in the path is the only credential (no cookies).
  */
 async function handle(
   req: Request,

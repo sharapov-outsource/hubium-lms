@@ -18,6 +18,9 @@ allowBuilds:
   # comes with Scalar's API reference; its script only switches Vue 2/3 shims, and the
   # reference is served as Scalar's prebuilt browser bundle
   vue-demi: false
+  # H5P player: its preinstall only makes its own developers use yarn; the browser bundles
+  # come prebuilt in dist/
+  h5p-standalone: false
 
 # dependency-cruiser loads whichever TypeScript it can resolve; declaring it as a peer lets
 # tools/depcruise hand it TypeScript 6 while the rest of the workspace uses TypeScript 7.

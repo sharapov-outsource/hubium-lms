@@ -434,6 +434,8 @@ export const scorm = defineModule<ScormSettingsT>({
         const file = await ctx.files.storeUpload(a.id, 'package', input.uploadId, {
           maxBytes: SCORM_MAX_BYTES,
           allowedTypes: /^(application\/(zip|x-zip-compressed|octet-stream))$/,
+          // a package uploaded again under the same name takes the old one's place
+          replace: true,
         });
         const prev = await ctx.db.scormPackage.findUnique({ where: { activityId: a.id } });
         if (prev?.fileId && prev.fileId !== file.id)

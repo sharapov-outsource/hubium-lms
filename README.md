@@ -9,18 +9,18 @@
   <b>English</b> · <a href="README.ru.md">Русский</a>
 </p>
 
-Hubium LMS covers what schools, universities and companies run Moodle for. That includes courses, roles and permissions, assignments, quizzes, a gradebook, forums, SCORM and LTI, video and webinars, and importing courses from Moodle. On top of that it has an AI assistant, real-time messaging and a calm interface that works on a phone. One `docker compose up` starts the whole stack. The code is TypeScript, licensed under AGPL-3.0.
+Hubium LMS covers what schools, universities and companies run Moodle for. That includes courses, roles and permissions, assignments, quizzes, a gradebook, forums, SCORM, H5P and LTI, video and webinars, and importing courses from Moodle. On top of that it has an AI assistant, real-time messaging and a calm interface that works on a phone. One `docker compose up` starts the whole stack. The code is TypeScript, licensed under AGPL-3.0.
 
 ## Highlights
 
 - **Moodle-grade permissions.** Contexts (site → category → course → activity), roles stored in the database, typed capabilities, view-as-role, and a page that explains why a person can or cannot do something.
-- **Every activity is a module.** Page, assignment, quiz, forum, video, SCORM and LTI all implement one contract: settings, views, grading, completion, calendar, backup, Moodle import, privacy and AI text. A third-party module is a package plus one line of configuration.
+- **Every activity is a module.** Page, assignment, quiz, forum, video, SCORM, H5P and LTI all implement one contract: settings, views, grading, completion, calendar, backup, Moodle import, privacy and AI text. A third-party module is a package plus one line of configuration.
 - **One operation, three transports.** Business logic lives in `packages/core` operations with built-in authorization. The UI, the REST API and the background worker call the same code.
 - **AI with privacy in mind.**
   - Works with Claude or any OpenAI-compatible server, such as Ollama, vLLM or YandexGPT.
   - Off until an administrator picks a provider.
   - Asks people for consent, enforces quotas, and pseudonymises student work before grading.
-- **Standards and migration.** SCORM 1.2/2004, LTI 1.3 Advantage, `.mbz` import from Moodle 4.1–5.x, and GIFT and Moodle XML questions.
+- **Standards and migration.** SCORM 1.2/2004, H5P, LTI 1.3 Advantage, `.mbz` import from Moodle 4.1–5.x, and GIFT and Moodle XML questions.
 - **Ready to run.** One script installs a release in Docker or natively with systemd, with HTTPS (Caddy), separate workers for jobs and video, JSON logs, health checks and Prometheus metrics. CI installs both kinds of release the way users do and tests them end to end on every commit.
 
 ## Features
@@ -59,6 +59,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 | Video | Resumable upload, HLS transcoding to 360/720/1080p (never above the source), poster and scrubbing previews, VTT/SRT captions, optional no-skip-ahead, completion at N% watched |
 | Live session | BigBlueButton (with recordings) and Jitsi, schedule in the calendar, moderator or attendee role from permissions, attendance |
 | SCORM | SCORM 1.2 and 2004 served from a separate origin, attempts, grading method, report and a CMI debug view |
+| H5P | `.h5p` packages with their libraries, played from a separate origin by h5p-standalone (content is made in H5P or Moodle: there is no editor); each result the content reports over xAPI is an attempt, grading method into the gradebook, completion by finishing, passing or a score, the player's bar and rights of use on or off, a report of attempts |
 | LTI | LTI 1.3 platform: OIDC launch, Deep Linking, Assignment and Grade Services into the gradebook, Names and Roles; RS256 keys with rotation and JWKS |
 
 ### Assessment
@@ -101,7 +102,8 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 
 - `.hubium` backup and restore, course duplication, importing chosen activities from another course, and a course reset for a new intake that moves every date.
 - Import of Moodle `.mbz` backups (4.1–5.x):
-  - pages, labels, links, files and folders, assignments, quizzes with their question bank, forums, SCORM and BigBlueButton;
+  - pages, labels, links, files and folders, books, assignments, quizzes with their question bank, forums, choices, feedback, lessons with their pages, SCORM, H5P and BigBlueButton;
+  - the settings of glossaries, wikis, databases (with fields and templates) and workshops (with the assessment form);
   - assignment teams, marking workflow, blind marking, rubrics and marking guides, and the dates of groups; forum ratings and whole-forum grades;
   - groups and groupings (without members), scales, and the gradebook: categories, manual items, ID numbers, formulas and letters;
   - other activities become labels, so nothing is silently dropped;
@@ -153,7 +155,7 @@ Every release is published three ways:
   - ffmpeg for video.
 - **Domain names** pointing at the server:
   - the site, for example `lms.example.org`;
-  - untrusted SCORM content, for example `content.example.org`;
+  - untrusted SCORM and H5P content, for example `content.example.org`;
   - file downloads, for example `files.example.org`. Needed only when Docker runs its own S3 storage.
 - Ports 80 and 443 free, when Caddy should get HTTPS certificates.
 
@@ -169,7 +171,7 @@ The script checks the server and then asks:
 1. Docker or native installation.
 2. The site address and the content host.
 3. HTTPS: Caddy with automatic certificates, or your own proxy.
-4. Which activity modules to install. Assignments, quizzes, forums, video, live sessions, SCORM and LTI can each be left out; content pages, links and files are always there.
+4. Which activity modules to install. Assignments, quizzes, forums, video, live sessions, SCORM, H5P and LTI can each be left out; the other activities are always there.
 5. The database: installed on the server, or an existing PostgreSQL. An existing one is checked first, and the script prints the SQL a DBA needs to run if rights or extensions are missing.
 6. Where files are kept: on the server, or in S3.
 7. Mail (SMTP).
@@ -300,7 +302,7 @@ pnpm dev                                          # http://localhost:3000
 | `packages/ui`, `packages/editor` | design system and the Tiptap editor |
 | `packages/ai`, `packages/questions`, `packages/interchange` | LLM providers and text extraction, question types and formats, backup and Moodle import |
 | `packages/api`, `packages/i18n`, `packages/log` | REST API, translations, structured logs |
-| `modules/*` | activity modules: content, assign, quiz, forum, video, livesession, scorm, lti |
+| `modules/*` | activity modules: content, book, choice, feedback, glossary, lesson, wiki, data, workshop, assign, quiz, forum, video, livesession, scorm, h5p, lti |
 | `docker/`, `deploy/` | Dockerfile, Compose files and Caddyfile; the launcher and systemd units of the archive |
 | `install-hubium.sh` | the installer published with every release |
 

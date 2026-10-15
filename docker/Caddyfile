@@ -25,7 +25,7 @@
 	}
 }
 
-# Untrusted content (SCORM, raw HTML) on its own origin; the app only answers /c/* here.
+# Untrusted content (SCORM, H5P) on its own origin; the app only answers /c/* here.
 {$CONTENT_HOST} {
 	import access_log
 	reverse_proxy {$HUBIUM_WEB:web:3000}

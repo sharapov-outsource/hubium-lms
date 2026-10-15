@@ -233,6 +233,14 @@ describe('mod-scorm', () => {
     expect(await r.text()).toContain('Глава первая');
   });
 
+  it('a package uploaded again under the same name replaces the old one', async () => {
+    const again = await upload(scormId, scormFixture('1.2'));
+    expect(again).toBe(packageId);
+    await extractPackage(buildModuleCtx(await ctxFor(t.db, 'system')), again);
+    const files = await t.db.file.findMany({ where: { contextId: scormId, area: 'package' } });
+    expect(files).toHaveLength(1);
+  });
+
   it('a learner without the launch capability gets no attempt', async () => {
     await t.db.roleCapability.update({
       where: { roleId_capability: { roleId: f.roles.student!, capability: 'mod.scorm:launch' } },

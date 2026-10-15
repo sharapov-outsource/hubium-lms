@@ -268,6 +268,9 @@ importers:
       '@hubium/mod-glossary':
         specifier: workspace:*
         version: link:../../modules/glossary
+      '@hubium/mod-h5p':
+        specifier: workspace:*
+        version: link:../../modules/h5p
       '@hubium/mod-lesson':
         specifier: workspace:*
         version: link:../../modules/lesson
@@ -432,6 +435,9 @@ importers:
       '@hubium/db':
         specifier: workspace:*
         version: link:../packages/db
+      '@hubium/mod-h5p':
+        specifier: workspace:*
+        version: link:../modules/h5p
       '@hubium/mod-scorm':
         specifier: workspace:*
         version: link:../modules/scorm
@@ -800,6 +806,58 @@ importers:
       '@types/react':
         specifier: 19.3.0
         version: 19.3.0
+      next:
+        specifier: 16.4.0
+        version: 16.4.0(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@24.19.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.0.4
+        version: 5.0.4(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+
+  modules/h5p:
+    dependencies:
+      '@hubium/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@hubium/log':
+        specifier: workspace:*
+        version: link:../../packages/log
+      '@hubium/module-sdk':
+        specifier: workspace:*
+        version: link:../../packages/module-sdk
+      '@hubium/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      h5p-standalone:
+        specifier: 3.8.2
+        version: 3.8.2
+      lucide-react:
+        specifier: 1.55.0
+        version: 1.55.0(@types/react@19.3.0)(react@19.3.0)
+      next-intl:
+        specifier: 4.14.9
+        version: 4.14.9(@swc/helpers@0.5.23)(@types/react@19.3.0)(next@16.4.0(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@24.19.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@hubium/tooling':
+        specifier: workspace:*
+        version: link:../../packages/tooling
+      '@types/node':
+        specifier: ^24
+        version: 24.19.2
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
       next:
         specifier: 16.4.0
         version: 16.4.0(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@24.19.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -1396,6 +1454,9 @@ importers:
       '@hubium/mod-glossary':
         specifier: workspace:*
         version: link:../../modules/glossary
+      '@hubium/mod-h5p':
+        specifier: workspace:*
+        version: link:../../modules/h5p
       '@hubium/mod-lesson':
         specifier: workspace:*
         version: link:../../modules/lesson
@@ -1738,6 +1799,9 @@ importers:
       '@hubium/mod-glossary':
         specifier: workspace:*
         version: link:../../modules/glossary
+      '@hubium/mod-h5p':
+        specifier: workspace:*
+        version: link:../../modules/h5p
       '@hubium/mod-lesson':
         specifier: workspace:*
         version: link:../../modules/lesson
@@ -5622,6 +5686,9 @@ packages:
   guess-json-indent@3.0.1:
     resolution: {integrity: sha512-LWZ3Vr8BG7DHE3TzPYFqkhjNRw4vYgFSsv2nfMuHklAlOfiy54/EwiDQuQfFVLxENCVv20wpbjfTayooQHrEhQ==}
     engines: {node: '>=18.18.0'}
+
+  h5p-standalone@3.8.2:
+    resolution: {integrity: sha512-r7eQtTzBk/dbaQZ+tA9XD5FeSmyMxlypRZXudiheCnC8zAT0/zNgUvO4MZtZaznwfYVo98o7do5uxLTUQrxxwg==}
 
   has-flag@4.0.0:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
@@ -11188,6 +11255,8 @@ snapshots:
   graphmatch@1.1.1: {}
 
   guess-json-indent@3.0.1: {}
+
+  h5p-standalone@3.8.2: {}
 
   has-flag@4.0.0: {}
 

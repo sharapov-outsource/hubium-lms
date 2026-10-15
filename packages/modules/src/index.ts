@@ -6,6 +6,7 @@ import { dataModules } from '@hubium/mod-data/server';
 import { feedbackModules } from '@hubium/mod-feedback/server';
 import { forumModules } from '@hubium/mod-forum/server';
 import { glossaryModules } from '@hubium/mod-glossary/server';
+import { h5pModules } from '@hubium/mod-h5p/server';
 import { lessonModules } from '@hubium/mod-lesson/server';
 import { livesessionModules } from '@hubium/mod-livesession/server';
 import { ltiModules } from '@hubium/mod-lti/server';
@@ -35,5 +36,6 @@ export const serverModules = [
   ...videoModules,
   ...livesessionModules,
   ...scormModules,
+  ...h5pModules,
   ...ltiModules,
 ];

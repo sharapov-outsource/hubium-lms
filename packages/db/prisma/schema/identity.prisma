@@ -120,6 +120,7 @@ model User {
   feedbackResponses   FeedbackResponse[]
   liveAttendance      LiveAttendance[]
   scormAttempts       ScormAttempt[]
+  h5pAttempts         H5pAttempt[]
 
   aiConsents         AiConsent[]
   pushSubscriptions  PushSubscription[]

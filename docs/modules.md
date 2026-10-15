@@ -1,6 +1,6 @@
 # Writing an activity module
 
-Every course activity in Hubium — page, book, choice, feedback, glossary, lesson, wiki, database, workshop, assignment, quiz, forum, video, SCORM, LTI — is a module built on `@hubium/module-sdk`. A module owns its settings, tables, UI and actions; core provides permissions, files, grades, completion, notifications, jobs, AI and privacy plumbing through `ctx`.
+Every course activity in Hubium — page, book, choice, feedback, glossary, lesson, wiki, database, workshop, assignment, quiz, forum, video, SCORM, H5P, LTI — is a module built on `@hubium/module-sdk`. A module owns its settings, tables, UI and actions; core provides permissions, files, grades, completion, notifications, jobs, AI and privacy plumbing through `ctx`.
 
 Modules **never import `@hubium/core`** (dependency-cruiser enforces it). Everything they need arrives in `ModuleCtx`.
 
@@ -67,7 +67,7 @@ Actions run in a transaction by default (`mutation: false` opts out, e.g. for sl
 | `actions` | typed, capability-checked operations |
 | `queries` | typed reads for API clients (`GET /api/v1/activities/{id}/queries/{name}`); share the read functions with the module's pages; throw `ModuleError('NOT_FOUND', …)` for what the user may not see |
 | `http(ctx, req, path)` | endpoints under `/api/mod/<key>/…` (streaming, callbacks) |
-| `content(ctx, grant, req, path)` | untrusted content served from `CONTENT_HOST` with a signed token (SCORM) |
+| `content(ctx, grant, req, path)` | untrusted content served from `CONTENT_HOST` with a signed token (SCORM, H5P) |
 | `jobs`, `cron` | background work on the `default` or `media` queue |
 | `notifications` | notification types `<key>.<name>`, labels `mod.<key>.notify.<name>` |
 | `files` | file areas and who may read them |

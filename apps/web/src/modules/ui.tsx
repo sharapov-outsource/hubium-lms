@@ -6,6 +6,7 @@ import { dataUI } from '@hubium/mod-data/ui';
 import { feedbackUI } from '@hubium/mod-feedback/ui';
 import { forumUI } from '@hubium/mod-forum/ui';
 import { glossaryUI } from '@hubium/mod-glossary/ui';
+import { h5pUI } from '@hubium/mod-h5p/ui';
 import { lessonUI } from '@hubium/mod-lesson/ui';
 import { livesessionUI } from '@hubium/mod-livesession/ui';
 import { ltiUI } from '@hubium/mod-lti/ui';
@@ -33,6 +34,7 @@ for (const ui of [
   videoUI,
   livesessionUI,
   scormUI,
+  h5pUI,
   ltiUI,
 ])
   uis.set(ui.key, ui as unknown as ActivityModuleUI<never>);

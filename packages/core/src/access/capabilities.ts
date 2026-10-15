@@ -169,6 +169,9 @@ export const coreCapabilities = {
   // standards
   'mod.scorm:launch': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },
   'mod.scorm:viewreports': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  // H5P: whose results are recorded (others only preview), and who sees everyone's
+  'mod.h5p:submit': { level: 'ACTIVITY', archetypes: [S], excludeAdmin: true },
+  'mod.h5p:viewreports': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.lti:launch': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },
   'mod.lti:manage': { level: 'COURSE', archetypes: [M, ET], risk: ['config'] },
 } as const satisfies Record<string, CapabilityDef>;

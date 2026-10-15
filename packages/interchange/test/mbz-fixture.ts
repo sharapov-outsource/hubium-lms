@@ -7,8 +7,8 @@ import tar from 'tar-stream';
 // an assignment (teams, marking workflow, blind marking, a rubric, a group's dates), a
 // URL, a file resource, Q&A (rated) and news forums, a book with an image in a chapter, a choice, a feedback,
 // a rated glossary with an entry, a lesson of four pages, a wiki with a page, a database with
-// fields, templates and an entry, a workshop with a rubric and a submission, and an unsupported
-// content package; groups and a
+// fields, templates and an entry, a workshop with a rubric and a submission, an H5P
+// activity with an attempt, and an unsupported content package; groups and a
 // grouping, a scale, and a gradebook with a category, a manual item and a formula.
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
@@ -54,6 +54,7 @@ export async function mbzFixture(): Promise<Buffer> {
       ${activity(24, 'imscp', 'Пакет', 2)}
       ${activity(25, 'data', 'Каталог', 2)}
       ${activity(26, 'workshop', 'Рецензии', 2)}
+      ${activity(27, 'h5pactivity', 'Интерактив', 2)}
     </activities>
     <sections>
       <section><sectionid>1</sectionid><title>0</title><directory>sections/section_1</directory></section>
@@ -64,7 +65,7 @@ export async function mbzFixture(): Promise<Buffer> {
 </information></moodle_backup>`,
     'course/course.xml': `<?xml version="1.0" encoding="UTF-8"?><course id="2" contextid="20"><shortname>MOODLE-PY</shortname><fullname>Python из Moodle</fullname><summary>&lt;p&gt;Курс &lt;img src="@@PLUGINFILE@@/logo.png"&gt;&lt;/p&gt;</summary><format>topics</format><startdate>1735689600</startdate><enddate>0</enddate><customfields><customfield id="1"><shortname>Level</shortname><type>select</type><value>2</value><valueformat>0</valueformat></customfield><customfield id="2"><shortname>starts</shortname><type>date</type><value>1767214800</value><valueformat>0</valueformat></customfield><customfield id="3"><shortname>about</shortname><type>textarea</type><value>&lt;p&gt;Для &lt;b&gt;всех&lt;/b&gt;&lt;/p&gt;</value><valueformat>1</valueformat></customfield><customfield id="4"><shortname>elsewhere</shortname><type>text</type><value>x</value><valueformat>0</valueformat></customfield></customfields></course>`,
     'sections/section_1/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="1"><number>0</number><name>$@NULL@$</name><summary></summary><sequence>11,14</sequence><visible>1</visible></section>`,
-    'sections/section_2/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="2"><number>1</number><name>Тема 1</name><summary>&lt;p&gt;Первая тема&lt;/p&gt;</summary><sequence>12,13,15,16,17,18,19,20,21,22,23,24,25,26</sequence><visible>1</visible></section>`,
+    'sections/section_2/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="2"><number>1</number><name>Тема 1</name><summary>&lt;p&gt;Первая тема&lt;/p&gt;</summary><sequence>12,13,15,16,17,18,19,20,21,22,23,24,25,26,27</sequence><visible>1</visible></section>`,
 
     'activities/page_11/module.xml': moduleXml(11, 'page', 1),
     'activities/page_11/page.xml': wrap(
@@ -223,6 +224,14 @@ export async function mbzFixture(): Promise<Buffer> {
         '<subplugin_workshopeval_best_workshop><workshopeval_best_setting id="1"><comparison>3</comparison></workshopeval_best_setting></subplugin_workshopeval_best_workshop>' +
         '<submissions><submission id="1"><authorid>3</authorid><title>Эссе</title></submission></submissions>',
     ),
+    'activities/h5pactivity_27/module.xml': moduleXml(27, 'h5pactivity', 2),
+    'activities/h5pactivity_27/h5pactivity.xml': wrap(
+      27,
+      'h5pactivity',
+      47,
+      '<name>Интерактив</name><intro></intro><grade>20</grade><displayoptions>9</displayoptions><enabletracking>1</enabletracking><grademethod>2</grademethod><reviewmode>1</reviewmode>' +
+        '<attempts><attempt id="1"><userid>5</userid><attempt>1</attempt><rawscore>1</rawscore><maxscore>1</maxscore><scaled>1</scaled><completion>1</completion><success>1</success></attempt></attempts>',
+    ),
     'activities/imscp_24/module.xml': moduleXml(24, 'imscp', 2),
     'activities/imscp_24/imscp.xml': wrap(24, 'imscp', 44, '<name>Пакет</name><intro></intro>'),
 
@@ -342,6 +351,14 @@ export async function mbzFixture(): Promise<Buffer> {
       name: 'map.png',
       mime: 'image/png',
       data: Buffer.concat([PNG, Buffer.from([23])]),
+    },
+    {
+      ctx: 47,
+      component: 'mod_h5pactivity',
+      area: 'package',
+      name: 'check.h5p',
+      mime: 'application/zip.h5p',
+      data: Buffer.from('PK\x03\x04 h5p'),
     },
     {
       ctx: 35,

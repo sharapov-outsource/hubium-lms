@@ -28,7 +28,7 @@ describe('.mbz import', () => {
     expect(report).toMatchObject({
       moodleRelease: '4.5 (Build: 20241007)',
       sections: 2,
-      activities: 15,
+      activities: 16,
       questions: 6,
     });
     expect(report.warnings.join('\n')).toContain('Формула');
@@ -36,6 +36,9 @@ describe('.mbz import', () => {
     expect(report.warnings.join('\n')).toContain('"Пакет" (imscp)');
     expect(report.warnings.join('\n')).toContain(
       `"Рецензии": left out submissions, which are users' data (1)`,
+    );
+    expect(report.warnings.join('\n')).toContain(
+      `"Интерактив": left out attempts, which are users' data (1)`,
     );
     expect(report.warnings.join('\n')).toContain(
       `"Каталог": left out entries, which are users' data (1); fields of type latlong`,
@@ -90,7 +93,24 @@ describe('.mbz import', () => {
       'label:Пакет',
       'data:Каталог',
       'workshop:Рецензии',
+      'h5p:Интерактив',
     ]);
+    const h5p = acts.find((a) => a.moduleKey === 'h5p')!;
+    expect(h5p.settings).toMatchObject({
+      tracking: true,
+      gradeMethod: 'AVERAGE',
+      gradeMax: 20,
+      showFrame: false,
+      showCopyright: false,
+    });
+    const pkg = await t.db.file.findFirstOrThrow({
+      where: { contextId: h5p.id, component: 'mod.h5p', area: 'package' },
+    });
+    expect(pkg.name).toBe('check.h5p');
+    expect(await t.db.h5pPackage.findUnique({ where: { activityId: h5p.id } })).toMatchObject({
+      fileId: pkg.id,
+      status: 'PROCESSING',
+    });
     const ws = acts.find((a) => a.moduleKey === 'workshop')!;
     expect(ws.settings).toMatchObject({
       strategy: 'rubric',

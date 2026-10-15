@@ -461,6 +461,29 @@ function nodesNamed(node: unknown, tag: string): Node[] {
 }
 
 /**
+ * An H5P activity's settings. Moodle's display options are H5P's "disable" bits (1 the
+ * action bar, 8 the rights of use); its grading methods are numbered 0 (none) to 4.
+ */
+export function mbzH5pSettings(data: Node) {
+  const display = num(data.displayoptions, 0);
+  const method = num(data.grademethod, 1);
+  const grade = num(data.grade, 100);
+  return {
+    settings: {
+      tracking: txt(data.enabletracking) !== '0',
+      gradeMethod:
+        (['HIGHEST', 'HIGHEST', 'AVERAGE', 'LAST', 'FIRST'] as const)[method] ?? 'HIGHEST',
+      gradeMax: grade > 0 ? grade : 100,
+      showFrame: (display & 1) === 0,
+      showCopyright: (display & 8) === 0,
+    },
+    manual: method === 0,
+    onScale: grade < 0,
+    attempts: arr(((data.attempts ?? {}) as Node).attempt as Node | Node[]).length,
+  };
+}
+
+/**
  * A Moodle workshop's settings and its assessment form, as the workshop module's backup
  * takes them; submissions and assessments are users' data and stay out.
  */
@@ -1624,6 +1647,45 @@ export async function importMbz(
             fileCount++;
             const act = await db.activity.findUniqueOrThrow({ where: { id } });
             await getModule('scorm')!.backup?.import?.(
+              buildModuleCtx(ctx),
+              toActivityRef(act) as never,
+              null,
+              () => undefined,
+            );
+            break;
+          }
+          case 'h5pactivity': {
+            // the package and the settings; attempts are users' data
+            const pkg = files.find(
+              (x) =>
+                x.contextid === contextid &&
+                x.component === 'mod_h5pactivity' &&
+                x.filearea === 'package',
+            );
+            const b = pkg && blob(pkg);
+            if (!b || !getModule('h5p')) {
+              await placeholder('H5P package file is missing');
+              continue;
+            }
+            const h = mbzH5pSettings(data);
+            const left: string[] = [];
+            if (h.attempts) left.push(`attempts, which are users' data (${h.attempts})`);
+            if (h.manual) left.push('manual grading (the best attempt is graded)');
+            if (h.onScale) left.push('the scale (graded by points)');
+            if (left.length) warnings.push(`"${name}": left out ${left.join('; ')}`);
+            const { id } = await create({ ...base, moduleKey: 'h5p', settings: h.settings });
+            await storeFile(db, {
+              contextId: id,
+              component: 'mod.h5p',
+              area: 'package',
+              name: pkg.filename,
+              mimeType: 'application/zip',
+              data: b,
+              uploadedById: ctx.perm.userId ?? null,
+            });
+            fileCount++;
+            const act = await db.activity.findUniqueOrThrow({ where: { id } });
+            await getModule('h5p')!.backup?.import?.(
               buildModuleCtx(ctx),
               toActivityRef(act) as never,
               null,

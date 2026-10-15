@@ -13,6 +13,7 @@
     "@axe-core/playwright": "4.13.0",
     "@hubium/ai": "workspace:*",
     "@hubium/db": "workspace:*",
+    "@hubium/mod-h5p": "workspace:*",
     "@hubium/mod-scorm": "workspace:*",
     "@playwright/test": "1.64.0",
     "@types/node": "^24",

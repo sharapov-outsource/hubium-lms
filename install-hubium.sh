@@ -17,7 +17,7 @@ SCRIPT_VERSION="__HUBIUM_VERSION__"
 REPO="${HUBIUM_REPO:-sharapov-outsource/hubium-lms}"
 LOG=/var/log/hubium-install.log
 
-MODULES_ALL=(assign quiz forum video livesession scorm lti)
+MODULES_ALL=(assign quiz forum video livesession scorm h5p lti)
 declare -A MODULE_INFO=(
   [assign]="Assignments: students hand in files or text, teachers grade them"
   [quiz]="Quizzes from a question bank, graded automatically"
@@ -25,6 +25,7 @@ declare -A MODULE_INFO=(
   [video]="Video with adaptive quality (adds ffmpeg and a transcoding worker)"
   [livesession]="Live sessions in BigBlueButton or Jitsi"
   [scorm]="SCORM packages"
+  [h5p]="H5P interactive content (uploaded as .h5p files)"
   [lti]="External tools over LTI 1.3"
 )
 
@@ -54,13 +55,13 @@ General
 
 Site
   --domain HOST                main address, e.g. lms.example.org
-  --content-domain HOST        separate host for untrusted SCORM content
+  --content-domain HOST        separate host for untrusted SCORM and H5P content
                                (default: content.<domain>)
   --https caddy|none           Caddy with automatic certificates, or your own proxy
   --web-port PORT              where the web server listens on 127.0.0.1 (3000)
 
 Modules (content pages, links, labels and files are always installed)
-  --modules all|LIST           comma-separated: assign,quiz,forum,video,livesession,scorm,lti
+  --modules all|LIST           comma-separated: assign,quiz,forum,video,livesession,scorm,h5p,lti
   --live-sessions bbb|jitsi|later
   --bbb-url URL --bbb-secret S
   --jitsi-domain HOST [--jitsi-app-id ID --jitsi-app-secret S]
@@ -538,7 +539,7 @@ ask_everything() {
   local base=${DOMAIN#*.}
   [[ $DOMAIN == *.localhost || $base != *.* ]] && base=$DOMAIN
   [[ $DOMAIN == *.localhost ]] && base=localhost
-  ask CONTENT_DOMAIN "Separate host for untrusted SCORM content" "content.$base"
+  ask CONTENT_DOMAIN "Separate host for untrusted SCORM and H5P content" "content.$base"
   CONTENT_DOMAIN=$(lower "${CONTENT_DOMAIN#https://}")
   valid_host "$CONTENT_DOMAIN" || die "Not a host name: $CONTENT_DOMAIN"
   [[ $CONTENT_DOMAIN != "$DOMAIN" ]] || die "The content host must differ from the main address."

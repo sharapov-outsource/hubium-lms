@@ -182,6 +182,8 @@ model Activity {
   liveRecordings      LiveRecording[]
   scormPackage        ScormPackage?
   scormAttempts       ScormAttempt[]
+  h5pPackage          H5pPackage?
+  h5pAttempts         H5pAttempt[]
 
   contentChunks      ContentChunk[]
   gradingSuggestions GradingSuggestion[]
