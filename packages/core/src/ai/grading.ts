@@ -1,5 +1,6 @@
 import { htmlToText } from '@hubium/ai';
 import type { Prisma } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { NotFoundError, ValidationError } from '../errors.ts';
@@ -166,7 +167,7 @@ async function suggestFor(
     ids,
   );
   if (!submission.trim() && !notes.length)
-    throw new ValidationError({ submission: ['The submission is empty'] });
+    throw new ValidationError({ submission: [msg('errors.ai.submissionEmpty')] });
 
   const prompt = [
     `<assignment title="${a.name.replace(/"/g, "'")}">\n${htmlToText(a.intro)}\n</assignment>`,

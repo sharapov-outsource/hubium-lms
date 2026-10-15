@@ -1,4 +1,5 @@
 import { type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
@@ -29,7 +30,7 @@ export async function requireScaleFor(db: Tx, courseId: string, scaleId: string)
   const s = await db.scale.findFirst({
     where: { id: scaleId, OR: [{ courseId: null }, { courseId }] },
   });
-  if (!s) throw new ValidationError({ scaleId: ['Unknown scale'] });
+  if (!s) throw new ValidationError({ scaleId: [msg('errors.grades.unknownScale')] });
   return s;
 }
 
@@ -53,7 +54,7 @@ export const saveScale = defineOperation({
   },
   async handler(ctx, input) {
     if (new Set(input.items).size !== input.items.length)
-      throw new ValidationError({ items: ['Each grade must be different'] });
+      throw new ValidationError({ items: [msg('errors.common.distinctGrades')] });
     if (input.id) {
       const s = await ctx.tx.scale.findUniqueOrThrow({
         where: { id: input.id },
@@ -64,7 +65,7 @@ export const saveScale = defineOperation({
       const used = s._count.gradeItems + s._count.competencyFrameworks + s._count.competencies > 0;
       // Stored grades are positions in the list: a scale in use keeps its length.
       if (used && s.items.length !== input.items.length)
-        throw new ConflictError('A scale in use cannot gain or lose grades; rename them instead');
+        throw new ConflictError(msg('errors.grades.scaleItemsFixed'));
       await ctx.tx.scale.update({
         where: { id: s.id },
         data: { name: input.name, items: input.items },
@@ -96,12 +97,12 @@ export const deleteScale = defineOperation({
   },
   async handler(ctx, { id }) {
     if (await ctx.tx.gradeItem.count({ where: { scaleId: id } }))
-      throw new ConflictError('The scale is used by grade items');
+      throw new ConflictError(msg('errors.grades.scaleUsedByItems'));
     if (
       (await ctx.tx.competencyFramework.count({ where: { scaleId: id } })) +
       (await ctx.tx.competency.count({ where: { scaleId: id } }))
     )
-      throw new ConflictError('The scale is used by competencies');
+      throw new ConflictError(msg('errors.grades.scaleUsedByCompetencies'));
     await ctx.tx.scale.delete({ where: { id } });
     return { id };
   },
@@ -173,9 +174,9 @@ export const saveLetters = defineOperation({
   async handler(ctx, { contextId, letters }) {
     if (letters.length) {
       if (new Set(letters.map((l) => l.lowerBound)).size !== letters.length)
-        throw new ValidationError({ letters: ['Each boundary must be different'] });
+        throw new ValidationError({ letters: [msg('errors.grades.distinctBoundaries')] });
       if (!letters.some((l) => l.lowerBound === 0))
-        throw new ValidationError({ letters: ['One letter must start at 0%'] });
+        throw new ValidationError({ letters: [msg('errors.grades.letterFromZero')] });
     }
     if (
       contextId !== SYSTEM_CONTEXT_ID &&

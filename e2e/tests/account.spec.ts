@@ -127,7 +127,7 @@ test('password policy: rules in the forms, refusals and expiry', async ({ page }
     await page.locator('#f-newPassword').fill('Longer12345');
     await page.locator('#f-newPassword2').fill('Longer12345');
     await page.getByRole('button', { name: 'Сохранить' }).first().click();
-    await expect(page.getByText('Include a symbol such as ! or %').first()).toBeVisible();
+    await expect(page.getByText('Добавьте символ, например ! или %').first()).toBeVisible();
 
     await page.locator('#f-newPassword').fill('Longer-12345');
     await page.locator('#f-newPassword2').fill('Longer-12345');

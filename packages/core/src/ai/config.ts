@@ -8,6 +8,7 @@ import {
   OpenAiCompatProvider,
 } from '@hubium/ai';
 import type { AiFeature, AiFeatureConfig, AiProvider, Db } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { assertPublicUrl, checkUrlShape, safeFetch } from '@hubium/module-sdk/net';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
@@ -79,10 +80,10 @@ export function providerInstance(row: AiProvider): LlmProvider {
   const apiKey = row.apiKeyEnc ? unseal(row.apiKeyEnc) : null;
   let p: LlmProvider;
   if (row.kind === 'ANTHROPIC') {
-    if (!apiKey) throw new ValidationError({ apiKey: ['An API key is required'] });
+    if (!apiKey) throw new ValidationError({ apiKey: [msg('errors.ai.apiKeyRequired')] });
     p = new AnthropicProvider({ apiKey, baseUrl: row.baseUrl, fetch: guardedFetch });
   } else if (row.kind === 'OPENAI_COMPAT') {
-    if (!row.baseUrl) throw new ValidationError({ baseUrl: ['A base URL is required'] });
+    if (!row.baseUrl) throw new ValidationError({ baseUrl: [msg('errors.ai.baseUrlRequired')] });
     p = new OpenAiCompatProvider({
       baseUrl: row.baseUrl,
       apiKey,
@@ -213,12 +214,12 @@ export const saveAiProvider = defineOperation({
   authorize: requireAdmin,
   async handler(ctx, i) {
     if (i.kind === 'OPENAI_COMPAT' && !i.baseUrl)
-      throw new ValidationError({ baseUrl: ['A base URL is required'] });
+      throw new ValidationError({ baseUrl: [msg('errors.ai.baseUrlRequired')] });
     if (i.kind !== 'MOCK') checkEndpoint('baseUrl', i.baseUrl);
     const prev = i.id ? await ctx.tx.aiProvider.findUnique({ where: { id: i.id } }) : null;
     if (i.id && !prev) throw new NotFoundError('AI provider');
     if (i.kind === 'ANTHROPIC' && !i.apiKey && !prev?.apiKeyEnc)
-      throw new ValidationError({ apiKey: ['An API key is required'] });
+      throw new ValidationError({ apiKey: [msg('errors.ai.apiKeyRequired')] });
     const data = {
       kind: i.kind,
       name: i.name,
@@ -270,7 +271,7 @@ export const saveAiFeature = defineOperation({
   authorize: requireAdmin,
   async handler(ctx, i) {
     if (i.enabled && !i.providerId)
-      throw new ValidationError({ providerId: ['Choose a provider to enable the feature'] });
+      throw new ValidationError({ providerId: [msg('errors.ai.chooseProvider')] });
     const data = {
       enabled: i.enabled,
       providerId: i.providerId,
@@ -329,7 +330,7 @@ export const saveEmbeddingConfig = defineOperation({
       return { kind: null };
     }
     if (i.kind === 'OPENAI_COMPAT' && (!i.baseUrl || !i.model))
-      throw new ValidationError({ baseUrl: ['Base URL and model are required'] });
+      throw new ValidationError({ baseUrl: [msg('errors.ai.baseUrlAndModel')] });
     if (i.kind === 'OPENAI_COMPAT') checkEndpoint('baseUrl', i.baseUrl);
     const prev = await ctx.tx.aiEmbeddingConfig.findUnique({ where: { id: 'default' } });
     const model = i.kind === 'MOCK' ? 'mock-hash' : i.model;

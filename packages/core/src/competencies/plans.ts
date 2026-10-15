@@ -5,6 +5,7 @@ import {
   type Prisma,
   SYSTEM_CONTEXT_ID,
 } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
@@ -159,7 +160,7 @@ export const setTemplateCompetency = defineOperation({
         where: { id: competencyId, framework: { visible: true } },
       }))
     )
-      throw new ValidationError({ competencyId: ['Unknown competency'] });
+      throw new ValidationError({ competencyId: [msg('errors.competencies.unknownCompetency')] });
     const last = await ctx.tx.learningPlanTemplateCompetency.aggregate({
       where: { templateId },
       _max: { sortOrder: true },
@@ -189,7 +190,7 @@ export const setTemplateCohort = defineOperation({
       return { created: 0 };
     }
     if (!(await ctx.tx.cohort.findUnique({ where: { id: cohortId } })))
-      throw new ValidationError({ cohortId: ['Unknown cohort'] });
+      throw new ValidationError({ cohortId: [msg('errors.competencies.unknownCohort')] });
     await ctx.tx.learningPlanTemplateCohort.upsert({
       where: { templateId_cohortId: { templateId, cohortId } },
       create: { templateId, cohortId },
@@ -261,7 +262,8 @@ export const createPlansFromTemplate = defineOperation({
   authorize: (ctx) => ctx.perm.require('competency:planmanage'),
   async handler(ctx, { templateId, userIds }) {
     const t = await loadTemplate(ctx.tx, templateId);
-    if (!t.visible) throw new ValidationError({ templateId: ['The template is hidden'] });
+    if (!t.visible)
+      throw new ValidationError({ templateId: [msg('errors.competencies.templateHidden')] });
     return { created: await createPlans(ctx.tx, t, userIds, ctx.perm.userId ?? null) };
   },
 });
@@ -317,13 +319,13 @@ export const savePlan = defineOperation({
     if (i.id) {
       const p = await loadPlan(ctx.tx, i.id);
       // a template's plan takes its name and dates from the template
-      if (p.templateId) throw new ConflictError('The plan follows its template; unlink it first');
+      if (p.templateId) throw new ConflictError(msg('errors.competencies.planFromTemplate'));
       await ctx.tx.learningPlan.update({ where: { id: p.id }, data });
       return { id: p.id };
     }
     const userId = i.userId ?? ctx.perm.userId!;
     if (!(await ctx.tx.user.findUnique({ where: { id: userId } })))
-      throw new ValidationError({ userId: ['Unknown user'] });
+      throw new ValidationError({ userId: [msg('errors.common.unknownUser')] });
     const p = await ctx.tx.learningPlan.create({
       data: { ...data, userId, status: 'DRAFT', createdById: ctx.perm.userId },
     });
@@ -351,7 +353,7 @@ export const setPlanCompetency = defineOperation({
   authorize: async (ctx, i) => void (await requirePlan(ctx, i.planId, 'edit')),
   async handler(ctx, { planId, competencyId, linked }) {
     const p = await loadPlan(ctx.tx, planId);
-    if (p.templateId) throw new ConflictError('The plan follows its template; unlink it first');
+    if (p.templateId) throw new ConflictError(msg('errors.competencies.planFromTemplate'));
     if (!linked) {
       await ctx.tx.learningPlanCompetency.deleteMany({ where: { planId, competencyId } });
       return { planId };
@@ -361,7 +363,7 @@ export const setPlanCompetency = defineOperation({
         where: { id: competencyId, framework: { visible: true } },
       }))
     )
-      throw new ValidationError({ competencyId: ['Unknown competency'] });
+      throw new ValidationError({ competencyId: [msg('errors.competencies.unknownCompetency')] });
     const last = await ctx.tx.learningPlanCompetency.aggregate({
       where: { planId },
       _max: { sortOrder: true },
@@ -535,7 +537,7 @@ export const addCompetencyComment = defineOperation({
         if (!(await canViewUserCompetencies(ctx, i.userId))) throw new ForbiddenError();
         await ctx.perm.require('competency:planmanage');
       }
-    } else throw new ValidationError({ planId: ['A plan or a competency'] });
+    } else throw new ValidationError({ planId: [msg('errors.competencies.planOrCompetency')] });
   },
   async handler(ctx, i) {
     let userCompetencyId: string | null = null;
@@ -666,7 +668,7 @@ export const linkUserEvidence = defineOperation({
         where: { id: competencyId, framework: { visible: true } },
       }))
     )
-      throw new ValidationError({ competencyId: ['Unknown competency'] });
+      throw new ValidationError({ competencyId: [msg('errors.competencies.unknownCompetency')] });
     const had = await ctx.tx.userEvidenceCompetency.findUnique({
       where: { userEvidenceId_competencyId: { userEvidenceId: id, competencyId } },
     });

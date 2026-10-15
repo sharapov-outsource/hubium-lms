@@ -1,4 +1,4 @@
-import { ModuleError } from '@hubium/module-sdk';
+import { ModuleError, msg } from '@hubium/module-sdk';
 import type { RequestContext } from '../context.ts';
 import { getActivityAccess } from '../courses/activities.ts';
 import { AppError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
@@ -32,10 +32,10 @@ export async function actionInputFromForm(form: {
   try {
     input = JSON.parse(typeof form.input === 'string' && form.input ? form.input : '{}');
   } catch {
-    throw new ValidationError({ input: ['Invalid JSON'] });
+    throw new ValidationError({ input: [msg('errors.modules.invalidJson')] });
   }
   if (!input || typeof input !== 'object' || Array.isArray(input))
-    throw new ValidationError({ input: ['Expected a JSON object'] });
+    throw new ValidationError({ input: [msg('errors.modules.jsonObject')] });
   const parts = Array.isArray(form.files) ? form.files : form.files ? [form.files] : [];
   const files = await Promise.all(
     parts
@@ -65,9 +65,8 @@ function userError(e: unknown): unknown {
 /** The activity and its module, when the caller may open it (actions and queries alike). */
 async function openModuleActivity(ctx: RequestContext, activityId: string) {
   const { activity, canOpen, moduleDisabled } = await getActivityAccess(ctx, activityId);
-  if (moduleDisabled)
-    throw new ForbiddenError('This activity type is turned off by the administrator');
-  if (!canOpen || activity.deletedAt) throw new ForbiddenError('Activity is not available');
+  if (moduleDisabled) throw new ForbiddenError(msg('errors.common.moduleDisabled'));
+  if (!canOpen || activity.deletedAt) throw new ForbiddenError(msg('errors.modules.notAvailable'));
   return { activity, module: requireModule(activity.moduleKey) };
 }
 

@@ -42,6 +42,7 @@ import {
 import { checkFile, storeFile } from '@hubium/core/files/files';
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { createTranslator } from '@hubium/i18n/packs';
+import { msg } from '@hubium/module-sdk';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getLocale } from 'next-intl/server';
@@ -114,7 +115,7 @@ export async function importFrameworkAction(fd: FormData) {
   return runAction(async () => {
     const file = fd.get('file');
     if (!(file instanceof File) || !file.size)
-      throw new ValidationError({ file: ['Choose a CSV file'] });
+      throw new ValidationError({ file: [msg('errors.common.chooseCsv')] });
     const r = await importFrameworkCsv.run(await getContext(), { csv: await file.text() });
     revalidatePath(ADMIN);
     return r;
@@ -290,7 +291,8 @@ export async function createPlansAction(fd: FormData) {
       allowed: () => ctx.perm.require('competency:planmanage'),
       field: 'logins',
     });
-    if (!userIds.length) throw new ValidationError({ logins: ['Name at least one person'] });
+    if (!userIds.length)
+      throw new ValidationError({ logins: [msg('errors.competencies.namePerson')] });
     const r = await createPlansFromTemplate.run(ctx, { templateId: v.templateId ?? '', userIds });
     revalidatePath(TEMPLATES, 'layout');
     return r;
@@ -523,7 +525,7 @@ export async function saveUserEvidenceAction(fd: FormData) {
     const ctx = await getContext();
     const files = fd.getAll('files').filter((f): f is File => f instanceof File && f.size > 0);
     if (files.some((f) => f.size > EVIDENCE_MAX_BYTES))
-      throw new ValidationError({ files: ['A file is larger than 20 MB'] });
+      throw new ValidationError({ files: [msg('errors.competencies.evidenceTooLarge')] });
     // checked (malware too) before the evidence is saved, or a refused file would leave it
     // saved without its files, and the next try would save it twice
     const uploads = await Promise.all(

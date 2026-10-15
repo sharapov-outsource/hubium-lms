@@ -10,8 +10,8 @@ describe('passwordProblems', () => {
   const base = passwordPolicy(defaultSettings());
 
   it('allows any 8 characters by default', () => {
-    expect(passwordProblems(base, 'abcdefgh')).toEqual([]);
-    expect(passwordProblems(base, 'abcdefg')).toEqual(['At least 8 characters']);
+    expect(passwordProblems(base, 'abcdefgh').map(String)).toEqual([]);
+    expect(passwordProblems(base, 'abcdefg').map(String)).toEqual(['At least 8 characters']);
   });
 
   it('checks each character class, in any script', () => {
@@ -23,13 +23,13 @@ describe('passwordProblems', () => {
       requireUpper: true,
       requireSymbol: true,
     };
-    expect(passwordProblems(strict, 'abcdefghij')).toEqual([
+    expect(passwordProblems(strict, 'abcdefghij').map(String)).toEqual([
       'Include a digit',
       'Include an uppercase letter',
       'Include a symbol such as ! or %',
     ]);
-    expect(passwordProblems(strict, 'Пароль-2026')).toEqual([]);
-    expect(passwordProblems(strict, 'Aa1!')).toEqual(['At least 10 characters']);
+    expect(passwordProblems(strict, 'Пароль-2026').map(String)).toEqual([]);
+    expect(passwordProblems(strict, 'Aa1!').map(String)).toEqual(['At least 10 characters']);
   });
 
   it('expires passwords only when a lifetime is set', () => {
@@ -124,6 +124,13 @@ describe('password policy', () => {
     await expect(
       auth.api.signUpEmail({
         body: { email: 'ba@example.org', password: 'no-digits-here', name: 'B A' },
+      }),
+    ).rejects.toMatchObject({ body: { code: 'PASSWORD_POLICY', message: 'Добавьте цифру' } });
+    // in the language of the page: its cookie, else the site's
+    await expect(
+      auth.api.signUpEmail({
+        body: { email: 'ba@example.org', password: 'no-digits-here', name: 'B A' },
+        headers: new Headers({ cookie: 'hubium-locale=en' }),
       }),
     ).rejects.toMatchObject({ body: { code: 'PASSWORD_POLICY', message: 'Include a digit' } });
     const { user } = await auth.api.signUpEmail({

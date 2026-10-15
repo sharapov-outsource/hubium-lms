@@ -12,6 +12,7 @@ import {
   unsubscribeCalendar,
   ValidationError,
 } from '@hubium/core';
+import { msg } from '@hubium/module-sdk';
 import { fromZonedValue } from '@hubium/module-sdk/zoned';
 import { revalidatePath } from 'next/cache';
 import { getTimeZone } from 'next-intl/server';
@@ -82,9 +83,9 @@ export async function importCalendarAction(fd: FormData) {
     }
     const file = fd.get('file');
     if (!(file instanceof File) || !file.size)
-      throw new ValidationError({ file: ['Choose an .ics file'] });
+      throw new ValidationError({ file: [msg('errors.calendar.chooseIcsFile')] });
     if (file.size > CALENDAR_FEED_LIMITS.maxBytes)
-      throw new ValidationError({ file: ['The file is larger than 5 MB'] });
+      throw new ValidationError({ file: [msg('errors.calendar.icsTooLarge')] });
     const r = await importCalendarFile.run(ctx, {
       ...target(v),
       name: v.name || file.name.replace(/\.ics$/i, ''),

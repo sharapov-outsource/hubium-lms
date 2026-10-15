@@ -36,6 +36,7 @@ import { enqueue } from '@hubium/core/jobs/jobs';
 import { renderActionEmail } from '@hubium/core/mail/mail';
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { createTranslator } from '@hubium/i18n/packs';
+import { msg } from '@hubium/module-sdk';
 import { generateAccentPalette } from '@hubium/ui/palette';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
@@ -130,7 +131,7 @@ export async function uploadUsersAction(fd: FormData) {
   return runAction(async () => {
     const file = fd.get('file');
     if (!(file instanceof File) || file.size === 0)
-      throw new ValidationError({ file: ['Choose a CSV file'] });
+      throw new ValidationError({ file: [msg('errors.common.chooseCsv')] });
     const csv = Buffer.from(await file.arrayBuffer()).toString('utf8');
     const r = await bulkUploadUsers.run(await getContext(), { csv });
     revalidatePath('/admin/users');
@@ -268,7 +269,7 @@ export async function saveSettingsAction(fd: FormData) {
         );
         break;
       default:
-        throw new ValidationError({ _section: ['Unknown section'] });
+        throw new ValidationError({ _section: [msg('errors.admin.unknownSettingsSection')] });
     }
     await setSettings(db, values, ctx.perm.userId);
     revalidatePath('/', 'layout');
@@ -296,7 +297,7 @@ export async function installLanguagePackAction(fd: FormData) {
   return runAction(async () => {
     const file = fd.get('file');
     if (!(file instanceof File) || !file.size)
-      throw new ValidationError({ file: ['Choose a .zip or .json language pack'] });
+      throw new ValidationError({ file: [msg('errors.admin.chooseLanguagePack')] });
     const r = await installLanguagePack.run(await getContext(), {
       fileName: file.name,
       data: new Uint8Array(await file.arrayBuffer()),

@@ -1,8 +1,18 @@
 import { type Db, Prisma } from '@hubium/db';
-import { BASE_LOCALE, DEFAULT_SITE_LOCALE, isLocale, type Locale, locales } from '@hubium/i18n';
+import {
+  BASE_LOCALE,
+  DEFAULT_SITE_LOCALE,
+  isLocale,
+  LOCALE_COOKIE,
+  type Locale,
+  locales,
+  resolveLocale,
+} from '@hubium/i18n';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
-import { ValidationError } from '../errors.ts';
+import { type MsgOrText, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { issueMsg } from '../issue-messages.ts';
 import { timeZone } from '../lib/zod.ts';
 import { ensureLanguagePacks } from './language-packs.ts';
 
@@ -116,17 +126,17 @@ export async function setSettings(
   values: Partial<{ [K in SettingKey]: unknown }>,
   updatedById?: string,
 ): Promise<void> {
-  const fieldErrors: Record<string, string[]> = {};
+  const fieldErrors: Record<string, MsgOrText[]> = {};
   const parsed: [string, unknown][] = [];
   for (const [key, value] of Object.entries(values)) {
     const schema = settingDefs[key as SettingKey];
     if (!schema) {
-      fieldErrors[key] = ['Unknown setting'];
+      fieldErrors[key] = [msg('errors.settings.unknownSetting')];
       continue;
     }
     const r = schema.safeParse(value);
     if (r.success) parsed.push([key, r.data]);
-    else fieldErrors[key] = r.error.issues.map((i) => i.message);
+    else fieldErrors[key] = r.error.issues.map(issueMsg);
   }
   // the course creator's role is one that can be given on a course
   const creatorRole = parsed.find(([key]) => key === 'course.creatorRole')?.[1];
@@ -137,7 +147,7 @@ export async function setSettings(
       select: { id: true },
     }))
   )
-    fieldErrors['course.creatorRole'] = ['Not a role given on courses'];
+    fieldErrors['course.creatorRole'] = [msg('errors.settings.notCourseRole')];
   if (Object.keys(fieldErrors).length) throw new ValidationError(fieldErrors);
   // what changed, for the event log: who turned what off is the first question after an
   // incident
@@ -185,4 +195,23 @@ export function enabledLocales(s: AllSettings): Locale[] {
 /** A user's own language when it can be used, else the site language. */
 export function userLocale(s: AllSettings, preferred: string | null | undefined): Locale {
   return preferred && enabledLocales(s).includes(preferred) ? preferred : siteLocale(s);
+}
+
+/**
+ * The language of a request as the pages choose it without a session (sign-up, password
+ * reset): the language cookie, the browser when the site allows it, the site language.
+ */
+export function requestLocale(s: AllSettings, h: Headers | null | undefined): Locale {
+  const cookie = h
+    ?.get('cookie')
+    ?.split(/;\s*/)
+    .find((c) => c.startsWith(`${LOCALE_COOKIE}=`))
+    ?.slice(LOCALE_COOKIE.length + 1);
+  return resolveLocale({
+    cookie: cookie && decodeURIComponent(cookie),
+    acceptLanguage: h?.get('accept-language'),
+    site: siteLocale(s),
+    enabled: enabledLocales(s),
+    detectBrowser: s['i18n.detectBrowser'],
+  });
 }

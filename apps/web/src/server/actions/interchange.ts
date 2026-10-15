@@ -9,6 +9,7 @@ import {
   startBackup,
   startImport,
 } from '@hubium/interchange';
+import { msg } from '@hubium/module-sdk';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { formToObject, runAction } from '../action';
@@ -17,8 +18,10 @@ import { getContext } from '../session';
 export async function duplicateCourseAction(fd: FormData) {
   const v = formToObject(fd);
   const res = await runAction(async () => {
-    if (!v.fullName?.trim()) throw new ValidationError({ fullName: ['Required'] });
-    if (!v.shortName?.trim()) throw new ValidationError({ shortName: ['Required'] });
+    if (!v.fullName?.trim())
+      throw new ValidationError({ fullName: [msg('errors.field.required')] });
+    if (!v.shortName?.trim())
+      throw new ValidationError({ shortName: [msg('errors.field.required')] });
     return duplicateCourse(await getContext(), v.courseId!, {
       categoryId: v.categoryId || undefined,
       fullName: v.fullName.trim(),

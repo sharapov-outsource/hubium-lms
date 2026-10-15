@@ -1,5 +1,6 @@
 import type { Db, Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
+import { msg } from '@hubium/module-sdk';
 import {
   checkQuestionText,
   checkVariants,
@@ -13,7 +14,8 @@ import {
 } from '@hubium/questions';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
-import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
+import { ConflictError, type MsgOrText, NotFoundError, ValidationError } from '../errors.ts';
+import { issueMsg } from '../issue-messages.ts';
 import { optionalText } from '../lib/zod.ts';
 import { defineOperation } from '../operation.ts';
 import { isCalculated, saveSharedDatasets, sharedDatasets } from './datasets.ts';
@@ -51,7 +53,7 @@ export async function listQuestionCategories(ctx: RequestContext, courseId: stri
 /** Throws unless the category exists and belongs to `courseId`. */
 async function requireCategoryIn(db: Tx, categoryId: string, courseId: string) {
   if ((await categoryCourse(db, categoryId)) !== courseId)
-    throw new ValidationError({ categoryId: ['Unknown category'] });
+    throw new ValidationError({ categoryId: [msg('errors.common.unknownCategory')] });
 }
 
 export const saveQuestionCategory = defineOperation({
@@ -98,8 +100,9 @@ export const deleteQuestionCategory = defineOperation({
       where: { id },
       include: { _count: { select: { questions: true, children: true } } },
     });
-    if (!c.parentId) throw new ValidationError({ id: ['The default category cannot be deleted'] });
-    if (c._count.questions || c._count.children) throw new ConflictError('Category is not empty');
+    if (!c.parentId) throw new ValidationError({ id: [msg('errors.questions.defaultCategory')] });
+    if (c._count.questions || c._count.children)
+      throw new ConflictError(msg('errors.courses.categoryNotEmpty'));
     await ctx.tx.questionCategory.delete({ where: { id } });
     return { id };
   },
@@ -131,9 +134,9 @@ const blankHtml = (html: string) =>
 function validateData(type: QuestionType, data: unknown) {
   const r = questionDataSchemas[type].safeParse(data);
   if (!r.success) {
-    const fieldErrors: Record<string, string[]> = {};
+    const fieldErrors: Record<string, MsgOrText[]> = {};
     for (const i of r.error.issues)
-      (fieldErrors[`data.${i.path.join('.')}`.replace(/\.$/, '')] ??= []).push(i.message);
+      (fieldErrors[`data.${i.path.join('.')}`.replace(/\.$/, '')] ??= []).push(issueMsg(i));
     throw new ValidationError(fieldErrors);
   }
   return r.data;
@@ -158,7 +161,7 @@ export const saveQuestion = defineOperation({
   async handler(ctx, input) {
     const text = sanitizeRichText(input.text);
     if (!text.trim() && input.type !== 'DESCRIPTION') {
-      throw new ValidationError({ text: ['Question text is required'] });
+      throw new ValidationError({ text: [msg('errors.questions.textRequired')] });
     }
     // A Cloze text holds its answers: they are read from it. Gaps in the text must match
     // the choices of the gap types.

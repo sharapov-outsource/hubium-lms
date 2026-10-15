@@ -10,6 +10,7 @@ import {
   sendSchedule,
   ValidationError,
 } from '@hubium/core';
+import { msg } from '@hubium/module-sdk';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { formToObject, runAction } from '../action';
@@ -20,7 +21,7 @@ const json = (v: string | undefined, field: string) => {
   try {
     return v ? JSON.parse(v) : undefined;
   } catch {
-    throw new ValidationError({ [field]: ['Invalid'] });
+    throw new ValidationError({ [field]: [msg('errors.field.invalid')] });
   }
 };
 
@@ -57,7 +58,7 @@ export async function saveAudiencesAction(fd: FormData) {
     // only those who edit reports learn whether a report or an address exists
     await ctx.perm.require('report:customise');
     const report = await db.customReport.findUnique({ where: { id: v.id ?? '' } });
-    if (!report) throw new ValidationError({ id: ['Unknown report'] });
+    if (!report) throw new ValidationError({ id: [msg('errors.reports.unknownReport')] });
     await saveReport.run(ctx, {
       id: report.id,
       name: report.name,

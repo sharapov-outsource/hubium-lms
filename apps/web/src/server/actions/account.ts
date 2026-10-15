@@ -11,6 +11,7 @@ import {
   validateProfileValues,
   writeProfileValues,
 } from '@hubium/core';
+import { msg } from '@hubium/module-sdk';
 import { APIError } from 'better-auth/api';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
@@ -34,7 +35,7 @@ export async function updateProfileAction(fd: FormData) {
     if (!r.success) throw r.error;
     const { firstName, lastName, timezone } = r.data;
     if (timezone && !isTimeZone(timezone))
-      throw new ValidationError({ timezone: ['Unknown time zone'] });
+      throw new ValidationError({ timezone: [msg('errors.account.unknownTimeZone')] });
     // custom profile fields the person may change themselves
     const fields = (await listProfileFields(db)).filter((f) => !f.locked);
     const custom = validateProfileValues(fields, profileValuesFromForm(fields, form), {
@@ -74,7 +75,7 @@ export async function changePasswordAction(fd: FormData) {
         field: 'newPassword',
       });
       if (v.newPassword !== v.newPassword2)
-        throw new ValidationError({ newPassword2: ['Passwords do not match'] });
+        throw new ValidationError({ newPassword2: [msg('errors.account.passwordsDiffer')] });
       try {
         await auth.api.changePassword({
           body: {
@@ -86,7 +87,7 @@ export async function changePasswordAction(fd: FormData) {
         });
       } catch (e) {
         if (e instanceof APIError && e.body?.code === 'PASSWORD_POLICY') throw e;
-        throw new ValidationError({ currentPassword: ['Invalid password'] });
+        throw new ValidationError({ currentPassword: [msg('errors.auth.wrongPassword')] });
       }
       await db.user.update({
         where: { id: user.id },
@@ -133,7 +134,7 @@ export async function addRecoveryPassphraseAction(fd: FormData) {
     async () => {
       const v = formToObject(fd);
       if (v.passphrase !== v.passphrase2)
-        throw new ValidationError({ passphrase2: ['Phrases do not match'] });
+        throw new ValidationError({ passphrase2: [msg('errors.account.phrasesDiffer')] });
       await addRecoveryPassphrase.run(await getContext(), {
         name: v.name ?? '',
         passphrase: v.passphrase ?? '',

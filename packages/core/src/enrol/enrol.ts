@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import type { Db, EnrolmentMethodType, Prisma } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
@@ -185,14 +186,14 @@ export async function assertCanAssignRole(ctx: RequestContext, contextId: string
   const allowed = await ctx.db.roleAssignRule.findFirst({
     where: { roleId: { in: mine.map((m) => m.roleId) }, assignableRoleId: roleId },
   });
-  if (!allowed) throw new ForbiddenError('You cannot assign this role');
+  if (!allowed) throw new ForbiddenError(msg('errors.enrol.cannotAssignRole'));
 }
 
 /** The role exists, may be given in a course, and the caller may assign it there. */
 export async function assertCourseRole(ctx: RequestContext, courseId: string, roleId: string) {
   const role = await ctx.db.role.findUnique({ where: { id: roleId } });
   if (!role?.assignableLevels.includes('COURSE'))
-    throw new ValidationError({ roleId: ['Role cannot be assigned in a course'] });
+    throw new ValidationError({ roleId: [msg('errors.enrol.roleNotForCourses')] });
   await assertCanAssignRole(ctx, courseId, role.id);
   return role;
 }
@@ -374,7 +375,7 @@ export const selfEnrol = defineOperation({
   name: 'enrol.self',
   input: z.object({ courseId: z.string().uuid(), key: z.string().max(100).optional() }),
   async authorize(ctx, i) {
-    if (ctx.actor.kind !== 'user') throw new ForbiddenError('Sign in to enrol');
+    if (ctx.actor.kind !== 'user') throw new ForbiddenError(msg('errors.enrol.signInToEnrol'));
     await ctx.perm.require('enrol:self', i.courseId);
   },
   async handler(ctx, { courseId, key }) {
@@ -384,39 +385,40 @@ export const selfEnrol = defineOperation({
     const method = await ctx.tx.enrolmentMethod.findFirst({
       where: { courseId, type: 'SELF', enabled: true },
     });
-    if (!method) throw new ForbiddenError('Self enrolment is not available');
+    if (!method) throw new ForbiddenError(msg('errors.enrol.selfUnavailable'));
     if (method.startsAt && method.startsAt > ctx.now)
-      throw new ValidationError({ key: ['Enrolment has not opened yet'] });
+      throw new ValidationError({ key: [msg('errors.enrol.notOpenYet')] });
     if (method.endsAt && method.endsAt <= ctx.now)
-      throw new ValidationError({ key: ['Enrolment is closed'] });
+      throw new ValidationError({ key: [msg('errors.enrol.closed')] });
     const mine = await ctx.tx.enrolment.findMany({ where: { courseId, userId } });
     const expired = (e: (typeof mine)[number]) => !!e.endsAt && e.endsAt <= ctx.now;
     // Suspended by a teacher (rather than run out): signing up again must not undo it.
     if (mine.some((e) => e.status === 'SUSPENDED' && !expired(e)))
-      throw new ForbiddenError('Your enrolment in this course is suspended');
+      throw new ForbiddenError(msg('errors.enrol.suspended'));
     if (mine.some((e) => e.status === 'ACTIVE' && !expired(e))) {
-      throw new ConflictError('You are already enrolled');
+      throw new ConflictError(msg('errors.enrol.alreadyEnrolled'));
     }
     if (method.maxEnrolled) {
       const n = await ctx.tx.enrolment.count({
         where: { methodId: method.id, userId: { not: userId } },
       });
-      if (n >= method.maxEnrolled) throw new ValidationError({ key: ['The course is full'] });
+      if (n >= method.maxEnrolled)
+        throw new ValidationError({ key: [msg('errors.enrol.courseFull')] });
     }
     let groupId: string | null = null;
     if (method.key) {
       const given = (key ?? '').trim();
-      if (!given) throw new ValidationError({ key: ['Enrolment key is required'] });
+      if (!given) throw new ValidationError({ key: [msg('errors.enrol.keyRequired')] });
       if (!keysEqual(given, method.key)) {
         if (method.useGroupKeys) {
           const groups = await ctx.tx.group.findMany({
             where: { courseId, enrolmentKey: { not: null } },
           });
           const g = groups.find((x) => x.enrolmentKey && keysEqual(given, x.enrolmentKey));
-          if (!g) throw new ValidationError({ key: ['Wrong enrolment key'] });
+          if (!g) throw new ValidationError({ key: [msg('errors.enrol.wrongKey')] });
           groupId = g.id;
         } else {
-          throw new ValidationError({ key: ['Wrong enrolment key'] });
+          throw new ValidationError({ key: [msg('errors.enrol.wrongKey')] });
         }
       }
     }
@@ -459,7 +461,7 @@ export const unenrolSelf = defineOperation({
     const self = await ctx.tx.enrolment.findMany({
       where: { courseId, userId, method: { type: 'SELF' } },
     });
-    if (!self.length) throw new ForbiddenError('Only self-enrolled users can leave the course');
+    if (!self.length) throw new ForbiddenError(msg('errors.enrol.onlySelfLeave'));
     await ctx.tx.roleAssignment.deleteMany({
       where: { enrolmentId: { in: self.map((e) => e.id) } },
     });

@@ -1,4 +1,5 @@
 import type { Db, Prisma } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
@@ -21,7 +22,7 @@ async function canManage(ctx: RequestContext, userId: string) {
     select: { isSiteAdmin: true },
   });
   if (target?.isSiteAdmin && !ctx.perm.isSiteAdmin)
-    throw new ForbiddenError("Only site admins can handle an admin's data");
+    throw new ForbiddenError(msg('errors.privacy.adminData'));
 }
 
 /** Everything Hubium stores about a user, as JSON (files are listed, not embedded). */
@@ -452,8 +453,7 @@ export async function acceptPolicies(ctx: RequestContext, versionIds: string[]) 
   const pending = await pendingPolicies(ctx.db, userId);
   const ids = new Set(pending.map((p) => p.versionId));
   const missing = [...ids].filter((id) => !versionIds.includes(id));
-  if (missing.length)
-    throw new ValidationError({ versionIds: ['Accept every policy to continue'] });
+  if (missing.length) throw new ValidationError({ versionIds: [msg('errors.privacy.acceptAll')] });
   await ctx.db.policyAcceptance.createMany({
     data: [...ids].map((versionId) => ({ userId, versionId })),
     skipDuplicates: true,

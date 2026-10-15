@@ -21,6 +21,7 @@ import { fileUrl, storeFile } from '@hubium/core/files/files';
 import type { Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { createTranslator } from '@hubium/i18n/packs';
+import { msg } from '@hubium/module-sdk';
 import { Guide, Rubric } from '@hubium/module-sdk/grading';
 import { invalidIpListEntries } from '@hubium/module-sdk/net';
 import {
@@ -156,7 +157,7 @@ export async function readMbz(
           limits,
         );
   if (!files.has('moodle_backup.xml'))
-    throw new ValidationError({ file: ['Not a Moodle backup: moodle_backup.xml is missing'] });
+    throw new ValidationError({ file: [msg('errors.interchange.notMbz')] });
   return files;
 }
 
@@ -166,7 +167,7 @@ function readZip(buf: Buffer, limits: ArchiveLimits): Archive {
     entries = unzipLimited(new Uint8Array(buf), limits);
   } catch (e) {
     if (e instanceof ValidationError) throw e;
-    throw new ValidationError({ file: ['The archive is damaged'] });
+    throw new ValidationError({ file: [msg('errors.interchange.archiveDamaged')] });
   }
   const files: Archive = new Map();
   for (const [k, v] of Object.entries(entries)) files.set(k.replace(/^\.\//, ''), Buffer.from(v));

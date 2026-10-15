@@ -1,3 +1,4 @@
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { AppError, ValidationError } from '../errors.ts';
@@ -76,8 +77,11 @@ function readRows(csv: string, names: Record<string, string[]>, required: string
   const header = rows.shift() ?? [];
   const col = columns(header, names);
   if (col[required]! < 0)
-    throw new ValidationError({ csv: [`The header must have a "${names[required]![0]}" column`] });
-  if (rows.length > MAX_LINES) throw new ValidationError({ csv: [`At most ${MAX_LINES} lines`] });
+    throw new ValidationError({
+      csv: [msg('errors.groups.headerNeedsColumn', { column: names[required]![0] })],
+    });
+  if (rows.length > MAX_LINES)
+    throw new ValidationError({ csv: [msg('errors.groups.tooManyLines', { n: MAX_LINES })] });
   const get = (r: string[], key: string) => (col[key]! >= 0 ? (r[col[key]!] ?? '').trim() : '');
   return rows.map((r, i) => ({ line: i + 2, get: (key: string) => get(r, key) }));
 }
@@ -332,7 +336,8 @@ export const autoCreateGroups = defineOperation({
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       select: { id: true },
     });
-    if (!people.length) throw new ValidationError({ roleId: ['Nobody has this role here'] });
+    if (!people.length)
+      throw new ValidationError({ roleId: [msg('errors.groups.nobodyWithRole')] });
     const ids = people.map((p) => p.id);
     if (input.order === 'random')
       for (let i = ids.length - 1; i > 0; i--) {
@@ -350,7 +355,8 @@ export const autoCreateGroups = defineOperation({
     );
     const names = Array.from({ length: count }, (_, i) => groupName(input.pattern, i));
     const clash = names.find((n) => taken.has(n.toLowerCase()));
-    if (clash) throw new ValidationError({ pattern: [`A group named "${clash}" already exists`] });
+    if (clash)
+      throw new ValidationError({ pattern: [msg('errors.groups.groupExists', { clash })] });
     // people dealt in turn, so sizes differ by at most one
     const buckets = names.map(() => [] as string[]);
     for (const [i, id] of ids.entries()) buckets[i % count]!.push(id);

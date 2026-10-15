@@ -1,4 +1,5 @@
 import { type Competency, type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { requireCourseView } from '../courses/courses.ts';
@@ -61,7 +62,7 @@ export async function addEvidence(tx: Tx, e: EvidenceInput): Promise<void> {
   const scale = await competencyScale(tx, competency);
   if (e.action === 'OVERRIDE' && e.grade !== null && e.grade !== undefined)
     if (!Number.isInteger(e.grade) || e.grade < 1 || e.grade > scale.items.length)
-      throw new ValidationError({ grade: ['Not a value of the scale'] });
+      throw new ValidationError({ grade: [msg('errors.competencies.notOnScale')] });
   const uc = await tx.userCompetency.upsert({
     where: { userId_competencyId: { userId: e.userId, competencyId: e.competencyId } },
     create: { userId: e.userId, competencyId: e.competencyId },
@@ -222,7 +223,7 @@ export const addCourseCompetencies = defineOperation({
       select: { id: true },
     });
     if (found.length !== new Set(competencyIds).size)
-      throw new ValidationError({ competencyIds: ['Unknown competency'] });
+      throw new ValidationError({ competencyIds: [msg('errors.competencies.unknownCompetency')] });
     const last = await ctx.tx.courseCompetency.aggregate({
       where: { courseId },
       _max: { sortOrder: true },
@@ -322,7 +323,7 @@ export const setActivityCompetency = defineOperation({
         where: { courseId_competencyId: { courseId: a.courseId, competencyId } },
       }))
     )
-      throw new ValidationError({ competencyId: ['Add the competency to the course first'] });
+      throw new ValidationError({ competencyId: [msg('errors.competencies.addToCourseFirst')] });
     await ctx.tx.activityCompetency.upsert({
       where: { activityId_competencyId: { activityId, competencyId } },
       create: { activityId, competencyId, ruleOutcome },
@@ -351,9 +352,9 @@ export const rateInCourse = defineOperation({
         where: { courseId_competencyId: { courseId: i.courseId, competencyId: i.competencyId } },
       }))
     )
-      throw new ValidationError({ competencyId: ['The competency is not in the course'] });
+      throw new ValidationError({ competencyId: [msg('errors.competencies.notInCourse')] });
     if (!(await courseLearnerIds(ctx.tx, i.courseId)).includes(i.userId))
-      throw new ValidationError({ userId: ['This person is not a learner of the course'] });
+      throw new ValidationError({ userId: [msg('errors.certificates.notLearner')] });
     await addEvidence(ctx.tx, {
       userId: i.userId,
       competencyId: i.competencyId,
@@ -390,7 +391,7 @@ export const rateUserCompetency = defineOperation({
   authorize: (ctx) => ctx.perm.require('competency:review'),
   async handler(ctx, i) {
     if (i.userId === ctx.perm.userId && !ctx.perm.isSiteAdmin)
-      throw new ForbiddenError('People do not rate themselves');
+      throw new ForbiddenError(msg('errors.competencies.noSelfRating'));
     await addEvidence(ctx.tx, {
       userId: i.userId,
       competencyId: i.competencyId,
@@ -466,7 +467,8 @@ export const reviewUserCompetency = defineOperation({
       start: ['IDLE', 'WAITING_FOR_REVIEW'],
       stop: ['IN_REVIEW'],
     };
-    if (!from[step].includes(uc.status)) throw new ConflictError('The review is not at that step');
+    if (!from[step].includes(uc.status))
+      throw new ConflictError(msg('errors.competencies.wrongReviewStep'));
     const status =
       step === 'request' ? 'WAITING_FOR_REVIEW' : step === 'start' ? 'IN_REVIEW' : 'IDLE';
     await ctx.tx.userCompetency.update({

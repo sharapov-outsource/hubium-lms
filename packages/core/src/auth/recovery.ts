@@ -1,5 +1,6 @@
 import { createOTP } from '@better-auth/utils/otp';
 import type { Db, Prisma } from '@hubium/db';
+import { type Msg, msg } from '@hubium/module-sdk';
 import type { BetterAuthPlugin } from 'better-auth';
 import { APIError, createAuthEndpoint } from 'better-auth/api';
 import { expireCookie, setSessionCookie } from 'better-auth/cookies';
@@ -42,20 +43,20 @@ export function normalizePassphrase(s: string): string {
   return s.normalize('NFKC').toLowerCase().trim().replace(/\s+/g, ' ');
 }
 
-export function passphraseProblems(raw: string): string[] {
+export function passphraseProblems(raw: string): Msg[] {
   const s = normalizePassphrase(raw);
-  const out: string[] = [];
-  if (s.split(' ').filter(Boolean).length < MIN_WORDS) out.push(`At least ${MIN_WORDS} words`);
-  if (s.length < MIN_LENGTH) out.push(`At least ${MIN_LENGTH} characters`);
-  if (s.length > 200) out.push('At most 200 characters');
+  const out: Msg[] = [];
+  if (s.split(' ').filter(Boolean).length < MIN_WORDS)
+    out.push(msg('errors.auth.minWords', { n: MIN_WORDS }));
+  if (s.length < MIN_LENGTH) out.push(msg('errors.field.tooShort', { n: MIN_LENGTH }));
+  if (s.length > 200) out.push(msg('errors.field.tooLong', { n: 200 }));
   return out;
 }
 
 function ownUser(ctx: RequestContext): string {
-  if (ctx.actor.kind !== 'user') throw new ForbiddenError('Sign in required');
+  if (ctx.actor.kind !== 'user') throw new ForbiddenError(msg('errors.common.signIn'));
   // credentials stay with their owner, as in auth.ts
-  if (ctx.actor.realUserId)
-    throw new ForbiddenError('Not available while logged in as another user');
+  if (ctx.actor.realUserId) throw new ForbiddenError(msg('errors.common.notWhileLoggedInAs'));
   return ctx.actor.userId;
 }
 
@@ -84,22 +85,24 @@ export const addRecoveryPassphrase = defineOperation({
       select: { twoFactorEnabled: true },
     });
     if (!user.twoFactorEnabled)
-      throw new ValidationError({ passphrase: ['Turn on two-factor authentication first'] });
+      throw new ValidationError({ passphrase: [msg('errors.auth.twoFactorFirst')] });
     const account = await ctx.tx.account.findFirst({
       where: { userId, providerId: 'credential' },
       select: { password: true },
     });
     if (account?.password) {
       if (!(await verifyPassword({ hash: account.password, password: input.password })))
-        throw new ValidationError({ password: ['Invalid password'] });
+        throw new ValidationError({ password: [msg('errors.auth.wrongPassword')] });
     } else if (!(await totpCodeValid(ctx.tx, userId, input.code))) {
       // signs in elsewhere (single sign-on, LDAP): the authenticator app confirms instead
-      throw new ValidationError({ code: ['Invalid code'] });
+      throw new ValidationError({ code: [msg('errors.auth.wrongCode')] });
     }
     const problems = passphraseProblems(input.passphrase);
     if (problems.length) throw new ValidationError({ passphrase: problems });
     if ((await ctx.tx.recoveryPassphrase.count({ where: { userId } })) >= MAX_RECOVERY_PASSPHRASES)
-      throw new ValidationError({ name: [`At most ${MAX_RECOVERY_PASSPHRASES} phrases`] });
+      throw new ValidationError({
+        name: [msg('errors.auth.tooManyPhrases', { n: MAX_RECOVERY_PASSPHRASES })],
+      });
     const row = await ctx.tx.recoveryPassphrase.create({
       data: {
         userId,

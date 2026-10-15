@@ -1,4 +1,5 @@
 import type { Db, UserRelationKind } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { listMyCourses } from '../courses/courses.ts';
@@ -68,7 +69,7 @@ const Kind = z.enum(['PARENT', 'MENTOR']);
 
 async function activeUser(db: Db, id: string, field: string) {
   const u = await db.user.findUnique({ where: { id }, select: { id: true, deletedAt: true } });
-  if (!u || u.deletedAt) throw new ValidationError({ [field]: ['Unknown user'] });
+  if (!u || u.deletedAt) throw new ValidationError({ [field]: [msg('errors.common.unknownUser')] });
   return u;
 }
 
@@ -82,7 +83,7 @@ export const addUserRelation = defineOperation({
   authorize: (ctx) => ctx.perm.require('user:update'),
   async handler(ctx, { mentorId, menteeId, kind }) {
     if (mentorId === menteeId)
-      throw new ValidationError({ menteeId: ['A user cannot be their own mentor'] });
+      throw new ValidationError({ menteeId: [msg('errors.users.ownMentor')] });
     await activeUser(ctx.db, mentorId, 'mentorId');
     await activeUser(ctx.db, menteeId, 'menteeId');
     const r = await ctx.tx.userRelation.upsert({
@@ -141,7 +142,7 @@ export const bulkUploadUserRelations = defineOperation({
     const header = (rows.shift() ?? []).map((h) => h.trim().toLowerCase());
     const col = (name: string) => header.indexOf(name);
     if (col('mentor') < 0 || col('mentee') < 0)
-      throw new ValidationError({ csv: ['Header must include: mentor, mentee'] });
+      throw new ValidationError({ csv: [msg('errors.users.mentorHeader')] });
     const find = (login: string) =>
       ctx.db.user.findFirst({
         where: {
@@ -178,7 +179,7 @@ export const bulkUploadUserRelations = defineOperation({
       } catch (e) {
         const message =
           e instanceof ValidationError
-            ? Object.values(e.fieldErrors ?? {})
+            ? Object.values(e.in(ctx.locale).fieldErrors ?? {})
                 .flat()
                 .join('; ')
             : e instanceof Error

@@ -13,7 +13,7 @@ import { CLIENT_IP_HEADER, clientIp } from '../client-ip.ts';
 import { ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { sendAuthEmail } from '../mail/mail.ts';
-import { getAllSettings, userLocale } from '../settings/settings.ts';
+import { getAllSettings, requestLocale, userLocale } from '../settings/settings.ts';
 import { noteSignIn } from './devices.ts';
 import { ldapSignIn } from './ldap.ts';
 import { clearFailedSignIns, findSignInUser, isLocked, recordFailedSignIn } from './lockout.ts';
@@ -329,9 +329,11 @@ export function createAuth({
               await assertPasswordAllowed(db, password, { userId, field: passwordField });
             } catch (e) {
               if (!(e instanceof ValidationError)) throw e;
+              // the form shows the message: in the language of the page
+              const locale = requestLocale(await getAllSettings(db), c.headers);
               throw new APIError('BAD_REQUEST', {
                 code: 'PASSWORD_POLICY',
-                message: Object.values(e.fieldErrors ?? {})
+                message: Object.values(e.in(locale).fieldErrors ?? {})
                   .flat()
                   .join('. '),
               });

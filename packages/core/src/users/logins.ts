@@ -1,3 +1,4 @@
+import { msg } from '@hubium/module-sdk';
 import type { RequestContext } from '../context.ts';
 import { ValidationError } from '../errors.ts';
 
@@ -29,6 +30,8 @@ export async function resolveLogins(
     (l) => !users.some((u) => u.email.toLowerCase() === l || u.username?.toLowerCase() === l),
   );
   if (unknown.length)
-    throw new ValidationError({ [opts.field]: [`Not found: ${unknown.join(', ')}`] });
+    throw new ValidationError({
+      [opts.field]: [msg('errors.users.notFoundList', { unknown: unknown.join(', ') })],
+    });
   return users.map((u) => u.id);
 }

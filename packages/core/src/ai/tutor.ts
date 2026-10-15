@@ -1,4 +1,5 @@
 import { AiProviderError, AiRefusalError, htmlToText, type Msg, type Usage } from '@hubium/ai';
+import { msg } from '@hubium/module-sdk';
 import type { RequestContext } from '../context.ts';
 import { getCourseOutline } from '../courses/activities.ts';
 import { getCourseAccess } from '../courses/courses.ts';
@@ -100,13 +101,14 @@ export async function* askTutor(
   input: { courseId: string; conversationId?: string | null; message: string },
 ): AsyncGenerator<TutorEvent> {
   const text = input.message.trim();
-  if (!text) throw new ValidationError({ message: ['Type a question'] });
-  if (text.length > 4000) throw new ValidationError({ message: ['The question is too long'] });
+  if (!text) throw new ValidationError({ message: [msg('errors.ai.typeQuestion')] });
+  if (text.length > 4000)
+    throw new ValidationError({ message: [msg('errors.ai.questionTooLong')] });
   if (ctx.actor.kind !== 'user') throw new ForbiddenError();
   const userId = ctx.actor.userId;
   const scope = await tutorScope(ctx, input.courseId);
   if (scope.blockedBy)
-    throw new AppError('FORBIDDEN', 'The tutor is unavailable during a quiz attempt', {
+    throw new AppError('FORBIDDEN', msg('errors.ai.tutorDuringQuiz'), {
       details: { tutorBlocked: scope.blockedBy },
     });
   const f = await aiGate(ctx, { feature: 'TUTOR', courseId: input.courseId });
@@ -264,7 +266,8 @@ export async function rateTutorMessage(
   });
   if (!m || ctx.actor.kind !== 'user' || m.conversation.userId !== ctx.actor.userId)
     throw new NotFoundError('Message');
-  if (m.role !== 'ASSISTANT') throw new ValidationError({ rating: ['Only answers can be rated'] });
+  if (m.role !== 'ASSISTANT')
+    throw new ValidationError({ rating: [msg('errors.ai.onlyAnswersRated')] });
   await ctx.db.tutorMessage.update({ where: { id: messageId }, data: { rating } });
   return { id: messageId, rating };
 }

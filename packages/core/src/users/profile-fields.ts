@@ -1,10 +1,11 @@
 import type { Db, Prisma } from '@hubium/db';
 import { locales } from '@hubium/i18n';
 import { createTranslator } from '@hubium/i18n/packs';
+import { type Msg, msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import { moveFieldMappings } from '../auth/field-mappings.ts';
 import { renameProfileFieldConditions } from '../courses/availability-refs.ts';
-import { NotFoundError, ValidationError } from '../errors.ts';
+import { type MsgOrText, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { type Localized, localizedText, pickLocalized } from '../lib/localized.ts';
 import { defineOperation } from '../operation.ts';
@@ -76,7 +77,7 @@ const yesNoWords = () =>
 export function coerceFieldValue(
   f: FieldSpec,
   raw: unknown,
-): { value?: string | boolean; error?: string } {
+): { value?: string | boolean; error?: Msg } {
   if (f.type === 'checkbox') {
     if (typeof raw === 'boolean') return { value: raw };
     const s = String(raw ?? '')
@@ -84,17 +85,19 @@ export function coerceFieldValue(
       .toLowerCase();
     if (yesNoWords().yes.has(s)) return { value: true };
     if (yesNoWords().no.has(s)) return { value: false };
-    return { error: 'Expected yes or no' };
+    return { error: msg('errors.field.yesNo') };
   }
   const s = typeof raw === 'string' ? raw.trim() : raw == null ? '' : String(raw).trim();
   if (!s) return { value: '' };
-  if (f.type === 'text' && s.length > 255) return { error: 'At most 255 characters' };
-  if (f.type === 'textarea' && s.length > 5000) return { error: 'At most 5000 characters' };
-  if (f.type === 'menu' && !f.choices.includes(s)) return { error: 'Choose one of the options' };
+  if (f.type === 'text' && s.length > 255)
+    return { error: msg('errors.field.tooLong', { n: 255 }) };
+  if (f.type === 'textarea' && s.length > 5000)
+    return { error: msg('errors.field.tooLong', { n: 5000 }) };
+  if (f.type === 'menu' && !f.choices.includes(s)) return { error: msg('errors.field.option') };
   if (f.type === 'date') {
     const d = new Date(`${s}T00:00:00Z`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || Number.isNaN(d.getTime()))
-      return { error: 'Expected a date (YYYY-MM-DD)' };
+      return { error: msg('errors.field.date') };
   }
   return { value: s };
 }
@@ -109,17 +112,17 @@ export function validateProfileValues(
   opts: { requireAll?: boolean } = {},
 ): ProfileValues {
   const out: ProfileValues = {};
-  const errors: Record<string, string[]> = {};
+  const errors: Record<string, MsgOrText[]> = {};
   for (const f of fields) {
     if (!(f.shortName in raw)) {
       if (opts.requireAll && f.required && f.type !== 'checkbox')
-        errors[FORM_PREFIX + f.shortName] = ['Required'];
+        errors[FORM_PREFIX + f.shortName] = [msg('errors.field.required')];
       continue;
     }
     const r = coerceFieldValue(f, raw[f.shortName]);
     if (r.error) errors[FORM_PREFIX + f.shortName] = [r.error];
     else if (opts.requireAll && f.required && r.value === '')
-      errors[FORM_PREFIX + f.shortName] = ['Required'];
+      errors[FORM_PREFIX + f.shortName] = [msg('errors.field.required')];
     else out[f.shortName] = r.value!;
   }
   if (Object.keys(errors).length) throw new ValidationError(errors);
@@ -192,7 +195,7 @@ export const saveProfileField = defineOperation({
       select: { id: true },
     });
     if (taken && taken.id !== input.id)
-      throw new ValidationError({ shortName: ['This short name is already in use'] });
+      throw new ValidationError({ shortName: [msg('errors.courses.fieldShortNameInUse')] });
     const data = {
       shortName: input.shortName,
       name: input.name,

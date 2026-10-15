@@ -1,4 +1,5 @@
 import type { Db, Prisma } from '@hubium/db';
+import { type Msg, msg } from '@hubium/module-sdk';
 import { verifyPassword } from 'better-auth/crypto';
 import { ValidationError } from '../errors.ts';
 import { type AllSettings, getAllSettings } from '../settings/settings.ts';
@@ -33,16 +34,18 @@ export function passwordPolicy(s: AllSettings): PasswordPolicy {
   };
 }
 
-/** The rules a password breaks, as English messages (empty when it is fine). */
-export function passwordProblems(policy: PasswordPolicy, password: string): string[] {
-  const out: string[] = [];
-  if (password.length < policy.minLength) out.push(`At least ${policy.minLength} characters`);
-  if (password.length > MAX_PASSWORD_LENGTH) out.push(`At most ${MAX_PASSWORD_LENGTH} characters`);
-  if (policy.requireDigit && !/\p{Nd}/u.test(password)) out.push('Include a digit');
-  if (policy.requireLower && !/\p{Ll}/u.test(password)) out.push('Include a lowercase letter');
-  if (policy.requireUpper && !/\p{Lu}/u.test(password)) out.push('Include an uppercase letter');
+/** The rules a password breaks, as messages (empty when it is fine). */
+export function passwordProblems(policy: PasswordPolicy, password: string): Msg[] {
+  const out: Msg[] = [];
+  if (password.length < policy.minLength)
+    out.push(msg('errors.field.tooShort', { n: policy.minLength }));
+  if (password.length > MAX_PASSWORD_LENGTH)
+    out.push(msg('errors.field.tooLong', { n: MAX_PASSWORD_LENGTH }));
+  if (policy.requireDigit && !/\p{Nd}/u.test(password)) out.push(msg('errors.auth.password.digit'));
+  if (policy.requireLower && !/\p{Ll}/u.test(password)) out.push(msg('errors.auth.password.lower'));
+  if (policy.requireUpper && !/\p{Lu}/u.test(password)) out.push(msg('errors.auth.password.upper'));
   if (policy.requireSymbol && !/[^\p{L}\p{Nd}\s]/u.test(password))
-    out.push('Include a symbol such as ! or %');
+    out.push(msg('errors.auth.password.symbol'));
   return out;
 }
 
@@ -82,7 +85,7 @@ export async function assertPasswordAllowed(
   if (!opts.userId) return;
   for (const hash of await recentHashes(db, opts.userId, policy.history)) {
     if (await verifyPassword({ hash, password }))
-      throw new ValidationError({ [field]: ['Choose a password you have not used recently'] });
+      throw new ValidationError({ [field]: [msg('errors.auth.passwordReused')] });
   }
 }
 

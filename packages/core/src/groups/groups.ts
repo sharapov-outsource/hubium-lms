@@ -1,4 +1,5 @@
 import { type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { dropAvailabilityRefs, namesGroupings, namesGroups } from '../courses/availability-refs.ts';
@@ -30,7 +31,7 @@ export const createGroup = defineOperation({
   authorize: (ctx, i) => ctx.perm.require('group:manage', i.courseId),
   async handler(ctx, input) {
     if (await ctx.tx.group.findFirst({ where: { courseId: input.courseId, name: input.name } })) {
-      throw new ValidationError({ name: ['A group with this name already exists'] });
+      throw new ValidationError({ name: [msg('errors.groups.groupNameTaken')] });
     }
     const g = await ctx.tx.group.create({
       data: { ...input, enrolmentKey: input.enrolmentKey ?? null },
@@ -59,7 +60,7 @@ export const updateGroup = defineOperation({
     const dupe = await ctx.tx.group.findFirst({
       where: { courseId: g.courseId, name: input.name, id: { not: g.id } },
     });
-    if (dupe) throw new ValidationError({ name: ['A group with this name already exists'] });
+    if (dupe) throw new ValidationError({ name: [msg('errors.groups.groupNameTaken')] });
     await ctx.tx.group.update({
       where: { id: g.id },
       data: {
@@ -110,8 +111,7 @@ export const setGroupMembers = defineOperation({
       });
       const ok = new Set(enrolled.map((e) => e.userId));
       const bad = add.filter((u) => !ok.has(u));
-      if (bad.length)
-        throw new ValidationError({ add: ['Only enrolled users can be added to a group'] });
+      if (bad.length) throw new ValidationError({ add: [msg('errors.groups.enrolledOnly')] });
       await ctx.tx.groupMember.createMany({
         data: add.map((userId) => ({ groupId, userId })),
         skipDuplicates: true,
@@ -165,7 +165,7 @@ export const createGrouping = defineOperation({
   authorize: (ctx, i) => ctx.perm.require('group:manage', i.courseId),
   async handler(ctx, input) {
     if (await ctx.tx.grouping.findFirst({ where: { courseId: input.courseId, name: input.name } }))
-      throw new ValidationError({ name: ['A grouping with this name already exists'] });
+      throw new ValidationError({ name: [msg('errors.groups.groupingNameTaken')] });
     const g = await ctx.tx.grouping.create({ data: input });
     await logEvent(ctx.tx, {
       name: 'grouping.created',
@@ -188,7 +188,7 @@ export const updateGrouping = defineOperation({
     const dupe = await ctx.tx.grouping.findFirst({
       where: { courseId: g.courseId, name: input.name, id: { not: g.id } },
     });
-    if (dupe) throw new ValidationError({ name: ['A grouping with this name already exists'] });
+    if (dupe) throw new ValidationError({ name: [msg('errors.groups.groupingNameTaken')] });
     await ctx.tx.grouping.update({
       where: { id: g.id },
       data: { name: input.name, description: input.description },
@@ -221,7 +221,7 @@ export const setGroupingGroups = defineOperation({
     const g = await ctx.tx.grouping.findUniqueOrThrow({ where: { id: groupingId } });
     const ok = await ctx.tx.group.count({ where: { id: { in: groupIds }, courseId: g.courseId } });
     if (ok !== new Set(groupIds).size)
-      throw new ValidationError({ groupIds: ['Groups must belong to the same course'] });
+      throw new ValidationError({ groupIds: [msg('errors.groups.sameCourse')] });
     await ctx.tx.groupingGroup.deleteMany({
       where: { groupingId, groupId: { notIn: groupIds } },
     });
@@ -259,7 +259,7 @@ export const createCohort = defineOperation({
       input.idNumber &&
       (await ctx.tx.cohort.findUnique({ where: { idNumber: input.idNumber } }))
     ) {
-      throw new ValidationError({ idNumber: ['ID number already in use'] });
+      throw new ValidationError({ idNumber: [msg('errors.courses.idNumberInUse')] });
     }
     const c = await ctx.tx.cohort.create({
       data: { ...input, idNumber: input.idNumber ?? null, contextId: SYSTEM_CONTEXT_ID },
@@ -402,7 +402,7 @@ export const addCohortSync = defineOperation({
     });
     if (!cohort) throw new NotFoundError('Cohort');
     if (await ctx.tx.enrolmentMethod.findFirst({ where: { courseId, cohortId, type: 'COHORT' } }))
-      throw new ConflictError('This cohort is already synced with the course');
+      throw new ConflictError(msg('errors.groups.cohortSynced'));
     const method = await ctx.tx.enrolmentMethod.create({
       data: { courseId, type: 'COHORT', cohortId, roleId, name: cohort.name, sortOrder: 5 },
     });
@@ -428,7 +428,7 @@ export const removeEnrolmentMethod = defineOperation({
     if (!m) throw new NotFoundError('Enrolment method');
     await ctx.perm.require('enrol:manage', m.courseId);
     if (m.type === 'MANUAL')
-      throw new ValidationError({ methodId: ['The manual method cannot be removed'] });
+      throw new ValidationError({ methodId: [msg('errors.groups.manualMethodFixed')] });
   },
   async handler(ctx, { methodId }) {
     await deleteMethod(ctx, methodId);

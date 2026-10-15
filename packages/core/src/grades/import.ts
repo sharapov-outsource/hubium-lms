@@ -1,5 +1,6 @@
 import type { Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { MutationContext } from '../context.ts';
 import { ValidationError } from '../errors.ts';
@@ -107,10 +108,10 @@ export async function planGradeImport(
   for (const c of mapping.columns) {
     if (!items.some((i) => i.id === c.itemId))
       throw new ValidationError({
-        mapping: ['A column is mapped to an item that cannot be imported'],
+        mapping: [msg('errors.grades.importUnmappable')],
       });
     if (seen.has(`${c.itemId}:${c.what}`))
-      throw new ValidationError({ mapping: ['Two columns are mapped to the same thing'] });
+      throw new ValidationError({ mapping: [msg('errors.grades.importDuplicate')] });
     seen.add(`${c.itemId}:${c.what}`);
   }
   const body = rows.slice(1);
@@ -194,7 +195,7 @@ export const previewGradeImport = defineOperation({
   async handler(ctx, { courseId, data, mapping }) {
     const rows = readSheet(data);
     const header = rows[0] ?? [];
-    if (!header.length) throw new ValidationError({ file: ['The sheet is empty'] });
+    if (!header.length) throw new ValidationError({ file: [msg('errors.grades.sheetEmpty')] });
     const items = await importTargets(ctx.tx, courseId);
     const m = mapping ?? suggestMapping(header, items);
     const plan = await planGradeImport(ctx.tx, courseId, rows, m);
@@ -288,11 +289,11 @@ export const importGradesCsv = defineOperation({
     const header = rows[0] ?? [];
     const has = (n: string) => header.some((h) => h.trim().toLowerCase() === n);
     if (!has('email') && !has('username'))
-      throw new ValidationError({ csv: ['Header must contain email or username'] });
+      throw new ValidationError({ csv: [msg('errors.grades.headerNeedsUser')] });
     const manual = (await importTargets(ctx.tx, courseId)).filter((i) => i.kind === 'MANUAL');
     const mapping = suggestMapping(header, manual);
     if (!mapping.columns.length)
-      throw new ValidationError({ csv: ['No columns match manual grade items'] });
+      throw new ValidationError({ csv: [msg('errors.grades.noManualColumns')] });
     // empty lines were dropped by the parser: rows keep their CSV order
     return applyRows(ctx, courseId, rows, mapping);
   },

@@ -3,6 +3,7 @@ import { createReadStream } from 'node:fs';
 import { open, stat } from 'node:fs/promises';
 import { type Db, type File, type Prisma, SYSTEM_CONTEXT_ID, uuidv7 } from '@hubium/db';
 import { log } from '@hubium/log';
+import { msg } from '@hubium/module-sdk';
 import type { RequestContext } from '../context.ts';
 import { ValidationError } from '../errors.ts';
 import { assertClean } from './antivirus.ts';
@@ -174,12 +175,12 @@ function checkLimits(input: FileCheck) {
   const name = sanitizeFilename(input.name);
   if (input.maxBytes && input.data.length > input.maxBytes) {
     throw new ValidationError({
-      file: [`File is larger than ${Math.round(input.maxBytes / 1024)} KB`],
+      file: [msg('errors.files.tooLarge', { n: Math.round(input.maxBytes / 1024) })],
     });
   }
   const mimeType = sniffMimeType(input.data, input.mimeType ?? '', name);
   if (input.allowedTypes && !input.allowedTypes.test(mimeType)) {
-    throw new ValidationError({ file: [`File type ${mimeType} is not allowed`] });
+    throw new ValidationError({ file: [msg('errors.files.typeNotAllowed', { mimeType })] });
   }
   const sha256 = createHash('sha256').update(input.data).digest('hex');
   return { name, mimeType, sha256, size: input.data.length };
@@ -241,7 +242,7 @@ export async function storeFileFromPath(
   const { size } = await stat(input.filePath);
   if (input.maxBytes && size > input.maxBytes) {
     throw new ValidationError({
-      file: [`File is larger than ${Math.round(input.maxBytes / 1024)} KB`],
+      file: [msg('errors.files.tooLarge', { n: Math.round(input.maxBytes / 1024) })],
     });
   }
   const fh = await open(input.filePath, 'r');
@@ -253,7 +254,7 @@ export async function storeFileFromPath(
   }
   const mimeType = sniffMimeType(head, input.mimeType ?? '', name);
   if (input.allowedTypes && !input.allowedTypes.test(mimeType)) {
-    throw new ValidationError({ file: [`File type ${mimeType} is not allowed`] });
+    throw new ValidationError({ file: [msg('errors.files.typeNotAllowed', { mimeType })] });
   }
   const hash = createHash('sha256');
   for await (const chunk of createReadStream(input.filePath)) hash.update(chunk as Buffer);

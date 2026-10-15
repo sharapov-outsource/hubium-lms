@@ -34,7 +34,7 @@ import { getStorage } from '@hubium/core/files/storage';
 import { type Db, type Prisma, uuidv7 } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { isLocale } from '@hubium/i18n';
-import { parseSettings } from '@hubium/module-sdk';
+import { msg, parseSettings } from '@hubium/module-sdk';
 import {
   Dataset,
   datasetFromRow,
@@ -325,7 +325,7 @@ async function* archiveChunks(
 ): AsyncGenerator<Uint8Array> {
   const total = parts.blobs.reduce((n, b) => n + b.size, 0);
   if (total > MAX_BACKUP_BYTES)
-    throw new ValidationError({ course: ['The course is too large to back up'] });
+    throw new ValidationError({ course: [msg('errors.interchange.courseTooLarge')] });
   let done = 0;
   const out: Uint8Array[] = [];
   const state: { error?: Error } = {};
@@ -719,17 +719,19 @@ export function readBackup(zip: Uint8Array, limits?: ArchiveLimits): Backup {
     entries = unzipLimited(zip, limits);
   } catch (e) {
     if (e instanceof ValidationError) throw e;
-    throw new ValidationError({ file: ['Not a .hubium archive'] });
+    throw new ValidationError({ file: [msg('errors.interchange.notHubium')] });
   }
-  if (!entries['manifest.json']) throw new ValidationError({ file: ['Not a .hubium archive'] });
+  if (!entries['manifest.json'])
+    throw new ValidationError({ file: [msg('errors.interchange.notHubium')] });
   const json = (name: string) => {
     const e = entries[name];
-    if (!e) throw new ValidationError({ file: [`${name} is missing: not a .hubium archive`] });
+    if (!e)
+      throw new ValidationError({ file: [msg('errors.interchange.hubiumMissingPart', { name })] });
     return JSON.parse(strFromU8(e)) as unknown;
   };
   const manifest = Manifest.safeParse(json('manifest.json'));
   if (!manifest.success)
-    throw new ValidationError({ file: ['Unsupported backup format or version'] });
+    throw new ValidationError({ file: [msg('errors.interchange.unsupportedFormat')] });
   return {
     manifest: manifest.data,
     course: CourseJson.parse(json('course.json')),
@@ -808,7 +810,7 @@ async function restoreBackup(
   try {
     await target.onCreated?.(courseId);
     await ctx.perm.require('restore:course', courseId).catch(() => {
-      throw new ForbiddenError('You cannot restore into this course');
+      throw new ForbiddenError(msg('errors.interchange.cannotRestoreHere'));
     });
     const report = await restoreInto(ctx, b, courseId, { fresh: true });
     await ctx.db.course.update({ where: { id: courseId }, data: { visible: true } });
@@ -853,7 +855,8 @@ export async function duplicateActivity(
     duplicate: { name: name(a.name), after: { sectionId: a.sectionId, rank: a.rank } },
   });
   const id = r.activityIds[0];
-  if (!id) throw new ValidationError({ id: [r.warnings[0] ?? 'The activity could not be copied'] });
+  if (!id)
+    throw new ValidationError({ id: [r.warnings[0] ?? msg('errors.interchange.copyFailed')] });
   return { id };
 }
 
@@ -863,9 +866,9 @@ export async function importActivities(
 ): Promise<RestoreReport> {
   const input = parseInput(ImportActivitiesInput, raw);
   if (input.sourceCourseId === input.targetCourseId)
-    throw new ValidationError({ sourceCourseId: ['Choose another course'] });
+    throw new ValidationError({ sourceCourseId: [msg('errors.interchange.chooseAnotherCourse')] });
   if (!input.activityIds.length)
-    throw new ValidationError({ activityIds: ['Choose at least one activity'] });
+    throw new ValidationError({ activityIds: [msg('errors.interchange.chooseActivity')] });
   await ctx.perm.require('restore:course', input.targetCourseId);
   await ctx.perm.require('backup:create', input.sourceCourseId);
   const b = await localBackup(ctx, input.sourceCourseId, { activityIds: input.activityIds });

@@ -7,6 +7,7 @@ import {
 } from '@hubium/db';
 import { createTranslator } from '@hubium/i18n/packs';
 import { log } from '@hubium/log';
+import { msg } from '@hubium/module-sdk';
 import { csvFile } from '@hubium/module-sdk/csv';
 import { fromZonedValue, toZonedValue } from '@hubium/module-sdk/zoned';
 import { z } from 'zod';
@@ -92,7 +93,7 @@ export const saveReport = defineOperation({
   async handler(ctx, i) {
     const old = i.id ? await loadReport(ctx.tx, i.id) : null;
     const source = old?.source ?? i.source;
-    if (!source) throw new ValidationError({ source: ['Choose a source'] });
+    if (!source) throw new ValidationError({ source: [msg('errors.reports.chooseSource')] });
     const custom = await customFieldNames(ctx.tx);
     let d: ReportDefinitionT;
     try {
@@ -473,9 +474,9 @@ export const saveSchedule = defineOperation({
   async handler(ctx, i) {
     const r = await loadReport(ctx.tx, i.reportId);
     if (i.frequency === 'WEEKLY' && i.day > 7)
-      throw new ValidationError({ day: ['A day of the week is 1 to 7'] });
+      throw new ValidationError({ day: [msg('errors.reports.weekday')] });
     if (!i.toAudience && !i.userIds.length)
-      throw new ValidationError({ userIds: ['Choose who gets the report'] });
+      throw new ValidationError({ userIds: [msg('errors.reports.chooseRecipients')] });
     const tz = (await getAllSettings(ctx.tx))['site.defaultTimezone'];
     const data = {
       name: i.name,

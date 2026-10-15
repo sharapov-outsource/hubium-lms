@@ -1,13 +1,14 @@
 import { type Activity, type CompletionState, Prisma, uuidv7 } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
-import { parseSettings } from '@hubium/module-sdk';
+import { msg, parseSettings } from '@hubium/module-sdk';
 import { z } from 'zod';
 import { createContext } from '../access/contexts.ts';
 import { countsTowardsProgress, scheduleCourseProgress } from '../completion/schedule.ts';
 import type { MutationContext, RequestContext } from '../context.ts';
-import { NotFoundError, ValidationError } from '../errors.ts';
+import { type MsgOrText, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { recomputeAllTotals, requireActivityIdNumber } from '../grades/gradebook.ts';
+import { issueMsg } from '../issue-messages.ts';
 import { enqueue } from '../jobs/jobs.ts';
 import { rankBetween } from '../lib/rank.ts';
 import { optionalText } from '../lib/zod.ts';
@@ -78,7 +79,7 @@ async function groupSetup(
   });
   const groupingId = input.groupingId ?? null;
   if (groupingId && !(await tx.grouping.findFirst({ where: { id: groupingId, courseId } })))
-    throw new ValidationError({ groupingId: ['Unknown grouping'] });
+    throw new ValidationError({ groupingId: [msg('errors.courses.unknownGrouping')] });
   return {
     groupMode: course.groupModeForced ? course.groupMode : input.groupMode,
     groupingId,
@@ -96,9 +97,9 @@ function validateSettings(moduleKey: string, raw: Record<string, unknown>, store
     input[key] = stored !== undefined && key in old ? old[key] : defaults[key];
   const r = m.settings.schema.safeParse(input);
   if (!r.success) {
-    const fieldErrors: Record<string, string[]> = {};
+    const fieldErrors: Record<string, MsgOrText[]> = {};
     for (const i of r.error.issues)
-      (fieldErrors[`settings.${i.path.join('.')}`] ??= []).push(i.message);
+      (fieldErrors[`settings.${i.path.join('.')}`] ??= []).push(issueMsg(i));
     throw new ValidationError(fieldErrors);
   }
   return r.data as Prisma.InputJsonValue;
@@ -117,14 +118,14 @@ function validateCompletion(
     const r = m.completion.schema.safeParse(rules.module);
     if (!r.success) {
       throw new ValidationError({
-        completionRules: r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`),
+        completionRules: r.error.issues.map(issueMsg),
       });
     }
     out.module = r.data;
   }
   if (!Object.keys(out).length) {
     throw new ValidationError({
-      completionRules: ['Choose at least one automatic completion condition'],
+      completionRules: [msg('errors.courses.chooseCondition')],
     });
   }
   return out;
@@ -138,11 +139,12 @@ function validateAvailability(raw: unknown): Prisma.InputJsonValue | typeof Pris
     try {
       value = JSON.parse(raw);
     } catch {
-      throw new ValidationError({ availability: ['Invalid access restrictions'] });
+      throw new ValidationError({ availability: [msg('errors.courses.invalidRestrictions')] });
     }
   }
   const r = AvailabilityTreeSchema.safeParse(value);
-  if (!r.success) throw new ValidationError({ availability: ['Invalid access restrictions'] });
+  if (!r.success)
+    throw new ValidationError({ availability: [msg('errors.courses.invalidRestrictions')] });
   return r.data.c.length ? (r.data as unknown as Prisma.InputJsonValue) : Prisma.DbNull;
 }
 
@@ -205,7 +207,7 @@ const activityCreate = (name: string, restoring: boolean) =>
 async function insertActivity(ctx: MutationContext, input: z.output<typeof ActivityInput>) {
   const section = await ctx.tx.courseSection.findUnique({ where: { id: input.sectionId } });
   if (!section || section.courseId !== input.courseId)
-    throw new ValidationError({ sectionId: ['Unknown section'] });
+    throw new ValidationError({ sectionId: [msg('errors.courses.unknownSection')] });
   const settings = validateSettings(input.moduleKey, input.settings);
   const completionRules = validateCompletion(
     input.moduleKey,
@@ -370,14 +372,14 @@ export const moveActivity = defineOperation({
     const a = await ctx.tx.activity.findUniqueOrThrow({ where: { id } });
     const section = await ctx.tx.courseSection.findUnique({ where: { id: sectionId } });
     if (!section || section.courseId !== a.courseId)
-      throw new ValidationError({ sectionId: ['Unknown section'] });
+      throw new ValidationError({ sectionId: [msg('errors.courses.unknownSection')] });
     const siblings = (await sectionItems(ctx.tx, sectionId, { withDeleted: true })).filter(
       (x) => x.id !== id,
     );
     let rank: string;
     if (beforeId) {
       const i = siblings.findIndex((s) => s.id === beforeId);
-      if (i < 0) throw new ValidationError({ beforeId: ['Unknown activity'] });
+      if (i < 0) throw new ValidationError({ beforeId: [msg('errors.courses.unknownActivity')] });
       rank = rankBetween(siblings[i - 1]?.rank ?? null, siblings[i]!.rank);
     } else {
       rank = rankBetween(siblings.at(-1)?.rank ?? null, null);
@@ -456,7 +458,7 @@ export const purgeActivity = defineOperation({
     // grades out of the totals without them being worked out again.
     if (!a.deletedAt)
       throw new ValidationError({
-        id: ['Only activities in the recycle bin can be deleted for good'],
+        id: [msg('errors.courses.purgeBinnedActivity')],
       });
     requireModule(a.moduleKey);
     await purgeActivityRecord(ctx, ctx.tx, a);

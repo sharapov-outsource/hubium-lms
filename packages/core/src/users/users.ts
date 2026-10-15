@@ -1,4 +1,5 @@
 import { type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
+import { msg, renderMsg } from '@hubium/module-sdk';
 import { parseCsv } from '@hubium/module-sdk/csv';
 import { hashPassword } from 'better-auth/crypto';
 import { z } from 'zod';
@@ -6,8 +7,15 @@ import { unlockAccount } from '../auth/lockout.ts';
 import { assertPasswordAllowed, recordPasswordChange } from '../auth/password-policy.ts';
 import type { RequestContext } from '../context.ts';
 import { assertCanAssignRole } from '../enrol/enrol.ts';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
+import {
+  AppError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { issueMsg } from '../issue-messages.ts';
 import { localeCode, optionalLocale, timeZone } from '../lib/zod.ts';
 import { defineOperation } from '../operation.ts';
 import { erasePersonalData } from '../privacy/privacy.ts';
@@ -87,8 +95,8 @@ export async function createUserRecord(
     // without an email the address is a placeholder made from the username
     throw new ValidationError(
       input.email && dupe.email === email
-        ? { email: ['Email already in use'] }
-        : { username: ['Username taken'] },
+        ? { email: [msg('errors.users.emailInUse')] }
+        : { username: [msg('errors.users.usernameTaken')] },
     );
   }
   const user = await db.user.create({
@@ -174,7 +182,7 @@ export const createUser = defineOperation({
   authorize: (ctx) => ctx.perm.require('user:create'),
   async handler(ctx, input) {
     if (input.isSiteAdmin && !ctx.perm.isSiteAdmin) {
-      throw new ValidationError({ isSiteAdmin: ['Only site admins can create site admins'] });
+      throw new ValidationError({ isSiteAdmin: [msg('errors.users.adminOnlyCreate')] });
     }
     const user = await createUserRecord(ctx.tx, {
       ...input,
@@ -231,16 +239,17 @@ export const updateUser = defineOperation({
     if (!user || user.deletedAt) throw new NotFoundError('User');
     // Managers may edit users but never a site admin (email/password would be a takeover).
     if (user.isSiteAdmin && !ctx.perm.isSiteAdmin)
-      throw new ForbiddenError('Only site admins can edit an admin account');
+      throw new ForbiddenError(msg('errors.users.adminOnlyEdit'));
     if (input.isSiteAdmin !== undefined && input.isSiteAdmin !== user.isSiteAdmin) {
-      if (!ctx.perm.isSiteAdmin) throw new ValidationError({ isSiteAdmin: ['Only site admins'] });
+      if (!ctx.perm.isSiteAdmin)
+        throw new ValidationError({ isSiteAdmin: [msg('errors.users.adminOnly')] });
       if (user.id === ctx.perm.userId && !input.isSiteAdmin) {
-        throw new ValidationError({ isSiteAdmin: ['You cannot remove your own admin rights'] });
+        throw new ValidationError({ isSiteAdmin: [msg('errors.users.keepOwnAdmin')] });
       }
     }
     if (input.email && input.email !== user.email) {
       const taken = await ctx.tx.user.findUnique({ where: { email: input.email } });
-      if (taken) throw new ValidationError({ email: ['Email already in use'] });
+      if (taken) throw new ValidationError({ email: [msg('errors.users.emailInUse')] });
     }
     const firstName = input.firstName ?? user.firstName;
     const lastName = input.lastName ?? user.lastName;
@@ -296,11 +305,12 @@ export const setUserSuspended = defineOperation({
   input: z.object({ id: z.string().uuid(), suspended: z.boolean() }),
   authorize: (ctx) => ctx.perm.require('user:update'),
   async handler(ctx, { id, suspended }) {
-    if (id === ctx.perm.userId) throw new ValidationError({ id: ['You cannot suspend yourself'] });
+    if (id === ctx.perm.userId)
+      throw new ValidationError({ id: [msg('errors.users.suspendSelf')] });
     const user = await ctx.tx.user.findUnique({ where: { id } });
     if (!user || user.deletedAt) throw new NotFoundError('User');
     if (user.isSiteAdmin && !ctx.perm.isSiteAdmin)
-      throw new ValidationError({ id: ['Cannot suspend an admin'] });
+      throw new ValidationError({ id: [msg('errors.users.suspendAdmin')] });
     await ctx.tx.user.update({
       where: { id },
       data: { status: suspended ? 'SUSPENDED' : 'ACTIVE' },
@@ -343,10 +353,10 @@ export const deleteUser = defineOperation({
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('user:delete'),
   async handler(ctx, { id }) {
-    if (id === ctx.perm.userId) throw new ValidationError({ id: ['You cannot delete yourself'] });
+    if (id === ctx.perm.userId) throw new ValidationError({ id: [msg('errors.users.deleteSelf')] });
     const user = await ctx.tx.user.findUnique({ where: { id } });
     if (!user || user.deletedAt) throw new NotFoundError('User');
-    if (user.isSiteAdmin) throw new ConflictError('Remove admin rights before deleting');
+    if (user.isSiteAdmin) throw new ConflictError(msg('errors.users.adminBeforeDelete'));
     await ctx.tx.session.deleteMany({ where: { userId: id } });
     await ctx.tx.account.deleteMany({ where: { userId: id } });
     await erasePersonalData(ctx, ctx.tx, id);
@@ -386,7 +396,7 @@ export const assignSystemRole = defineOperation({
   async handler(ctx, { userId, roleId, assigned }) {
     const role = await ctx.tx.role.findUnique({ where: { id: roleId } });
     if (!role?.assignableLevels.includes('SYSTEM')) {
-      throw new ValidationError({ roleId: ['Role cannot be assigned at site level'] });
+      throw new ValidationError({ roleId: [msg('errors.users.roleNotForSite')] });
     }
     const user = await ctx.tx.user.findUnique({ where: { id: userId } });
     if (!user || user.deletedAt) throw new NotFoundError('User');
@@ -435,7 +445,7 @@ export const bulkUploadUsers = defineOperation({
     const missing = required.filter((r) => col(r) < 0);
     if (missing.length || (col('email') < 0 && col('username') < 0)) {
       throw new ValidationError({
-        csv: [`Header must include: firstname, lastname, password and email or username`],
+        csv: [msg('errors.users.usersHeader')],
       });
     }
     // profile_field_<shortname> columns fill custom profile fields
@@ -443,7 +453,9 @@ export const bulkUploadUsers = defineOperation({
     const custom = header.filter((h) => h.startsWith(CSV_PREFIX));
     const unknown = custom.filter((h) => !fields.has(h.slice(CSV_PREFIX.length)));
     if (unknown.length)
-      throw new ValidationError({ csv: [`Unknown profile fields: ${unknown.join(', ')}`] });
+      throw new ValidationError({
+        csv: [msg('errors.auth.unknownProfileFields', { unknown: unknown.join(', ') })],
+      });
     const result: BulkUploadResult = { created: 0, errors: [] };
     for (const [i, r] of rows.entries()) {
       const get = (n: string) => (col(n) >= 0 ? (r[col(n)] ?? '').trim() : undefined);
@@ -475,7 +487,7 @@ export const bulkUploadUsers = defineOperation({
       } catch (e) {
         const message =
           e instanceof ValidationError
-            ? Object.entries(e.fieldErrors ?? {})
+            ? Object.entries(e.in(ctx.locale).fieldErrors ?? {})
                 .map(([k, v]) =>
                   k.startsWith(FORM_PREFIX)
                     ? `${CSV_PREFIX}${k.slice(FORM_PREFIX.length)}: ${v.join(', ')}`
@@ -483,8 +495,12 @@ export const bulkUploadUsers = defineOperation({
                 )
                 .join('; ')
             : e instanceof z.ZodError
-              ? e.issues.map((x) => `${x.path.join('.')}: ${x.message}`).join('; ')
-              : String(e);
+              ? e.issues
+                  .map((x) => `${x.path.join('.')}: ${renderMsg(issueMsg(x), ctx.locale)}`)
+                  .join('; ')
+              : e instanceof AppError
+                ? e.in(ctx.locale).message
+                : String(e);
         result.errors.push({ line: i + 2, message });
       }
     }

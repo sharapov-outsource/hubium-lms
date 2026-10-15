@@ -1,4 +1,5 @@
 import type { Db, Prisma } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { NotFoundError, ValidationError } from '../errors.ts';
@@ -163,7 +164,7 @@ export const saveCourseField = defineOperation({
       select: { id: true },
     });
     if (taken && taken.id !== input.id)
-      throw new ValidationError({ shortName: ['This short name is already in use'] });
+      throw new ValidationError({ shortName: [msg('errors.courses.fieldShortNameInUse')] });
     const data = {
       shortName: input.shortName,
       name: input.name,

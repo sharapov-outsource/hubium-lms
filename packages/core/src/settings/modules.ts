@@ -1,5 +1,6 @@
 import type { Db } from '@hubium/db';
 import type { ActivityModule } from '@hubium/module-sdk';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, ValidationError } from '../errors.ts';
@@ -28,7 +29,7 @@ export async function enabledModules(db: Db): Promise<ActivityModule<unknown>[]>
 
 export async function assertModuleEnabled(db: Db, key: string): Promise<void> {
   if (!isModuleEnabled(await getAllSettings(db), key))
-    throw new ForbiddenError('This activity type is turned off by the administrator');
+    throw new ForbiddenError(msg('errors.common.moduleDisabled'));
 }
 
 export interface ModuleRow {
@@ -75,7 +76,9 @@ export const saveModuleSettings = defineOperation({
   async handler(ctx, input) {
     const unknown = input.enabled.filter((k) => !getModule(k));
     if (unknown.length)
-      throw new ValidationError({ enabled: [`Unknown activity types: ${unknown.join(', ')}`] });
+      throw new ValidationError({
+        enabled: [msg('errors.settings.unknownActivityTypes', { unknown: unknown.join(', ') })],
+      });
     const current = await getAllSettings(ctx.db);
     // Types missing from this build keep their state for a build that has them again.
     const absent = current['modules.disabled'].filter((k) => !getModule(k));

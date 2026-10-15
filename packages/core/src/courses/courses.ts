@@ -1,5 +1,6 @@
 import { type Course, type Db, Prisma, uuidv7 } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import { createContext } from '../access/contexts.ts';
 import { loadUserAccess, Permissions } from '../access/permissions.ts';
@@ -65,10 +66,10 @@ export const createCourse = defineOperation({
       input.idNumber &&
       (await ctx.tx.course.findUnique({ where: { idNumber: input.idNumber } }))
     ) {
-      throw new ValidationError({ idNumber: ['ID number already in use'] });
+      throw new ValidationError({ idNumber: [msg('errors.courses.idNumberInUse')] });
     }
     if (input.startDate && input.endDate && input.endDate <= input.startDate) {
-      throw new ValidationError({ endDate: ['End date must be after the start date'] });
+      throw new ValidationError({ endDate: [msg('errors.courses.endBeforeStart')] });
     }
     const customFields = input.customFields
       ? await checkCourseValues(ctx, ctx.tx, input.customFields, {}, input.categoryId)
@@ -162,7 +163,7 @@ export const updateCourse = defineOperation({
     if (!course || course.deletedAt) throw new NotFoundError('Course');
     await shortNameFree(ctx.tx, input.shortName, course.id);
     if (input.startDate && input.endDate && input.endDate <= input.startDate) {
-      throw new ValidationError({ endDate: ['End date must be after the start date'] });
+      throw new ValidationError({ endDate: [msg('errors.courses.endBeforeStart')] });
     }
     const customFields = input.customFields
       ? await checkCourseValues(ctx, ctx.tx, input.customFields, course.customFields, course.id)
@@ -230,9 +231,7 @@ async function shortNameFree(tx: Prisma.TransactionClient, shortName: string, id
   if (!other || other.id === id) return;
   throw new ValidationError({
     shortName: [
-      other.deletedAt
-        ? 'A course in the recycle bin has this short name: restore it or delete it for good'
-        : 'Short name is already used by another course',
+      other.deletedAt ? msg('errors.courses.shortNameInBin') : msg('errors.courses.shortNameTaken'),
     ],
   });
 }
@@ -264,7 +263,7 @@ export const purgeCourse = defineOperation({
     if (!c) throw new NotFoundError('Course');
     if (!c.deletedAt)
       throw new ValidationError({
-        id: ['Only courses in the recycle bin can be deleted for good'],
+        id: [msg('errors.courses.purgeBinnedCourse')],
       });
     await purgeCourseRecord(ctx, ctx.tx, id);
     await logEvent(ctx.tx, {
@@ -377,7 +376,7 @@ export async function requireCourseView(
   courseId: string,
 ): Promise<CourseAccess> {
   const access = await getCourseAccess(ctx, courseId);
-  if (!access.canView) throw new ForbiddenError('You cannot view this course');
+  if (!access.canView) throw new ForbiddenError(msg('errors.courses.cannotView'));
   return access;
 }
 
@@ -387,9 +386,9 @@ export async function requireCourseView(
 async function parentSection(tx: Prisma.TransactionClient, courseId: string, parentId: string) {
   const parent = await tx.courseSection.findUnique({ where: { id: parentId } });
   if (!parent || parent.courseId !== courseId)
-    throw new ValidationError({ parentId: ['Unknown section'] });
+    throw new ValidationError({ parentId: [msg('errors.courses.unknownSection')] });
   if (parent.parentId)
-    throw new ValidationError({ parentId: ['A subsection cannot hold subsections'] });
+    throw new ValidationError({ parentId: [msg('errors.courses.nestedSubsection')] });
   return parent;
 }
 
@@ -462,7 +461,8 @@ export const updateSection = defineOperation({
           ? JSON.parse(input.availability)
           : input.availability;
       const r = AvailabilityTreeSchema.safeParse(raw);
-      if (!r.success) throw new ValidationError({ availability: ['Invalid access restrictions'] });
+      if (!r.success)
+        throw new ValidationError({ availability: [msg('errors.courses.invalidRestrictions')] });
       if (r.data.c.length) availability = r.data as unknown as Prisma.InputJsonValue;
     }
     await ctx.tx.courseSection.update({
@@ -512,7 +512,7 @@ export const moveSection = defineOperation({
     });
     const i = all.findIndex((x) => x.id === id);
     // Section 0 (general) stays first.
-    if (i === 0) throw new ValidationError({ id: ['The general section cannot be moved'] });
+    if (i === 0) throw new ValidationError({ id: [msg('errors.courses.generalNotMovable')] });
     if (direction === 'up') {
       if (i <= 1) return { id };
       const rank = rankBetween(all[i - 2]!.rank, all[i - 1]!.rank);
@@ -536,7 +536,7 @@ export const moveSubsection = defineOperation({
   },
   async handler(ctx, { id, parentId }) {
     const s = await ctx.tx.courseSection.findUniqueOrThrow({ where: { id } });
-    if (!s.parentId) throw new ValidationError({ id: ['Only a subsection moves into a section'] });
+    if (!s.parentId) throw new ValidationError({ id: [msg('errors.courses.onlySubsectionMoves')] });
     if (s.parentId === parentId) return { id };
     const parent = await parentSection(ctx.tx, s.courseId, parentId);
     await ctx.tx.courseSection.update({
@@ -561,12 +561,11 @@ export const deleteSection = defineOperation({
       orderBy: { rank: 'asc' },
     });
     if (first?.id === id)
-      throw new ValidationError({ id: ['The general section cannot be deleted'] });
+      throw new ValidationError({ id: [msg('errors.courses.generalNotDeletable')] });
     const live = await ctx.tx.activity.count({ where: { sectionId: id, deletedAt: null } });
-    if (live)
-      throw new ValidationError({ id: ['Move or delete the activities in this section first'] });
+    if (live) throw new ValidationError({ id: [msg('errors.courses.sectionHasActivities')] });
     if (await ctx.tx.courseSection.count({ where: { parentId: id } }))
-      throw new ValidationError({ id: ['Move or delete the subsections in this section first'] });
+      throw new ValidationError({ id: [msg('errors.courses.sectionHasSubsections')] });
     // What is in the recycle bin stays there, in the general section, to be restored or
     // deleted for good as any other: not wiped with the section, past the modules' clean-up.
     const binned = await ctx.tx.activity.findMany({

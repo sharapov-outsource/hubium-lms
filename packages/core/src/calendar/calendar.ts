@@ -1,4 +1,5 @@
 import type { CalendarEvent, Db, Prisma } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import { userContext } from '../ai/user-ctx.ts';
 import type { RequestContext } from '../context.ts';
@@ -111,13 +112,14 @@ export const createEvent = defineOperation({
     if (i.scope === 'USER') await ctx.perm.require('calendar:manageown');
     else if (i.scope === 'SITE') await ctx.perm.require('calendar:managesite');
     else {
-      if (!i.courseId) throw new ValidationError({ courseId: ['Course is required'] });
+      if (!i.courseId)
+        throw new ValidationError({ courseId: [msg('errors.calendar.courseRequired')] });
       await ctx.perm.require('calendar:managecourse', i.courseId);
     }
   },
   async handler(ctx, input) {
     if (input.endsAt && input.endsAt < input.startsAt)
-      throw new ValidationError({ endsAt: ['End must be after start'] });
+      throw new ValidationError({ endsAt: [msg('errors.calendar.endBeforeStart')] });
     const e = await ctx.tx.calendarEvent.create({
       data: {
         scope: input.scope,
@@ -143,9 +145,8 @@ export const deleteEvent = defineOperation({
   async authorize(ctx, { id }) {
     const e = await ctx.db.calendarEvent.findUnique({ where: { id } });
     if (!e) throw new NotFoundError('Event');
-    if (e.activityId) throw new ForbiddenError('Activity events are managed by the activity');
-    if (e.subscriptionId)
-      throw new ForbiddenError('Imported events go when their import or subscription is removed');
+    if (e.activityId) throw new ForbiddenError(msg('errors.calendar.activityEvent'));
+    if (e.subscriptionId) throw new ForbiddenError(msg('errors.calendar.importedEvent'));
     if (e.scope === 'USER' && e.userId === ctx.perm.userId) return;
     if (e.scope === 'COURSE' && e.courseId)
       return ctx.perm.require('calendar:managecourse', e.courseId);

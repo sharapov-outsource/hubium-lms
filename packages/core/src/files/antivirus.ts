@@ -2,6 +2,7 @@ import { once } from 'node:events';
 import { createReadStream } from 'node:fs';
 import { createConnection, type Socket } from 'node:net';
 import { log } from '@hubium/log';
+import { msg } from '@hubium/module-sdk';
 import { type Env, getEnv } from '../env.ts';
 import { UnavailableError, ValidationError } from '../errors.ts';
 
@@ -123,15 +124,17 @@ export async function assertClean(
     verdict = await instream(CLAMAV_URL, CLAMAV_TIMEOUT_MS, source);
   } catch (err) {
     logger.error({ err, name: meta.name }, 'The virus scanner could not be reached');
-    throw new UnavailableError('The virus scanner is unavailable', err);
+    throw new UnavailableError(msg('errors.files.scannerUnavailable'), err);
   }
   if (verdict === 'stream: OK') return true;
   const found = verdict.match(/^stream: (.+) FOUND$/);
   if (found) {
     logger.warn({ name: meta.name, size: meta.size, signature: found[1] }, 'Malware rejected');
-    throw new ValidationError({ file: [`Malware detected: ${found[1]}`] });
+    throw new ValidationError({
+      file: [msg('errors.files.malwareDetected', { signature: found[1]! })],
+    });
   }
   // e.g. "INSTREAM size limit exceeded. ERROR": clamd's limits are below CLAMAV_MAX_SCAN_MB
   logger.error({ name: meta.name, size: meta.size, verdict }, 'The virus scan failed');
-  throw new UnavailableError(`The virus scan failed: ${verdict}`);
+  throw new UnavailableError(msg('errors.files.scanFailed', { verdict }));
 }

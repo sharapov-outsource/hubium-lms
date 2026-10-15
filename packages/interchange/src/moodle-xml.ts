@@ -2,6 +2,7 @@ import { type RequestContext, ValidationError } from '@hubium/core';
 import type { Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { createTranslator } from '@hubium/i18n/packs';
+import { msg } from '@hubium/module-sdk';
 import {
   checkQuestionText,
   checkVariants,
@@ -390,7 +391,7 @@ export function parseMoodleXml(xml: string, untitled = 'Question'): ParseResult 
   });
   const doc = parser.parse(xml) as Node;
   const quiz = doc.quiz as Node | undefined;
-  if (!quiz) throw new ValidationError({ file: ['Not a Moodle XML file: <quiz> is missing'] });
+  if (!quiz) throw new ValidationError({ file: [msg('errors.interchange.notMoodleXml')] });
   const out: ParseResult = { questions: [], errors: [], warnings: [] };
   let path: string[] = [];
   for (const q of arr(quiz.question as Node | Node[])) {

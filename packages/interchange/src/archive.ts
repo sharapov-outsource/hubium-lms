@@ -1,5 +1,6 @@
 import { gunzipSync } from 'node:zlib';
 import { ValidationError } from '@hubium/core';
+import { msg } from '@hubium/module-sdk';
 import { unzipSync } from 'fflate';
 
 // Uploaded archives are untrusted: a few megabytes can expand into gigabytes. Everything is
@@ -14,7 +15,7 @@ export interface ArchiveLimits {
 export const ARCHIVE_LIMITS: ArchiveLimits = { bytes: 2 * 1024 * 1024 * 1024, entries: 100_000 };
 
 export const archiveTooLarge = () =>
-  new ValidationError({ file: ['The archive is too large to import'] });
+  new ValidationError({ file: [msg('errors.interchange.archiveTooLarge')] });
 
 /** Unzips with fflate; sizes come from the headers, which also bound the output buffers. */
 export function unzipLimited(
@@ -37,6 +38,6 @@ export function gunzipLimited(data: Buffer, limits: ArchiveLimits = ARCHIVE_LIMI
     return gunzipSync(data, { maxOutputLength: limits.bytes });
   } catch (e) {
     if ((e as { code?: string }).code === 'ERR_BUFFER_TOO_LARGE') throw archiveTooLarge();
-    throw new ValidationError({ file: ['The archive is damaged'] });
+    throw new ValidationError({ file: [msg('errors.interchange.archiveDamaged')] });
   }
 }

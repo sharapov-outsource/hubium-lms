@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { buffer } from 'node:stream/consumers';
 import { type Badge, type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { createTranslator } from '@hubium/i18n/packs';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import { roleName } from '../access/roles.ts';
 import type { RequestContext } from '../context.ts';
@@ -81,7 +82,7 @@ async function mayEarn(tx: Tx, badge: Badge, userId: string): Promise<boolean> {
 /** Every id a rule names must exist (and be the badge's course's, for activities). */
 async function checkReferences(tx: Tx, c: BadgeCriteriaT, courseId: string | null) {
   const bad = (field: string) => {
-    throw new ValidationError({ criteria: [`Unknown ${field}`] });
+    throw new ValidationError({ criteria: [msg('errors.badges.unknown', { name: field })] });
   };
   for (const r of c.rules) {
     if (r.kind === 'activities') {
@@ -128,14 +129,14 @@ export const saveBadge = defineOperation({
       criteria = checkCriteria(input.criteria, !courseId);
     } catch (e) {
       throw new ValidationError({
-        criteria: [e instanceof Error ? e.message : 'Invalid criteria'],
+        criteria: [e instanceof Error ? e.message : msg('errors.badges.invalidCriteria')],
       });
     }
     await checkReferences(ctx.tx, criteria, courseId);
     if (input.expiry === 'days' && !input.expiresAfterDays)
-      throw new ValidationError({ expiresAfterDays: ['Enter the number of days'] });
+      throw new ValidationError({ expiresAfterDays: [msg('errors.badges.enterDays')] });
     if (input.expiry === 'date' && !input.expiresAt)
-      throw new ValidationError({ expiresAt: ['Choose the date'] });
+      throw new ValidationError({ expiresAt: [msg('errors.badges.chooseDate')] });
     const data = {
       name: input.name,
       description: input.description,
@@ -153,7 +154,7 @@ export const saveBadge = defineOperation({
         (old.expiresAt?.getTime() ?? null) === (data.expiresAt?.getTime() ?? null);
       if (awarded && !same)
         throw new ValidationError({
-          criteria: ['The criteria and expiry cannot change once the badge is awarded'],
+          criteria: [msg('errors.badges.lockedAfterAward')],
         });
       await ctx.tx.badge.update({ where: { id: old.id }, data });
       return { id: old.id };
@@ -483,16 +484,16 @@ export const markBadge = defineOperation({
   async handler(ctx, { badgeId, userId }) {
     const badge = await loadBadge(ctx.tx, badgeId);
     if (badge.status !== 'ACTIVE')
-      throw new ValidationError({ badgeId: ['The badge is not active'] });
+      throw new ValidationError({ badgeId: [msg('errors.badges.notActive')] });
     const rule = checkCriteria(badge.criteria, !badge.courseId).rules.find(
       (r) => r.kind === 'manual',
     );
     if (rule?.kind !== 'manual')
-      throw new ValidationError({ badgeId: ['This badge is not awarded by hand'] });
+      throw new ValidationError({ badgeId: [msg('errors.badges.notManual')] });
     const roles = await rolesOf(ctx, badge, rule.roleIds);
-    if (!roles.length) throw new ForbiddenError('None of your roles awards this badge');
+    if (!roles.length) throw new ForbiddenError(msg('errors.badges.noAwardingRole'));
     if (!(await mayEarn(ctx.tx, badge, userId)))
-      throw new ValidationError({ userId: ['This person cannot earn the badge'] });
+      throw new ValidationError({ userId: [msg('errors.badges.cannotEarn')] });
     for (const roleId of roles)
       await ctx.tx.badgeMark.upsert({
         where: { badgeId_userId_roleId: { badgeId, userId, roleId } },
@@ -525,16 +526,16 @@ export const awardBadgeAgain = defineOperation({
       where: { id: awardId },
       include: { badge: true },
     });
-    if (isValid(a, ctx.now)) throw new ValidationError({ awardId: ['The badge stands already'] });
+    if (isValid(a, ctx.now))
+      throw new ValidationError({ awardId: [msg('errors.badges.stillValid')] });
     if (a.badge.status !== 'ACTIVE')
-      throw new ValidationError({ awardId: ['The badge is not active'] });
+      throw new ValidationError({ awardId: [msg('errors.badges.notActive')] });
     const awarded = await awardIfEarned(ctx.tx, a.badge, a.userId, {
       now: ctx.now,
       awardedById: ctx.perm.userId,
       again: true,
     });
-    if (!awarded)
-      throw new ValidationError({ awardId: ['This person does not meet the criteria now'] });
+    if (!awarded) throw new ValidationError({ awardId: [msg('errors.badges.criteriaNotMet')] });
     return { id: awardId };
   },
 });

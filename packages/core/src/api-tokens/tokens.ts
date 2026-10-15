@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Db } from '@hubium/db';
 import type { Locale } from '@hubium/i18n';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import { loadUserAccess, Permissions } from '../access/permissions.ts';
 import { type AccountGate, accountGate } from '../auth/gate.ts';
@@ -35,12 +36,12 @@ function requireUser(ctx: RequestContext): string {
 export async function createApiToken(ctx: RequestContext, raw: unknown) {
   const userId = requireUser(ctx);
   if (ctx.actor.kind === 'user' && ctx.actor.realUserId)
-    throw new ForbiddenError('Not available while logged in as another user');
+    throw new ForbiddenError(msg('errors.common.notWhileLoggedInAs'));
   // A token can never do more than a browser session; API access itself is a capability.
   await ctx.perm.require('webservice:createtoken');
   const input = CreateTokenInput.parse(raw);
   const active = await ctx.db.apiToken.count({ where: { userId, revokedAt: null } });
-  if (active >= 20) throw new ValidationError({ name: ['At most 20 active tokens'] });
+  if (active >= 20) throw new ValidationError({ name: [msg('errors.apiTokens.tooMany')] });
   const secret = randomBytes(24).toString('base64url');
   const prefix = secret.slice(0, 8);
   const token = `${PREFIX}${secret}`;

@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { buffer } from 'node:stream/consumers';
 import type { Certificate, Db, Prisma } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { requireCourseView } from '../courses/courses.ts';
@@ -85,7 +86,7 @@ export const saveCertificate = defineOperation({
   input: CertificateInput,
   async authorize(ctx, i) {
     const courseId = i.id ? (await loadCertificate(ctx.db, i.id)).courseId : i.courseId;
-    if (!courseId) throw new ValidationError({ courseId: ['Required'] });
+    if (!courseId) throw new ValidationError({ courseId: [msg('errors.field.required')] });
     await ctx.perm.require('certificate:manage', courseId);
   },
   async handler(ctx, input) {
@@ -93,7 +94,13 @@ export const saveCertificate = defineOperation({
     if (!parsed.success) {
       const at = parsed.error.issues[0]?.path ?? [];
       const n = typeof at[0] === 'number' ? at[0] + 1 : null;
-      throw new ValidationError({ fields: [n ? `Check field ${n}` : 'Invalid fields'] });
+      throw new ValidationError({
+        fields: [
+          n
+            ? msg('errors.certificates.checkField', { n })
+            : msg('errors.certificates.invalidFields'),
+        ],
+      });
     }
     const data = {
       name: input.name,
@@ -342,13 +349,13 @@ export const issueCertificate = defineOperation({
   async handler(ctx, { certificateId, userId }) {
     const c = await loadCertificate(ctx.tx, certificateId);
     if (c.status !== 'ACTIVE')
-      throw new ValidationError({ certificateId: ['The certificate is not being issued'] });
+      throw new ValidationError({ certificateId: [msg('errors.certificates.notIssuing')] });
     if (!(await courseLearnerIds(ctx.tx, c.courseId)).includes(userId))
-      throw new ValidationError({ userId: ['This person is not a learner of the course'] });
+      throw new ValidationError({ userId: [msg('errors.certificates.notLearner')] });
     const old = await ctx.tx.certificateIssue.findUnique({
       where: { certificateId_userId: { certificateId, userId } },
     });
-    if (old && !old.revokedAt) throw new ConflictError('The certificate is already issued');
+    if (old && !old.revokedAt) throw new ConflictError(msg('errors.certificates.alreadyIssued'));
     if (old) {
       // issued again: the same code is valid once more
       await ctx.tx.certificateIssue.update({

@@ -63,7 +63,7 @@ test.describe
         buffer: Buffer.concat([png, Buffer.alloc(6 * 1024 * 1024)]),
       });
       await page.getByRole('button', { name: /Создать|Create/ }).click();
-      await expect(page.getByText(/File is larger than/).first()).toBeVisible();
+      await expect(page.getByText(/Файл больше/).first()).toBeVisible();
       expect(await sql(`SELECT 1 FROM "Course" WHERE "shortName" = $1`, [shortName])).toHaveLength(
         0,
       );

@@ -1,4 +1,5 @@
 import type { CompletionState, Db, Prisma } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import { Permissions } from '../access/permissions.ts';
 import { checkCourseBadges } from '../badges/badges.ts';
@@ -239,9 +240,9 @@ export const toggleManualCompletion = defineOperation({
       },
       select: { id: true },
     });
-    if (!enrolled) throw new ForbiddenError('Only enrolled users track completion');
+    if (!enrolled) throw new ForbiddenError(msg('errors.completion.enrolledOnly'));
     if (!(await getActivityAccess(ctx, activityId)).canOpen)
-      throw new ForbiddenError('You cannot open this activity');
+      throw new ForbiddenError(msg('errors.completion.cannotOpen'));
   },
   async handler(ctx, { activityId, done }) {
     const userId = ctx.perm.userId;
@@ -249,7 +250,7 @@ export const toggleManualCompletion = defineOperation({
     const a = await ctx.tx.activity.findUnique({ where: { id: activityId } });
     if (!a || a.deletedAt) throw new NotFoundError('Activity');
     if (a.completionMode !== 'MANUAL')
-      throw new ValidationError({ activityId: ['This activity is completed automatically'] });
+      throw new ValidationError({ activityId: [msg('errors.completion.automatic')] });
     await writeState(ctx.tx, activityId, userId, done ? 'COMPLETE' : 'INCOMPLETE');
     const percent = await recomputeCourseProgress(ctx.tx, a.courseId, userId);
     await logEvent(ctx.tx, {

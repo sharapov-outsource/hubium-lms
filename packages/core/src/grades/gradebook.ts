@@ -2,6 +2,7 @@ import { type Db, type GradeCategory, type GradeItem, Prisma } from '@hubium/db'
 import { sanitizeRichText } from '@hubium/editor/server';
 import { isLocale } from '@hubium/i18n';
 import { createTranslator } from '@hubium/i18n/packs';
+import { msg } from '@hubium/module-sdk';
 import { csvFile } from '@hubium/module-sdk/csv';
 import { z } from 'zod';
 import { usersWithCap } from '../access/permissions.ts';
@@ -494,21 +495,23 @@ export const overrideGrade = defineOperation({
         : sanitizeRichText(rawFeedback);
     const item = await ctx.tx.gradeItem.findUniqueOrThrow({ where: { id: itemId } });
     if (item.kind === 'COURSE' || item.kind === 'CATEGORY')
-      throw new ValidationError({ itemId: ['Totals are calculated'] });
+      throw new ValidationError({ itemId: [msg('errors.grades.totalsCalculated')] });
     if (value !== null && (value < num(item.gradeMin)! || value > num(item.gradeMax)!)) {
       throw new ValidationError({
-        value: [`Grade must be between ${num(item.gradeMin)} and ${num(item.gradeMax)}`],
+        value: [
+          msg('errors.grades.outOfRange', { min: num(item.gradeMin), max: num(item.gradeMax) }),
+        ],
       });
     }
     if (value !== null && item.gradeType === 'SCALE' && !Number.isInteger(value))
-      throw new ValidationError({ value: ['Choose a grade of the scale'] });
+      throw new ValidationError({ value: [msg('errors.grades.chooseGradeScale')] });
     const enrolled = await ctx.tx.enrolment.findFirst({
       where: { courseId: item.courseId, userId },
     });
-    if (!enrolled) throw new ValidationError({ userId: ['User is not enrolled'] });
+    if (!enrolled) throw new ValidationError({ userId: [msg('errors.common.notEnrolled')] });
     // said, rather than answered "saved" with the grade unchanged
     if (await gradeLocked(ctx.tx, item, userId))
-      throw new ValidationError({ value: ['This grade is locked'] });
+      throw new ValidationError({ value: [msg('errors.grades.gradeLocked')] });
     if (item.kind === 'MANUAL' && !item.calculation) {
       await writeGrade(
         ctx.tx,
@@ -567,8 +570,7 @@ async function requireFreeIdNumber(
       },
     }),
   ]);
-  if (item || cat)
-    throw new ValidationError({ idNumber: ['This ID number is already used in the course'] });
+  if (item || cat) throw new ValidationError({ idNumber: [msg('errors.grades.idNumberInUse')] });
 }
 
 /** Names of the items whose formulas use an item or a category. */
@@ -601,7 +603,7 @@ export async function requireActivityIdNumber(
   if (!idNumber) {
     if (own && (await formulasUsing(tx, courseId, { itemId: own.id })).length)
       throw new ValidationError({
-        idNumber: ['Gradebook formulas use this activity: it needs an ID number'],
+        idNumber: [msg('errors.grades.activityNeedsIdNumber')],
       });
     return;
   }
@@ -636,7 +638,7 @@ export const ManualItemInput = z.object({
 /** A pass mark above the maximum could never be reached. */
 function requirePassWithin(gradePass: number | null | undefined, gradeMax: number) {
   if (gradePass != null && gradePass > gradeMax)
-    throw new ValidationError({ gradePass: ['The pass mark cannot be above the maximum grade'] });
+    throw new ValidationError({ gradePass: [msg('errors.grades.passAboveMax')] });
 }
 
 /** Grade categories are addressed by id from forms: they must belong to the same course. */
@@ -715,7 +717,7 @@ export const updateGradeItem = defineOperation({
         data.idNumber === null &&
         (await formulasUsing(ctx.tx, item.courseId, { itemId: id })).length
       )
-        throw new ValidationError({ idNumber: ['Formulas use this item: it needs an ID number'] });
+        throw new ValidationError({ idNumber: [msg('errors.grades.itemNeedsIdNumber')] });
       await requireFreeIdNumber(ctx.tx, item.courseId, data.idNumber, { itemId: id });
       if (item.kind === 'MODULE' && item.itemNumber === 0 && item.activityId)
         await ctx.tx.activity.update({
@@ -751,14 +753,16 @@ export const deleteManualItem = defineOperation({
     const item = await ctx.db.gradeItem.findUnique({ where: { id: i.id } });
     if (!item) throw new NotFoundError('Grade item');
     if (item.kind !== 'MANUAL')
-      throw new ValidationError({ id: ['Only manual items can be deleted'] });
+      throw new ValidationError({ id: [msg('errors.grades.onlyManualDeleted')] });
     await ctx.perm.require('grade:manage', item.courseId);
   },
   async handler(ctx, { id }) {
     const current = await ctx.tx.gradeItem.findUniqueOrThrow({ where: { id } });
     const usedBy = await formulasUsing(ctx.tx, current.courseId, { itemId: id });
     if (usedBy.length)
-      throw new ValidationError({ id: [`Formulas use this item: ${usedBy.join(', ')}`] });
+      throw new ValidationError({
+        id: [msg('errors.grades.itemUsedBy', { usedBy: usedBy.join(', ') })],
+      });
     const item = await ctx.tx.gradeItem.delete({ where: { id } });
     const users = await ctx.tx.enrolment.findMany({
       where: { courseId: item.courseId },
@@ -784,7 +788,7 @@ function requireOrder(
   } catch (e) {
     if (e instanceof CalculationError)
       throw new ValidationError({
-        calculation: ['The formula would use its own grade (itself, or a category it is in)'],
+        calculation: [msg('errors.grades.circularFormula')],
       });
     throw e;
   }
@@ -808,7 +812,7 @@ export const setGradeCalculation = defineOperation({
   async handler(ctx, { id, calculation }) {
     const item = await ctx.tx.gradeItem.findUniqueOrThrow({ where: { id } });
     if (item.kind !== 'MANUAL' || item.gradeType !== 'VALUE')
-      throw new ValidationError({ calculation: ['Only manual items graded in points calculate'] });
+      throw new ValidationError({ calculation: [msg('errors.grades.onlyPointsCalculate')] });
     let stored: string | null = null;
     if (calculation) {
       const [categories, items] = await Promise.all([
@@ -819,7 +823,11 @@ export const setGradeCalculation = defineOperation({
         stored = storeCalculation(calculation, items, categories);
       } catch (e) {
         if (e instanceof CalculationError)
-          throw new ValidationError({ calculation: [`${e.message} (at ${e.pos + 1})`] });
+          throw new ValidationError({
+            calculation: [
+              msg('errors.grades.formulaError', { message: e.message, position: e.pos + 1 }),
+            ],
+          });
         throw e;
       }
       requireOrder(
@@ -913,18 +921,18 @@ export const saveGradeCategory = defineOperation({
         (await formulasUsing(ctx.tx, input.courseId, { categoryId: current.id })).length
       )
         throw new ValidationError({
-          idNumber: ['Formulas use this category: it needs an ID number'],
+          idNumber: [msg('errors.grades.categoryNeedsIdNumber')],
         });
       await requireFreeIdNumber(ctx.tx, input.courseId, idNumber, { categoryId: current?.id });
     }
     const isRoot = current?.id === root.id;
     if (!isRoot && !input.id && !input.name)
-      throw new ValidationError({ name: ['Name the category'] });
+      throw new ValidationError({ name: [msg('errors.grades.nameCategory')] });
     let parentId = isRoot ? null : (input.parentId ?? current?.parentId ?? root.id);
     if (parentId) {
       await requireGradeCategory(ctx.tx, input.courseId, parentId);
       if (current && (await subtreeIds(ctx.tx, input.courseId, current.id)).has(parentId))
-        throw new ValidationError({ parentId: ['A category cannot go inside itself'] });
+        throw new ValidationError({ parentId: [msg('errors.grades.categoryInItself')] });
     } else parentId = null;
     const data = {
       name: input.name,
@@ -970,10 +978,13 @@ export const deleteGradeCategory = defineOperation({
   authorize: (ctx, i) => ctx.perm.require('grade:manage', i.courseId),
   async handler(ctx, { courseId, id }) {
     const cat = await requireGradeCategory(ctx.tx, courseId, id);
-    if (!cat.parentId) throw new ValidationError({ id: ['The course category cannot be deleted'] });
+    if (!cat.parentId)
+      throw new ValidationError({ id: [msg('errors.grades.courseCategoryFixed')] });
     const usedBy = await formulasUsing(ctx.tx, courseId, { categoryId: id });
     if (usedBy.length)
-      throw new ValidationError({ id: [`Formulas use this category: ${usedBy.join(', ')}`] });
+      throw new ValidationError({
+        id: [msg('errors.grades.categoryUsedBy', { usedBy: usedBy.join(', ') })],
+      });
     // its items move up: none may land in a category its own formula uses
     const [categories, items] = await Promise.all([
       ctx.tx.gradeCategory.findMany({ where: { courseId } }),

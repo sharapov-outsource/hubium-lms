@@ -14,6 +14,7 @@ import {
   setBadgeStatus,
   ValidationError,
 } from '@hubium/core';
+import { msg } from '@hubium/module-sdk';
 import { revalidatePath } from 'next/cache';
 import { formToObject, runAction } from '../action';
 import { getContext } from '../session';
@@ -30,7 +31,7 @@ export async function saveBadgeAction(fd: FormData) {
     try {
       criteria = JSON.parse(v.criteria ?? '{}');
     } catch {
-      throw new ValidationError({ criteria: ['Invalid criteria'] });
+      throw new ValidationError({ criteria: [msg('errors.badges.invalidCriteria')] });
     }
     // the image is checked first: a refused image must not leave a new badge behind
     const image = fd.get('image');
@@ -85,7 +86,7 @@ export async function markBadgeAction(fd: FormData) {
         allowed: () => requireBadgeAward(ctx, v.badgeId ?? ''),
         field: 'login',
       });
-      if (!id) throw new ValidationError({ login: ['User not found'] });
+      if (!id) throw new ValidationError({ login: [msg('errors.common.userNotFound')] });
       userId = id;
     }
     const r = await markBadge.run(ctx, { badgeId: v.badgeId ?? '', userId });

@@ -10,6 +10,7 @@ import {
   setCertificateStatus,
   ValidationError,
 } from '@hubium/core';
+import { msg } from '@hubium/module-sdk';
 import { revalidatePath } from 'next/cache';
 import { formToObject, runAction } from '../action';
 import { getContext } from '../session';
@@ -25,7 +26,7 @@ export async function saveCertificateAction(fd: FormData) {
     try {
       fields = JSON.parse(v.fields ?? '[]');
     } catch {
-      throw new ValidationError({ fields: ['Invalid fields'] });
+      throw new ValidationError({ fields: [msg('errors.certificates.invalidFields')] });
     }
     // the picture is checked first: a refused one must not leave a new certificate behind
     const file = fd.get('background');

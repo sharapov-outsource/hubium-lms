@@ -9,6 +9,7 @@ import {
   packReport,
   packSource,
 } from '@hubium/i18n/packs';
+import { msg } from '@hubium/module-sdk';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { z } from 'zod';
 import { publishInvalidation } from '../cache-bus.ts';
@@ -83,7 +84,7 @@ export const saveLanguageSettings = defineOperation({
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, input) {
     if (!input.enabled.includes(input.defaultLocale))
-      throw new ValidationError({ defaultLocale: ['The site language must stay enabled'] });
+      throw new ValidationError({ defaultLocale: [msg('errors.settings.siteLanguageOn')] });
     const disabled = locales.filter((l) => !input.enabled.includes(l));
     await setSettings(
       ctx.tx,
@@ -296,11 +297,11 @@ export const removeLanguagePack = defineOperation({
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, { code }) {
     const row = await ctx.tx.languagePack.findUnique({ where: { code } });
-    if (!row) throw new ValidationError({ code: ['This language was not installed here'] });
+    if (!row) throw new ValidationError({ code: [msg('errors.settings.notInstalledHere')] });
     // a bundled language stays (its bundled strings come back); another one goes
     const settings = await getAllSettings(ctx.tx);
     if (!bundledLocales.includes(code) && siteLocale(settings) === code)
-      throw new ValidationError({ code: ['Choose another site language first'] });
+      throw new ValidationError({ code: [msg('errors.settings.otherSiteLanguage')] });
     await ctx.tx.languagePack.delete({ where: { code } });
     await loadLanguagePacks(ctx.tx);
     await publishInvalidation(ctx.tx, 'languages');
@@ -320,7 +321,8 @@ export const removeLanguagePack = defineOperation({
  * language's is the template) and what is installed back.
  */
 export function languagePackZip(code: Locale): Uint8Array {
-  if (!isLocale(code)) throw new ValidationError({ code: ['Unknown language'] });
+  if (!isLocale(code))
+    throw new ValidationError({ code: [msg('errors.settings.unknownLanguage')] });
   const { core, modules } = packContents(code);
   const json = (v: unknown) => strToU8(`${JSON.stringify(v, null, 2)}\n`);
   const files: Record<string, Uint8Array> = { [`messages/${code}.json`]: json(core) };

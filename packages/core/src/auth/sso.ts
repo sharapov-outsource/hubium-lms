@@ -1,6 +1,7 @@
 import { type SSOOptions, sso } from '@better-auth/sso';
 import type { Db, Prisma, SsoProvider } from '@hubium/db';
 import { log } from '@hubium/log';
+import { msg } from '@hubium/module-sdk';
 import {
   assertPublicUrl,
   safeFetch,
@@ -12,7 +13,7 @@ import { publishInvalidation } from '../cache-bus.ts';
 import type { RequestContext } from '../context.ts';
 import { decryptSecret, encryptSecret } from '../crypto.ts';
 import { getEnv } from '../env.ts';
-import { NotFoundError, ValidationError } from '../errors.ts';
+import { type MsgOrText, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { defineOperation } from '../operation.ts';
 import {
@@ -127,10 +128,10 @@ export async function discoverOidc(issuer: string): Promise<Discovery & { url: s
     doc = JSON.parse(await fetchText(url, 'issuer')) as Partial<Discovery>;
   } catch (e) {
     if (e instanceof ValidationError) throw e;
-    throw new ValidationError({ issuer: ['The discovery document is not JSON'] });
+    throw new ValidationError({ issuer: [msg('errors.auth.discoveryNotJson')] });
   }
   if (!doc.issuer || !doc.authorization_endpoint || !doc.token_endpoint || !doc.jwks_uri)
-    throw new ValidationError({ issuer: ['The discovery document lacks required endpoints'] });
+    throw new ValidationError({ issuer: [msg('errors.auth.discoveryEndpoints')] });
   return { ...(doc as Discovery), url };
 }
 
@@ -144,7 +145,7 @@ export function parseIdpMetadata(xml: string): { entityId: string; ssoUrl: strin
     loc(services.find((s) => s.includes('HTTP-POST')));
   if (!entityId || !ssoUrl)
     throw new ValidationError({
-      idpMetadataXml: ['The metadata has no entity ID or single sign-on service'],
+      idpMetadataXml: [msg('errors.auth.metadataIncomplete')],
     });
   return { entityId, ssoUrl };
 }
@@ -171,9 +172,9 @@ async function buildProvider(
   const none = { oidcConfig: null, samlConfig: null, oauthConfig: null };
   const noKeys = { spPrivateKeyEnc: null, spCertificate: null };
   if (input.protocol === 'oauth2') {
-    const errors: Record<string, string[]> = {};
+    const errors: Record<string, MsgOrText[]> = {};
     for (const f of ['authorizationUrl', 'tokenUrl', 'userInfoUrl', 'clientId'] as const)
-      if (!input[f]) errors[f] = ['Required'];
+      if (!input[f]) errors[f] = [msg('errors.field.required')];
     if (!input.clientSecret && !same?.clientSecretEnc) errors.clientSecret = ['Required'];
     if (Object.keys(errors).length) throw new ValidationError(errors);
     for (const f of ['authorizationUrl', 'tokenUrl', 'userInfoUrl'] as const) {
@@ -205,7 +206,7 @@ async function buildProvider(
   }
   if (input.protocol === 'oidc') {
     const storedSecret = same?.clientSecretEnc ?? null;
-    const errors: Record<string, string[]> = {};
+    const errors: Record<string, MsgOrText[]> = {};
     if (!input.issuer) errors.issuer = ['Required'];
     if (!input.clientId) errors.clientId = ['Required'];
     if (!input.clientSecret && !storedSecret) errors.clientSecret = ['Required'];
@@ -246,7 +247,7 @@ async function buildProvider(
   const xml = input.idpMetadataUrl
     ? await fetchText(input.idpMetadataUrl, 'idpMetadataUrl')
     : (input.idpMetadataXml ?? stored?.idpMetadata?.metadata);
-  if (!xml) throw new ValidationError({ idpMetadataUrl: ['Give a metadata URL or paste the XML'] });
+  if (!xml) throw new ValidationError({ idpMetadataUrl: [msg('errors.auth.metadataMissing')] });
   const idp = parseIdpMetadata(xml);
   // one signing key per provider, kept across edits
   const keys =
@@ -360,14 +361,16 @@ export const saveSsoProvider = defineOperation({
     if (input.id && !existing) throw new NotFoundError('Provider');
     const clash = await ctx.tx.ssoProvider.findUnique({ where: { providerId: input.providerId } });
     if (clash && clash.id !== existing?.id)
-      throw new ValidationError({ providerId: ['This identifier is already used'] });
+      throw new ValidationError({ providerId: [msg('errors.auth.identifierInUse')] });
     // the provider's id is in its callback URLs and linked accounts: it cannot change
     if (existing && existing.providerId !== input.providerId)
-      throw new ValidationError({ providerId: ['The identifier cannot be changed'] });
+      throw new ValidationError({ providerId: [msg('errors.auth.identifierFixed')] });
     const fields = new Set((await listProfileFields(ctx.tx)).map((f) => f.shortName));
     const unknown = Object.keys(input.mapping.fields).filter((f) => !fields.has(f));
     if (unknown.length)
-      throw new ValidationError({ mapping: [`Unknown profile fields: ${unknown.join(', ')}`] });
+      throw new ValidationError({
+        mapping: [msg('errors.auth.unknownProfileFields', { unknown: unknown.join(', ') })],
+      });
     const built = await buildProvider(input, getEnv().APP_URL, existing);
     const data = {
       providerId: input.providerId,

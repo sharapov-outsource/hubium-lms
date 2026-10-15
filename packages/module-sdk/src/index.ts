@@ -3,7 +3,7 @@ import type { Prisma } from '@hubium/db';
 import type { z } from 'zod';
 import { isMsg, type Msg } from './msg.ts';
 
-export { isMsg, Msg, type MsgValues, msg, renderMsg } from './msg.ts';
+export { isMsg, Msg, type MsgInput, type MsgValues, msg, renderMsg } from './msg.ts';
 
 // Contract between core and activity modules. Modules depend only on this package
 // (and db types); core implements ModuleCtx and calls the hooks.

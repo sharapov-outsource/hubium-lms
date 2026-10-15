@@ -19,11 +19,11 @@ describe('passphrase rules', () => {
     expect(normalizePassphrase('  Красная  Лиса\tпрыгает ')).toBe('красная лиса прыгает');
   });
   it('wants four words and twenty characters', () => {
-    expect(passphraseProblems('one two three')).toEqual([
+    expect(passphraseProblems('one two three').map(String)).toEqual([
       'At least 4 words',
       'At least 20 characters',
     ]);
-    expect(passphraseProblems('correct horse battery staple')).toEqual([]);
+    expect(passphraseProblems('correct horse battery staple').map(String)).toEqual([]);
   });
 });
 

@@ -61,6 +61,7 @@ import {
 } from '@hubium/core';
 import { checkFile, storeFile } from '@hubium/core/files/files';
 import { duplicateActivity } from '@hubium/interchange';
+import { msg } from '@hubium/module-sdk';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -102,7 +103,7 @@ async function checkFormFile(field: string, file: Parameters<typeof checkFile>[1
     await checkFile(db, file);
   } catch (e) {
     if (e instanceof ValidationError)
-      throw new ValidationError({ [field]: Object.values(e.fieldErrors ?? {}).flat() });
+      throw new ValidationError({ [field]: Object.values(e.fieldMessages ?? {}).flat() });
     throw e;
   }
 }
@@ -705,7 +706,7 @@ export async function addCohortMemberByLoginAction(fd: FormData) {
       allowed: () => ctx.perm.require('cohort:manage'),
       field: 'login',
     });
-    if (!add.length) throw new ValidationError({ login: ['User not found'] });
+    if (!add.length) throw new ValidationError({ login: [msg('errors.common.userNotFound')] });
     await setCohortMembers.run(ctx, { cohortId: v.cohortId, add, remove: [] });
     revalidatePath('/admin/cohorts');
     return null;

@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import type { Db, LdapServer, Prisma } from '@hubium/db';
 import { log } from '@hubium/log';
+import { msg } from '@hubium/module-sdk';
 import type { BetterAuthPlugin } from 'better-auth';
 import { APIError, createAuthEndpoint } from 'better-auth/api';
 import { expireCookie, setSessionCookie } from 'better-auth/cookies';
@@ -472,7 +473,9 @@ export const saveLdapServer = defineOperation({
     const fields = new Set((await listProfileFields(ctx.tx)).map((f) => f.shortName));
     const unknown = Object.keys(input.mapping.fields).filter((f) => !fields.has(f));
     if (unknown.length)
-      throw new ValidationError({ mapping: [`Unknown profile fields: ${unknown.join(', ')}`] });
+      throw new ValidationError({
+        mapping: [msg('errors.auth.unknownProfileFields', { unknown: unknown.join(', ') })],
+      });
     const { bindPassword, ...rest } = input;
     const data = {
       ...rest,
@@ -500,7 +503,7 @@ export const saveLdapServer = defineOperation({
 export async function testLdapConnection(ctx: RequestContext, login: string) {
   await ctx.perm.require('site:config');
   const s = await getLdapServer(ctx.db);
-  if (!s) throw new ValidationError({ url: ['Save the settings first'] });
+  if (!s) throw new ValidationError({ url: [msg('errors.auth.saveSettingsFirst')] });
   let client: Client | undefined;
   try {
     client = await connect(s);

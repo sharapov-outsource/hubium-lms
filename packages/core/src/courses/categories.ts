@@ -1,4 +1,5 @@
 import { type Category, type Db, type Prisma, SYSTEM_CONTEXT_ID, uuidv7 } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { Capability } from '../access/capabilities.ts';
 import { createContext, moveContext } from '../access/contexts.ts';
@@ -80,7 +81,7 @@ export const createCategory = defineOperation({
       input.idNumber &&
       (await ctx.tx.category.findUnique({ where: { idNumber: input.idNumber } }))
     ) {
-      throw new ValidationError({ idNumber: ['ID number already in use'] });
+      throw new ValidationError({ idNumber: [msg('errors.courses.idNumberInUse')] });
     }
     await createContext(ctx.tx, id, 'CATEGORY', parentContext);
     const count = await ctx.tx.category.count({ where: { parentId: input.parentId ?? null } });
@@ -115,20 +116,20 @@ export const updateCategory = defineOperation({
     const newParent = input.parentId === undefined ? cat.parentId : input.parentId;
     if (newParent !== cat.parentId) {
       if (newParent === cat.id)
-        throw new ValidationError({ parentId: ['A category cannot contain itself'] });
+        throw new ValidationError({ parentId: [msg('errors.courses.categoryInItself')] });
       await ctx.perm.require('category:manage', newParent ?? SYSTEM_CONTEXT_ID);
       const target = newParent ?? SYSTEM_CONTEXT_ID;
       const targetCtx = await ctx.tx.context.findUnique({ where: { id: target } });
       if (targetCtx?.ancestorIds.includes(cat.id)) {
         throw new ValidationError({
-          parentId: ['Cannot move a category into its own subcategory'],
+          parentId: [msg('errors.courses.categoryIntoChild')],
         });
       }
       await moveContext(ctx.tx, cat.id, target);
     }
     if (input.idNumber && input.idNumber !== cat.idNumber) {
       const dupe = await ctx.tx.category.findUnique({ where: { idNumber: input.idNumber } });
-      if (dupe) throw new ValidationError({ idNumber: ['ID number already in use'] });
+      if (dupe) throw new ValidationError({ idNumber: [msg('errors.courses.idNumberInUse')] });
     }
     await ctx.tx.category.update({
       where: { id: cat.id },
@@ -153,7 +154,7 @@ export const deleteCategory = defineOperation({
       ctx.tx.category.count({ where: { parentId: id } }),
       ctx.tx.course.count({ where: { categoryId: id } }),
     ]);
-    if (children || courses) throw new ConflictError('Category is not empty');
+    if (children || courses) throw new ConflictError(msg('errors.courses.categoryNotEmpty'));
     await ctx.tx.category.delete({ where: { id } });
     await ctx.tx.context.delete({ where: { id } });
     await logEvent(ctx.tx, {

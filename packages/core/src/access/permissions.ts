@@ -1,4 +1,5 @@
 import { type Db, SYSTEM_CONTEXT_ID } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { ForbiddenError, NotFoundError } from '../errors.ts';
 import { type Capability, capabilities, getCapability } from './capabilities.ts';
 import {
@@ -158,7 +159,10 @@ export class Permissions {
 
   async require(cap: Capability, contextId: string = SYSTEM_CONTEXT_ID): Promise<void> {
     if (!(await this.can(cap, contextId))) {
-      throw new ForbiddenError(`Missing capability ${cap}`, { capability: cap, contextId });
+      throw new ForbiddenError(msg('errors.access.missingCapability', { cap }), {
+        capability: cap,
+        contextId,
+      });
     }
   }
 

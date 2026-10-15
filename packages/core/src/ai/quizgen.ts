@@ -2,6 +2,7 @@ import { estimateTokens, type Usage } from '@hubium/ai';
 import type { Db, Prisma } from '@hubium/db';
 import { BASE_LOCALE } from '@hubium/i18n';
 import { languageInfo } from '@hubium/i18n/packs';
+import { msg } from '@hubium/module-sdk';
 import { draftToQuestion, draftTypes, QuestionDraftList } from '@hubium/questions';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
@@ -56,13 +57,13 @@ export async function startQuizGeneration(ctx: RequestContext, raw: unknown) {
   await ctx.perm.require('question:manage', input.courseId);
   const cat = await ctx.db.questionCategory.findUnique({ where: { id: input.categoryId } });
   if (cat?.contextId !== input.courseId)
-    throw new ValidationError({ categoryId: ['Unknown category'] });
+    throw new ValidationError({ categoryId: [msg('errors.common.unknownCategory')] });
   const n = await ctx.db.activity.count({
     where: { id: { in: input.activityIds }, courseId: input.courseId, deletedAt: null },
   });
   if (n !== input.activityIds.length)
-    throw new ValidationError({ activityIds: ['Unknown activity'] });
-  if (ctx.actor.kind !== 'user') throw new ValidationError({ _: ['Users only'] });
+    throw new ValidationError({ activityIds: [msg('errors.courses.unknownActivity')] });
+  if (ctx.actor.kind !== 'user') throw new ValidationError({ _: [msg('errors.ai.usersOnly')] });
   const gen = await ctx.db.aiGeneration.create({
     data: {
       feature: 'QUIZGEN',
@@ -123,8 +124,7 @@ export async function runQuizGeneration(db: Db, generationId: string) {
       return runAi(ctx, f, { courseId: input.courseId }, fn);
     };
     let sources = await sourcesFor(db, input.activityIds);
-    if (!sources.length)
-      throw new ValidationError({ activityIds: ['The chosen activities have no text'] });
+    if (!sources.length) throw new ValidationError({ activityIds: [msg('errors.ai.noText')] });
 
     if (estimateTokens(sources.map((s) => s.text).join('')) > SUMMARY_THRESHOLD) {
       const summarised = [];

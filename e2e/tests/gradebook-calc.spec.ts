@@ -54,7 +54,7 @@ test('gradebook: a formula over another item', async ({ page }) => {
 
     // what the formula uses stays until the formula goes
     await deleteItem(page, NAMES[0]!);
-    await expect(page.getByText(/Formulas use this item/).first()).toBeVisible();
+    await expect(page.getByText(/Формулы используют этот элемент/).first()).toBeVisible();
     await row(NAMES[1]!)
       .getByRole('button', { name: `Формула: ${NAMES[1]}` })
       .click();

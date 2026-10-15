@@ -7,6 +7,8 @@ import { createTranslator } from '@hubium/i18n/packs';
 // language packs' base, so nothing that only prints an error has to know about them.
 
 export type MsgValues = Record<string, string | number>;
+/** Values as a template literal takes them: what is not a number reads as its text. */
+export type MsgInput = Record<string, string | number | boolean | null | undefined>;
 
 export class Msg {
   constructor(
@@ -26,8 +28,14 @@ export class Msg {
 }
 
 /** A message for people by its key in the language packs, with its values. */
-export function msg(key: string, values?: MsgValues): Msg {
-  return new Msg(key, values);
+export function msg(key: string, values?: MsgInput): Msg {
+  return new Msg(
+    key,
+    values &&
+      Object.fromEntries(
+        Object.entries(values).map(([k, v]) => [k, typeof v === 'number' ? v : String(v)]),
+      ),
+  );
 }
 
 /** Whether a value is a message (by its shape: a bundle may hold two copies of the class). */

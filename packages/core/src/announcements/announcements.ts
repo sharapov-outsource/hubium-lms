@@ -1,5 +1,6 @@
 import { type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { extractText, sanitizeRichText } from '@hubium/editor/server';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import { usersWithCap } from '../access/permissions.ts';
 import type { RequestContext } from '../context.ts';
@@ -103,7 +104,7 @@ export const createAnnouncement = defineOperation({
     if (input.groupId) {
       const g = await ctx.tx.group.findUnique({ where: { id: input.groupId } });
       if (!g || g.courseId !== input.courseId) {
-        throw new ValidationError({ groupId: ['Unknown group'] });
+        throw new ValidationError({ groupId: [msg('errors.common.unknownGroup')] });
       }
     }
     const a = await ctx.tx.announcement.create({
@@ -148,7 +149,8 @@ export const updateAnnouncement = defineOperation({
     const a = await ctx.tx.announcement.findUniqueOrThrow({ where: { id: input.id } });
     if (input.groupId && a.courseId) {
       const g = await ctx.tx.group.findUnique({ where: { id: input.groupId } });
-      if (g?.courseId !== a.courseId) throw new ValidationError({ groupId: ['Unknown group'] });
+      if (g?.courseId !== a.courseId)
+        throw new ValidationError({ groupId: [msg('errors.common.unknownGroup')] });
     }
     await ctx.tx.announcement.update({
       where: { id: a.id },
@@ -207,7 +209,7 @@ export async function listCourseAnnouncements(
   opts: { limit?: number; before?: Date } = {},
 ) {
   const access = await getCourseAccess(ctx, courseId);
-  if (!access.canView) throw new ForbiddenError('Cannot view this course');
+  if (!access.canView) throw new ForbiddenError(msg('errors.common.cannotViewCourse'));
   const canPost = await ctx.perm.can('announcement:post', courseId);
   const userId = ctx.perm.userId;
   const myGroups = userId

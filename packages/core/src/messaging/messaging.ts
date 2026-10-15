@@ -1,4 +1,5 @@
 import { type Db, Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
@@ -21,7 +22,7 @@ export const MESSAGE_MAX_FILE_BYTES = 9 * 1024 * 1024;
 
 function me(ctx: RequestContext): string {
   const id = ctx.perm.userId;
-  if (!id) throw new ForbiddenError('Sign in required');
+  if (!id) throw new ForbiddenError(msg('errors.common.signIn'));
   return id;
 }
 
@@ -107,7 +108,7 @@ export const openDirectConversation = defineOperation({
       return { id: existing.id };
     }
     const check = await canMessage(ctx.tx, { id: self, isSiteAdmin: ctx.perm.isSiteAdmin }, userId);
-    if (!check.ok) throw new ForbiddenError(`Cannot message this user (${check.reason})`);
+    if (!check.ok) throw new ForbiddenError(msg(`errors.messaging.cannotMessage.${check.reason}`));
     const c = await ctx.tx.conversation.create({
       data: {
         kind: self === userId ? 'SELF' : 'DIRECT',
@@ -135,7 +136,8 @@ export const createGroupConversation = defineOperation({
     const others = [...new Set(input.userIds)].filter((u) => u !== self);
     for (const u of others) {
       const check = await canMessage(ctx.tx, { id: self, isSiteAdmin: ctx.perm.isSiteAdmin }, u);
-      if (!check.ok) throw new ValidationError({ userIds: [`Cannot add user (${check.reason})`] });
+      if (!check.ok)
+        throw new ValidationError({ userIds: [msg(`errors.messaging.cannotAdd.${check.reason}`)] });
     }
     const c = await ctx.tx.conversation.create({
       data: {
@@ -396,7 +398,7 @@ export const sendMessage = defineOperation({
       attachments: z.array(Attachment).max(MESSAGE_MAX_FILES).default([]),
     })
     .refine((i) => i.body.length > 0 || i.attachments.length > 0, {
-      message: 'Message is empty',
+      message: 'errors.messaging.empty',
       path: ['body'],
     }),
   authorize: (ctx) => ctx.perm.require('message:send'),
@@ -412,10 +414,11 @@ export const sendMessage = defineOperation({
         { id: self, isSiteAdmin: ctx.perm.isSiteAdmin },
         others[0],
       );
-      if (!check.ok) throw new ForbiddenError(`Cannot message this user (${check.reason})`);
+      if (!check.ok)
+        throw new ForbiddenError(msg(`errors.messaging.cannotMessage.${check.reason}`));
     }
     const previous = conv.lastMessageAt;
-    const msg = await ctx.tx.message.create({
+    const message = await ctx.tx.message.create({
       data: { conversationId: conv.id, senderId: self, body: input.body, createdAt: ctx.now },
     });
     for (const f of input.attachments) {
@@ -423,7 +426,7 @@ export const sendMessage = defineOperation({
         contextId: SYSTEM_CONTEXT_ID,
         component: MESSAGE_COMPONENT,
         area: 'attachment',
-        itemId: msg.id,
+        itemId: message.id,
         name: f.name,
         mimeType: f.mimeType,
         data: f.data,
@@ -445,7 +448,7 @@ export const sendMessage = defineOperation({
     });
     await publishRealtime(ctx.tx, members, 'message.new', {
       conversationId: conv.id,
-      messageId: msg.id,
+      messageId: message.id,
       senderId: self,
     });
     // Notify only recipients who had read everything before this message (one per burst).
@@ -479,7 +482,7 @@ export const sendMessage = defineOperation({
         },
       );
     }
-    return { id: msg.id };
+    return { id: message.id };
   },
 });
 
@@ -489,16 +492,17 @@ export const deleteMessage = defineOperation({
   input: z.object({ id: z.string().uuid() }),
   async handler(ctx, { id }) {
     const self = me(ctx);
-    const msg = await ctx.tx.message.findUnique({ where: { id } });
-    if (!msg || msg.deletedAt) throw new NotFoundError('Message');
-    if (msg.senderId !== self) throw new ForbiddenError('Only the sender can delete a message');
+    const message = await ctx.tx.message.findUnique({ where: { id } });
+    if (!message || message.deletedAt) throw new NotFoundError('Message');
+    if (message.senderId !== self)
+      throw new ForbiddenError(msg('errors.messaging.onlySenderDeletes'));
     await ctx.tx.message.update({ where: { id }, data: { deletedAt: ctx.now } });
     await publishRealtime(
       ctx.tx,
-      await activeMemberIds(ctx.tx, msg.conversationId),
+      await activeMemberIds(ctx.tx, message.conversationId),
       'message.new',
       {
-        conversationId: msg.conversationId,
+        conversationId: message.conversationId,
         messageId: id,
         deleted: true,
       },
@@ -548,10 +552,10 @@ export const setConversationState = defineOperation({
     const self = me(ctx);
     const m = await requireMember(ctx.tx, input.conversationId, self);
     if (input.leave && m.conversation.kind !== 'GROUP') {
-      throw new ValidationError({ leave: ['Only group conversations can be left'] });
+      throw new ValidationError({ leave: [msg('errors.messaging.onlyGroupsLeft')] });
     }
     if (input.leave && m.conversation.groupId) {
-      throw new ValidationError({ leave: ['Course group chats follow group membership'] });
+      throw new ValidationError({ leave: [msg('errors.messaging.courseGroupChat')] });
     }
     await ctx.tx.conversationMember.update({
       where: { conversationId_userId: { conversationId: input.conversationId, userId: self } },
@@ -575,7 +579,8 @@ export const setUserBlocked = defineOperation({
   input: z.object({ userId: z.string().uuid(), blocked: z.boolean() }),
   async handler(ctx, input) {
     const self = me(ctx);
-    if (input.userId === self) throw new ValidationError({ userId: ['Cannot block yourself'] });
+    if (input.userId === self)
+      throw new ValidationError({ userId: [msg('errors.messaging.blockSelf')] });
     if (input.blocked) {
       await ctx.tx.userBlock.upsert({
         where: { userId_blockedUserId: { userId: self, blockedUserId: input.userId } },
@@ -645,13 +650,13 @@ export async function searchMessageableUsers(
 registerFileArea(MESSAGE_COMPONENT, 'attachment', async (ctx, file) => {
   const userId = ctx.perm.userId;
   if (!userId) return false;
-  const msg = await ctx.db.message.findUnique({
+  const message = await ctx.db.message.findUnique({
     where: { id: file.itemId },
     select: { conversationId: true, deletedAt: true },
   });
-  if (!msg || msg.deletedAt) return false;
+  if (!message || message.deletedAt) return false;
   const m = await ctx.db.conversationMember.findUnique({
-    where: { conversationId_userId: { conversationId: msg.conversationId, userId } },
+    where: { conversationId_userId: { conversationId: message.conversationId, userId } },
   });
   return !!m && !m.leftAt;
 });

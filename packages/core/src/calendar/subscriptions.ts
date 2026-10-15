@@ -1,5 +1,6 @@
 import type { CalendarSubscription, Db, Prisma } from '@hubium/db';
 import { log } from '@hubium/log';
+import { msg } from '@hubium/module-sdk';
 import { checkUrlShape, safeFetch } from '@hubium/module-sdk/net';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
@@ -39,7 +40,7 @@ type TargetT = z.infer<typeof Target>;
 async function authorizeTarget(ctx: RequestContext, t: TargetT) {
   if (t.scope === 'USER') return ctx.perm.require('calendar:manageown');
   if (t.scope === 'SITE') return ctx.perm.require('calendar:managesite');
-  if (!t.courseId) throw new ValidationError({ courseId: ['Course is required'] });
+  if (!t.courseId) throw new ValidationError({ courseId: [msg('errors.calendar.courseRequired')] });
   return ctx.perm.require('calendar:managecourse', t.courseId);
 }
 
@@ -63,7 +64,7 @@ export function feedUrl(raw: string): string {
   try {
     return checkUrlShape(url).toString();
   } catch {
-    throw new ValidationError({ url: ['Enter an http(s) or webcal address'] });
+    throw new ValidationError({ url: [msg('errors.calendar.badSubscriptionUrl')] });
   }
 }
 
@@ -170,7 +171,7 @@ async function applyFeed(tx: Tx, sub: CalendarSubscription, text: string, now: D
       maxEvents: CALENDAR_FEED_LIMITS.maxEvents,
     });
   } catch {
-    throw new ValidationError({ content: ['This is not an iCalendar (.ics) file'] });
+    throw new ValidationError({ content: [msg('errors.calendar.notIcs')] });
   }
   const old = await tx.calendarEvent.findMany({
     where: { subscriptionId: sub.id },

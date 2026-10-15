@@ -1,6 +1,7 @@
 import { appendFile, mkdir, rm, stat, truncate } from 'node:fs/promises';
 import path from 'node:path';
 import type { Db, Prisma } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { fsStorageRoot } from './storage.ts';
 
@@ -19,7 +20,8 @@ export function uploadTempDir(): string {
 }
 
 function tempPath(id: string): string {
-  if (!/^[0-9a-f-]{36}$/.test(id)) throw new ValidationError({ id: ['Invalid upload id'] });
+  if (!/^[0-9a-f-]{36}$/.test(id))
+    throw new ValidationError({ id: [msg('errors.files.badUploadId')] });
   return path.join(uploadTempDir(), id);
 }
 
@@ -33,7 +35,7 @@ export async function createUpload(
   input: { name: string; size: number; mimeType?: string },
 ) {
   if (!Number.isInteger(input.size) || input.size <= 0 || input.size > UPLOAD_MAX_BYTES) {
-    throw new ValidationError({ size: ['Invalid file size'] });
+    throw new ValidationError({ size: [msg('errors.files.badSize')] });
   }
   const pending = await db.uploadSession.aggregate({
     where: { userId, completedAt: null, expiresAt: { gt: new Date() } },
@@ -44,7 +46,7 @@ export async function createUpload(
     pending._count._all >= UPLOAD_PENDING_MAX_COUNT ||
     Number(pending._sum.size ?? 0n) + input.size > UPLOAD_PENDING_MAX_BYTES
   )
-    throw new ValidationError({ size: ['Too many unfinished uploads; finish or wait for them'] });
+    throw new ValidationError({ size: [msg('errors.files.tooManyUploads')] });
   const s = await db.uploadSession.create({
     data: {
       userId,
@@ -81,7 +83,7 @@ export async function appendUploadChunk(
   chunk: Buffer,
 ): Promise<{ received: number; conflict?: boolean }> {
   const s = await own(db, userId, id);
-  if (s.completedAt) throw new ValidationError({ id: ['Upload already completed'] });
+  if (s.completedAt) throw new ValidationError({ id: [msg('errors.files.uploadComplete')] });
   const received = Number(s.received);
   // A request that died half-way leaves disk and database apart: the database never
   // runs ahead of the disk, and bytes past it are dropped.
@@ -96,7 +98,7 @@ export async function appendUploadChunk(
   }
   if (offset !== received) return { received, conflict: true };
   if (chunk.length > UPLOAD_CHUNK_BYTES * 2 || received + chunk.length > Number(s.size)) {
-    throw new ValidationError({ chunk: ['Chunk exceeds the declared size'] });
+    throw new ValidationError({ chunk: [msg('errors.files.chunkTooLarge')] });
   }
   // Claim the offset first so a retried request racing the original cannot append twice.
   const next = received + chunk.length;
@@ -126,8 +128,9 @@ export async function consumeUpload<T>(
   use: (file: { path: string; name: string; mimeType: string; size: number }) => Promise<T>,
 ): Promise<T> {
   const s = await own(db, userId, id);
-  if (s.completedAt) throw new ValidationError({ id: ['Upload already used'] });
-  if (s.received !== s.size) throw new ValidationError({ id: ['Upload is incomplete'] });
+  if (s.completedAt) throw new ValidationError({ id: [msg('errors.files.uploadUsed')] });
+  if (s.received !== s.size)
+    throw new ValidationError({ id: [msg('errors.files.uploadIncomplete')] });
   const out = await use({
     path: tempPath(id),
     name: s.name,

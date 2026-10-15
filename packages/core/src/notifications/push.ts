@@ -1,5 +1,6 @@
 import type { Db } from '@hubium/db';
 import { log } from '@hubium/log';
+import { msg } from '@hubium/module-sdk';
 import { assertPublicUrl, publicHttpsAgent } from '@hubium/module-sdk/net';
 import webpush from 'web-push';
 import { z } from 'zod';
@@ -43,7 +44,7 @@ export async function savePushSubscription(
   if (ctx.actor.kind !== 'user') throw new ForbiddenError();
   const s = Subscription.parse(raw);
   await assertPublicUrl(s.endpoint).catch(() => {
-    throw new ValidationError({ endpoint: ['Invalid endpoint'] });
+    throw new ValidationError({ endpoint: [msg('errors.notifications.invalidEndpoint')] });
   });
   const userId = ctx.actor.userId;
   await ctx.db.pushSubscription.upsert({

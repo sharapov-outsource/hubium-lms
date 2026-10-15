@@ -1,5 +1,6 @@
 import type { Prisma } from '@hubium/db';
 import { log } from '@hubium/log';
+import { msg } from '@hubium/module-sdk';
 import { csvFile } from '@hubium/module-sdk/csv';
 import { z } from 'zod';
 import { userContext } from '../ai/user-ctx.ts';
@@ -118,11 +119,11 @@ async function applyOne(ctx: RequestContext, userId: string, a: BulkAction) {
         select: { isSiteAdmin: true },
       });
       if (u.isSiteAdmin && !ctx.perm.isSiteAdmin)
-        throw new ValidationError({ id: ['Only site admins can change an admin account'] });
+        throw new ValidationError({ id: [msg('errors.users.adminOnlyChange')] });
       const hasPassword = await ctx.db.account.count({
         where: { userId, providerId: 'credential', password: { not: null } },
       });
-      if (!hasPassword) throw new ValidationError({ id: ['No local password'] });
+      if (!hasPassword) throw new ValidationError({ id: [msg('errors.users.noLocalPassword')] });
       await ctx.db.user.update({ where: { id: userId }, data: { mustChangePassword: true } });
       return;
     }
@@ -156,7 +157,8 @@ export async function runBulkUserAction(
       const user = await ctx.db.user.findUnique({ where: { id: userId }, select: { name: true } });
       const error =
         e instanceof AppError
-          ? (Object.values(e.fieldErrors ?? {}).flat()[0] ?? e.message)
+          ? (Object.values(e.in(ctx.locale).fieldErrors ?? {}).flat()[0] ??
+            e.in(ctx.locale).message)
           : e instanceof Error
             ? e.message
             : String(e);
@@ -174,7 +176,7 @@ export const startBulkUserAction = defineOperation({
   authorize: (ctx, i) => authorizeAction(ctx, i.action),
   async handler(ctx, { selection, action }) {
     const ids = await selectedIds(ctx, selection);
-    if (!ids.length) throw new ValidationError({ selection: ['Nobody is selected'] });
+    if (!ids.length) throw new ValidationError({ selection: [msg('errors.users.nobodySelected')] });
     if (ids.length <= SYNC_LIMIT)
       return { queued: false as const, result: await runBulkUserAction(ctx, ids, action) };
     await enqueue(BULK_USERS_JOB, { actorId: ctx.perm.userId!, ids, action });

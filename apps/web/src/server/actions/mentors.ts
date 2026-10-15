@@ -7,6 +7,7 @@ import {
   removeUserRelation,
   ValidationError,
 } from '@hubium/core';
+import { msg } from '@hubium/module-sdk';
 import { revalidatePath } from 'next/cache';
 import { runAction } from '../action';
 import { getContext } from '../session';
@@ -51,7 +52,7 @@ export async function uploadRelationsAction(fd: FormData) {
   return runAction(async () => {
     const file = fd.get('file');
     if (!(file instanceof File) || file.size === 0)
-      throw new ValidationError({ file: ['Choose a CSV file'] });
+      throw new ValidationError({ file: [msg('errors.common.chooseCsv')] });
     const csv = Buffer.from(await file.arrayBuffer()).toString('utf8');
     return bulkUploadUserRelations.run(await getContext(), { csv });
   });

@@ -1,4 +1,5 @@
 import type { Prisma } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
@@ -40,7 +41,7 @@ export const createRole = defineOperation({
   authorize: (ctx) => ctx.perm.require('role:manage'),
   async handler(ctx, input) {
     if (await ctx.tx.role.findUnique({ where: { shortName: input.shortName } })) {
-      throw new ValidationError({ shortName: ['Short name already in use'] });
+      throw new ValidationError({ shortName: [msg('errors.common.shortNameInUse')] });
     }
     const count = await ctx.tx.role.count();
     const role = await ctx.tx.role.create({
@@ -94,7 +95,7 @@ export const updateRole = defineOperation({
       role.shortName === (await getSetting(ctx.tx, 'course.creatorRole'))
     )
       throw new ValidationError({
-        assignableLevels: ['Course creators get this role on their courses (site settings)'],
+        assignableLevels: [msg('errors.access.creatorRole')],
       });
     await ctx.tx.role.update({
       where: { id: role.id },
@@ -123,14 +124,12 @@ export const deleteRole = defineOperation({
       include: { _count: { select: { assignments: true, enrolMethods: true } } },
     });
     if (!role) throw new NotFoundError('Role');
-    if (role.isProtected) throw new ConflictError('Built-in implicit roles cannot be deleted');
+    if (role.isProtected) throw new ConflictError(msg('errors.access.builtInRole'));
     if (role._count.assignments || role._count.enrolMethods) {
-      throw new ConflictError('Role is in use');
+      throw new ConflictError(msg('errors.access.roleInUse'));
     }
     if (role.shortName === (await getSetting(ctx.tx, 'course.creatorRole')))
-      throw new ConflictError(
-        'Course creators get this role on their courses: choose another in the site settings first',
-      );
+      throw new ConflictError(msg('errors.access.creatorRoleChange'));
     await ctx.tx.role.delete({ where: { id } });
     await logEvent(ctx.tx, {
       name: 'role.deleted',
@@ -239,14 +238,14 @@ export const setRoleOverride = defineOperation({
   async handler(ctx, { contextId, roleId, capability, permission }) {
     const scope = await overrideScope(ctx.tx, contextId);
     if (!overridableCapabilities(scope.level, scope.moduleKey).includes(capability as Capability))
-      throw new ValidationError({ capability: ['This permission cannot be changed here'] });
+      throw new ValidationError({ capability: [msg('errors.access.permissionFixed')] });
     // As in Moodle: nobody grants others more than they have themselves.
     if (
       permission === 'ALLOW' &&
       !ctx.perm.isSiteAdmin &&
       !(await ctx.perm.can(capability as Capability, contextId))
     )
-      throw new ForbiddenError('You can only allow permissions you have yourself');
+      throw new ForbiddenError(msg('errors.access.ownPermissionsOnly'));
     if (!(await ctx.tx.role.findUnique({ where: { id: roleId }, select: { id: true } })))
       throw new NotFoundError('Role');
     if (permission === 'INHERIT') {

@@ -23,6 +23,7 @@ import {
 } from '@hubium/core';
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { importMoodleXml } from '@hubium/interchange';
+import { msg } from '@hubium/module-sdk';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { formToObject, runAction } from '../action';
@@ -186,7 +187,7 @@ export async function saveLettersAction(fd: FormData) {
 async function importInput(fd: FormData) {
   const file = fd.get('file');
   if (!(file instanceof File) || !file.size)
-    throw new ValidationError({ file: ['Choose a CSV, XLSX or ODS file'] });
+    throw new ValidationError({ file: [msg('errors.grades.chooseSheet')] });
   const mapping = fd.get('mapping');
   return {
     courseId: String(fd.get('courseId')),
@@ -245,7 +246,7 @@ export async function saveQuestionAction(fd: FormData) {
       hints = v.hints ? JSON.parse(v.hints) : undefined;
       sharedDatasets = v.sharedDatasets ? JSON.parse(v.sharedDatasets) : undefined;
     } catch {
-      throw new ValidationError({ data: ['Invalid data'] });
+      throw new ValidationError({ data: [msg('errors.grades.invalidData')] });
     }
     return saveQuestion.run(await getContext(), {
       id: v.id || undefined,
@@ -281,7 +282,7 @@ export async function importGiftAction(fd: FormData) {
     const file = fd.get('file');
     if (file instanceof File && file.size)
       gift = Buffer.from(await file.arrayBuffer()).toString('utf8');
-    if (!gift.trim()) throw new ValidationError({ gift: ['Paste GIFT text or choose a file'] });
+    if (!gift.trim()) throw new ValidationError({ gift: [msg('errors.grades.giftMissing')] });
     if (gift.trimStart().startsWith('<')) {
       // Moodle XML: categories come from the file itself.
       const r = await importMoodleXml(await getContext(), v.courseId ?? '', gift);

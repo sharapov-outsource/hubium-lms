@@ -1,4 +1,5 @@
 import { type Competency, type CompetencyFramework, type Db, Prisma } from '@hubium/db';
+import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { MutationContext, RequestContext } from '../context.ts';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.ts';
@@ -44,7 +45,7 @@ async function loadCompetency(db: Tx, id: string) {
 /** The site scale a framework or competency uses, checked against its configuration. */
 async function siteScale(db: Tx, scaleId: string, config: unknown, field: string) {
   const s = await db.scale.findFirst({ where: { id: scaleId, courseId: null } });
-  if (!s) throw new ValidationError({ [field]: ['Choose a site scale'] });
+  if (!s) throw new ValidationError({ [field]: [msg('errors.competencies.chooseSiteScale')] });
   try {
     return { scale: s, config: checkScaleConfig(config, s.items.length) };
   } catch (e) {
@@ -117,9 +118,9 @@ async function frameworkScale(
   spec: z.output<typeof FrameworkInput>['newScale'],
 ): Promise<string> {
   if (scaleId !== 'new') return scaleId;
-  if (!spec) throw new ValidationError({ scaleId: ['Required'] });
+  if (!spec) throw new ValidationError({ scaleId: [msg('errors.field.required')] });
   if (new Set(spec.items).size !== spec.items.length)
-    throw new ValidationError({ scaleId: ['Each grade must be different'] });
+    throw new ValidationError({ scaleId: [msg('errors.common.distinctGrades')] });
   const same = await ctx.tx.scale.findFirst({
     where: { courseId: null, name: spec.name, items: { equals: spec.items } },
     select: { id: true },
@@ -145,7 +146,7 @@ export const saveFramework = defineOperation({
       where: { idNumber: input.idNumber },
     });
     if (clash && clash.id !== input.id)
-      throw new ValidationError({ idNumber: ['Another framework has this ID number'] });
+      throw new ValidationError({ idNumber: [msg('errors.competencies.frameworkIdNumberInUse')] });
     const scaleId = await frameworkScale(ctx, input.scaleId, input.newScale);
     const { config } = await siteScale(ctx.tx, scaleId, input.scaleConfig, 'scaleId');
     const data = {
@@ -167,7 +168,7 @@ export const saveFramework = defineOperation({
           })
         ).map((c) => c.id);
         if (await rated(ctx.tx, ids))
-          throw new ValidationError({ scaleId: ['People have been rated on this scale'] });
+          throw new ValidationError({ scaleId: [msg('errors.competencies.scaleRated')] });
       }
       await ctx.tx.competencyFramework.update({ where: { id: old.id }, data });
       return { id: old.id };
@@ -196,7 +197,7 @@ export const deleteFramework = defineOperation({
       await ctx.tx.competency.findMany({ where: { frameworkId: id }, select: { id: true } })
     ).map((c) => c.id);
     if (await inUse(ctx.tx, ids))
-      throw new ConflictError('Competencies of this framework are in use; hide it instead');
+      throw new ConflictError(msg('errors.competencies.frameworkInUse'));
     // children first: the tree holds on to its parents
     await ctx.tx.competency.updateMany({ where: { frameworkId: id }, data: { parentId: null } });
     await ctx.tx.competencyFramework.delete({ where: { id } });
@@ -323,20 +324,20 @@ export const saveCompetency = defineOperation({
   async handler(ctx, input) {
     const old = input.id ? await loadCompetency(ctx.tx, input.id) : null;
     const frameworkId = old?.frameworkId ?? input.frameworkId;
-    if (!frameworkId) throw new ValidationError({ frameworkId: ['Required'] });
+    if (!frameworkId) throw new ValidationError({ frameworkId: [msg('errors.field.required')] });
     await loadFramework(ctx.tx, frameworkId);
     const clash = await ctx.tx.competency.findUnique({
       where: { frameworkId_idNumber: { frameworkId, idNumber: input.idNumber } },
     });
     if (clash && clash.id !== old?.id)
       throw new ValidationError({
-        idNumber: ['Another competency of the framework has this ID number'],
+        idNumber: [msg('errors.competencies.competencyIdNumberInUse')],
       });
     let scaleConfig: ScaleConfigT | null = null;
     if (input.scaleId)
       scaleConfig = (await siteScale(ctx.tx, input.scaleId, input.scaleConfig, 'scaleId')).config;
     if (old && old.scaleId !== input.scaleId && (await rated(ctx.tx, [old.id])))
-      throw new ValidationError({ scaleId: ['People have been rated on this scale'] });
+      throw new ValidationError({ scaleId: [msg('errors.competencies.scaleRated')] });
     const data = {
       shortName: input.shortName,
       idNumber: input.idNumber,
@@ -350,7 +351,7 @@ export const saveCompetency = defineOperation({
     }
     const parent = input.parentId ? await loadCompetency(ctx.tx, input.parentId) : null;
     if (parent && parent.frameworkId !== frameworkId)
-      throw new ValidationError({ parentId: ['The parent is in another framework'] });
+      throw new ValidationError({ parentId: [msg('errors.competencies.parentElsewhere')] });
     const last = await ctx.tx.competency.aggregate({
       where: { frameworkId, parentId: parent?.id ?? null },
       _max: { sortOrder: true },
@@ -377,13 +378,13 @@ export const moveCompetency = defineOperation({
     const c = await loadCompetency(ctx.tx, id);
     const parent = parentId ? await loadCompetency(ctx.tx, parentId) : null;
     if (parent && parent.frameworkId !== c.frameworkId)
-      throw new ValidationError({ parentId: ['The parent is in another framework'] });
+      throw new ValidationError({ parentId: [msg('errors.competencies.parentElsewhere')] });
     // the form offers the current parent first: moving there changes nothing, and above all
     // keeps the competency in its parent's rule
     if ((parent?.id ?? null) === c.parentId) return { id };
     const below = await subtree(ctx.tx, c);
     if (parent && below.includes(parent.id))
-      throw new ValidationError({ parentId: ['A competency cannot go under itself'] });
+      throw new ValidationError({ parentId: [msg('errors.competencies.underItself')] });
     const oldPrefix = `${c.path}${c.id}/`;
     const path = parent ? `${parent.path}${parent.id}/` : '/';
     const last = await ctx.tx.competency.aggregate({
@@ -450,7 +451,7 @@ export const deleteCompetency = defineOperation({
     const c = await loadCompetency(ctx.tx, id);
     const ids = await subtree(ctx.tx, c);
     if (await inUse(ctx.tx, ids))
-      throw new ConflictError('The competency (or one below it) is in use');
+      throw new ConflictError(msg('errors.competencies.competencyInUse'));
     await ctx.tx.competency.updateMany({ where: { id: { in: ids } }, data: { parentId: null } });
     await ctx.tx.competency.deleteMany({ where: { id: { in: ids } } });
     if (c.parentId) await dropFromRule(ctx.tx, c.parentId, [id]);
@@ -476,7 +477,7 @@ export const setCompetencyRule = defineOperation({
       await ctx.tx.competency.findMany({ where: { parentId: c.id }, select: { id: true } })
     ).map((x) => x.id);
     if (input.ruleType && !children.length)
-      throw new ValidationError({ ruleType: ['Only a competency with children has a rule'] });
+      throw new ValidationError({ ruleType: [msg('errors.competencies.ruleNeedsChildren')] });
     let config: PointsConfigT | null = null;
     if (input.ruleType === 'POINTS')
       try {
@@ -511,7 +512,7 @@ export const setRelatedCompetency = defineOperation({
       loadCompetency(ctx.tx, relatedId),
     ]);
     if (a.id === b.id || a.frameworkId !== b.frameworkId)
-      throw new ValidationError({ relatedId: ['Choose another competency of the framework'] });
+      throw new ValidationError({ relatedId: [msg('errors.competencies.chooseOtherCompetency')] });
     const pairs = [
       { competencyId: a.id, relatedId: b.id },
       { competencyId: b.id, relatedId: a.id },
