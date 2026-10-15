@@ -11,6 +11,7 @@ import { getDb } from '@hubium/db';
 import { log } from '@hubium/log';
 import { shutdownTelemetry, startTelemetry } from '@hubium/telemetry';
 import type { JobHandlerDef } from './handlers.ts';
+import { dropStaleSchedules, runBatch } from './queues.ts';
 import { allHandlers } from './registry.ts';
 
 // Worker process: runs pg-boss consumers and cron schedules for the queues listed in
@@ -60,22 +61,13 @@ async function main() {
       await boss.updateQueue(def.name, { deleteAfterSeconds: KEEP_SECONDS });
     await boss.work(def.name, { batchSize: def.batchSize ?? 1 }, async (batch) => {
       if (batch.length === 1) return run(def, batch[0]!);
-      // A batch is settled job by job: one failure must not retry (and so repeat, e.g.
-      // re-send) the jobs that already succeeded.
-      for (const job of batch) {
-        try {
-          const out = await run(def, job);
-          await boss.complete(def.name, job.id, (out ?? null) as object | null);
-        } catch (e) {
-          await boss.fail(def.name, job.id, {
-            message: e instanceof Error ? e.message : String(e),
-          });
-        }
-      }
+      await runBatch(boss, def, batch, (job) => run(def, job));
     });
     if (def.cron) await boss.schedule(def.name, def.cron, {}, { tz: 'UTC' });
     logger.debug({ job: def.name, cron: def.cron }, 'handler registered');
   }
+  const dropped = await dropStaleSchedules(boss, allHandlers);
+  if (dropped.length) logger.info({ jobs: dropped }, 'schedules without a handler removed');
   healthy = true;
   logger.info(
     { queues: roles, version: process.env.HUBIUM_VERSION, commit: process.env.HUBIUM_COMMIT },
@@ -84,6 +76,8 @@ async function main() {
 }
 
 const port = Number(process.env.WORKER_HEALTH_PORT ?? 3001);
+// on this machine only, like the web server of a native installation
+const host = process.env.WORKER_HEALTH_HOST ?? '127.0.0.1';
 createServer((req, res) => {
   if (req.url === '/healthz') {
     res.writeHead(healthy ? 200 : 503, { 'content-type': 'application/json' });
@@ -91,7 +85,7 @@ createServer((req, res) => {
     return;
   }
   res.writeHead(404).end();
-}).listen(port);
+}).listen(port, host);
 
 async function shutdown(signal: string) {
   logger.info({ signal }, 'worker stopping');
