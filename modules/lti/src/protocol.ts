@@ -182,7 +182,7 @@ export interface MessageHint {
 const hmac = (v: string) =>
   createHmac('sha256', `lti-hint:${secret()}`).update(v).digest('base64url');
 
-export function signHint(h: Omit<MessageHint, 'e'>, ttlSec = 600): string {
+export function signHint(h: Omit<MessageHint, 'e'>, ttlSec = 300): string {
   const data = Buffer.from(
     JSON.stringify({ ...h, e: Math.floor(Date.now() / 1000) + ttlSec }),
   ).toString('base64url');

@@ -368,6 +368,11 @@ async function handleAuth(ctx: ModuleCtx, req: Request) {
   if (ctx.actor.kind === 'user' && ctx.actor.userId !== hint.u)
     return back('login_required', 'User mismatch');
   if (!(await claimNonce(ctx.db, `auth:${nonce}`))) return back('invalid_request', 'nonce reused');
+  // the hint is the only proof of who launches (the frame has no session cookie): it works
+  // once, or anyone who saw it (it is in the tool's logs) could take more id_tokens with it
+  const hintKey = createHash('sha256').update(p.get('lti_message_hint')!).digest('base64url');
+  if (!(await claimNonce(ctx.db, `hint:${hintKey}`)))
+    return back('invalid_request', 'Invalid or expired launch');
   const { claims } = await idTokenClaims(ctx, hint);
   const idToken = await signPlatformJwt(
     ctx.db,

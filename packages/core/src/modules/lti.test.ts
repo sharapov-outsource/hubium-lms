@@ -133,6 +133,11 @@ describe('mod-lti (LTI 1.3 platform)', () => {
     const first = await launch(f.users.student1!);
     const again = await http(f.users.student1!, 'POST', 'auth', { body: first.params.toString() });
     expect(await again.text()).toContain('nonce reused');
+    // a launch's hint works once: with a fresh nonce it gives no second id_token
+    const reused = new URLSearchParams(first.params);
+    reused.set('nonce', 'n-another');
+    const second = await http(f.users.student1!, 'POST', 'auth', { body: reused.toString() });
+    expect(await second.text()).toContain('Invalid or expired launch');
     const bad = new URLSearchParams(first.params);
     bad.set('redirect_uri', 'https://evil.test/');
     expect((await http(f.users.student1!, 'POST', 'auth', { body: bad.toString() })).status).toBe(
