@@ -31,6 +31,7 @@ import { ActionForm, FormField, SubmitButton } from '@/components/action-form';
 import { CommandButton } from '@/components/confirm-button';
 import { RevokeButton } from '@/components/revoke-button';
 import {
+  awardBadgeAgainAction,
   deleteBadgeAction,
   markBadgeAction,
   revokeBadgeAwardAction,
@@ -56,6 +57,8 @@ async function StatusBadge({ status }: { status: 'DRAFT' | 'ACTIVE' | 'ARCHIVED'
 }
 
 /** The badges of a course or the site: managers see all of them, others what is on offer. */
+const expired = (a: { expiresAt: Date | null }) => !!a.expiresAt && a.expiresAt < new Date();
+
 export async function BadgeList({ courseId }: { courseId: string | null }) {
   const ctx = await getContext();
   const [data, t, locale, format] = await Promise.all([
@@ -354,14 +357,14 @@ export async function BadgeView({
                               <Badge variant="destructive" title={a.revokedReason ?? undefined}>
                                 {t('revoked')}
                               </Badge>
-                            ) : a.expiresAt && a.expiresAt < new Date() ? (
+                            ) : expired(a) ? (
                               <Badge variant="warning">{t('expired')}</Badge>
                             ) : (
                               <Badge variant="success">{t('valid')}</Badge>
                             )}
                           </Td>
                           <Td className="text-right">
-                            {d.award && !a.revokedAt ? (
+                            {d.award && !a.revokedAt && !expired(a) ? (
                               <RevokeButton
                                 action={revokeBadgeAwardAction}
                                 hidden={{ awardId: a.id, ...(courseId ? { courseId } : {}) }}
@@ -370,6 +373,15 @@ export async function BadgeView({
                                 reasonLabel={t('revokeReason')}
                                 done={t('revokedDone')}
                               />
+                            ) : d.award && d.badge.status === 'ACTIVE' ? (
+                              <CommandButton
+                                size="sm"
+                                variant="secondary"
+                                run={awardBadgeAgainAction.bind(null, courseId, a.id)}
+                                success={t('awardedAgain')}
+                              >
+                                {t('awardAgain')}
+                              </CommandButton>
                             ) : null}
                           </Td>
                         </Tr>

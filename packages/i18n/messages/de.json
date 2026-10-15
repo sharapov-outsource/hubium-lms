@@ -2263,6 +2263,8 @@
     "revoke": "Widerrufen",
     "revokeReason": "Grund (für Prüfende sichtbar)",
     "revokedDone": "Auszeichnung widerrufen",
+    "awardAgain": "Erneut verleihen",
+    "awardedAgain": "Auszeichnung erneut verliehen",
     "revoked": "Widerrufen",
     "expired": "Abgelaufen",
     "valid": "Gültig",

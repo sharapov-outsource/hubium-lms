@@ -1,6 +1,7 @@
 'use server';
 
 import {
+  awardBadgeAgain,
   checkBadgeImage,
   deleteBadge,
   markBadge,
@@ -90,6 +91,15 @@ export async function markBadgeAction(fd: FormData) {
     const r = await markBadge.run(ctx, { badgeId: v.badgeId ?? '', userId });
     revalidatePath(pathOf(v.courseId), 'layout');
     return r;
+  });
+}
+
+/** Gives a revoked or expired award again. */
+export async function awardBadgeAgainAction(courseId: string | null, awardId: string) {
+  return runAction(async () => {
+    await awardBadgeAgain.run(await getContext(), { awardId });
+    revalidatePath(pathOf(courseId), 'layout');
+    return null;
   });
 }
 

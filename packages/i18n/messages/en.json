@@ -2264,6 +2264,8 @@
     "revoke": "Revoke",
     "revokeReason": "Reason (shown to whoever checks it)",
     "revokedDone": "Badge revoked",
+    "awardAgain": "Award again",
+    "awardedAgain": "Badge awarded again",
     "revoked": "Revoked",
     "expired": "Expired",
     "valid": "Valid",

@@ -355,34 +355,47 @@ async function recipientOf(tx: Tx, userId: string) {
     : { recipientType: 'id', recipientIdentity: `urn:uuid:${userId}` };
 }
 
-/** Awards the badge when the learner has earned it and does not have it. */
+const isValid = (a: { revokedAt: Date | null; expiresAt: Date | null }, now: Date) =>
+  !a.revokedAt && !(a.expiresAt && a.expiresAt <= now);
+
+/**
+ * Awards the badge when the learner has earned it and does not have it. A revoked or expired
+ * award is given again only with `again`, when someone awards it by hand: a revoke is a
+ * decision that earning the badge once more does not undo.
+ */
 export async function awardIfEarned(
   tx: Tx,
   badge: Badge,
   userId: string,
-  opts: { now?: Date; awardedById?: string | null } = {},
+  opts: { now?: Date; awardedById?: string | null; again?: boolean } = {},
 ): Promise<boolean> {
   if (badge.status !== 'ACTIVE') return false;
-  if (await tx.badgeAward.findUnique({ where: { badgeId_userId: { badgeId: badge.id, userId } } }))
-    return false;
+  const now = opts.now ?? new Date();
+  const had = await tx.badgeAward.findUnique({
+    where: { badgeId_userId: { badgeId: badge.id, userId } },
+  });
+  if (had && (!opts.again || isValid(had, now))) return false;
   const c = checkCriteria(badge.criteria, !badge.courseId);
   if (!criteriaMet(c, await factsFor(tx, badge, c, userId), badge.courseId)) return false;
   if (!(await mayEarn(tx, badge, userId))) return false;
-  const now = opts.now ?? new Date();
   const expiresAt = badge.expiresAfterDays
     ? new Date(now.getTime() + badge.expiresAfterDays * 86_400_000)
     : badge.expiresAt;
-  const award = await tx.badgeAward.create({
-    data: {
-      badgeId: badge.id,
-      userId,
-      issuedAt: now,
-      expiresAt,
-      salt: randomBytes(12).toString('hex'),
-      awardedById: opts.awardedById ?? null,
-      ...(await recipientOf(tx, userId)),
-    },
-  });
+  const data = {
+    issuedAt: now,
+    expiresAt,
+    awardedById: opts.awardedById ?? null,
+    ...(await recipientOf(tx, userId)),
+  };
+  // given again, the award keeps its address (and its salt), and stands once more
+  const award = had
+    ? await tx.badgeAward.update({
+        where: { id: had.id },
+        data: { ...data, revokedAt: null, revokedReason: null },
+      })
+    : await tx.badgeAward.create({
+        data: { ...data, badgeId: badge.id, userId, salt: randomBytes(12).toString('hex') },
+      });
   await notifyUsers(tx, [userId], {
     type: 'badge.awarded',
     title: { key: 'notifications.text.badgeAwarded', values: { name: badge.name } },
@@ -396,7 +409,7 @@ export async function awardIfEarned(
     actorId: opts.awardedById ?? null,
     courseId: badge.courseId,
     relatedUserId: userId,
-    data: { badgeId: badge.id, awardId: award.id },
+    data: { badgeId: badge.id, awardId: award.id, ...(had ? { again: true } : {}) },
   });
   return true;
 }
@@ -511,8 +524,40 @@ export const markBadge = defineOperation({
     const awarded = await awardIfEarned(ctx.tx, badge, userId, {
       now: ctx.now,
       awardedById: ctx.perm.userId,
+      again: true,
     });
     return { awarded };
+  },
+});
+
+/** Gives a revoked or expired award again, when its learner still meets the criteria. */
+export const awardBadgeAgain = defineOperation({
+  name: 'badge.awardAgain',
+  input: z.object({ awardId: z.string().uuid() }),
+  async authorize(ctx, i) {
+    const a = await ctx.db.badgeAward.findUnique({
+      where: { id: i.awardId },
+      include: { badge: { select: { courseId: true } } },
+    });
+    if (!a) throw new NotFoundError('Award');
+    await requireAward(ctx, a.badge.courseId);
+  },
+  async handler(ctx, { awardId }) {
+    const a = await ctx.tx.badgeAward.findUniqueOrThrow({
+      where: { id: awardId },
+      include: { badge: true },
+    });
+    if (isValid(a, ctx.now)) throw new ValidationError({ awardId: ['The badge stands already'] });
+    if (a.badge.status !== 'ACTIVE')
+      throw new ValidationError({ awardId: ['The badge is not active'] });
+    const awarded = await awardIfEarned(ctx.tx, a.badge, a.userId, {
+      now: ctx.now,
+      awardedById: ctx.perm.userId,
+      again: true,
+    });
+    if (!awarded)
+      throw new ValidationError({ awardId: ['This person does not meet the criteria now'] });
+    return { id: awardId };
   },
 });
 
@@ -612,8 +657,9 @@ export async function badgeDetail(ctx: RequestContext, id: string) {
       ? await ctx.db.user.findMany({
           where: {
             id: {
+              // a revoked or expired award can be given again
               in: (await courseLearners(ctx.db, b.courseId)).filter(
-                (u) => !awards.some((a) => a.userId === u),
+                (u) => !awards.some((a) => a.userId === u && isValid(a, ctx.now)),
               ),
             },
           },

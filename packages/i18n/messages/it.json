@@ -2263,6 +2263,8 @@
     "revoke": "Revoca",
     "revokeReason": "Motivo (visibile a chi lo verifica)",
     "revokedDone": "Badge revocato",
+    "awardAgain": "Assegna di nuovo",
+    "awardedAgain": "Badge assegnato di nuovo",
     "revoked": "Revocato",
     "expired": "Scaduto",
     "valid": "Valido",

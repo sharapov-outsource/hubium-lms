@@ -6,8 +6,10 @@ import { toggleManualCompletion } from '../completion/completion.ts';
 import { ForbiddenError } from '../errors.ts';
 import {
   assertionDocument,
+  awardBadgeAgain,
   BADGES_REVIEW_JOB,
   badgeClassDocument,
+  badgeDetail,
   bakedBadgeImage,
   deleteBadge,
   markBadge,
@@ -157,6 +159,42 @@ describe('badges', () => {
       body: { revoked: true, revocationReason: 'Ошибка' },
     });
     expect(await bakedBadgeImage(t.db, ORIGIN, award.id)).toBeNull();
+
+    // a revoke stays until someone gives the badge back: earning it again does not undo it
+    await toggleManualCompletion.run(student, { activityId: a.id, done: false });
+    await toggleManualCompletion.run(student, { activityId: a.id, done: true });
+    expect(await reviewBadge(t.db, id)).toBe(0);
+    expect(
+      (await t.db.badgeAward.findUniqueOrThrow({ where: { id: award.id } })).revokedAt,
+    ).not.toBeNull();
+    await expect(awardBadgeAgain.run(student, { awardId: award.id })).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    const later = new Date(Date.now() + 60_000);
+    await awardBadgeAgain.run({ ...teacher, now: later }, { awardId: award.id });
+    const again = await t.db.badgeAward.findUniqueOrThrow({ where: { id: award.id } });
+    expect(again).toMatchObject({ revokedAt: null, revokedReason: null, issuedAt: later });
+    expect(again.expiresAt).toEqual(new Date(later.getTime() + 30 * 86_400_000));
+    expect((await assertionDocument(t.db, ORIGIN, award.id))?.status).toBe(200);
+    expect(
+      await t.db.notification.count({
+        where: { userId: f.users.student1!, type: 'badge.awarded' },
+      }),
+    ).toBe(2);
+    // a valid award is not given twice; an expired one is given again, as a revoked one
+    await expect(awardBadgeAgain.run(teacher, { awardId: award.id })).rejects.toMatchObject({
+      fieldErrors: { awardId: [expect.any(String)] },
+    });
+    await t.db.badgeAward.update({
+      where: { id: award.id },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    // the teacher's request comes now, after the award has run out
+    await awardBadgeAgain.run({ ...teacher, now: new Date() }, { awardId: award.id });
+    expect(
+      (await t.db.badgeAward.findUniqueOrThrow({ where: { id: award.id } })).expiresAt! >
+        new Date(),
+    ).toBe(true);
   });
 
   it('a badge awarded by hand needs each of its roles', async () => {
@@ -193,6 +231,18 @@ describe('badges', () => {
     });
     const award = await t.db.badgeAward.findFirstOrThrow({ where: { badgeId: id } });
     expect(award.awardedById).toBe(admin.perm.userId);
+    // revoked, the learner can be awarded it by hand again
+    await revokeBadgeAward.run(admin, { awardId: award.id, reason: 'Ошибка' });
+    expect((await badgeDetail(admin, id)).awardable.map((u) => u.id)).toContain(f.users.student2);
+    expect(await markBadge.run(admin, { badgeId: id, userId: f.users.student2! })).toEqual({
+      awarded: true,
+    });
+    expect(await t.db.badgeAward.findUniqueOrThrow({ where: { id: award.id } })).toMatchObject({
+      revokedAt: null,
+    });
+    expect((await badgeDetail(admin, id)).awardable.map((u) => u.id)).not.toContain(
+      f.users.student2,
+    );
     // only the course's learners
     await expect(
       markBadge.run(admin, { badgeId: id, userId: f.users.teacher! }),
