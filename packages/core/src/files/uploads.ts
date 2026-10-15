@@ -3,6 +3,7 @@ import path from 'node:path';
 import type { Db, Prisma } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
+import { checkFileFromPath } from './files.ts';
 import { fsStorageRoot } from './storage.ts';
 
 // Resumable uploads (tus-like): the client creates a session, appends chunks at the
@@ -120,6 +121,34 @@ export async function appendUploadChunk(
   return { received: next };
 }
 
+/** An upload of this user that is finished and not used yet. */
+async function finished(db: Tx, userId: string, id: string) {
+  const s = await own(db, userId, id);
+  if (s.completedAt) throw new ValidationError({ id: [msg('errors.files.uploadUsed')] });
+  if (s.received !== s.size)
+    throw new ValidationError({ id: [msg('errors.files.uploadIncomplete')] });
+  return s;
+}
+
+/**
+ * Everything storing a finished upload checks (size, type, malware), done before what it
+ * belongs to is made, as checkFile does for a file sent with a form.
+ */
+export async function checkUpload(
+  db: Tx,
+  userId: string,
+  id: string,
+  opts: { maxBytes?: number; allowedTypes?: RegExp } = {},
+): Promise<void> {
+  const s = await finished(db, userId, id);
+  await checkFileFromPath(db, {
+    filePath: tempPath(id),
+    name: s.name,
+    mimeType: s.mimeType,
+    ...opts,
+  });
+}
+
 /** Hands a finished upload to a consumer; the temp file is removed afterwards. */
 export async function consumeUpload<T>(
   db: Tx,
@@ -127,10 +156,7 @@ export async function consumeUpload<T>(
   id: string,
   use: (file: { path: string; name: string; mimeType: string; size: number }) => Promise<T>,
 ): Promise<T> {
-  const s = await own(db, userId, id);
-  if (s.completedAt) throw new ValidationError({ id: [msg('errors.files.uploadUsed')] });
-  if (s.received !== s.size)
-    throw new ValidationError({ id: [msg('errors.files.uploadIncomplete')] });
+  const s = await finished(db, userId, id);
   const out = await use({
     path: tempPath(id),
     name: s.name,

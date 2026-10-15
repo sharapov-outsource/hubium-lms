@@ -60,6 +60,7 @@ import {
   ValidationError,
 } from '@hubium/core';
 import { checkFile, storeFile } from '@hubium/core/files/files';
+import { checkUpload } from '@hubium/core/files/uploads';
 import { duplicateActivity } from '@hubium/interchange';
 import { msg } from '@hubium/module-sdk';
 import { revalidatePath } from 'next/cache';
@@ -70,6 +71,7 @@ import { safePath } from '@/lib/safe-path';
 import { formToObject, runAction } from '../action';
 import { courseFieldViews } from '../course-fields';
 import { db } from '../db';
+import { formFiles } from '../form-files';
 import { freshContext, getContext, VIEW_AS_COOKIE } from '../session';
 
 const bool = (v: FormDataEntryValue | null) => v === 'on' || v === 'true' || v === '1';
@@ -98,9 +100,12 @@ function courseFormValues(fd: FormData) {
 const COVER = { maxBytes: 5 * 1024 * 1024, allowedTypes: /^image\/(png|jpeg|webp|gif)$/ };
 
 /** Checks a file of the form, its refusal shown at the form's own input. */
-async function checkFormFile(field: string, file: Parameters<typeof checkFile>[1]) {
+async function checkFormFile(
+  field: string,
+  file: Parameters<typeof checkFile>[1] | (() => Promise<void>),
+) {
   try {
-    await checkFile(db, file);
+    await (typeof file === 'function' ? file() : checkFile(db, file));
   } catch (e) {
     if (e instanceof ValidationError)
       throw new ValidationError({ [field]: Object.values(e.fieldMessages ?? {}).flat() });
@@ -290,30 +295,39 @@ const ACTIVITY_FILE_BYTES = 200 * 1024 * 1024;
 /** The form's files, checked (size, type, malware) before the activity is saved: a file the
  *  check refuses leaves no activity without it behind, to be made twice on the next try. */
 async function checkActivityFiles(fd: FormData) {
-  for (const [k, v] of fd.entries())
-    if (k.startsWith('files.') && k !== 'files.remove' && v instanceof File && v.size > 0)
-      await checkFormFile(k, {
-        name: v.name,
-        mimeType: v.type,
-        data: Buffer.from(await v.arrayBuffer()),
+  const ctx = await getContext();
+  for (const f of formFiles(fd, isActivityFile)) {
+    if (f.file)
+      await checkFormFile(f.field, {
+        name: f.file.name,
+        mimeType: f.file.type,
+        data: Buffer.from(await f.file.arrayBuffer()),
         maxBytes: ACTIVITY_FILE_BYTES,
       });
+    else
+      await checkFormFile(f.field, () =>
+        checkUpload(db, ctx.perm.userId ?? '', f.uploadId, { maxBytes: ACTIVITY_FILE_BYTES }),
+      );
+  }
 }
+
+const isActivityFile = (k: string) => k.startsWith('files.') && k !== 'files.remove';
 
 async function saveActivityFiles(activityId: string, fd: FormData) {
   const ctx = await getContext();
   const mctx = buildModuleCtx(ctx);
   const remove = fd.getAll('files.remove').map(String);
-  for (const [k, v] of fd.entries()) {
-    if (!k.startsWith('files.') || k === 'files.remove' || !(v instanceof File) || v.size === 0)
-      continue;
-    const area = k.slice('files.'.length);
-    await mctx.files.store(
-      activityId,
-      area,
-      { name: v.name, mimeType: v.type, data: Buffer.from(await v.arrayBuffer()) },
-      { maxBytes: ACTIVITY_FILE_BYTES },
-    );
+  for (const f of formFiles(fd, isActivityFile)) {
+    const area = f.field.slice('files.'.length);
+    if (f.file)
+      await mctx.files.store(
+        activityId,
+        area,
+        { name: f.file.name, mimeType: f.file.type, data: Buffer.from(await f.file.arrayBuffer()) },
+        { maxBytes: ACTIVITY_FILE_BYTES },
+      );
+    else
+      await mctx.files.storeUpload(activityId, area, f.uploadId, { maxBytes: ACTIVITY_FILE_BYTES });
   }
   if (remove.length) {
     const files = await db.file.findMany({ where: { id: { in: remove }, contextId: activityId } });

@@ -226,18 +226,12 @@ export async function storeFile(db: Tx, input: StoreFileInput): Promise<File> {
   });
 }
 
-/**
- * Stores a file from a local path without loading it into memory (large uploads):
- * hashes it while streaming, deduplicates by content and streams it to storage.
- */
-export async function storeFileFromPath(
-  db: Tx,
-  input: Omit<StoreFileInput, 'data'> & {
-    filePath: string;
-    /** false for a file the site made of content it holds, all of it scanned on upload */
-    scan?: boolean;
-  },
-): Promise<File> {
+type PathCheck = Pick<StoreFileInput, 'name' | 'mimeType' | 'maxBytes' | 'allowedTypes'> & {
+  filePath: string;
+};
+
+/** checkLimits of a file on disk, read in a stream. */
+async function checkPathLimits(input: PathCheck) {
   const name = sanitizeFilename(input.name);
   const { size } = await stat(input.filePath);
   if (input.maxBytes && size > input.maxBytes) {
@@ -258,7 +252,28 @@ export async function storeFileFromPath(
   }
   const hash = createHash('sha256');
   for await (const chunk of createReadStream(input.filePath)) hash.update(chunk as Buffer);
-  const sha256 = hash.digest('hex');
+  return { name, mimeType, sha256: hash.digest('hex'), size };
+}
+
+/** checkFile of a file on disk (a finished resumable upload). */
+export async function checkFileFromPath(db: Tx, input: PathCheck): Promise<void> {
+  const meta = await checkPathLimits(input);
+  await storeBlob(db, { filePath: input.filePath }, meta);
+}
+
+/**
+ * Stores a file from a local path without loading it into memory (large uploads):
+ * hashes it while streaming, deduplicates by content and streams it to storage.
+ */
+export async function storeFileFromPath(
+  db: Tx,
+  input: Omit<StoreFileInput, 'data'> & {
+    filePath: string;
+    /** false for a file the site made of content it holds, all of it scanned on upload */
+    scan?: boolean;
+  },
+): Promise<File> {
+  const { name, mimeType, sha256, size } = await checkPathLimits(input);
   const blob = await storeBlob(
     db,
     { filePath: input.filePath },

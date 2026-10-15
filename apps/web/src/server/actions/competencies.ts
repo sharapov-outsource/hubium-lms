@@ -39,7 +39,8 @@ import {
   unlinkPlan,
   ValidationError,
 } from '@hubium/core';
-import { checkFile, storeFile } from '@hubium/core/files/files';
+import { checkFile, storeFile, storeFileFromPath } from '@hubium/core/files/files';
+import { checkUpload, consumeUpload, getUpload } from '@hubium/core/files/uploads';
 import { SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { createTranslator } from '@hubium/i18n/packs';
 import { msg } from '@hubium/module-sdk';
@@ -48,6 +49,7 @@ import { redirect } from 'next/navigation';
 import { getLocale } from 'next-intl/server';
 import { formToObject, runAction } from '../action';
 import { db } from '../db';
+import { formFiles } from '../form-files';
 import { getContext } from '../session';
 
 const ADMIN = '/admin/competencies';
@@ -523,19 +525,27 @@ export async function saveUserEvidenceAction(fd: FormData) {
   return runAction(async () => {
     const v = formToObject(fd);
     const ctx = await getContext();
-    const files = fd.getAll('files').filter((f): f is File => f instanceof File && f.size > 0);
-    if (files.some((f) => f.size > EVIDENCE_MAX_BYTES))
-      throw new ValidationError({ files: [msg('errors.competencies.evidenceTooLarge')] });
+    const files = formFiles(fd, (k) => k === 'files');
+    const userId = ctx.perm.userId ?? '';
+    for (const f of files) {
+      const size = f.file ? f.file.size : (await getUpload(db, userId, f.uploadId)).size;
+      if (size > EVIDENCE_MAX_BYTES)
+        throw new ValidationError({ files: [msg('errors.competencies.evidenceTooLarge')] });
+    }
     // checked (malware too) before the evidence is saved, or a refused file would leave it
     // saved without its files, and the next try would save it twice
-    const uploads = await Promise.all(
-      files.map(async (f) => ({
-        name: f.name,
-        mimeType: f.type,
-        data: Buffer.from(await f.arrayBuffer()),
-      })),
-    );
-    for (const u of uploads) await checkFile(db, u);
+    const sent: { name: string; mimeType: string; data: Buffer }[] = [];
+    for (const f of files) {
+      if (f.file) {
+        const u = {
+          name: f.file.name,
+          mimeType: f.file.type,
+          data: Buffer.from(await f.file.arrayBuffer()),
+        };
+        await checkFile(db, u);
+        sent.push(u);
+      } else await checkUpload(db, userId, f.uploadId);
+    }
     const r = await saveUserEvidence.run(ctx, {
       id: v.id || undefined,
       userId: v.userId || undefined,
@@ -543,15 +553,19 @@ export async function saveUserEvidenceAction(fd: FormData) {
       description: v.description ?? '',
       url: v.url ?? '',
     });
-    for (const u of uploads)
-      await storeFile(db, {
-        contextId: SYSTEM_CONTEXT_ID,
-        component: USER_EVIDENCE_COMPONENT,
-        area: 'userevidence',
-        itemId: r.id,
-        ...u,
-        uploadedById: ctx.perm.userId ?? null,
-      });
+    const where = {
+      contextId: SYSTEM_CONTEXT_ID,
+      component: USER_EVIDENCE_COMPONENT,
+      area: 'userevidence',
+      itemId: r.id,
+      uploadedById: ctx.perm.userId ?? null,
+    };
+    for (const u of sent) await storeFile(db, { ...where, ...u });
+    for (const f of files)
+      if (!f.file)
+        await consumeUpload(db, userId, f.uploadId, (u) =>
+          storeFileFromPath(db, { ...where, name: u.name, mimeType: u.mimeType, filePath: u.path }),
+        );
     for (const competencyId of ids(v.competencyIds))
       await linkUserEvidence.run(ctx, { id: r.id, competencyId, linked: true });
     revalidatePath('/evidence');

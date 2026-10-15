@@ -1,11 +1,12 @@
 'use client';
 
 import type { ActionResult } from '@hubium/core/operation';
-import { FieldErrorsContext } from '@hubium/module-sdk/form';
+import { FieldErrorsContext, useFailureText } from '@hubium/module-sdk/form';
 import { Alert, Button, type ButtonProps, Field, Input } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { useTranslations } from 'next-intl';
 import { createContext, type ReactNode, useContext, useRef, useState, useTransition } from 'react';
+import { withUploads } from '@/lib/form-uploads';
 
 type AnyResult = ActionResult<unknown> | null;
 const FormState = createContext<{ result: AnyResult; pending: boolean }>({
@@ -63,6 +64,7 @@ export function ActionForm<T>({
   id?: string;
 }) {
   const t = useTranslations('errors');
+  const failed = useFailureText();
   const ref = useRef<HTMLFormElement>(null);
   const [result, setResult] = useState<AnyResult>(null);
   /** Errors no field of the form shows: shown over the form. */
@@ -74,7 +76,14 @@ export function ActionForm<T>({
     // the pressed button's name and value come along, as with a native submit
     const fd = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
     start(async () => {
-      const r = await action(fd);
+      let r: ActionResult<T>;
+      try {
+        r = await action(await withUploads(fd));
+      } catch (e) {
+        // no answer (a lost connection, a refused upload): the form keeps what was entered
+        toast.error(failed(e));
+        return;
+      }
       // Server actions that redirect never resolve here.
       if (!r) return;
       setResult(r);

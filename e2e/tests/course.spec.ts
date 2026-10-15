@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { newCourse, openSelfEnrolment } from './courses';
+import { addActivity, newCourse, openSelfEnrolment } from './courses';
 import { deleteCourse, sql } from './db';
 import {
   ADMIN,
@@ -387,6 +387,32 @@ test('a guest sees the course and enrols from the notice over it', async ({ page
       [courseId],
     );
     expect(enrolled!.n).toBe(1);
+  } finally {
+    if (courseId) await deleteCourse(courseId);
+  }
+});
+
+test('an activity takes files larger than a form sends at once', async ({ page }) => {
+  let courseId = '';
+  try {
+    await login(page, ADMIN.login, ADMIN.password);
+    courseId = await newCourse(page, `Файлы ${stamp}`, `FILES-${stamp}`);
+    // more than a server action's body: the form uploads it ahead and sends its id
+    const big = Buffer.alloc(12 * 1024 * 1024, 'a');
+    const id = await addActivity(page, courseId, /^Файлы/, 'Материалы', async () => {
+      await page.locator('#f-files-content').setInputFiles([
+        { name: 'big.txt', mimeType: 'text/plain', buffer: big },
+        { name: 'small.txt', mimeType: 'text/plain', buffer: Buffer.from('small') },
+      ]);
+    });
+    const files = await sql<{ name: string; size: number }>(
+      `SELECT name, size FROM "File" WHERE "contextId" = $1 ORDER BY name`,
+      [id],
+    );
+    expect(files.map((f) => [f.name, Number(f.size)])).toEqual([
+      ['big.txt', big.length],
+      ['small.txt', 5],
+    ]);
   } finally {
     if (courseId) await deleteCourse(courseId);
   }
