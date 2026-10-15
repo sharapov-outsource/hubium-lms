@@ -1,0 +1,100 @@
+{
+  "glossary": {
+    "name": "Glossario",
+    "description": "Termini e definizioni scritti da docenti e studenti, collegati dai testi del corso",
+    "settings": {
+      "approvalRequired": "Le voci degli studenti attendono l'approvazione",
+      "allowEditing": "Gli autori possono modificare ed eliminare le proprie voci",
+      "allowDuplicates": "Lo stesso concetto può essere inserito più volte",
+      "autoLink": "Collega i concetti nei testi del corso alle loro voci",
+      "displayFormat": "Formato di visualizzazione",
+      "formats": {
+        "dictionary": "Dizionario semplice",
+        "full": "Con autore e data"
+      },
+      "entriesPerPage": "Voci per pagina"
+    },
+    "completionEntries": "Voci approvate che lo studente deve scrivere",
+    "search": "Cerca",
+    "searchLabel": "Cerca nel glossario",
+    "addEntry": "Aggiungi voce",
+    "editEntry": "Modifica voce",
+    "cannotEdit": "Non puoi modificare questa voce.",
+    "views": "Voci",
+    "allEntries": "Tutte le voci",
+    "pendingTab": "In attesa di approvazione ({n})",
+    "letters": "Per lettera",
+    "all": "Tutte",
+    "categories": "Categorie",
+    "allCategories": "Tutte le categorie",
+    "found": "{n, plural, =0 {Nessun risultato.} one {# voce trovata.} other {# voci trovate.}}",
+    "resetFilters": "Mostra tutto",
+    "empty": "Il glossario non ha ancora voci.",
+    "emptyWriter": "Il glossario non ha ancora voci. Aggiungi la prima.",
+    "notFound": "La voce non è nel glossario o non è disponibile per te.",
+    "awaiting": "In attesa di approvazione",
+    "alsoCalled": "Anche: {words}",
+    "byline": "{name}, {time}",
+    "updated": "modificata il {time}",
+    "formerUser": "Ex utente",
+    "pagination": "Pagine",
+    "prev": "Precedente",
+    "next": "Successiva",
+    "pageOf": "Pagina {page} di {pages}",
+    "entryTools": "Azioni sulla voce {concept}",
+    "approve": "Approva",
+    "unapprove": "Ritira l'approvazione",
+    "approved": "Voce approvata",
+    "unapproved": "Approvazione ritirata",
+    "deleteConfirm": "Eliminare la voce «{concept}»?",
+    "deleted": "Voce eliminata",
+    "entry": {
+      "concept": "Concetto",
+      "definition": "Definizione",
+      "aliases": "Altre forme del concetto",
+      "aliasesHint": "Una per riga o separate da virgole; anche queste vengono collegate e trovate",
+      "categories": "Categorie",
+      "categoriesHint": "Separate da virgole",
+      "categoriesInUse": "Separate da virgole. Esistenti: {list}",
+      "linking": "Collegamenti",
+      "autoLink": "Collega questo concetto nei testi del corso",
+      "caseSensitive": "Distingui maiuscole e minuscole",
+      "fullMatch": "Solo parole intere",
+      "saved": "Voce salvata",
+      "savedPending": "Voce salvata; gli altri la vedranno quando un docente l'avrà approvata"
+    },
+    "ratings": {
+      "title": "Valutazioni delle voci",
+      "aggregate": "Voto dalle valutazioni",
+      "aggregates": {
+        "none": "Nessuna valutazione",
+        "average": "Media delle valutazioni",
+        "count": "Numero di valutazioni",
+        "max": "Valutazione massima",
+        "min": "Valutazione minima",
+        "sum": "Somma delle valutazioni"
+      },
+      "type": "Tipo di voto",
+      "points": "Punti",
+      "max": "Valutazione massima in punti",
+      "pass": "Voto di sufficienza per le valutazioni",
+      "from": "Valuta le voci scritte dal",
+      "to": "Valuta le voci scritte fino al",
+      "hint": "I docenti valutano le voci approvate; nessuno valuta le proprie. Il voto di uno studente deriva dalle valutazioni delle sue voci. Disattivando le valutazioni, la loro voce nel registro viene eliminata con i voti."
+    },
+    "rating": {
+      "aggregates": {
+        "average": "Media delle valutazioni: {value}",
+        "count": "Numero di valutazioni: {value}",
+        "max": "Valutazione massima: {value}",
+        "min": "Valutazione minima: {value}",
+        "sum": "Somma delle valutazioni: {value}"
+      },
+      "count": "{n, plural, one {# valutazione} other {# valutazioni}}",
+      "yours": "La tua valutazione",
+      "rateLabel": "La tua valutazione della voce di {name}",
+      "saved": "Valutazione salvata",
+      "raters": "Chi ha valutato"
+    }
+  }
+}

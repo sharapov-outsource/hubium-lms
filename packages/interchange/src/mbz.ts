@@ -1589,6 +1589,32 @@ export async function importMbz(
               );
             break;
           }
+          case 'glossary': {
+            // the settings; entries are users' work and stay out like forum posts
+            const grading = mbzForumGrading(data, scaleOf);
+            if (num(data.scale) < 0 && !grading.ratingScaleId)
+              warnings.push(`"${name}": its scale was not in the backup: graded by points`);
+            const entries = arr(((data.entries ?? {}) as Node).entry as Node | Node[]).length;
+            if (entries)
+              warnings.push(`"${name}": entries are users' data and were left out (${entries})`);
+            await create({
+              ...base,
+              moduleKey: 'glossary',
+              settings: {
+                approvalRequired: txt(data.defaultapproval) === '0',
+                allowDuplicates: txt(data.allowduplicatedentries) === '1',
+                autoLink: txt(data.usedynalink) === '1',
+                displayFormat: txt(data.displayformat) === 'dictionary' ? 'dictionary' : 'full',
+                entriesPerPage: Math.min(200, Math.max(5, num(data.entbypage, 10) || 10)),
+                ratingAggregate: grading.ratingAggregate,
+                ratingMax: grading.ratingMax,
+                ratingScaleId: grading.ratingScaleId,
+                ratingFrom: grading.ratingFrom,
+                ratingTo: grading.ratingTo,
+              },
+            });
+            break;
+          }
           default:
             await placeholder('this activity type is not supported');
             continue;

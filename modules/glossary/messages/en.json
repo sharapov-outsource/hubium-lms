@@ -1,0 +1,100 @@
+{
+  "glossary": {
+    "name": "Glossary",
+    "description": "Terms and their definitions written by teachers and students, linked from the course's texts",
+    "settings": {
+      "approvalRequired": "Students' entries wait for approval",
+      "allowEditing": "Authors may change and delete their entries",
+      "allowDuplicates": "The same concept may be entered more than once",
+      "autoLink": "Link concepts in the course's texts to their entries",
+      "displayFormat": "Display format",
+      "formats": {
+        "dictionary": "Simple dictionary",
+        "full": "With author and date"
+      },
+      "entriesPerPage": "Entries per page"
+    },
+    "completionEntries": "Approved entries the student must write",
+    "search": "Search",
+    "searchLabel": "Search the glossary",
+    "addEntry": "Add entry",
+    "editEntry": "Change entry",
+    "cannotEdit": "You cannot change this entry.",
+    "views": "Entries",
+    "allEntries": "All entries",
+    "pendingTab": "Awaiting approval ({n})",
+    "letters": "Browse by letter",
+    "all": "All",
+    "categories": "Categories",
+    "allCategories": "All categories",
+    "found": "{n, plural, =0 {Nothing found.} one {# entry found.} other {# entries found.}}",
+    "resetFilters": "Show all",
+    "empty": "The glossary has no entries yet.",
+    "emptyWriter": "The glossary has no entries yet. Add the first one.",
+    "notFound": "The entry is not in the glossary or is not available to you.",
+    "awaiting": "Awaiting approval",
+    "alsoCalled": "Also: {words}",
+    "byline": "{name}, {time}",
+    "updated": "changed {time}",
+    "formerUser": "Former user",
+    "pagination": "Pages",
+    "prev": "Previous",
+    "next": "Next",
+    "pageOf": "Page {page} of {pages}",
+    "entryTools": "Actions with the entry {concept}",
+    "approve": "Approve",
+    "unapprove": "Withdraw approval",
+    "approved": "Entry approved",
+    "unapproved": "Approval withdrawn",
+    "deleteConfirm": "Delete the entry “{concept}”?",
+    "deleted": "Entry deleted",
+    "entry": {
+      "concept": "Concept",
+      "definition": "Definition",
+      "aliases": "Other forms of the concept",
+      "aliasesHint": "One per line or separated by commas; they are linked and found too",
+      "categories": "Categories",
+      "categoriesHint": "Separated by commas",
+      "categoriesInUse": "Separated by commas. In use: {list}",
+      "linking": "Linking",
+      "autoLink": "Link this concept in the course's texts",
+      "caseSensitive": "Match case",
+      "fullMatch": "Whole words only",
+      "saved": "Entry saved",
+      "savedPending": "Entry saved; others will see it once a teacher approves it"
+    },
+    "ratings": {
+      "title": "Entry ratings",
+      "aggregate": "Grade from ratings",
+      "aggregates": {
+        "none": "No ratings",
+        "average": "Average of ratings",
+        "count": "Count of ratings",
+        "max": "Maximum rating",
+        "min": "Minimum rating",
+        "sum": "Sum of ratings"
+      },
+      "type": "Grade type",
+      "points": "Points",
+      "max": "Maximum rating in points",
+      "pass": "Grade to pass for ratings",
+      "from": "Rate entries written from",
+      "to": "Rate entries written until",
+      "hint": "Teachers rate approved entries; nobody rates their own. The grade of a student is made from the ratings of their entries. Turning ratings off removes the gradebook item with its grades."
+    },
+    "rating": {
+      "aggregates": {
+        "average": "Average of ratings: {value}",
+        "count": "Count of ratings: {value}",
+        "max": "Maximum rating: {value}",
+        "min": "Minimum rating: {value}",
+        "sum": "Sum of ratings: {value}"
+      },
+      "count": "{n, plural, one {# rating} other {# ratings}}",
+      "yours": "Your rating",
+      "rateLabel": "Your rating of the entry by {name}",
+      "saved": "Rating saved",
+      "raters": "Who rated"
+    }
+  }
+}

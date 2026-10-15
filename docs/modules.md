@@ -1,6 +1,6 @@
 # Writing an activity module
 
-Every course activity in Hubium — page, book, choice, feedback, assignment, quiz, forum, video, SCORM, LTI — is a module built on `@hubium/module-sdk`. A module owns its settings, tables, UI and actions; core provides permissions, files, grades, completion, notifications, jobs, AI and privacy plumbing through `ctx`.
+Every course activity in Hubium — page, book, choice, feedback, glossary, assignment, quiz, forum, video, SCORM, LTI — is a module built on `@hubium/module-sdk`. A module owns its settings, tables, UI and actions; core provides permissions, files, grades, completion, notifications, jobs, AI and privacy plumbing through `ctx`.
 
 Modules **never import `@hubium/core`** (dependency-cruiser enforces it). Everything they need arrives in `ModuleCtx`.
 
@@ -76,6 +76,9 @@ Actions run in a transaction by default (`mutation: false` opts out, e.g. for sl
 | `privacy` | `export(ctx, userId)` for "Download my data", `erase(ctx, userId)` when an account is deleted |
 | `reset` | `userData(ctx, activity)` for a course reset: drop learners' work (attempts, submissions, posts, overrides) and keep the activity. Core clears grades, completion, grading forms and files in `backup.userFileAreas`, and shifts ISO dates in settings |
 | `todo` | items for the dashboard "To do" list |
+| `autoLinks(ctx, a)` | words that link to the activity's pages wherever the course's rich texts use them (the glossary's concepts); asked of each activity the viewer may open, and applied in the browser outside quizzes and the glossary itself |
+
+Ratings of items (forum posts, glossary entries) share their settings, aggregation and the rating control: `ratingFields` and `aggregateRatings` from `@hubium/module-sdk/ratings`, `RatingSettingsFields` and `RatingControl` from `@hubium/module-sdk/ratings-ui`.
 
 ## ModuleCtx
 

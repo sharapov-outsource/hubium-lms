@@ -169,6 +169,7 @@ model Activity {
   choiceAnswers      ChoiceAnswer[]
   feedbackItems      FeedbackItem[]
   feedbackResponses  FeedbackResponse[]
+  glossaryEntries    GlossaryEntry[]
   liveMeeting        LiveMeeting?
   liveAttendance     LiveAttendance[]
   liveRecordings     LiveRecording[]

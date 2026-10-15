@@ -1,0 +1,100 @@
+{
+  "glossary": {
+    "name": "Glossar",
+    "description": "Begriffe und ihre Definitionen von Lehrenden und Studierenden, verlinkt aus den Texten des Kurses",
+    "settings": {
+      "approvalRequired": "Einträge von Studierenden müssen freigegeben werden",
+      "allowEditing": "Autor/innen dürfen ihre Einträge ändern und löschen",
+      "allowDuplicates": "Derselbe Begriff darf mehrfach eingetragen werden",
+      "autoLink": "Begriffe in den Texten des Kurses mit ihren Einträgen verlinken",
+      "displayFormat": "Anzeigeformat",
+      "formats": {
+        "dictionary": "Einfaches Wörterbuch",
+        "full": "Mit Autor/in und Datum"
+      },
+      "entriesPerPage": "Einträge pro Seite"
+    },
+    "completionEntries": "Freigegebene Einträge, die Studierende schreiben müssen",
+    "search": "Suchen",
+    "searchLabel": "Im Glossar suchen",
+    "addEntry": "Eintrag hinzufügen",
+    "editEntry": "Eintrag ändern",
+    "cannotEdit": "Sie können diesen Eintrag nicht ändern.",
+    "views": "Einträge",
+    "allEntries": "Alle Einträge",
+    "pendingTab": "Nicht freigegeben ({n})",
+    "letters": "Nach Buchstaben",
+    "all": "Alle",
+    "categories": "Kategorien",
+    "allCategories": "Alle Kategorien",
+    "found": "{n, plural, =0 {Nichts gefunden.} one {# Eintrag gefunden.} other {# Einträge gefunden.}}",
+    "resetFilters": "Alle zeigen",
+    "empty": "Das Glossar hat noch keine Einträge.",
+    "emptyWriter": "Das Glossar hat noch keine Einträge. Fügen Sie den ersten hinzu.",
+    "notFound": "Der Eintrag ist nicht im Glossar oder für Sie nicht verfügbar.",
+    "awaiting": "Nicht freigegeben",
+    "alsoCalled": "Auch: {words}",
+    "byline": "{name}, {time}",
+    "updated": "geändert {time}",
+    "formerUser": "Ehemalige/r Nutzer/in",
+    "pagination": "Seiten",
+    "prev": "Zurück",
+    "next": "Weiter",
+    "pageOf": "Seite {page} von {pages}",
+    "entryTools": "Aktionen für den Eintrag {concept}",
+    "approve": "Freigeben",
+    "unapprove": "Freigabe zurückziehen",
+    "approved": "Eintrag freigegeben",
+    "unapproved": "Freigabe zurückgezogen",
+    "deleteConfirm": "Den Eintrag „{concept}“ löschen?",
+    "deleted": "Eintrag gelöscht",
+    "entry": {
+      "concept": "Begriff",
+      "definition": "Definition",
+      "aliases": "Andere Formen des Begriffs",
+      "aliasesHint": "Eine pro Zeile oder durch Kommas getrennt; auch sie werden verlinkt und gefunden",
+      "categories": "Kategorien",
+      "categoriesHint": "Durch Kommas getrennt",
+      "categoriesInUse": "Durch Kommas getrennt. Vorhanden: {list}",
+      "linking": "Verlinkung",
+      "autoLink": "Diesen Begriff in den Texten des Kurses verlinken",
+      "caseSensitive": "Groß-/Kleinschreibung beachten",
+      "fullMatch": "Nur ganze Wörter",
+      "saved": "Eintrag gespeichert",
+      "savedPending": "Eintrag gespeichert; andere sehen ihn, sobald Lehrende ihn freigeben"
+    },
+    "ratings": {
+      "title": "Bewertungen von Einträgen",
+      "aggregate": "Bewertung aus Beitragsbewertungen",
+      "aggregates": {
+        "none": "Keine Bewertungen",
+        "average": "Durchschnitt der Bewertungen",
+        "count": "Anzahl der Bewertungen",
+        "max": "Höchste Bewertung",
+        "min": "Niedrigste Bewertung",
+        "sum": "Summe der Bewertungen"
+      },
+      "type": "Bewertungstyp",
+      "points": "Punkte",
+      "max": "Höchste Bewertung in Punkten",
+      "pass": "Bestehensgrenze für Bewertungen",
+      "from": "Einträge bewerten, geschrieben ab",
+      "to": "Einträge bewerten, geschrieben bis",
+      "hint": "Lehrende bewerten freigegebene Einträge; eigene Einträge bewertet niemand. Die Bewertung von Studierenden ergibt sich aus den Bewertungen ihrer Einträge. Werden Bewertungen abgeschaltet, wird ihr Element in der Bewertungsübersicht samt Bewertungen gelöscht."
+    },
+    "rating": {
+      "aggregates": {
+        "average": "Durchschnitt der Bewertungen: {value}",
+        "count": "Anzahl der Bewertungen: {value}",
+        "max": "Höchste Bewertung: {value}",
+        "min": "Niedrigste Bewertung: {value}",
+        "sum": "Summe der Bewertungen: {value}"
+      },
+      "count": "{n, plural, one {# Bewertung} other {# Bewertungen}}",
+      "yours": "Ihre Bewertung",
+      "rateLabel": "Ihre Bewertung des Eintrags von {name}",
+      "saved": "Bewertung gespeichert",
+      "raters": "Wer bewertet hat"
+    }
+  }
+}

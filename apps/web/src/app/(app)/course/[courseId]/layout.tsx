@@ -1,8 +1,15 @@
-import { aiFeaturesFor, categoryPath, getCourseAccess, roleName } from '@hubium/core';
+import {
+  aiFeaturesFor,
+  categoryPath,
+  courseAutoLinks,
+  getCourseAccess,
+  roleName,
+} from '@hubium/core';
 import { Alert, Badge } from '@hubium/ui';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
+import { AutoLinks } from '@/components/auto-links';
 import { db } from '@/server/db';
 import { courseName, sectionTitle } from '@/server/page-title';
 import { getContext, getSwitchedRole, requireUser } from '@/server/session';
@@ -48,6 +55,7 @@ export default async function CourseLayout({
   const roleLabel = (r: { name: unknown; shortName: string }) => roleName(r, locale);
   const base = `/course/${courseId}`;
   const ai = access.canView ? await aiFeaturesFor(ctx, courseId) : null;
+  const links = access.canView ? await courseAutoLinks(ctx, courseId) : [];
   const tabs = access.canView
     ? [
         { key: 'course', href: base, label: t('tabs.course'), show: true },
@@ -143,7 +151,7 @@ export default async function CourseLayout({
       {tabs.length > 1 ? (
         <CourseTabs items={tabs} base={base} label={access.course.fullName} />
       ) : null}
-      {children}
+      <AutoLinks links={links}>{children}</AutoLinks>
     </div>
   );
 }

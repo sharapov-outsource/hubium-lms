@@ -548,6 +548,48 @@ describe('.hubium backup and restore', () => {
     expect(copy.feedbackResponses).toEqual([]);
   });
 
+  it("carries the teachers' entries of a glossary, without learners' entries or ratings", async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    const src = await courseFixture(t.db, 'GLBK');
+    const { id } = await src.addActivity('glossary', 'Термины', {
+      autoLink: true,
+      ratingAggregate: 'sum',
+    });
+    const teacher = await ctxFor(t.db, src.users.teacher!);
+    await runModuleAction(teacher, id, 'addEntry', {
+      concept: 'Энтропия',
+      definition: '<p>Мера беспорядка</p>',
+      aliases: 'энтропии',
+      categories: 'Физика',
+      autoLink: true,
+    });
+    const own = (await runModuleAction(await ctxFor(t.db, src.users.student1!), id, 'addEntry', {
+      concept: 'Ион',
+    })) as { id: string };
+    await runModuleAction(teacher, id, 'rate', { entryId: own.id, value: 5 });
+    const course = await t.db.course.findUniqueOrThrow({ where: { id: src.courseId } });
+    const r = await restoreCourse(admin, await exportCourse(admin, src.courseId), {
+      categoryId: course.categoryId,
+    });
+    const copy = await t.db.activity.findFirstOrThrow({
+      where: { courseId: r.courseId, moduleKey: 'glossary' },
+      include: { glossaryEntries: { include: { ratings: true } } },
+    });
+    expect(copy.settings).toMatchObject({ autoLink: true, ratingAggregate: 'sum' });
+    expect(copy.glossaryEntries).toMatchObject([
+      {
+        concept: 'Энтропия',
+        definition: '<p>Мера беспорядка</p>',
+        aliases: ['энтропии'],
+        categories: ['Физика'],
+        approved: true,
+        autoLink: true,
+        authorId: null,
+        ratings: [],
+      },
+    ]);
+  });
+
   it('rejects foreign archives', async () => {
     const admin = await ctxFor(t.db, 'admin@test.local');
     const course = await t.db.course.findUniqueOrThrow({ where: { id: f.courseId } });

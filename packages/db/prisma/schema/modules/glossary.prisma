@@ -1,0 +1,43 @@
+// mod-glossary: terms and their definitions, written by teachers and learners.
+
+model GlossaryEntry {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  activityId    String   @db.Uuid
+  authorId      String?  @db.Uuid
+  concept       String
+  definition    String   @default("")
+  /// Other words for the concept (also linked when it is linked).
+  aliases       String[]
+  categories    String[]
+  /// Learners' entries wait for a teacher when the glossary asks for approval.
+  approved      Boolean  @default(true)
+  /// Linked wherever the course's texts use the concept (with the glossary's linking on).
+  autoLink      Boolean  @default(false)
+  caseSensitive Boolean  @default(false)
+  /// Only whole words are linked.
+  fullMatch     Boolean  @default(true)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
+  activity Activity         @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  author   User?            @relation("GlossaryEntryAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  ratings  GlossaryRating[]
+
+  @@index([activityId, concept])
+  @@index([authorId])
+}
+
+model GlossaryRating {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  entryId   String   @db.Uuid
+  raterId   String   @db.Uuid
+  value     Int
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  entry GlossaryEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  rater User          @relation("GlossaryRatingRater", fields: [raterId], references: [id], onDelete: Cascade)
+
+  @@unique([entryId, raterId])
+  @@index([raterId])
+}

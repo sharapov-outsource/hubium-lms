@@ -5,8 +5,8 @@ import tar from 'tar-stream';
 // A small Moodle 4.5 course backup (.mbz) with the structure Moodle writes: sections,
 // a page with an embedded image, a quiz using question bank entries and a random slot,
 // an assignment (teams, marking workflow, blind marking, a rubric, a group's dates), a
-// URL, a file resource, Q&A (rated) and news forums, a book with an image in a chapter, a choice, a feedback and
-// an unsupported wiki; groups and a
+// URL, a file resource, Q&A (rated) and news forums, a book with an image in a chapter, a choice, a feedback,
+// a rated glossary with an entry and an unsupported wiki; groups and a
 // grouping, a scale, and a gradebook with a category, a manual item and a formula.
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
@@ -47,6 +47,7 @@ export async function mbzFixture(): Promise<Buffer> {
       ${activity(19, 'book', 'Учебник', 2)}
       ${activity(20, 'choice', 'Тема проекта', 2)}
       ${activity(21, 'feedback', 'Отзыв', 2)}
+      ${activity(22, 'glossary', 'Словарь', 2)}
     </activities>
     <sections>
       <section><sectionid>1</sectionid><title>0</title><directory>sections/section_1</directory></section>
@@ -57,7 +58,7 @@ export async function mbzFixture(): Promise<Buffer> {
 </information></moodle_backup>`,
     'course/course.xml': `<?xml version="1.0" encoding="UTF-8"?><course id="2" contextid="20"><shortname>MOODLE-PY</shortname><fullname>Python из Moodle</fullname><summary>&lt;p&gt;Курс &lt;img src="@@PLUGINFILE@@/logo.png"&gt;&lt;/p&gt;</summary><format>topics</format><startdate>1735689600</startdate><enddate>0</enddate><customfields><customfield id="1"><shortname>Level</shortname><type>select</type><value>2</value><valueformat>0</valueformat></customfield><customfield id="2"><shortname>starts</shortname><type>date</type><value>1767214800</value><valueformat>0</valueformat></customfield><customfield id="3"><shortname>about</shortname><type>textarea</type><value>&lt;p&gt;Для &lt;b&gt;всех&lt;/b&gt;&lt;/p&gt;</value><valueformat>1</valueformat></customfield><customfield id="4"><shortname>elsewhere</shortname><type>text</type><value>x</value><valueformat>0</valueformat></customfield></customfields></course>`,
     'sections/section_1/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="1"><number>0</number><name>$@NULL@$</name><summary></summary><sequence>11,14</sequence><visible>1</visible></section>`,
-    'sections/section_2/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="2"><number>1</number><name>Тема 1</name><summary>&lt;p&gt;Первая тема&lt;/p&gt;</summary><sequence>12,13,15,16,17,18,19,20,21</sequence><visible>1</visible></section>`,
+    'sections/section_2/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="2"><number>1</number><name>Тема 1</name><summary>&lt;p&gt;Первая тема&lt;/p&gt;</summary><sequence>12,13,15,16,17,18,19,20,21,22</sequence><visible>1</visible></section>`,
 
     'activities/page_11/module.xml': moduleXml(11, 'page', 1),
     'activities/page_11/page.xml': wrap(
@@ -172,6 +173,14 @@ export async function mbzFixture(): Promise<Buffer> {
         '<item id="4"><name>Что улучшить?</name><presentation>30|5</presentation><typ>textarea</typ><position>4</position><required>0</required></item>' +
         '<item id="5"><name>Код</name><presentation></presentation><typ>captcha</typ><position>5</position><required>1</required></item>' +
         '</items>',
+    ),
+    'activities/glossary_22/module.xml': moduleXml(22, 'glossary', 2),
+    'activities/glossary_22/glossary.xml': wrap(
+      22,
+      'glossary',
+      42,
+      '<name>Словарь</name><intro></intro><allowduplicatedentries>0</allowduplicatedentries><displayformat>fullwithauthor</displayformat><mainglossary>0</mainglossary><showspecial>1</showspecial><showalphabet>1</showalphabet><showall>1</showall><allowcomments>0</allowcomments><usedynalink>1</usedynalink><defaultapproval>0</defaultapproval><globalglossary>0</globalglossary><entbypage>15</entbypage><editalways>0</editalways><assessed>1</assessed><assesstimestart>0</assesstimestart><assesstimefinish>0</assesstimefinish><scale>5</scale>' +
+        '<entries><entry id="1"><userid>3</userid><concept>Список</concept><definition>&lt;p&gt;Изменяемая последовательность&lt;/p&gt;</definition><approved>1</approved><usedynalink>1</usedynalink><casesensitive>0</casesensitive><fullmatch>1</fullmatch></entry></entries>',
     ),
     'activities/wiki_18/module.xml': moduleXml(18, 'wiki', 2),
     'activities/wiki_18/wiki.xml': wrap(

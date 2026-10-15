@@ -128,6 +128,12 @@ export const coreCapabilities = {
   'mod.feedback:edititems': { level: 'ACTIVITY', archetypes: [M, ET], risk: ['xss'] },
   'mod.feedback:viewreports': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.feedback:deleteresponses': { level: 'ACTIVITY', archetypes: [M, ET] },
+  // glossary: writing entries, approving and changing anyone's, rating them
+  'mod.glossary:write': { level: 'ACTIVITY', archetypes: [M, ET, T, S], risk: ['spam'] },
+  'mod.glossary:manageentries': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  'mod.glossary:rate': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  'mod.glossary:viewrating': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },
+  'mod.glossary:viewallratings': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   // video / live
   'mod.video:viewprogress': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.livesession:join': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },

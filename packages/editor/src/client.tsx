@@ -537,6 +537,7 @@ export function RichText({ html, className }: { html: string; className?: string
     <div
       ref={ref}
       className={`prose-content ${className ?? ''}`}
+      data-rich-text=""
       // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised on write by sanitizeRichText
       dangerouslySetInnerHTML={{ __html: html }}
     />

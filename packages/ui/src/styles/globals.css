@@ -236,6 +236,11 @@
     color: var(--color-accent);
     text-decoration: underline;
   }
+  /* glossary concepts linked in course texts */
+  .prose-content a[data-autolink] {
+    text-decoration-style: dotted;
+    text-underline-offset: 0.2em;
+  }
   .prose-content blockquote {
     border-left: 3px solid var(--color-border);
     padding-left: 1em;

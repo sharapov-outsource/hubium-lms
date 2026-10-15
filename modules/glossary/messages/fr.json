@@ -1,0 +1,100 @@
+{
+  "glossary": {
+    "name": "Glossaire",
+    "description": "Des termes et leurs définitions rédigés par les enseignants et les étudiants, liés depuis les textes du cours",
+    "settings": {
+      "approvalRequired": "Les articles des étudiants attendent une approbation",
+      "allowEditing": "Les auteurs peuvent modifier et supprimer leurs articles",
+      "allowDuplicates": "Un même concept peut être saisi plusieurs fois",
+      "autoLink": "Lier les concepts des textes du cours à leurs articles",
+      "displayFormat": "Format d'affichage",
+      "formats": {
+        "dictionary": "Dictionnaire simple",
+        "full": "Avec auteur et date"
+      },
+      "entriesPerPage": "Articles par page"
+    },
+    "completionEntries": "Articles approuvés que l'étudiant doit écrire",
+    "search": "Rechercher",
+    "searchLabel": "Rechercher dans le glossaire",
+    "addEntry": "Ajouter un article",
+    "editEntry": "Modifier l'article",
+    "cannotEdit": "Vous ne pouvez pas modifier cet article.",
+    "views": "Articles",
+    "allEntries": "Tous les articles",
+    "pendingTab": "En attente d'approbation ({n})",
+    "letters": "Par lettre",
+    "all": "Tous",
+    "categories": "Catégories",
+    "allCategories": "Toutes les catégories",
+    "found": "{n, plural, =0 {Aucun résultat.} one {# article trouvé.} other {# articles trouvés.}}",
+    "resetFilters": "Tout afficher",
+    "empty": "Le glossaire ne contient encore aucun article.",
+    "emptyWriter": "Le glossaire ne contient encore aucun article. Ajoutez le premier.",
+    "notFound": "Cet article n'est pas dans le glossaire ou ne vous est pas accessible.",
+    "awaiting": "En attente d'approbation",
+    "alsoCalled": "Aussi : {words}",
+    "byline": "{name}, {time}",
+    "updated": "modifié le {time}",
+    "formerUser": "Ancien utilisateur",
+    "pagination": "Pages",
+    "prev": "Précédent",
+    "next": "Suivant",
+    "pageOf": "Page {page} sur {pages}",
+    "entryTools": "Actions sur l'article {concept}",
+    "approve": "Approuver",
+    "unapprove": "Retirer l'approbation",
+    "approved": "Article approuvé",
+    "unapproved": "Approbation retirée",
+    "deleteConfirm": "Supprimer l'article « {concept} » ?",
+    "deleted": "Article supprimé",
+    "entry": {
+      "concept": "Concept",
+      "definition": "Définition",
+      "aliases": "Autres formes du concept",
+      "aliasesHint": "Une par ligne ou séparées par des virgules ; elles sont aussi liées et trouvées",
+      "categories": "Catégories",
+      "categoriesHint": "Séparées par des virgules",
+      "categoriesInUse": "Séparées par des virgules. Existantes : {list}",
+      "linking": "Liens",
+      "autoLink": "Lier ce concept dans les textes du cours",
+      "caseSensitive": "Respecter la casse",
+      "fullMatch": "Mots entiers seulement",
+      "saved": "Article enregistré",
+      "savedPending": "Article enregistré ; les autres le verront une fois approuvé par un enseignant"
+    },
+    "ratings": {
+      "title": "Évaluations des articles",
+      "aggregate": "Note issue des évaluations",
+      "aggregates": {
+        "none": "Pas d'évaluation",
+        "average": "Moyenne des évaluations",
+        "count": "Nombre d'évaluations",
+        "max": "Évaluation maximale",
+        "min": "Évaluation minimale",
+        "sum": "Somme des évaluations"
+      },
+      "type": "Type de note",
+      "points": "Points",
+      "max": "Évaluation maximale en points",
+      "pass": "Note pour réussir (évaluations)",
+      "from": "Évaluer les articles écrits à partir du",
+      "to": "Évaluer les articles écrits jusqu'au",
+      "hint": "Les enseignants évaluent les articles approuvés ; personne n'évalue les siens. La note d'un étudiant est issue des évaluations de ses articles. Désactiver les évaluations supprime leur élément du carnet de notes avec ses notes."
+    },
+    "rating": {
+      "aggregates": {
+        "average": "Moyenne des évaluations : {value}",
+        "count": "Nombre d'évaluations : {value}",
+        "max": "Évaluation maximale : {value}",
+        "min": "Évaluation minimale : {value}",
+        "sum": "Somme des évaluations : {value}"
+      },
+      "count": "{n, plural, one {# évaluation} other {# évaluations}}",
+      "yours": "Votre évaluation",
+      "rateLabel": "Votre évaluation de l'article de {name}",
+      "saved": "Évaluation enregistrée",
+      "raters": "Qui a évalué"
+    }
+  }
+}

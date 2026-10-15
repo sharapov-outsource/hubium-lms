@@ -104,7 +104,7 @@ export default async function ActivityPage({
       : null;
   const View = ui.View as unknown as (p: Record<string, unknown>) => React.ReactNode;
   return (
-    <article className="grid gap-5">
+    <article className="grid gap-5" data-module={a.moduleKey}>
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <ModuleIcon icon={m.icon} archetype={m.archetype} size={40} />

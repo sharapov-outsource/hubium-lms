@@ -42,6 +42,7 @@ export * from './lib/rank.ts';
 export * from './lib/zod.ts';
 export * from './messaging/messaging.ts';
 export * from './modules/actions.ts';
+export * from './modules/autolinks.ts';
 export * from './modules/module-ctx.ts';
 export * from './modules/registry.ts';
 export * from './notifications/notifications.ts';

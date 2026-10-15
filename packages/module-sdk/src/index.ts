@@ -287,6 +287,18 @@ export interface ModuleQuery<I extends z.ZodType = z.ZodType, O = unknown> {
   handler(ctx: ModuleCtx, a: ActivityRef, input: z.output<I>): Promise<O>;
 }
 
+/** Words that link to a page of an activity wherever the course's texts use them. */
+export interface AutoLink {
+  /** The concept and its other forms. */
+  words: string[];
+  url: string;
+  /** Shown on hover, e.g. "Glossary: concept". */
+  title: string;
+  caseSensitive: boolean;
+  /** Only whole words. */
+  fullMatch: boolean;
+}
+
 export interface ActivityModule<S = Record<string, unknown>> {
   key: string;
   archetype: 'activity' | 'resource' | 'inline';
@@ -364,6 +376,11 @@ export interface ActivityModule<S = Record<string, unknown>> {
    * `backup.userFileAreas` are cleared by core; dates in settings are shifted by core.
    */
   reset?: { userData(ctx: ModuleCtx, a: ActivityRef<S>): Promise<void> };
+  /**
+   * Words to link in the course's texts (a glossary's auto-linking), asked of each activity
+   * of the module that the viewer may open.
+   */
+  autoLinks?(ctx: ModuleCtx, a: ActivityRef<S>): Promise<AutoLink[]>;
   /** Notification types; labels come from `mod.<key>.notify.<name>` messages. */
   notifications?: Record<string, NotificationTypeDef>;
   /** Who may read files in each file area (besides users who can manage the course). */

@@ -28,7 +28,7 @@ describe('.mbz import', () => {
     expect(report).toMatchObject({
       moodleRelease: '4.5 (Build: 20241007)',
       sections: 2,
-      activities: 10,
+      activities: 11,
       questions: 6,
     });
     expect(report.warnings.join('\n')).toContain('Формула');
@@ -36,6 +36,9 @@ describe('.mbz import', () => {
     expect(report.warnings.join('\n')).toContain('"Вики" (wiki)');
     expect(report.warnings.join('\n')).toContain(
       '"Отзыв": questions of type captcha were left out',
+    );
+    expect(report.warnings.join('\n')).toContain(
+      `"Словарь": entries are users' data and were left out (1)`,
     );
   });
 
@@ -70,7 +73,18 @@ describe('.mbz import', () => {
       'book:Учебник',
       'choice:Тема проекта',
       'feedback:Отзыв',
+      'glossary:Словарь',
     ]);
+    const glossary = acts.find((a) => a.moduleKey === 'glossary')!;
+    expect(glossary.settings).toMatchObject({
+      approvalRequired: true,
+      autoLink: true,
+      displayFormat: 'full',
+      entriesPerPage: 15,
+      ratingAggregate: 'average',
+      ratingMax: 5,
+    });
+    expect(await t.db.glossaryEntry.count({ where: { activityId: glossary.id } })).toBe(0);
     const feedback = acts.find((a) => a.moduleKey === 'feedback')!;
     expect(feedback.settings).toMatchObject({
       anonymous: false,
