@@ -43,9 +43,8 @@ export default async function CoursePage({
   if (!access.canView) return <CourseLanding courseId={courseId} />;
   const userId = ctx.perm.userId!;
   await recordCourseAccess(db, userId, courseId);
-  const [t, _ta, tm, format] = await Promise.all([
+  const [t, tm, format] = await Promise.all([
     getTranslations('course'),
-    getTranslations('activity'),
     getTranslations('mod'),
     getFormatter(),
   ]);

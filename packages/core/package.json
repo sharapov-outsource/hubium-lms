@@ -16,7 +16,6 @@
     "storage:init": "tsx scripts/storage-init.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "secrets:rotate": "tsx scripts/rotate-secret.ts",
     "k6:prepare": "tsx scripts/k6-prepare.ts"
   },
   "dependencies": {

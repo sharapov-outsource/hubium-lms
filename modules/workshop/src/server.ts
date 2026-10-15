@@ -198,7 +198,6 @@ async function rights(ctx: ModuleCtx, a: ActivityRef) {
   ]);
   return { manage, viewAll: viewAll || manage, submit, assess, authorNames, reviewerNames };
 }
-export type WorkshopRights = Awaited<ReturnType<typeof rights>>;
 
 const submissionInclude = {
   author: { select: { id: true, name: true } },
@@ -411,7 +410,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
   key: 'workshop',
   archetype: 'activity',
   icon: 'Users',
-  supports: { viewCompletion: true, backup: true, grading: true, groups: true },
+  supports: { viewCompletion: true, groups: true },
   settings: {
     schema: WorkshopSettings as unknown as z.ZodType<WorkshopSettingsT>,
     defaults: () => WorkshopSettings.parse({}),
@@ -1020,7 +1019,5 @@ export const workshop = defineModule<WorkshopSettingsT>({
   },
 });
 
-export type { Dimension, Filling, Phase, Strategy, WorkshopForm };
-export type SubmissionViewT = NonNullable<Awaited<ReturnType<typeof submissionView>>>;
-export type { SubmissionRow };
+export type { Dimension, Filling, Phase, Strategy, SubmissionRow, WorkshopForm };
 export const workshopModules = [workshop];

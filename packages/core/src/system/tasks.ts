@@ -38,8 +38,6 @@ export const CORE_SCHEDULE = {
   'auth.sessions.cleanup': '23 * * * *',
 } as const;
 
-export type CoreScheduledJob = keyof typeof CORE_SCHEDULE;
-
 /** How long finished jobs stay in pg-boss: the task log goes back as far. */
 export const TASK_LOG_DAYS = 30;
 

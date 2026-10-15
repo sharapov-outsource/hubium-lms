@@ -45,11 +45,6 @@ export function checkScaleConfig(raw: unknown, items: number): ScaleConfigT {
   return { default: c.default, proficient: [...new Set(c.proficient)].sort((a, b) => a - b) };
 }
 
-/** A sensible configuration for a scale: the last value is the default and proficient. */
-export function defaultScaleConfig(items: number): ScaleConfigT {
-  return { default: items, proficient: [items] };
-}
-
 export const isProficient = (c: ScaleConfigT, grade: number | null | undefined) =>
   grade !== null && grade !== undefined && c.proficient.includes(grade);
 

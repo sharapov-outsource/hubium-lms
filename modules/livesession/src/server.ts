@@ -164,7 +164,7 @@ export const livesession = defineModule<LiveSettingsT>({
   key: 'livesession',
   archetype: 'activity',
   icon: 'Presentation',
-  supports: { viewCompletion: true, backup: true },
+  supports: { viewCompletion: true },
   // recordings are course material and stay
   reset: {
     async userData(ctx, a) {

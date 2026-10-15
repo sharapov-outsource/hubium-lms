@@ -421,7 +421,7 @@ export const scorm = defineModule<ScormSettingsT>({
   key: 'scorm',
   archetype: 'activity',
   icon: 'Package',
-  supports: { grading: true, viewCompletion: true, backup: true },
+  supports: { viewCompletion: true },
   reset: {
     async userData(ctx, a) {
       await ctx.db.scormAttempt.deleteMany({ where: { activityId: a.id } });

@@ -21,7 +21,7 @@ export function gapNumbers(text: string): number[] {
 }
 
 /** The text with its gaps numbered by place ([[1]], [[2]], …) instead of by right choice. */
-export function placeGaps(text: string): string {
+function placeGaps(text: string): string {
   let k = 0;
   return text.replace(GAP, () => `[[${++k}]]`);
 }

@@ -10,23 +10,19 @@ export function NavLink({
   href,
   icon,
   label,
-  exact,
   variant = 'sidebar',
-  badge: staticBadge,
   liveBadge,
 }: {
   href: string;
   icon: ReactNode;
   label: string;
-  exact?: boolean;
   variant?: 'sidebar' | 'bottom';
-  badge?: number;
   liveBadge?: keyof CommsCounts;
 }) {
   const pathname = usePathname();
   const { counts } = useLiveCounts();
-  const badge = liveBadge ? counts[liveBadge] : staticBadge;
-  const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+  const badge = liveBadge ? counts[liveBadge] : 0;
+  const active = pathname === href || pathname.startsWith(`${href}/`);
   if (variant === 'bottom') {
     return (
       <Link

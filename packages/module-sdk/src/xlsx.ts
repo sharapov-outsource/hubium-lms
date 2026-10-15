@@ -16,7 +16,7 @@ const esc = (s: string) =>
     .replace(/"/g, '&quot;');
 
 /** Column letters for a 0-based index: 0 → A, 26 → AA. */
-export function columnName(i: number): string {
+function columnName(i: number): string {
   let s = '';
   for (let n = i + 1; n > 0; n = Math.floor((n - 1) / 26))
     s = String.fromCharCode(65 + ((n - 1) % 26)) + s;

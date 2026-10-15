@@ -54,7 +54,6 @@ export { type EffectiveDates, effectiveDates } from './dates.ts';
 export {
   allocating,
   flagsFor,
-  type GradingForm,
   gradeRange,
   gradingForm,
   hidesNames,
@@ -459,7 +458,7 @@ export const assign = defineModule<AssignSettingsT>({
   key: 'assign',
   archetype: 'activity',
   icon: 'ClipboardCheck',
-  supports: { grading: true, groups: true, viewCompletion: true, backup: true },
+  supports: { groups: true, viewCompletion: true },
   reset: {
     async userData(ctx, a) {
       const where = { activityId: a.id };

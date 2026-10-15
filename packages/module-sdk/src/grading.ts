@@ -77,7 +77,7 @@ export interface GradeRange {
 
 const sumBy = <T>(xs: T[], f: (x: T) => number) => xs.reduce((s, x) => s + f(x), 0);
 
-export function rubricScores(r: Rubric) {
+function rubricScores(r: Rubric) {
   return {
     min: sumBy(r.criteria, (c) => Math.min(...c.levels.map((l) => l.score))),
     max: sumBy(r.criteria, (c) => Math.max(...c.levels.map((l) => l.score))),

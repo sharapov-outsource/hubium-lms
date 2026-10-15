@@ -808,8 +808,6 @@
       "importUnmappable": "Eine Spalte ist einer Bewertungsaktivität zugeordnet, die nicht importiert werden kann",
       "importDuplicate": "Zwei Spalten sind demselben Ziel zugeordnet",
       "sheetEmpty": "Die Tabelle ist leer",
-      "headerNeedsUser": "Die Kopfzeile muss E-Mail oder Benutzername enthalten",
-      "noManualColumns": "Keine Spalte entspricht einer manuellen Bewertungsaktivität",
       "unknownScale": "Unbekannte Skala",
       "scaleItemsFixed": "Eine verwendete Skala kann keine Bewertungen hinzugewinnen oder verlieren: Benennen Sie sie stattdessen um",
       "scaleUsedByItems": "Die Skala wird von Bewertungsaktivitäten verwendet",

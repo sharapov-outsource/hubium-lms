@@ -808,8 +808,6 @@
       "importUnmappable": "Una colonna è associata a un elemento che non si può importare",
       "importDuplicate": "Due colonne sono associate alla stessa cosa",
       "sheetEmpty": "Il foglio è vuoto",
-      "headerNeedsUser": "L’intestazione deve contenere email o username",
-      "noManualColumns": "Nessuna colonna corrisponde agli elementi manuali",
       "unknownScale": "Scala sconosciuta",
       "scaleItemsFixed": "Una scala in uso non può aggiungere o togliere voti: rinominali invece",
       "scaleUsedByItems": "La scala è usata da elementi di valutazione",

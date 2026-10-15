@@ -11,7 +11,7 @@ export const page = defineModule({
   key: 'page',
   archetype: 'resource',
   icon: 'FileText',
-  supports: { viewCompletion: true, backup: true },
+  supports: { viewCompletion: true },
   settings: {
     schema: z.object({ content: html }),
     defaults: () => ({ content: '' }),
@@ -24,7 +24,7 @@ export const url = defineModule({
   key: 'url',
   archetype: 'resource',
   icon: 'Link',
-  supports: { viewCompletion: true, backup: true },
+  supports: { viewCompletion: true },
   settings: {
     schema: z.object({
       url: z
@@ -47,7 +47,7 @@ export const label = defineModule({
   key: 'label',
   archetype: 'inline',
   icon: 'Type',
-  supports: { backup: true },
+  supports: {},
   settings: {
     schema: z.object({ content: html }),
     defaults: () => ({ content: '' }),
@@ -60,7 +60,7 @@ export const file = defineModule({
   key: 'file',
   archetype: 'resource',
   icon: 'Paperclip',
-  supports: { viewCompletion: true, backup: true },
+  supports: { viewCompletion: true },
   settings: {
     schema: z.object({ display: z.enum(['list', 'download']).default('list') }),
     defaults: () => ({ display: 'list' as const }),

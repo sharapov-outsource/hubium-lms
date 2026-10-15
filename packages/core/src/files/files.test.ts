@@ -8,7 +8,6 @@ import { buildModuleCtx } from '../modules/module-ctx.ts';
 import {
   canReadFile,
   checkFile,
-  copyFiles,
   garbageCollectBlobs,
   isInlineSafe,
   listFiles,
@@ -125,17 +124,6 @@ describe('file service', () => {
     });
     expect(a.blobId).toBe(b.blobId);
     expect(a.mimeType).toBe('image/png');
-    const n = await copyFiles(
-      t.db,
-      { contextId: SYSTEM_CONTEXT_ID, component: 'site', area: 'test' },
-      { contextId: SYSTEM_CONTEXT_ID, area: 'test2' },
-    );
-    expect(n).toBe(1);
-    expect(
-      (
-        await listFiles(t.db, { contextId: SYSTEM_CONTEXT_ID, component: 'site', area: 'test2' })
-      )[0]!.blobId,
-    ).toBe(a.blobId);
   });
 
   it('enforces size and type limits', async () => {

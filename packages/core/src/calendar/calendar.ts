@@ -2,7 +2,6 @@ import type { CalendarEvent, Db, Prisma } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import { userContext } from '../ai/user-ctx.ts';
-import type { RequestContext } from '../context.ts';
 import { getCourseOutline } from '../courses/activities.ts';
 import { getCourseAccess } from '../courses/courses.ts';
 import { randomToken, sha256Hex } from '../crypto.ts';
@@ -279,11 +278,6 @@ export function toICal(
 
 export function upcomingRange(days = 14, now = new Date()) {
   return { from: now, to: new Date(now.getTime() + days * 86_400_000) };
-}
-
-export async function requireOwnEvents(ctx: RequestContext) {
-  if (!ctx.perm.userId) throw new ForbiddenError();
-  return ctx.perm.userId;
 }
 
 /**

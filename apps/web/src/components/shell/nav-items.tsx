@@ -1,6 +1,5 @@
 import {
   BarChart3,
-  Bell,
   BookOpen,
   CalendarDays,
   House,
@@ -17,7 +16,6 @@ const icons = {
   catalog: LayoutGrid,
   calendar: CalendarDays,
   messages: MessageSquare,
-  notifications: Bell,
   admin: Shield,
   mentees: Users,
   reports: BarChart3,
@@ -29,14 +27,12 @@ export interface NavItem {
   href: string;
   label: string;
   icon: NavIconName;
-  exact?: boolean;
   /** Also shown in the mobile bottom bar. */
   mobile?: boolean;
   /** A shorter label for the bottom bar. */
   mobileLabel?: string;
-  badge?: number;
   /** Live unread counter shown as the badge. */
-  liveBadge?: 'messages' | 'notifications';
+  liveBadge?: 'messages';
 }
 
 export function navIcon(name: NavIconName) {

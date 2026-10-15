@@ -23,12 +23,10 @@ export async function AppShell({
   user,
   items,
   children,
-  topbarExtra,
 }: {
   user: CurrentUser;
   items: NavItem[];
   children: ReactNode;
-  topbarExtra?: ReactNode;
 }) {
   const [settings, t, format, notifications, messages, languages] = await Promise.all([
     getAllSettings(db),
@@ -70,8 +68,6 @@ export async function AppShell({
                   href={it.href}
                   icon={navIcon(it.icon)}
                   label={t(it.label)}
-                  exact={it.exact}
-                  badge={it.badge}
                   liveBadge={it.liveBadge}
                 />
               ))}
@@ -97,8 +93,6 @@ export async function AppShell({
                     href={it.href}
                     icon={navIcon(it.icon)}
                     label={t(it.label)}
-                    exact={it.exact}
-                    badge={it.badge}
                     liveBadge={it.liveBadge}
                   />
                 ))}
@@ -111,7 +105,6 @@ export async function AppShell({
                 />
               </div>
               <div className="flex-1" />
-              {topbarExtra}
               <NotificationBell />
               <LocaleSwitcher languages={languages} />
               <ThemeSwitcher />
@@ -136,9 +129,7 @@ export async function AppShell({
                   href={it.href}
                   icon={navIcon(it.icon)}
                   label={t(it.mobileLabel ?? it.label)}
-                  exact={it.exact}
                   variant="bottom"
-                  badge={it.badge}
                   liveBadge={it.liveBadge}
                 />
               ))}

@@ -270,7 +270,7 @@ export const feedback = defineModule<FeedbackSettingsT>({
   key: 'feedback',
   archetype: 'activity',
   icon: 'ClipboardList',
-  supports: { viewCompletion: true, backup: true },
+  supports: { viewCompletion: true },
   settings: {
     schema: FeedbackSettings as unknown as z.ZodType<FeedbackSettingsT>,
     defaults: () => FeedbackSettings.parse({}),

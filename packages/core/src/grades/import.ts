@@ -7,7 +7,6 @@ import { ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { readSheet } from '../lib/sheets.ts';
 import { defineOperation } from '../operation.ts';
-import { parseCsv } from '../users/users.ts';
 import { gradeLocked, decimalToNumber as num, recomputeTotalsOf, writeGrade } from './gradebook.ts';
 import { scaleValue } from './scales.ts';
 
@@ -277,26 +276,3 @@ async function applyRows(
     ].sort((a, b) => a.line - b.line),
   };
 }
-
-/**
- * The CSV import of earlier versions: the header names manual items, and an email or a
- * username column finds the student.
- */
-export const importGradesCsv = defineOperation({
-  name: 'grade.import',
-  input: z.object({ courseId: z.string().uuid(), csv: z.string().min(1).max(5_000_000) }),
-  authorize: (ctx, i) => ctx.perm.require('grade:import', i.courseId),
-  async handler(ctx, { courseId, csv }) {
-    const rows = parseCsv(csv);
-    const header = rows[0] ?? [];
-    const has = (n: string) => header.some((h) => h.trim().toLowerCase() === n);
-    if (!has('email') && !has('username'))
-      throw new ValidationError({ csv: [msg('errors.grades.headerNeedsUser')] });
-    const manual = (await importTargets(ctx.tx, courseId)).filter((i) => i.kind === 'MANUAL');
-    const mapping = suggestMapping(header, manual);
-    if (!mapping.columns.length)
-      throw new ValidationError({ csv: [msg('errors.grades.noManualColumns')] });
-    // empty lines were dropped by the parser: rows keep their CSV order
-    return applyRows(ctx, courseId, rows, mapping);
-  },
-});

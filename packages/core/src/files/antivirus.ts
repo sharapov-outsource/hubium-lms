@@ -82,11 +82,6 @@ async function instream(
   });
 }
 
-/** Is a scanner configured (CLAMAV_URL)? */
-export function antivirusEnabled(env: ScanEnv = getEnv()): boolean {
-  return !!env.CLAMAV_URL;
-}
-
 /** clamd's version string, e.g. `ClamAV 1.4.3/27791/…`; throws when it cannot be reached. */
 export async function antivirusVersion(env: ScanEnv = getEnv()): Promise<string> {
   const { CLAMAV_URL, CLAMAV_TIMEOUT_MS } = env;

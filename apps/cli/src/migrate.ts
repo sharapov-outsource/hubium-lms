@@ -21,7 +21,7 @@ function profileOf(value: string | undefined, flag: string, allowNone: boolean):
 }
 
 /** Applies the pending migrations (the same bookkeeping as `prisma migrate deploy`). */
-export async function applyMigrations(url: string, io: Io): Promise<void> {
+async function applyMigrations(url: string, io: Io): Promise<void> {
   const applied = await deployMigrations(url, migrationsDir(), (name) =>
     io.out(`Migration applied: ${name}`),
   );

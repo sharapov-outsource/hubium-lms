@@ -352,7 +352,7 @@ export const h5p = defineModule<H5pSettingsT>({
   key: 'h5p',
   archetype: 'activity',
   icon: 'Puzzle',
-  supports: { grading: true, viewCompletion: true, backup: true },
+  supports: { viewCompletion: true },
   reset: {
     async userData(ctx, a) {
       await ctx.db.h5pAttempt.deleteMany({ where: { activityId: a.id } });

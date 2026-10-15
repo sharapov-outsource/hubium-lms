@@ -1183,7 +1183,7 @@ export const quiz = defineModule<QuizSettingsT>({
   key: 'quiz',
   archetype: 'activity',
   icon: 'ListChecks',
-  supports: { grading: true, groups: true, viewCompletion: true, backup: true },
+  supports: { groups: true, viewCompletion: true },
   reset: {
     async userData(ctx, a) {
       await ctx.db.quizAttempt.deleteMany({ where: { activityId: a.id } });

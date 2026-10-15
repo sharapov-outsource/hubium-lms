@@ -33,7 +33,7 @@ export const glossary = defineModule({
   key: 'glossary',
   archetype: 'activity',          // 'resource' | 'inline' for passive content
   icon: 'BookA',                  // lucide-react icon name
-  supports: { viewCompletion: true, backup: true },
+  supports: { viewCompletion: true },
   settings: {
     schema: z.object({ allowStudentEntries: z.boolean().default(true) }),
     defaults: () => ({ allowStudentEntries: true }),

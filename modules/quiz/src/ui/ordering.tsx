@@ -28,7 +28,7 @@ function roman(n: number): string {
 }
 
 /** The label of position `i` (0-based) in a numbering style, or '' for none. */
-export function numberLabel(style: string | undefined, i: number): string {
+function numberLabel(style: string | undefined, i: number): string {
   switch (style) {
     case 'abc':
       return `${String.fromCharCode(97 + (i % 26))}.`;

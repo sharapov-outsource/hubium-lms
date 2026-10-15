@@ -15,8 +15,6 @@ export interface JobPayloads {
 }
 export type JobName = keyof JobPayloads & string;
 
-export const coreQueues: JobName[] = ['email.send', 'notification.email', 'notification.fanout'];
-
 let bossPromise: Promise<PgBoss> | undefined;
 
 export interface CapturedJob {

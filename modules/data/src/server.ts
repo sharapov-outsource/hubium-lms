@@ -468,7 +468,7 @@ export const data = defineModule<DataSettingsT>({
   key: 'data',
   archetype: 'activity',
   icon: 'Database',
-  supports: { viewCompletion: true, backup: true, grading: true, groups: true },
+  supports: { viewCompletion: true, groups: true },
   settings: {
     schema: DataSettings as unknown as z.ZodType<DataSettingsT>,
     defaults: () => DataSettings.parse({}),

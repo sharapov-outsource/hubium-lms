@@ -26,12 +26,6 @@ import { z } from 'zod';
 // unread tracking, pin/lock, private replies and moderation; ratings of posts and a grade
 // for the whole forum, each with its gradebook item.
 
-export {
-  aggregateRatings,
-  type RatingAggregate,
-  ratingAggregates,
-} from '@hubium/module-sdk/ratings';
-
 export const ForumSettings = z
   .object({
     type: z.enum(['general', 'qanda']).default('general'),
@@ -669,7 +663,7 @@ export const forum = defineModule<ForumSettingsT>({
   key: 'forum',
   archetype: 'activity',
   icon: 'MessagesSquare',
-  supports: { grading: true, groups: true, viewCompletion: true, backup: true },
+  supports: { groups: true, viewCompletion: true },
   reset: {
     // discussions take their posts, ratings, subscriptions and read states with them
     async userData(ctx, a) {

@@ -21,7 +21,7 @@ type Override = {
   allowSubmissionsFrom: Date | null;
 };
 
-export function datesFrom(
+function datesFrom(
   settings: Pick<AssignSettingsT, 'openAt' | 'dueAt' | 'cutoffAt'>,
   o: Override | null,
   source: EffectiveDates['source'],
@@ -41,11 +41,7 @@ export function datesFrom(
 }
 
 /** The override that applies to a student: theirs, or their groups' with the highest priority. */
-export async function overrideFor(
-  db: Prisma.TransactionClient,
-  activityId: string,
-  userId: string,
-) {
+async function overrideFor(db: Prisma.TransactionClient, activityId: string, userId: string) {
   const own = await db.assignOverride.findUnique({
     where: { activityId_userId: { activityId, userId } },
   });

@@ -330,33 +330,6 @@ export async function deleteFiles(
   return r.count;
 }
 
-/** Copies file rows to a new address (same blobs). Used by duplicate/restore. */
-export async function copyFiles(
-  db: Tx,
-  from: { contextId: string; component: string; area: string; itemId?: string },
-  to: { contextId: string; component?: string; area?: string; itemId?: string },
-): Promise<number> {
-  const files = await listFiles(db, from);
-  for (const f of files) {
-    await db.file.create({
-      data: {
-        blobId: f.blobId,
-        contextId: to.contextId,
-        component: to.component ?? f.component,
-        area: to.area ?? f.area,
-        itemId: to.itemId ?? f.itemId,
-        path: f.path,
-        name: f.name,
-        mimeType: f.mimeType,
-        size: f.size,
-        uploadedById: f.uploadedById,
-        sortOrder: f.sortOrder,
-      },
-    });
-  }
-  return files.length;
-}
-
 /**
  * Deletes stored blob objects that no FileBlob row names, older than the grace period: the
  * content written before the transaction that was to record it rolled back (an upload

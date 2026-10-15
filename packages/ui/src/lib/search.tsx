@@ -7,7 +7,7 @@ const fold = (ch: string) => {
 };
 
 /** Lower case without accents, spaces, underscores and slashes alike; keeps the length. */
-export function normalizeSearch(text: string): string {
+function normalizeSearch(text: string): string {
   return text
     .toLowerCase()
     .replace(/[^\x20-\x7e\s]/g, fold)

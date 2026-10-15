@@ -45,7 +45,7 @@ export function redactAttributes(attributes: Attributes, kind: SpanKind): Attrib
   return out ?? attributes;
 }
 
-export function redactSpan(span: ReadableSpan): ReadableSpan {
+function redactSpan(span: ReadableSpan): ReadableSpan {
   const attributes = redactAttributes(span.attributes, span.kind);
   if (attributes === span.attributes) return span;
   return {

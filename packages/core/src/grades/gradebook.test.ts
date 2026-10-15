@@ -13,7 +13,7 @@ import {
   updateGradeItem,
   userReport,
 } from './gradebook.ts';
-import { importGradesCsv } from './import.ts';
+import { applyGradeImport, previewGradeImport } from './import.ts';
 
 const total = async (db: import('@hubium/db').Db, courseId: string, userId: string) => {
   const item = await db.gradeItem.findFirstOrThrow({ where: { courseId, kind: 'COURSE' } });
@@ -22,6 +22,13 @@ const total = async (db: import('@hubium/db').Db, courseId: string, userId: stri
   });
   return g?.finalGrade === null || g?.finalGrade === undefined ? null : Number(g.finalGrade);
 };
+
+/** A CSV imported as the import page does: the mapping it suggests, then applied. */
+async function importCsv(ctx: Awaited<ReturnType<typeof ctxFor>>, courseId: string, csv: string) {
+  const data = new TextEncoder().encode(csv);
+  const { mapping } = await previewGradeImport.run(ctx, { courseId, data });
+  return applyGradeImport.run(ctx, { courseId, data, mapping });
+}
 
 describe('gradebook', () => {
   const t = useTestDb();
@@ -188,7 +195,7 @@ describe('gradebook', () => {
   it('CSV import fills manual items and reports bad rows; export includes totals', async () => {
     const teacher = await ctxFor(t.db, 'teacher@hubium.local');
     const csv = 'username;Устный ответ\nstudent2;8\nstudent3;99\nnobody;1\n';
-    const r = await importGradesCsv.run(teacher, { courseId: f.courseId, csv });
+    const r = await importCsv(teacher, f.courseId, csv);
     expect(r.updated).toBe(1);
     expect(r.errors.map((e) => e.line)).toEqual([3, 4]);
     const out = await exportGradesCsv(teacher, f.courseId);

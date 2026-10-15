@@ -27,7 +27,7 @@ export const questionTypes: readonly PageType[] = [
   'essay',
 ];
 /** Pages the learner never sees: they only lead on. */
-export const structureTypes: readonly PageType[] = ['endofbranch', 'cluster', 'endofcluster'];
+const structureTypes: readonly PageType[] = ['endofbranch', 'cluster', 'endofcluster'];
 
 export const isQuestion = (t: string) => questionTypes.includes(t as PageType);
 export const isStructure = (t: string) => structureTypes.includes(t as PageType);
@@ -49,7 +49,6 @@ export const jumpKeywords = [
   'unseenCluster',
   'lastContent',
 ] as const;
-export type JumpKeyword = (typeof jumpKeywords)[number];
 
 export interface Answer {
   id: string;
@@ -97,7 +96,7 @@ const after = (pages: Page[], i: number) => pages[i + 1]?.id ?? END;
  * The branch of a page: from the nearest content page at or before it to the end of the
  * branch (or the next content page). Null when no content page comes before.
  */
-export function branchOf(pages: Page[], id: string): { start: number; end: number } | null {
+function branchOf(pages: Page[], id: string): { start: number; end: number } | null {
   let start = at(pages, id);
   while (start >= 0 && pages[start]!.type !== 'content') start--;
   if (start < 0) return null;
@@ -109,7 +108,7 @@ export function branchOf(pages: Page[], id: string): { start: number; end: numbe
 }
 
 /** The cluster around a page: from its cluster page to its end of cluster (or the end). */
-export function clusterOf(pages: Page[], id: string): { start: number; end: number } | null {
+function clusterOf(pages: Page[], id: string): { start: number; end: number } | null {
   let start = at(pages, id);
   while (start >= 0 && pages[start]!.type !== 'cluster') {
     if (pages[start]!.type === 'endofcluster' && pages[start]!.id !== id) return null;
@@ -215,7 +214,7 @@ export function jumpIsCorrect(pages: Page[], fromId: string, jump: string): bool
   return at(pages, jump) > at(pages, fromId);
 }
 
-export const answerIsCorrect = (custom: boolean, pages: Page[], page: Page, a: Answer) =>
+const answerIsCorrect = (custom: boolean, pages: Page[], page: Page, a: Answer) =>
   custom ? a.score > 0 : jumpIsCorrect(pages, page.id, a.jump);
 
 /** Does a short answer match a pattern ("*" stands for any text)? */

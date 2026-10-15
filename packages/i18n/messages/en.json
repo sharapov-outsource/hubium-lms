@@ -809,8 +809,6 @@
       "importUnmappable": "A column is mapped to an item that cannot be imported",
       "importDuplicate": "Two columns are mapped to the same thing",
       "sheetEmpty": "The sheet is empty",
-      "headerNeedsUser": "Header must contain email or username",
-      "noManualColumns": "No columns match manual grade items",
       "unknownScale": "Unknown scale",
       "scaleItemsFixed": "A scale in use cannot gain or lose grades; rename them instead",
       "scaleUsedByItems": "The scale is used by grade items",

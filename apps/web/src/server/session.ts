@@ -147,9 +147,3 @@ export async function orRefused<T>(data: Promise<T>): Promise<T> {
     throw e;
   }
 }
-
-export async function requireSiteAdmin() {
-  const user = await requireUser();
-  if (!user.isSiteAdmin) forbidden();
-  return { user, ctx: await getContext() };
-}

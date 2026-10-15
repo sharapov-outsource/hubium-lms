@@ -4,6 +4,7 @@ import {
   AiProviderError,
   AiRefusalError,
   type EmbeddingProvider,
+  emptyUsage,
   type LlmProvider,
   type ObjectReq,
   type StreamEvent,
@@ -190,7 +191,7 @@ export class OpenAiCompatProvider implements LlmProvider {
     if (stop === 'content_filter') throw new AiRefusalError(undefined, usage);
     yield {
       type: 'done',
-      usage: usage ?? { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      usage: usage ?? emptyUsage(),
       stopReason: stop,
       model,
     };

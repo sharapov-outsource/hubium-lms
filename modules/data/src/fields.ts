@@ -17,7 +17,6 @@ export const fieldTypes = [
 ] as const;
 export type FieldType = (typeof fieldTypes)[number];
 export const fileTypes: readonly FieldType[] = ['file', 'image'];
-export const choiceTypes: readonly FieldType[] = ['menu', 'radio', 'checkbox'];
 
 export interface Field {
   id: string;
@@ -122,7 +121,7 @@ export function compareValues(f: Field, a: string, b: string): number {
 }
 
 /** A value as HTML in a template: text escaped, links, files and pictures. */
-export function valueHtml(
+function valueHtml(
   f: Field,
   v: string,
   o: { date(day: string): string; file(id: string): FileRef | undefined },

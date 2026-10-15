@@ -30,14 +30,3 @@ export interface MutationContext extends RequestContext {
   tx: Prisma.TransactionClient;
   afterCommit(fn: () => void | Promise<void>): void;
 }
-
-export function actorUserId(actor: Actor): string | null {
-  return actor.kind === 'user' ? actor.userId : null;
-}
-
-export function requireUserId(actor: Actor): string {
-  if (actor.kind !== 'user') {
-    throw new Error('This operation requires a signed-in user');
-  }
-  return actor.userId;
-}

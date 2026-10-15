@@ -346,7 +346,7 @@ export const video = defineModule<VideoSettingsT>({
   key: 'video',
   archetype: 'activity',
   icon: 'PlaySquare',
-  supports: { viewCompletion: true, backup: true },
+  supports: { viewCompletion: true },
   reset: {
     async userData(ctx, a) {
       await ctx.db.videoProgress.deleteMany({ where: { activityId: a.id } });

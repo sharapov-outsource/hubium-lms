@@ -808,8 +808,6 @@
       "importUnmappable": "Une colonne est associée à un élément qui ne peut pas être importé",
       "importDuplicate": "Deux colonnes sont associées à la même chose",
       "sheetEmpty": "La feuille est vide",
-      "headerNeedsUser": "L’en-tête doit contenir email ou username",
-      "noManualColumns": "Aucune colonne ne correspond aux éléments de note manuels",
       "unknownScale": "Barème inconnu",
       "scaleItemsFixed": "Un barème utilisé ne peut ni gagner ni perdre de notes : renommez-les plutôt",
       "scaleUsedByItems": "Le barème est utilisé par des éléments de note",

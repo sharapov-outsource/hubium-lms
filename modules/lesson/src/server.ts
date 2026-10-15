@@ -542,7 +542,7 @@ export const lesson = defineModule<LessonSettingsT>({
   key: 'lesson',
   archetype: 'activity',
   icon: 'Signpost',
-  supports: { viewCompletion: true, backup: true, grading: true },
+  supports: { viewCompletion: true },
   settings: {
     schema: LessonSettings as unknown as z.ZodType<LessonSettingsT>,
     defaults: () => LessonSettings.parse({}),

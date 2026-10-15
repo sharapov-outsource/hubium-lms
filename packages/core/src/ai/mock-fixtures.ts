@@ -122,12 +122,9 @@ const tutor: MockFixture = (r) => {
   return `По материалам курса [${s.index}]: ${sentences(s.text)[0] ?? s.text.slice(0, 200)}`;
 };
 
-const title: MockFixture = (r) => last(r).split(/\s+/).slice(0, 6).join(' ').slice(0, 80);
-
 export const mockFixtures: Record<string, MockFixture> = {
   quizgen,
   'quizgen.summary': summary,
   grading,
   tutor,
-  'tutor.title': title,
 };

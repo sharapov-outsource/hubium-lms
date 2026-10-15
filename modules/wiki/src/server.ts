@@ -480,5 +480,4 @@ export const wiki = defineModule<WikiSettingsT>({
   },
 });
 
-export type WikiPageT = NonNullable<Awaited<ReturnType<typeof wikiPage>>>;
 export const wikiModules = [wiki];

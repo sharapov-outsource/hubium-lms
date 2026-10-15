@@ -81,12 +81,6 @@ export function subscribeRealtime(userId: string, fn: Listener): () => void {
   };
 }
 
-export function realtimeConnectionCount(): number {
-  let n = 0;
-  for (const s of listeners.values()) n += s.size;
-  return n;
-}
-
 /** Called by the LISTEN client for each `hubium_rt` notification. */
 export function dispatchRealtime(payload: string): void {
   let wire: Wire;

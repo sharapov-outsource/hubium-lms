@@ -5,7 +5,7 @@
 const NAMED: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 
 /** Replaces the predefined entities and character references. */
-export function decodeXml(s: string): string {
+function decodeXml(s: string): string {
   return s.replace(/&(#[xX][0-9a-fA-F]+|#\d+|[a-zA-Z]+);/g, (m, e: string) => {
     if (e[0] !== '#') return NAMED[e] ?? m;
     const code =

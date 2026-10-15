@@ -785,7 +785,7 @@ export const lti = defineModule<LtiSettingsT>({
   key: 'lti',
   archetype: 'activity',
   icon: 'Plug',
-  supports: { grading: true, viewCompletion: true, backup: true },
+  supports: { viewCompletion: true },
   settings: {
     schema: LtiSettings as unknown as z.ZodType<LtiSettingsT>,
     defaults: () => LtiSettings.parse({ toolId: '00000000-0000-0000-0000-000000000000' }),

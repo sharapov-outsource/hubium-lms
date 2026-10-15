@@ -6,7 +6,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@hubium/ui/dropdown';
 import { useTheme } from '@hubium/ui/theme';
@@ -104,5 +103,3 @@ export function LocaleThemeSwitcher({ languages }: { languages: LanguageOption[]
     </div>
   );
 }
-
-export { DropdownMenuSeparator };

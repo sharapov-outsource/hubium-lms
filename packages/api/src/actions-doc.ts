@@ -5,8 +5,8 @@ import { z } from 'zod';
 // GET /activities/{id}/queries/{name}, documented from each one's own schemas, so the
 // reference follows the modules without extra work.
 
-export const ACTIONS_PATH = '/api/v1/activities/{id}/actions/{name}';
-export const QUERIES_PATH = '/api/v1/activities/{id}/queries/{name}';
+const ACTIONS_PATH = '/api/v1/activities/{id}/actions/{name}';
+const QUERIES_PATH = '/api/v1/activities/{id}/queries/{name}';
 
 type Json = Record<string, unknown>;
 
@@ -43,7 +43,7 @@ interface ActionDoc {
   schema: Json;
 }
 
-export function moduleActions(): ActionDoc[] {
+function moduleActions(): ActionDoc[] {
   return listModules()
     .sort((a, b) => a.key.localeCompare(b.key))
     .flatMap((m) =>
@@ -111,7 +111,7 @@ function outputSchema(output: z.ZodType): Json {
   return s;
 }
 
-export function moduleQueries(): QueryDoc[] {
+function moduleQueries(): QueryDoc[] {
   return listModules()
     .sort((a, b) => a.key.localeCompare(b.key))
     .flatMap((m) =>

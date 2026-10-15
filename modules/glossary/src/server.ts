@@ -315,7 +315,7 @@ export const glossary = defineModule<GlossarySettingsT>({
   key: 'glossary',
   archetype: 'activity',
   icon: 'BookA',
-  supports: { viewCompletion: true, backup: true, grading: true },
+  supports: { viewCompletion: true },
   settings: {
     schema: GlossarySettings as unknown as z.ZodType<GlossarySettingsT>,
     defaults: () => GlossarySettings.parse({}),

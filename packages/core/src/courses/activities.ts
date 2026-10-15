@@ -62,7 +62,6 @@ export const ActivityInput = z.object({
   idNumber: optionalText(100),
   settings: z.record(z.string(), z.unknown()).default({}),
 });
-export type ActivityInputType = z.input<typeof ActivityInput>;
 
 /**
  * Group mode and grouping to store: a course with a forced group mode imposes its own, and

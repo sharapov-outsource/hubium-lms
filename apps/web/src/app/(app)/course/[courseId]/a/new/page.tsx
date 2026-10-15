@@ -92,7 +92,7 @@ export default async function NewActivityPage({
         action={createActivityAction}
         hidden={{ courseId, sectionId: section.id, moduleKey: m.key }}
         courseId={courseId}
-        values={{ completionMode: m.supports.viewCompletion ? 'NONE' : 'NONE' }}
+        values={{ completionMode: 'NONE' }}
         settingsFields={
           <Settings settings={m.settings.defaults() as never} courseId={courseId} scales={scales} />
         }

@@ -15,7 +15,6 @@ import { type Data, type FieldsProps, listHelpers, nid } from './qtypes-shared';
 // question and its form. The table is complete by type, so a new question type does not
 // build until it has an editor here.
 
-export { FractionSelect } from './fraction-select';
 export type { Data, FieldsProps } from './qtypes-shared';
 
 function MultichoiceFields(props: FieldsProps) {

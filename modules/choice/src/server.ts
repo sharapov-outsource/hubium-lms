@@ -184,7 +184,7 @@ export const choice = defineModule<ChoiceSettingsT>({
   key: 'choice',
   archetype: 'activity',
   icon: 'Vote',
-  supports: { viewCompletion: true, backup: true, groups: true },
+  supports: { viewCompletion: true, groups: true },
   settings: {
     schema: ChoiceSettings as unknown as z.ZodType<ChoiceSettingsT>,
     defaults: () => ({

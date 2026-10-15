@@ -12,7 +12,7 @@ type View = QuestionView<'ORDERING'>;
 const shownOrder = (q: View) => q.order ?? q.data.items.map((i) => i.id);
 
 /** The items of the attempt in the right order. */
-export function rightOrder(q: View): string[] {
+function rightOrder(q: View): string[] {
   const shown = new Set(shownOrder(q));
   return q.data.items.map((i) => i.id).filter((id) => shown.has(id));
 }
@@ -61,7 +61,7 @@ const common = (a: string[], b: string[]) => a.filter((x) => b.includes(x)).leng
  * order: any such items, or with `contiguous` items next to each other in the right
  * order. A single item does not count.
  */
-export function orderedSubset(right: string[], current: string[], contiguous: boolean): number[] {
+function orderedSubset(right: string[], current: string[], contiguous: boolean): number[] {
   const pos = current.map((id) => right.indexOf(id));
   let best: number[] = [];
   if (contiguous) {
@@ -97,7 +97,7 @@ export function orderedSubset(right: string[], current: string[], contiguous: bo
 }
 
 /** Points earned and possible for an order (Moodle's grade_response). */
-export function orderScore(right: string[], current: string[], g: OrderingGrading) {
+function orderScore(right: string[], current: string[], g: OrderingGrading) {
   let got = 0;
   let max = 0;
   switch (g) {
@@ -151,11 +151,7 @@ export function orderScore(right: string[], current: string[], g: OrderingGradin
 }
 
 /** How each item of the learner's order scored: 0..1, or null when it is not scored. */
-export function itemScores(
-  right: string[],
-  current: string[],
-  g: OrderingGrading,
-): (number | null)[] {
+function itemScores(right: string[], current: string[], g: OrderingGrading): (number | null)[] {
   switch (g) {
     case 'allOrNothing':
     case 'absolutePosition':

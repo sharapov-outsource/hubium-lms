@@ -314,7 +314,7 @@ export interface ActivityModule<S = Record<string, unknown>> {
   archetype: 'activity' | 'resource' | 'inline';
   /** lucide-react icon name, e.g. 'FileText'. */
   icon: string;
-  supports: { grading?: boolean; groups?: boolean; viewCompletion?: boolean; backup?: boolean };
+  supports: { groups?: boolean; viewCompletion?: boolean };
   settings: {
     schema: z.ZodType<S>;
     defaults(): S;

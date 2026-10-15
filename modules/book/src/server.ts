@@ -164,7 +164,7 @@ export const book = defineModule<BookSettingsT>({
   key: 'book',
   archetype: 'resource',
   icon: 'BookOpen',
-  supports: { viewCompletion: true, backup: true },
+  supports: { viewCompletion: true },
   settings: {
     schema: BookSettings as unknown as z.ZodType<BookSettingsT>,
     defaults: () => BookSettings.parse({}),
