@@ -92,11 +92,16 @@ export async function maintenanceResponse(req: NextRequest, m: MaintenanceState)
     );
   const until = m.until
     ? t('maintenance.until', {
+        // the site's zone, named: visitors are not signed in, and their own is unknown (a
+        // zone name does not go with dateStyle and timeStyle, which throw on it)
         time: new Intl.DateTimeFormat(locale, {
-          dateStyle: 'long',
-          timeStyle: 'short',
-          timeZone: 'UTC',
-          timeZoneName: 'short',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: s['site.defaultTimezone'],
+          timeZoneName: 'long',
         }).format(m.until),
       })
     : '';

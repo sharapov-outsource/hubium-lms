@@ -45,6 +45,11 @@ test('maintenance mode lets only administrators in', async ({ page, request }) =
     const res = await request.get('/dashboard');
     expect(res.headers()['retry-after']).toBe('600');
     expect(await res.text()).toContain('Обновляем Hubium');
+    // the end of the work in the site's time zone, named
+    await setSetting('maintenance.until', '2026-12-01T09:00:00Z');
+    await expect
+      .poll(async () => await (await request.get('/dashboard')).text(), { timeout: 20_000 })
+      .toContain('Работы должны закончиться: 1 декабря 2026 г. в 12:00 Москва');
     const api = await request.get('/api/v1/me');
     expect(api.status()).toBe(503);
     expect(await api.json()).toMatchObject({ code: 'MAINTENANCE', message: 'Обновляем Hubium' });
@@ -58,6 +63,7 @@ test('maintenance mode lets only administrators in', async ({ page, request }) =
     await expect(page.getByText('Обновляем Hubium')).toBeVisible();
   } finally {
     await setSetting('maintenance.enabled', false);
+    await setSetting('maintenance.until', null);
     await expect
       .poll(async () => (await request.get('/api/v1/me')).status(), { timeout: 20_000 })
       .toBe(401);
