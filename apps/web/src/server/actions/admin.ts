@@ -206,75 +206,100 @@ async function requireConfig() {
   return ctx;
 }
 
+/** The settings forms' fields, by the setting each one holds: a refusal shows at its field. */
+const SETTING_FIELDS: Record<string, string> = {
+  'site.name': 'siteName',
+  'site.defaultTimezone': 'defaultTimezone',
+  'course.creatorRole': 'creatorRole',
+  'recyclebin.days': 'recyclebinDays',
+  'registration.consentText': 'consentText',
+  'password.minLength': 'minLength',
+  'password.history': 'history',
+  'password.maxAgeDays': 'maxAgeDays',
+  'lockout.threshold': 'lockoutThreshold',
+  'lockout.windowMinutes': 'lockoutWindow',
+  'lockout.durationMinutes': 'lockoutDuration',
+  'email.fromName': 'fromName',
+  'maintenance.message': 'maintenanceMessage',
+  'maintenance.until': 'maintenanceUntil',
+  'branding.accent': 'accent',
+  'branding.logoFileId': 'logo',
+  // the uploaded logo's own check
+  file: 'logo',
+};
+
 export async function saveSettingsAction(fd: FormData) {
-  return runAction(async () => {
-    const ctx = await requireConfig();
-    const section = String(fd.get('_section'));
-    const v = formToObject(fd);
-    const values: Record<string, unknown> = {};
-    switch (section) {
-      case 'general':
-        Object.assign(values, {
-          'site.name': v.siteName,
-          'site.defaultTimezone': v.defaultTimezone,
-          'course.creatorRole': v.creatorRole,
-          'recyclebin.days': Number(v.recyclebinDays ?? 30),
-          'mentors.enabled': bool(fd.get('mentorsEnabled')),
-        });
-        break;
-      case 'registration':
-        Object.assign(values, {
-          'registration.enabled': bool(fd.get('enabled')),
-          'registration.requireEmailVerification': bool(fd.get('requireEmailVerification')),
-          'registration.consentText': v.consentText ?? '',
-        });
-        break;
-      case 'authentication':
-        Object.assign(values, {
-          'auth.oauth.google': bool(fd.get('google')),
-          'auth.oauth.yandex': bool(fd.get('yandex')),
-          'auth.oauth.vk': bool(fd.get('vk')),
-          'auth.oauth.keycloak': bool(fd.get('keycloak')),
-          'auth.require2faForAdmins': bool(fd.get('require2fa')),
-        });
-        break;
-      case 'security':
-        Object.assign(values, {
-          'password.minLength': v.minLength,
-          'password.requireDigit': bool(fd.get('requireDigit')),
-          'password.requireLower': bool(fd.get('requireLower')),
-          'password.requireUpper': bool(fd.get('requireUpper')),
-          'password.requireSymbol': bool(fd.get('requireSymbol')),
-          'password.history': v.history,
-          'password.maxAgeDays': v.maxAgeDays,
-          'auth.newSignInNotice': bool(fd.get('newSignInNotice')),
-          'lockout.threshold': v.lockoutThreshold,
-          'lockout.windowMinutes': v.lockoutWindow,
-          'lockout.durationMinutes': v.lockoutDuration,
-        });
-        break;
-      case 'email':
-        Object.assign(values, { 'email.fromName': v.fromName });
-        break;
-      case 'maintenance':
-        // logged, and the same as `hubium maintenance on|off`
-        await setMaintenance(
-          db,
-          {
-            enabled: bool(fd.get('maintenanceEnabled')),
-            message: v.maintenanceMessage ?? '',
-            until: v.maintenanceUntil || null,
-          },
-          ctx.perm.userId,
-        );
-        break;
-      default:
-        throw new ValidationError({ _section: [msg('errors.admin.unknownSettingsSection')] });
-    }
-    await setSettings(db, values, ctx.perm.userId);
-    revalidatePath('/', 'layout');
-    return null;
-  });
+  return runAction(
+    async () => {
+      const ctx = await requireConfig();
+      const section = String(fd.get('_section'));
+      const v = formToObject(fd);
+      const values: Record<string, unknown> = {};
+      switch (section) {
+        case 'general':
+          Object.assign(values, {
+            'site.name': v.siteName,
+            'site.defaultTimezone': v.defaultTimezone,
+            'course.creatorRole': v.creatorRole,
+            'recyclebin.days': Number(v.recyclebinDays ?? 30),
+            'mentors.enabled': bool(fd.get('mentorsEnabled')),
+          });
+          break;
+        case 'registration':
+          Object.assign(values, {
+            'registration.enabled': bool(fd.get('enabled')),
+            'registration.requireEmailVerification': bool(fd.get('requireEmailVerification')),
+            'registration.consentText': v.consentText ?? '',
+          });
+          break;
+        case 'authentication':
+          Object.assign(values, {
+            'auth.oauth.google': bool(fd.get('google')),
+            'auth.oauth.yandex': bool(fd.get('yandex')),
+            'auth.oauth.vk': bool(fd.get('vk')),
+            'auth.oauth.keycloak': bool(fd.get('keycloak')),
+            'auth.require2faForAdmins': bool(fd.get('require2fa')),
+          });
+          break;
+        case 'security':
+          Object.assign(values, {
+            'password.minLength': v.minLength,
+            'password.requireDigit': bool(fd.get('requireDigit')),
+            'password.requireLower': bool(fd.get('requireLower')),
+            'password.requireUpper': bool(fd.get('requireUpper')),
+            'password.requireSymbol': bool(fd.get('requireSymbol')),
+            'password.history': v.history,
+            'password.maxAgeDays': v.maxAgeDays,
+            'auth.newSignInNotice': bool(fd.get('newSignInNotice')),
+            'lockout.threshold': v.lockoutThreshold,
+            'lockout.windowMinutes': v.lockoutWindow,
+            'lockout.durationMinutes': v.lockoutDuration,
+          });
+          break;
+        case 'email':
+          Object.assign(values, { 'email.fromName': v.fromName });
+          break;
+        case 'maintenance':
+          // logged, and the same as `hubium maintenance on|off`
+          await setMaintenance(
+            db,
+            {
+              enabled: bool(fd.get('maintenanceEnabled')),
+              message: v.maintenanceMessage ?? '',
+              until: v.maintenanceUntil || null,
+            },
+            ctx.perm.userId,
+          );
+          break;
+        default:
+          throw new ValidationError({ _section: [msg('errors.admin.unknownSettingsSection')] });
+      }
+      await setSettings(db, values, ctx.perm.userId);
+      revalidatePath('/', 'layout');
+      return null;
+    },
+    { fields: SETTING_FIELDS },
+  );
 }
 
 /** Administration → Languages. The site language is always kept enabled. */
@@ -326,53 +351,56 @@ export async function saveModulesAction(fd: FormData) {
 }
 
 export async function saveBrandingAction(fd: FormData) {
-  return runAction(async () => {
-    const ctx = await requireConfig();
-    const accent = String(fd.get('accent') ?? '');
-    const values: Record<string, unknown> = { 'branding.accent': accent };
-    const logo = fd.get('logo');
-    let file: { id: string } | null = null;
-    if (logo instanceof File && logo.size > 0) {
-      file = await storeFile(db, {
-        contextId: BRANDING_CONTEXT,
-        component: 'site',
-        area: 'branding',
-        name: `logo-${Date.now()}-${logo.name}`,
-        mimeType: logo.type,
-        data: Buffer.from(await logo.arrayBuffer()),
-        uploadedById: ctx.perm.userId,
-        maxBytes: 1024 * 1024,
-        allowedTypes: /^image\/(png|jpeg|svg\+xml|webp)$/,
-      });
-      values['branding.logoFileId'] = file.id;
-    }
-    const remove = fd.get('removeLogo') === 'on';
-    if (remove) values['branding.logoFileId'] = null;
-    try {
-      await setSettings(db, values, ctx.perm.userId);
-    } catch (e) {
-      // settings refused: the logo uploaded with them is not kept either
-      if (file) await db.file.delete({ where: { id: file.id } });
-      throw e;
-    }
-    // the logo replaced or removed goes; its content with the next garbage collection
-    if (file || remove)
-      await db.file.deleteMany({
-        where: {
+  return runAction(
+    async () => {
+      const ctx = await requireConfig();
+      const accent = String(fd.get('accent') ?? '');
+      const values: Record<string, unknown> = { 'branding.accent': accent };
+      const logo = fd.get('logo');
+      let file: { id: string } | null = null;
+      if (logo instanceof File && logo.size > 0) {
+        file = await storeFile(db, {
           contextId: BRANDING_CONTEXT,
           component: 'site',
           area: 'branding',
-          ...(file ? { id: { not: file.id } } : {}),
-        },
-      });
-    revalidatePath('/', 'layout');
-    const p = generateAccentPalette(accent);
-    return {
-      adjusted: p.adjusted,
-      ratio: Math.round(p.originalContrast * 100) / 100,
-      accent: p.light.accent,
-    };
-  });
+          name: `logo-${Date.now()}-${logo.name}`,
+          mimeType: logo.type,
+          data: Buffer.from(await logo.arrayBuffer()),
+          uploadedById: ctx.perm.userId,
+          maxBytes: 1024 * 1024,
+          allowedTypes: /^image\/(png|jpeg|svg\+xml|webp)$/,
+        });
+        values['branding.logoFileId'] = file.id;
+      }
+      const remove = fd.get('removeLogo') === 'on';
+      if (remove) values['branding.logoFileId'] = null;
+      try {
+        await setSettings(db, values, ctx.perm.userId);
+      } catch (e) {
+        // settings refused: the logo uploaded with them is not kept either
+        if (file) await db.file.delete({ where: { id: file.id } });
+        throw e;
+      }
+      // the logo replaced or removed goes; its content with the next garbage collection
+      if (file || remove)
+        await db.file.deleteMany({
+          where: {
+            contextId: BRANDING_CONTEXT,
+            component: 'site',
+            area: 'branding',
+            ...(file ? { id: { not: file.id } } : {}),
+          },
+        });
+      revalidatePath('/', 'layout');
+      const p = generateAccentPalette(accent);
+      return {
+        adjusted: p.adjusted,
+        ratio: Math.round(p.originalContrast * 100) / 100,
+        accent: p.light.accent,
+      };
+    },
+    { fields: SETTING_FIELDS },
+  );
 }
 
 export async function sendTestEmailAction() {

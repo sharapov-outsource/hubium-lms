@@ -38,22 +38,31 @@ export async function saveAiSiteAction(fd: FormData) {
 }
 
 export async function saveAiProviderAction(fd: FormData) {
-  return runAction(async () => {
-    const v = formToObject(fd);
-    const r = await saveAiProvider.run(await getContext(), {
-      id: v.id || undefined,
-      kind: v.kind,
-      name: v.name,
-      baseUrl: v.baseUrl ?? '',
-      apiKey: v.apiKey || undefined,
-      models: { generation: v.generation, cheap: v.cheap, premium: v.premium },
-      jsonSchema: on(fd, 'jsonSchema'),
-      streaming: on(fd, 'streaming'),
-      enabled: on(fd, 'enabled'),
-    });
-    revalidatePath('/admin/ai');
-    return r;
-  });
+  return runAction(
+    async () => {
+      const v = formToObject(fd);
+      const r = await saveAiProvider.run(await getContext(), {
+        id: v.id || undefined,
+        kind: v.kind,
+        name: v.name,
+        baseUrl: v.baseUrl ?? '',
+        apiKey: v.apiKey || undefined,
+        models: { generation: v.generation, cheap: v.cheap, premium: v.premium },
+        jsonSchema: on(fd, 'jsonSchema'),
+        streaming: on(fd, 'streaming'),
+        enabled: on(fd, 'enabled'),
+      });
+      revalidatePath('/admin/ai');
+      return r;
+    },
+    {
+      fields: {
+        'models.generation': 'generation',
+        'models.cheap': 'cheap',
+        'models.premium': 'premium',
+      },
+    },
+  );
 }
 
 export async function deleteAiProviderAction(id: string) {
@@ -65,24 +74,27 @@ export async function deleteAiProviderAction(id: string) {
 }
 
 export async function saveAiFeatureAction(fd: FormData) {
-  return runAction(async () => {
-    const v = formToObject(fd);
-    const r = await saveAiFeature.run(await getContext(), {
-      feature: v.feature,
-      enabled: on(fd, 'enabled'),
-      providerId: v.providerId || null,
-      model: v.model || 'generation',
-      effort: v.effort || null,
-      limits: {
-        userDailyTokens: num(v.userDailyTokens),
-        courseMonthlyTokens: num(v.courseMonthlyTokens),
-        perMinute: num(v.perMinute),
-      },
-      bumpNotice: on(fd, 'bumpNotice'),
-    });
-    revalidatePath('/admin/ai');
-    return r;
-  });
+  return runAction(
+    async () => {
+      const v = formToObject(fd);
+      const r = await saveAiFeature.run(await getContext(), {
+        feature: v.feature,
+        enabled: on(fd, 'enabled'),
+        providerId: v.providerId || null,
+        model: v.model || 'generation',
+        effort: v.effort || null,
+        limits: {
+          userDailyTokens: num(v.userDailyTokens),
+          courseMonthlyTokens: num(v.courseMonthlyTokens),
+          perMinute: num(v.perMinute),
+        },
+        bumpNotice: on(fd, 'bumpNotice'),
+      });
+      revalidatePath('/admin/ai');
+      return r;
+    },
+    { fields: { 'limits.': '' } },
+  );
 }
 
 export async function saveEmbeddingsAction(fd: FormData) {

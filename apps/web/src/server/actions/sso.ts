@@ -8,41 +8,52 @@ import { getContext } from '../session';
 
 const MAP_PREFIX = 'map_field_';
 
+/** The form's fields for the mapping's errors. */
+const MAPPING_FIELDS = {
+  'mapping.email': 'mapEmail',
+  'mapping.firstName': 'mapFirstName',
+  'mapping.lastName': 'mapLastName',
+  'mapping.fields.': MAP_PREFIX,
+};
+
 /** Administration → Sign-in: an SSO provider's form. */
 export async function saveSsoProviderAction(fd: FormData) {
-  const res = await runAction(async () => {
-    const v = formToObject(fd);
-    const fields = Object.fromEntries(
-      Object.entries(v)
-        .filter(([k, a]) => k.startsWith(MAP_PREFIX) && a.trim())
-        .map(([k, a]) => [k.slice(MAP_PREFIX.length), a.trim()]),
-    );
-    return saveSsoProvider.run(await getContext(), {
-      id: v.id || undefined,
-      providerId: v.providerId ?? '',
-      name: v.name ?? '',
-      protocol: v.protocol === 'saml' || v.protocol === 'oauth2' ? v.protocol : 'oidc',
-      enabled: fd.get('enabled') === 'on',
-      autoCreate: fd.get('autoCreate') === 'on',
-      linkByEmail: fd.get('linkByEmail') === 'on',
-      domain: v.domain ?? '',
-      issuer: v.issuer,
-      clientId: v.clientId,
-      clientSecret: v.clientSecret,
-      scopes: v.scopes,
-      authorizationUrl: v.authorizationUrl,
-      tokenUrl: v.tokenUrl,
-      userInfoUrl: v.userInfoUrl,
-      idpMetadataUrl: v.idpMetadataUrl,
-      idpMetadataXml: v.idpMetadataXml,
-      mapping: {
-        email: v.mapEmail,
-        firstName: v.mapFirstName,
-        lastName: v.mapLastName,
-        fields,
-      },
-    });
-  });
+  const res = await runAction(
+    async () => {
+      const v = formToObject(fd);
+      const fields = Object.fromEntries(
+        Object.entries(v)
+          .filter(([k, a]) => k.startsWith(MAP_PREFIX) && a.trim())
+          .map(([k, a]) => [k.slice(MAP_PREFIX.length), a.trim()]),
+      );
+      return saveSsoProvider.run(await getContext(), {
+        id: v.id || undefined,
+        providerId: v.providerId ?? '',
+        name: v.name ?? '',
+        protocol: v.protocol === 'saml' || v.protocol === 'oauth2' ? v.protocol : 'oidc',
+        enabled: fd.get('enabled') === 'on',
+        autoCreate: fd.get('autoCreate') === 'on',
+        linkByEmail: fd.get('linkByEmail') === 'on',
+        domain: v.domain ?? '',
+        issuer: v.issuer,
+        clientId: v.clientId,
+        clientSecret: v.clientSecret,
+        scopes: v.scopes,
+        authorizationUrl: v.authorizationUrl,
+        tokenUrl: v.tokenUrl,
+        userInfoUrl: v.userInfoUrl,
+        idpMetadataUrl: v.idpMetadataUrl,
+        idpMetadataXml: v.idpMetadataXml,
+        mapping: {
+          email: v.mapEmail,
+          firstName: v.mapFirstName,
+          lastName: v.mapLastName,
+          fields,
+        },
+      });
+    },
+    { fields: MAPPING_FIELDS },
+  );
   if (res.ok) {
     revalidatePath('/admin/sso');
     redirect(`/admin/sso/${res.data.id}?saved=1`);
