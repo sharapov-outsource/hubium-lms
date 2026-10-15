@@ -93,6 +93,18 @@ describe('database templates', () => {
     );
   });
 
+  it('fills in addresses and values inside attributes, safely', () => {
+    const html = renderTemplate(
+      '<a href="##moreurl##" title="[[Автор]]">x</a><img src="[[Обложка]]" alt="[[Обложка]]"><a href="[[Ссылка]]">y</a><a href="[[Автор]]">z</a>',
+      fields,
+      { t: '" onmouseover="alert(1)', u: 'javascript:alert(1)', i: 'f1' },
+      o,
+    );
+    expect(html).toBe(
+      '<a href="/r/1" title="&quot; onmouseover=&quot;alert(1)">x</a><img src="/files/f1/c.png" alt="c.png"><a href="">y</a><a href="">z</a>',
+    );
+  });
+
   it('has a template for each field when the teacher wrote none', () => {
     expect(defaultTemplate(fields.slice(0, 1), 'list')).toBe(
       '<p><strong>Автор:</strong> [[Автор]]</p><p>##more##</p>',

@@ -158,10 +158,32 @@ export function defaultTemplate(fields: Field[], kind: 'list' | 'single'): strin
   );
 }
 
+const webUrl = (v: string) => (/^(https?:\/\/|mailto:)/i.test(v.trim()) ? v.trim() : '');
+
+/**
+ * A value inside an attribute of the template's markup (Moodle's `<a href="##moreurl##">`,
+ * `<img src="[[Photo]]">`): in href and src only a web address (a link field's, a file's,
+ * or text that is one), elsewhere the value as text; always escaped.
+ */
+function attrValue(
+  f: Field,
+  v: string,
+  url: boolean,
+  file: (id: string) => FileRef | undefined,
+): string {
+  if (f.type === 'file' || f.type === 'image') {
+    const ref = v ? file(v) : undefined;
+    return esc(url ? (ref?.url ?? '') : (ref?.name ?? ''));
+  }
+  const text = valueText(f, v);
+  return esc(url ? webUrl(text) : text);
+}
+
 /**
  * An entry through a template: [[Field]] is the field's value; ##user##, ##timeadded##,
- * ##timemodified## and ##more## (a link to the entry) are filled in; other ##tags## of
- * Moodle's templates are left out. Only text is replaced, never markup.
+ * ##timemodified##, ##more## (a link to the entry) and ##moreurl## (its address) are filled
+ * in; other ##tags## of Moodle's templates are left out. In text the value is HTML; inside
+ * a tag's attribute it is a safe, escaped value (attrValue); the markup itself stays.
  */
 export function renderTemplate(
   template: string,
@@ -185,11 +207,36 @@ export function renderTemplate(
     more: `<a href="${esc(o.moreUrl)}">${esc(o.moreLabel)}</a>`,
     moreurl: esc(o.moreUrl),
   };
+  const inAttribute = (tag: string) =>
+    tag.replace(
+      /(\s[\w:-]+\s*=\s*)(["'])([^"']*)\2/g,
+      (_all, name: string, quote: string, value: string) => {
+        const url = /^\s(href|src)\s*=/i.test(name);
+        const filled = value
+          .replace(/\[\[([^\]<>]{1,255})\]\]/g, (whole, raw: string) => {
+            const f = byName.get(raw.replace(/&amp;/g, '&').trim());
+            return f ? attrValue(f, values[f.id] ?? '', url, o.file) : whole;
+          })
+          .replace(/##([a-z]+)##/gi, (_, t: string) => {
+            const key = t.toLowerCase();
+            if (key === 'moreurl') return esc(o.moreUrl);
+            if (url) return '';
+            return key === 'user'
+              ? esc(o.user)
+              : key === 'timeadded'
+                ? esc(o.added)
+                : key === 'timemodified'
+                  ? esc(o.modified)
+                  : '';
+          });
+        return `${name}${quote}${filled}${quote}`;
+      },
+    );
   return template
     .split(/(<[^>]*>)/)
     .map((part) =>
       part.startsWith('<')
-        ? part
+        ? inAttribute(part)
         : part
             .replace(/\[\[([^\]<>]{1,255})\]\]/g, (whole, raw: string) => {
               const f = byName.get(raw.replace(/&amp;/g, '&').trim());
