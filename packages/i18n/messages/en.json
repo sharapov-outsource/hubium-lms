@@ -881,7 +881,7 @@
     "members": "Members",
     "addMembers": "Add to group",
     "remove": "Remove",
-    "deleteConfirm": "Delete group “{name}”?",
+    "deleteConfirm": "Delete group “{name}”? Its announcements and chat are deleted. Its forum discussions stay, seen only by those who see every group.",
     "empty": "No groups yet",
     "membersCount": "{count, plural, one {# member} other {# members}}",
     "choose": "Choose participants",

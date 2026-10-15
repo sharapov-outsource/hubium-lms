@@ -880,7 +880,7 @@
     "members": "Membres",
     "addMembers": "Ajouter au groupe",
     "remove": "Retirer",
-    "deleteConfirm": "Supprimer le groupe « {name} » ?",
+    "deleteConfirm": "Supprimer le groupe « {name} » ? Ses annonces et sa discussion instantanée sont supprimées. Ses discussions de forum restent, visibles seulement de qui voit tous les groupes.",
     "empty": "Aucun groupe pour l’instant",
     "membersCount": "{count, plural, one {# membre} other {# membres}}",
     "choose": "Choisir des participants",

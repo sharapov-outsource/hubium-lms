@@ -3,6 +3,11 @@
 model ForumDiscussion {
   id         String   @id @default(uuid(7)) @db.Uuid
   activityId String   @db.Uuid
+  /**
+   * The group the discussion belongs to, kept when the group is deleted (no foreign key):
+   * null would make it a discussion for everyone. Of a deleted group, it is seen only by
+   * those who see every group.
+   */
   groupId    String?  @db.Uuid
   authorId   String?  @db.Uuid
   title      String
@@ -13,7 +18,6 @@ model ForumDiscussion {
   createdAt  DateTime @default(now()) @db.Timestamptz(3)
 
   activity      Activity            @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  group         Group?              @relation(fields: [groupId], references: [id], onDelete: SetNull)
   author        User?               @relation(fields: [authorId], references: [id], onDelete: SetNull)
   posts         ForumPost[]
   subscriptions ForumSubscription[]

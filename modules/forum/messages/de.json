@@ -28,6 +28,7 @@
     "subject": "Betreff",
     "message": "Mitteilung",
     "group": "Gruppe",
+    "groupDeleted": "Gruppe gelöscht",
     "attachments": "Anhänge (bis zu {max})",
     "pin": "Anheften",
     "unpin": "Loslösen",

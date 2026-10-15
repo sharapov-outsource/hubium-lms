@@ -880,7 +880,7 @@
     "members": "Membri",
     "addMembers": "Aggiungi al gruppo",
     "remove": "Rimuovi",
-    "deleteConfirm": "Eliminare il gruppo «{name}»?",
+    "deleteConfirm": "Eliminare il gruppo «{name}»? I suoi annunci e la sua chat vengono eliminati. Le sue discussioni nei forum restano, visibili solo a chi vede tutti i gruppi.",
     "empty": "Ancora nessun gruppo",
     "membersCount": "{count, plural, one {# membro} other {# membri}}",
     "choose": "Scegli i partecipanti",

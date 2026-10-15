@@ -880,7 +880,7 @@
     "members": "Mitglieder",
     "addMembers": "Zur Gruppe hinzufügen",
     "remove": "Entfernen",
-    "deleteConfirm": "Gruppe „{name}“ löschen?",
+    "deleteConfirm": "Gruppe „{name}“ löschen? Ihre Ankündigungen und ihr Chat werden gelöscht. Ihre Forumsdiskussionen bleiben und sind nur für jene sichtbar, die alle Gruppen sehen.",
     "empty": "Noch keine Gruppen",
     "membersCount": "{count, plural, one {# Mitglied} other {# Mitglieder}}",
     "choose": "Teilnehmer/innen auswählen",

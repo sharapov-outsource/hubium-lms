@@ -155,6 +155,7 @@ async function ForumIndex({ activity: a, ctx, searchParams }: Props) {
                       <Badge variant="accent">{t('unread', { n: d.unread })}</Badge>
                     ) : null}
                     {d.groupName ? <Badge>{d.groupName}</Badge> : null}
+                    {d.groupDeleted ? <Badge variant="warning">{t('groupDeleted')}</Badge> : null}
                   </div>
                 </Td>
                 <Td className="hidden text-sm sm:table-cell">{d.authorName ?? '—'}</Td>
@@ -302,6 +303,7 @@ async function DiscussionView({
         {d.pinned ? <Badge variant="accent">{t('pinned')}</Badge> : null}
         {d.locked ? <Badge variant="warning">{t('locked')}</Badge> : null}
         {d.groupName ? <Badge>{d.groupName}</Badge> : null}
+        {d.groupDeleted ? <Badge variant="warning">{t('groupDeleted')}</Badge> : null}
       </div>
       <div className="flex flex-wrap gap-2">
         {a.settings.subscription === 'optional' || a.settings.subscription === 'auto' ? (

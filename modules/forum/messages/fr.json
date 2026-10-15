@@ -28,6 +28,7 @@
     "subject": "Sujet",
     "message": "Message",
     "group": "Groupe",
+    "groupDeleted": "Groupe supprimé",
     "attachments": "Pièces jointes (jusqu’à {max})",
     "pin": "Épingler",
     "unpin": "Désépingler",

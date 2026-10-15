@@ -28,6 +28,7 @@
     "subject": "Oggetto",
     "message": "Messaggio",
     "group": "Gruppo",
+    "groupDeleted": "Gruppo eliminato",
     "attachments": "Allegati (fino a {max})",
     "pin": "Metti in evidenza",
     "unpin": "Togli dall’evidenza",

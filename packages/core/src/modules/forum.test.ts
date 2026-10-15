@@ -3,6 +3,7 @@ import {
   postStats,
   postVisible,
   qandaLocked,
+  readDiscussions,
   subscribers,
   subscriptionState,
 } from '@hubium/mod-forum/server';
@@ -14,6 +15,7 @@ import { getActivityAccess, setActivityVisibility, updateActivity } from '../cou
 import {
   createGroup,
   createGrouping,
+  deleteGroup,
   setGroupingGroups,
   setGroupMembers,
 } from '../groups/groups.ts';
@@ -267,6 +269,24 @@ describe('mod-forum', () => {
         message: '<p>b</p>',
       }),
     ).rejects.toThrow('Discussion not found');
+
+    // the group deleted, its discussion stays with those who see every group
+    await deleteGroup.run(sys, { id: g1 });
+    const gone = await t.db.forumDiscussion.findUniqueOrThrow({ where: { id: d.discussionId } });
+    expect(gone.groupId).toBe(g1);
+    const listed = async (userId: string) =>
+      (await readDiscussions(buildModuleCtx(await as(userId)), ref)).items.filter(
+        (x) => x.id === d.discussionId,
+      );
+    for (const student of [f.users.student1!, f.users.student2!]) {
+      expect(await listed(student)).toEqual([]);
+      expect(await canSeeDiscussion(buildModuleCtx(await as(student)), ref, gone, student)).toBe(
+        false,
+      );
+    }
+    expect(await listed(f.users.teacher!)).toMatchObject([
+      { groupId: g1, groupName: null, groupDeleted: true },
+    ]);
   });
 
   it('a grouping limits the forum to its groups', async () => {

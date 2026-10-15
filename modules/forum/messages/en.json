@@ -28,6 +28,7 @@
     "subject": "Subject",
     "message": "Message",
     "group": "Group",
+    "groupDeleted": "Group deleted",
     "attachments": "Attachments (up to {max})",
     "pin": "Pin",
     "unpin": "Unpin",

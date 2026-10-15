@@ -28,6 +28,7 @@
     "subject": "Тема",
     "message": "Сообщение",
     "group": "Группа",
+    "groupDeleted": "Группа удалена",
     "attachments": "Вложения (до {max})",
     "pin": "Закрепить",
     "unpin": "Открепить",

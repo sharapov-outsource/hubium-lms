@@ -100,6 +100,20 @@ async function forumGroupFilter(
   return visibleGroupFilter(ctx.db, a, userId, await isModerator(ctx, a));
 }
 
+/** Names of the discussions' groups; a group deleted since has none (its discussions keep
+ *  its id and are seen only by those who see every group). */
+async function groupNamesOf(ctx: ModuleCtx, ds: { groupId: string | null }[]) {
+  const ids = [...new Set(ds.flatMap((d) => (d.groupId ? [d.groupId] : [])))];
+  const rows = ids.length
+    ? await ctx.db.group.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
+    : [];
+  const names = new Map(rows.map((g) => [g.id, g.name]));
+  return (d: { groupId: string | null }) => ({
+    groupName: d.groupId ? (names.get(d.groupId) ?? null) : null,
+    groupDeleted: !!d.groupId && !names.has(d.groupId),
+  });
+}
+
 export async function canSeeDiscussion(
   ctx: ModuleCtx,
   a: Forum,
@@ -284,7 +298,6 @@ export async function readDiscussions(
       take: pageSize,
       include: {
         author: { select: { name: true } },
-        group: { select: { name: true } },
         readStates: { where: { userId: me } },
       },
     }),
@@ -306,6 +319,7 @@ export async function readDiscussions(
       }),
     ),
   );
+  const groupOf = await groupNamesOf(ctx, discussions);
   // Members choose one of their groups for a new discussion; moderators also post to all.
   const groups =
     a.groupMode === 'NONE'
@@ -333,7 +347,7 @@ export async function readDiscussions(
       pinned: d.pinned,
       locked: d.locked,
       groupId: d.groupId,
-      groupName: d.group?.name ?? null,
+      ...groupOf(d),
       authorName: d.author?.name ?? null,
       replies: Math.max(0, d.postCount - 1),
       unread: unread[i]!,
@@ -380,10 +394,7 @@ export interface PostRating {
  */
 export async function readDiscussion(ctx: ModuleCtx, a: Forum, discussionId: string) {
   const me = uid(ctx);
-  const d = await ctx.db.forumDiscussion.findUnique({
-    where: { id: discussionId },
-    include: { group: { select: { name: true } } },
-  });
+  const d = await ctx.db.forumDiscussion.findUnique({ where: { id: discussionId } });
   if (!d || d.activityId !== a.id || !(await canSeeDiscussion(ctx, a, d, me))) return null;
   const moderator = await isModerator(ctx, a);
   const [canPost, locked, sub] = await Promise.all([
@@ -477,7 +488,7 @@ export async function readDiscussion(ctx: ModuleCtx, a: Forum, discussionId: str
       pinned: d.pinned,
       locked: d.locked,
       groupId: d.groupId,
-      groupName: d.group?.name ?? null,
+      ...(await groupNamesOf(ctx, [d]))(d),
       createdAt: d.createdAt,
     },
     moderator,
@@ -500,6 +511,8 @@ const DiscussionOut = z.object({
   locked: z.boolean(),
   groupId: z.string().uuid().nullable(),
   groupName: z.string().nullable(),
+  /** Its group was deleted: only those who see every group see it. */
+  groupDeleted: z.boolean(),
 });
 const FileOut = z.object({
   id: z.string().uuid(),
