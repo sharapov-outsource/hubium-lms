@@ -35,6 +35,7 @@ import {
   gradeRange,
   gradingForm,
   hidesNames,
+  latePenalty,
   latestFor,
   markedBy,
   participantLabel,
@@ -924,10 +925,7 @@ async function GradingPanel({ activity: a, ctx, userId }: Props & { userId: stri
                   days: daysLate(late),
                   percent: scale
                     ? 0
-                    : Math.min(
-                        a.settings.latePenaltyCap,
-                        a.settings.latePenaltyPerDay * daysLate(late),
-                      ),
+                    : latePenalty(late, a.settings.latePenaltyPerDay, a.settings.latePenaltyCap),
                 })}
               </Alert>
             ) : null}
