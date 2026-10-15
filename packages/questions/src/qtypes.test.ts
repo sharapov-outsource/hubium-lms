@@ -233,3 +233,14 @@ describe('gaps (select missing words, drag and drop into text)', () => {
     expect(done.fraction).toBeCloseTo(0.875);
   });
 });
+
+describe('essay', () => {
+  const q = { type: 'ESSAY', data: {}, answers: [] } as never;
+
+  it('waits for a teacher only when something was written', () => {
+    expect(gradeResponse(q, { text: '<p>Ответ</p>' })).toMatchObject({ needsGrading: true });
+    // a click in the editor leaves an empty paragraph: no answer to grade
+    for (const text of ['', '  ', '<p></p>', '<p><br></p>', '<p>&nbsp;</p>'])
+      expect(gradeResponse(q, { text })).toMatchObject({ fraction: null, needsGrading: false });
+  });
+});

@@ -39,5 +39,10 @@ export function parseNumber(text: string): number | null {
 export const textOf = (r: Record<string, unknown>, key = 'text'): string =>
   typeof r[key] === 'string' ? (r[key] as string) : '';
 
-/** Rich text with its tags removed, for "is there any answer" checks. */
-export const visibleText = (html: string): string => html.replace(/<[^>]*>/g, '').trim();
+/** Rich text with its tags and blank spaces (`&nbsp;` too) removed, for "is there any answer"
+ *  checks. */
+export const visibleText = (html: string): string =>
+  html
+    .replace(/<[^>]*>/g, '')
+    .replace(/&(nbsp|#160|#xa0);/gi, ' ')
+    .trim();
