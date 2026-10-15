@@ -384,6 +384,17 @@ describe('courses domain', () => {
     expect(list.users.map((u) => u.id).sort()).toEqual([ids.student1!, ids.student3!].sort());
     const all = await listParticipants(teacher, { courseId: ids.course! });
     expect(all.total).toBe(4);
+    // classmates learn neither whose enrolment is suspended nor when it ends
+    expect(list.showEnrolments).toBe(false);
+    expect(list.users.every((u) => u.enrolments.length === 0)).toBe(true);
+    expect((await listParticipants(s1, { courseId: ids.course!, status: 'SUSPENDED' })).total).toBe(
+      list.total,
+    );
+    expect(all.showEnrolments).toBe(true);
+    expect(all.users.every((u) => u.enrolments.length > 0)).toBe(true);
+    expect(
+      (await listParticipants(teacher, { courseId: ids.course!, status: 'SUSPENDED' })).total,
+    ).toBe(0);
     // another group's members stay hidden, even when asked for by its id
     const other = await t.db.group.create({ data: { courseId: ids.course!, name: 'Чужая' } });
     await t.db.groupMember.create({ data: { groupId: other.id, userId: ids.student2! } });

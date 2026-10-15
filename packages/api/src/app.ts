@@ -312,7 +312,10 @@ const Participant = z
     email: z.string().nullable(),
     roles: z.array(z.string()),
     groups: z.array(z.string()),
-    status: z.string().nullable(),
+    status: z
+      .string()
+      .nullable()
+      .openapi({ description: 'Null unless the caller manages enrolments in the course' }),
   })
   .openapi('Participant');
 

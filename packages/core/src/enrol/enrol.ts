@@ -467,12 +467,14 @@ export async function listParticipants(
     ? { in: q.groupId ? restrictGroups.filter((g) => g === q.groupId) : restrictGroups }
     : q.groupId;
   // Contact details (and searching by them) only for people who manage the course roster.
-  const showContacts =
-    (await ctx.perm.can('enrol:manage', q.courseId)) ||
-    (await ctx.perm.can('user:viewdetails', q.courseId));
+  const showEnrolments = await ctx.perm.can('enrol:manage', q.courseId);
+  const showContacts = showEnrolments || (await ctx.perm.can('user:viewdetails', q.courseId));
+  // Whether someone's enrolment is suspended or when it ends is for those managing them,
+  // not for their classmates: neither shown nor searchable by others.
+  const status = showEnrolments ? q.status : undefined;
   const where: Prisma.UserWhereInput = {
     deletedAt: null,
-    enrolments: { some: { courseId: q.courseId, ...(q.status ? { status: q.status } : {}) } },
+    enrolments: { some: { courseId: q.courseId, ...(status ? { status } : {}) } },
     ...(q.roleId ? { roleAssignments: { some: { contextId: q.courseId, roleId: q.roleId } } } : {}),
     ...(groupFilter ? { groupMembers: { some: { groupId: groupFilter } } } : {}),
     ...(q.q
@@ -521,9 +523,12 @@ export async function listParticipants(
     page: q.page,
     pageSize: q.pageSize,
     showContacts,
-    users: showContacts
-      ? users
-      : users.map((u) => ({ ...u, email: '', emailPlaceholder: true, username: null })),
+    showEnrolments,
+    users: users.map((u) => ({
+      ...u,
+      ...(showContacts ? {} : { email: '', emailPlaceholder: true, username: null }),
+      enrolments: showEnrolments ? u.enrolments : [],
+    })),
   };
 }
 

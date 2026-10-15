@@ -108,7 +108,7 @@ export default async function ParticipantsPage({
             <Th>{tc('name')}</Th>
             <Th>{t('roles')}</Th>
             <Th>{t('groups')}</Th>
-            <Th>{t('status')}</Th>
+            {res.showEnrolments ? <Th>{t('status')}</Th> : null}
             <Th>{t('lastAccess')}</Th>
             {canManage ? <Th className="text-right">{tc('actions')}</Th> : null}
           </Tr>
@@ -150,20 +150,22 @@ export default async function ParticipantsPage({
                     <span className="text-muted-foreground">{t('noGroup')}</span>
                   )}
                 </Td>
-                <Td>
-                  <Badge variant={current ? 'success' : 'warning'}>
-                    {e?.status === 'SUSPENDED'
-                      ? t('suspended')
-                      : current
-                        ? t('active')
-                        : t('notCurrent')}
-                  </Badge>
-                  {e?.endsAt ? (
-                    <p className="text-xs text-muted-foreground">
-                      {t('endsAt')}: {format.dateTime(e.endsAt, { dateStyle: 'medium' })}
-                    </p>
-                  ) : null}
-                </Td>
+                {res.showEnrolments ? (
+                  <Td>
+                    <Badge variant={current ? 'success' : 'warning'}>
+                      {e?.status === 'SUSPENDED'
+                        ? t('suspended')
+                        : current
+                          ? t('active')
+                          : t('notCurrent')}
+                    </Badge>
+                    {e?.endsAt ? (
+                      <p className="text-xs text-muted-foreground">
+                        {t('endsAt')}: {format.dateTime(e.endsAt, { dateStyle: 'medium' })}
+                      </p>
+                    ) : null}
+                  </Td>
+                ) : null}
                 <Td className="whitespace-nowrap text-sm text-muted-foreground">
                   {u.courseAccesses[0]
                     ? format.relativeTime(u.courseAccesses[0].lastAccessAt)

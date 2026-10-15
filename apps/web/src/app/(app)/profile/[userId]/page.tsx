@@ -33,7 +33,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ userId
   const t = await getTranslations();
   const isMe = me.id === user.id;
   const canAdmin = await ctx.perm.can('user:update');
-  const showEmail = isMe || canAdmin;
+  // the address and the login, which signs them in, for themselves and administrators
+  const showContacts = isMe || canAdmin;
   const [locale, format] = await Promise.all([getLocale(), getFormatter()]);
   // custom fields: all for the person and administrators, the public ones for others
   const stored = (user.customFields ?? {}) as Record<string, string | boolean>;
@@ -61,10 +62,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ userId
         <Avatar name={user.name} src={user.image} size={72} />
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-semibold">{user.name}</h1>
-          {showEmail && !user.emailPlaceholder ? (
+          {showContacts && !user.emailPlaceholder ? (
             <p className="text-sm text-muted-foreground">{user.email}</p>
           ) : null}
-          {user.username ? <p className="text-sm text-muted-foreground">@{user.username}</p> : null}
+          {showContacts && user.username ? (
+            <p className="text-sm text-muted-foreground">@{user.username}</p>
+          ) : null}
         </div>
         <div className="flex gap-2">
           {isMe ? (
