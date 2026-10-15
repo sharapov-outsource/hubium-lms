@@ -1,7 +1,7 @@
 'use client';
 
 import { EditorField } from '@hubium/editor/field';
-import { callModuleAction } from '@hubium/module-sdk/form';
+import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
 import { Button, Checkbox, Field, Input, Select, Textarea } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { ArrowDown, ArrowUp, Pencil, Plus, Trash2, X } from 'lucide-react';
@@ -110,6 +110,7 @@ export function PageForm({
   pages: PageRef[];
   customScoring: boolean;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.lesson');
   const tc = useTranslations('common');
   const router = useRouter();
@@ -174,7 +175,7 @@ export function PageForm({
           const r = page
             ? await callModuleAction(activityId, 'updatePage', { ...input, id: page.id })
             : await callModuleAction(activityId, 'addPage', { ...input, type, afterId });
-          if (!r.ok) return void toast.error(r.message ?? 'Error');
+          if (!r.ok) return void toast.error(failed(r));
           toast.success(t('edit.saved'));
           router.push(`${base}?tab=edit`);
           router.refresh();
@@ -445,6 +446,7 @@ export function PageTools({
   first: boolean;
   last: boolean;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.lesson');
   const tc = useTranslations('common');
   const router = useRouter();
@@ -452,7 +454,7 @@ export function PageTools({
   const run = (action: string, input: Record<string, unknown>, ok?: string) =>
     start(async () => {
       const r = await callModuleAction(activityId, action, { id: page.id, ...input });
-      if (!r.ok) return void toast.error(r.message ?? 'Error');
+      if (!r.ok) return void toast.error(failed(r));
       if (ok) toast.success(ok);
       router.refresh();
     });
@@ -510,6 +512,7 @@ export function EssayGrade({
   score: number | null;
   comment: string;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.lesson');
   const tc = useTranslations('common');
   const router = useRouter();
@@ -526,7 +529,7 @@ export function EssayGrade({
             score: Number(fd.get('score')),
             comment: String(fd.get('comment') ?? ''),
           });
-          if (!r.ok) return void toast.error(r.message ?? 'Error');
+          if (!r.ok) return void toast.error(failed(r));
           toast.success(t('essays.saved'));
           router.refresh();
         });
@@ -561,6 +564,7 @@ export function DeleteAttempt({
   activityId: string;
   attemptId: string;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.lesson');
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -573,7 +577,7 @@ export function DeleteAttempt({
         if (!window.confirm(t('reports.deleteConfirm'))) return;
         start(async () => {
           const r = await callModuleAction(activityId, 'deleteAttempt', { attemptId });
-          if (!r.ok) return void toast.error(r.message ?? 'Error');
+          if (!r.ok) return void toast.error(failed(r));
           toast.success(t('reports.deleted'));
           router.refresh();
         });

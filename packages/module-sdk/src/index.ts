@@ -490,6 +490,16 @@ export class ModuleError extends Error {
 }
 
 /**
+ * What an error says to people in a language: a ModuleError's message (also one a
+ * PermanentJobError carries) translated, else the error's own text.
+ */
+export function errorText(e: unknown, locale: string): string {
+  const cause = e instanceof PermanentJobError ? e.cause : e;
+  if (cause instanceof ModuleError && cause.msg) return cause.msg.in(locale);
+  return e instanceof Error ? e.message : String(e);
+}
+
+/**
  * A job failure that trying again cannot mend: a package that is no SCORM or H5P package, a
  * video ffmpeg cannot read. The job ends there, recorded as failed by the module, instead
  * of being retried; any other error is taken as passing (storage, database) and retried.

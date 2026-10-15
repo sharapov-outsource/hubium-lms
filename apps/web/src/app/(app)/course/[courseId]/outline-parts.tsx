@@ -1,6 +1,7 @@
 'use client';
 
 import { EditorField } from '@hubium/editor/field';
+import { useFailureText } from '@hubium/module-sdk/form';
 import { Button, Input, Label, Select } from '@hubium/ui';
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogTrigger } from '@hubium/ui/dialog';
 import {
@@ -48,12 +49,13 @@ import {
 } from '@/server/actions/courses';
 
 function useRun() {
+  const failed = useFailureText();
   const router = useRouter();
   const [pending, start] = useTransition();
   const run = (fn: () => Promise<{ ok: boolean; message?: string } | undefined>) =>
     start(async () => {
       const r = await fn();
-      if (r && !r.ok) toast.error(r.message ?? 'Error');
+      if (r && !r.ok) toast.error(failed(r));
       router.refresh();
     });
   return { pending, run };

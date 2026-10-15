@@ -1,6 +1,6 @@
 'use client';
 
-import { callModuleAction } from '@hubium/module-sdk/form';
+import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
 import { isAnswered } from '@hubium/questions';
 import { Alert, Badge, Button, Card, CardContent } from '@hubium/ui';
 import { cn } from '@hubium/ui/cn';
@@ -150,6 +150,7 @@ export function AttemptPlayer({
   backUrl: string;
   reviewUrl: string;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.quiz');
   const router = useRouter();
   const sequential = navMethod === 'sequential';
@@ -212,7 +213,7 @@ export function AttemptPlayer({
       setSaving(false);
       if (!r.ok || r.data?.closed) {
         if (r.ok) toast.warning(t('timeUp'));
-        else toast.error(r.message ?? 'Error');
+        else toast.error(failed(r));
         if (r.ok || r.reason === CLOSED) router.push(reviewUrl);
         return false;
       }
@@ -223,7 +224,7 @@ export function AttemptPlayer({
       if (!opts.quiet) toast.success(t('saved'));
       return true;
     },
-    [activityId, attemptId, reviewUrl, router, t],
+    [activityId, attemptId, failed, reviewUrl, router, t],
   );
 
   const finish = useCallback(async () => {
@@ -232,12 +233,12 @@ export function AttemptPlayer({
     const r = await callModuleAction(activityId, 'finish', { attemptId, answers });
     if (!r.ok) {
       finishing.current = false;
-      toast.error(r.message ?? 'Error');
+      toast.error(failed(r));
       return;
     }
     router.push(reviewUrl);
     router.refresh();
-  }, [activityId, attemptId, answers, reviewUrl, router]);
+  }, [activityId, attemptId, answers, failed, reviewUrl, router]);
 
   // Autosave every 30 s; timer tick every second.
   useEffect(() => {
@@ -276,7 +277,7 @@ export function AttemptPlayer({
     setBusy(null);
     if (!r.ok || r.data?.closed || !r.data?.question) {
       if (r.ok) toast.warning(t('timeUp'));
-      else toast.error(r.message ?? 'Error');
+      else toast.error(failed(r));
       if (r.ok || r.reason === CLOSED) router.push(reviewUrl);
       return;
     }
@@ -313,7 +314,7 @@ export function AttemptPlayer({
     setSaving(false);
     if (!r.ok || r.data?.closed) {
       if (r.ok) toast.warning(t('timeUp'));
-      else toast.error(r.message ?? 'Error');
+      else toast.error(failed(r));
       if (r.ok || r.reason === CLOSED) router.push(reviewUrl);
       return;
     }

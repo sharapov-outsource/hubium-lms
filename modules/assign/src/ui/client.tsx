@@ -3,7 +3,7 @@
 import { RichTextEditor } from '@hubium/editor/client';
 import { useEditorLabels } from '@hubium/editor/field';
 import type { AiGradeSuggestion } from '@hubium/module-sdk';
-import { callModuleAction, DateTimeInput } from '@hubium/module-sdk/form';
+import { callModuleAction, DateTimeInput, useFailureText } from '@hubium/module-sdk/form';
 import {
   type GradeRange,
   guideFillingError,
@@ -565,6 +565,7 @@ function AiGradeAssist({
   /** The assistant judges the criteria of the assignment's rubric or marking guide. */
   byForm?: boolean;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.assign.ai');
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -576,7 +577,7 @@ function AiGradeAssist({
         ? t('limit')
         : r.code === 'BAD_REQUEST' && r.message?.includes('declined')
           ? t('refused')
-          : (r.message ?? 'Error'),
+          : failed(r),
     );
   if (consentRequired)
     return (

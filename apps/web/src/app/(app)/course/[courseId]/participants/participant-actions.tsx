@@ -1,6 +1,6 @@
 'use client';
 
-import { DateInput } from '@hubium/module-sdk/form';
+import { DateInput, useFailureText } from '@hubium/module-sdk/form';
 import { Button, Checkbox, Input, Label, Select } from '@hubium/ui';
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogTrigger } from '@hubium/ui/dialog';
 import {
@@ -161,6 +161,7 @@ export function ParticipantActions({
   roles: { id: string; name: string }[];
   current: string[];
 }) {
+  const failed = useFailureText();
   const t = useTranslations('participants');
   const tc = useTranslations('common');
   const router = useRouter();
@@ -171,7 +172,7 @@ export function ParticipantActions({
   const run = (fn: () => Promise<{ ok: boolean; message?: string }>) =>
     start(async () => {
       const r = await fn();
-      if (!r.ok) toast.error(r.message ?? 'Error');
+      if (!r.ok) toast.error(failed(r));
       router.refresh();
     });
   return (

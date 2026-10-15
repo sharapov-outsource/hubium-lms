@@ -1,7 +1,7 @@
 'use client';
 
 import { EditorField } from '@hubium/editor/field';
-import { callModuleAction, DateInput } from '@hubium/module-sdk/form';
+import { callModuleAction, DateInput, useFailureText } from '@hubium/module-sdk/form';
 import type { RatingAggregate } from '@hubium/module-sdk/ratings';
 import { RatingControl } from '@hubium/module-sdk/ratings-ui';
 import { Alert, Button, Checkbox, Field, Input, Select, Textarea } from '@hubium/ui';
@@ -30,6 +30,7 @@ export function EntryForm({
   /** Files of the entry by id, to show what a file field holds. */
   files: Record<string, { url: string; name: string }>;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.data');
   const tc = useTranslations('common');
   const router = useRouter();
@@ -64,7 +65,7 @@ export function EntryForm({
             { ...(entry ? { id: entry.id } : {}), values, fileFields, removeFiles },
             list.length ? { list } : undefined,
           );
-          if (!r.ok || !r.data) return void toast.error(r.message ?? 'Error');
+          if (!r.ok || !r.data) return void toast.error(failed(r));
           toast.success(r.data.approved ? t('entry.saved') : t('entry.savedPending'));
           router.push(`${base}?record=${r.data.id}`);
           router.refresh();
@@ -225,6 +226,7 @@ export function EntryTools({
   canEdit: boolean;
   canApprove: boolean;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.data');
   const tc = useTranslations('common');
   const router = useRouter();
@@ -232,7 +234,7 @@ export function EntryTools({
   const run = (action: string, input: Record<string, unknown>, ok: string, after?: () => void) =>
     start(async () => {
       const r = await callModuleAction(activityId, action, { id: entry.id, ...input });
-      if (!r.ok) return void toast.error(r.message ?? 'Error');
+      if (!r.ok) return void toast.error(failed(r));
       toast.success(ok);
       after?.();
       router.refresh();
@@ -311,6 +313,7 @@ export function EntryRating({
     raters: { name: string; value: number }[];
   };
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.data.rating');
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -327,7 +330,7 @@ export function EntryRating({
       onRate={(value) =>
         start(async () => {
           const r = await callModuleAction(activityId, 'rate', { recordId, value });
-          if (!r.ok) return void toast.error(r.message ?? 'Error');
+          if (!r.ok) return void toast.error(failed(r));
           toast.success(t('saved'));
           router.refresh();
         })
@@ -359,6 +362,7 @@ export function FieldForm({
   base: string;
   field?: DataField;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.data');
   const tc = useTranslations('common');
   const router = useRouter();
@@ -383,7 +387,7 @@ export function FieldForm({
           const r = field
             ? await callModuleAction(activityId, 'updateField', { ...input, id: field.id })
             : await callModuleAction(activityId, 'addField', { ...input, type });
-          if (!r.ok) return void toast.error(r.message ?? 'Error');
+          if (!r.ok) return void toast.error(failed(r));
           toast.success(t('fields.saved'));
           if (field) router.push(`${base}?tab=fields`);
           else form.reset();
@@ -474,6 +478,7 @@ export function FieldTools({
   first: boolean;
   last: boolean;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.data');
   const tc = useTranslations('common');
   const router = useRouter();
@@ -481,7 +486,7 @@ export function FieldTools({
   const run = (action: string, input: Record<string, unknown>, ok?: string) =>
     start(async () => {
       const r = await callModuleAction(activityId, action, { id: field.id, ...input });
-      if (!r.ok) return void toast.error(r.message ?? 'Error');
+      if (!r.ok) return void toast.error(failed(r));
       if (ok) toast.success(ok);
       router.refresh();
     });
@@ -528,6 +533,7 @@ export function FieldTools({
 
 /** Adds entries from a CSV file whose header row names the fields. */
 export function ImportEntries({ activityId }: { activityId: string }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.data');
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -548,7 +554,7 @@ export function ImportEntries({ activityId }: { activityId: string }) {
             const r = await callModuleAction<NonNullable<typeof result>>(activityId, 'importCsv', {
               csv: await file.text(),
             });
-            if (!r.ok || !r.data) return void toast.error(r.message ?? 'Error');
+            if (!r.ok || !r.data) return void toast.error(failed(r));
             setResult(r.data);
             router.refresh();
           });

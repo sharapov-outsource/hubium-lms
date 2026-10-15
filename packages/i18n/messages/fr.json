@@ -973,6 +973,9 @@
       "USER_ALREADY_EXISTS": "Un compte avec cette adresse e-mail existe déjà",
       "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "Un compte avec cette adresse e-mail existe déjà",
       "USER_NOT_FOUND": "Utilisateur introuvable"
+    },
+    "tasks": {
+      "interrupted": "La tâche a été interrompue à l’arrêt du serveur ; relancez-la"
     }
   },
   "editor": {

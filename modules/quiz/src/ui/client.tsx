@@ -1,6 +1,11 @@
 'use client';
 
-import { callModuleAction, LocalDateTimeInput, useZonedValue } from '@hubium/module-sdk/form';
+import {
+  callModuleAction,
+  LocalDateTimeInput,
+  useFailureText,
+  useZonedValue,
+} from '@hubium/module-sdk/form';
 import {
   Badge,
   Button,
@@ -22,12 +27,13 @@ import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 
 function useRun(activityId: string) {
+  const failed = useFailureText();
   const router = useRouter();
   const [pending, start] = useTransition();
   const run = <T,>(action: string, input: Record<string, unknown>, after?: (data: T) => void) =>
     start(async () => {
       const r = await callModuleAction<T>(activityId, action, input);
-      if (!r.ok) return void toast.error(r.message ?? 'Error');
+      if (!r.ok) return void toast.error(failed(r));
       after?.(r.data as T);
       router.refresh();
     });
@@ -48,6 +54,7 @@ export function AttemptActions({
   /** Ask for the quiz password before starting. */
   requiresPassword?: boolean;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.quiz');
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -63,7 +70,7 @@ export function AttemptActions({
       if (r.ok && r.data) return router.push(`${baseUrl}?attempt=${r.data.attemptId}`);
       // a wrong password is said next to the field, in the user's language
       if (requiresPassword && r.code === 'FORBIDDEN') return setWrong(true);
-      toast.error(r.message ?? 'Error');
+      toast.error(failed(r));
       router.refresh();
     });
   if (!requiresPassword)

@@ -1,6 +1,6 @@
 'use client';
 
-import { uploadResumable } from '@hubium/module-sdk/form';
+import { ActionFailure, uploadResumable, useFailureText } from '@hubium/module-sdk/form';
 import { Alert, Button, Card, CardContent, Field, Input, Progress, Select } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import Link from 'next/link';
@@ -17,6 +17,7 @@ export function CourseImporter({
   categories: { id: string; name: string; depth: number; hubium: boolean; mbz: boolean }[];
 }) {
   const t = useTranslations('backup');
+  const failed = useFailureText();
   const [categoryId, setCategoryId] = useState(categories[0]!.id);
   const [file, setFile] = useState<File | null>(null);
   const [upload, setUpload] = useState<number | null>(null);
@@ -55,10 +56,10 @@ export function CourseImporter({
     try {
       const uploadId = await uploadResumable(file, { onProgress: setUpload });
       const r = await startImportAction({ uploadId, categoryId, kind });
-      if (!r.ok) throw new Error(r.message);
+      if (!r.ok) throw new ActionFailure(r.message ?? '');
       setTaskId(r.data.taskId);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
+      toast.error(failed(err));
     } finally {
       setUpload(null);
     }

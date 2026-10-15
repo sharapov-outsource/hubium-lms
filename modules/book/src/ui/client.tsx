@@ -1,7 +1,7 @@
 'use client';
 
 import { EditorField } from '@hubium/editor/field';
-import { callModuleAction } from '@hubium/module-sdk/form';
+import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
 import { Button, Checkbox, Field, Input } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import {
@@ -47,6 +47,7 @@ export function ChapterForm({
   /** The first chapter of the book cannot be a subchapter. */
   first: boolean;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.book');
   const tc = useTranslations('common');
   const router = useRouter();
@@ -72,7 +73,7 @@ export function ChapterForm({
                 ...input,
                 afterId: afterId ?? null,
               });
-          if (!r.ok || !r.data) return void toast.error(r.message ?? 'Error');
+          if (!r.ok || !r.data) return void toast.error(failed(r));
           toast.success(t('saved'));
           router.push(`${base}?chapter=${r.data.id}`);
           router.refresh();
@@ -120,6 +121,7 @@ export function ChapterTools({
   first: boolean;
   last: boolean;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.book');
   const tc = useTranslations('common');
   const router = useRouter();
@@ -127,7 +129,7 @@ export function ChapterTools({
   const run = (action: string, input: Record<string, unknown>, after?: () => void) =>
     start(async () => {
       const r = await callModuleAction(activityId, action, { id: chapter.id, ...input });
-      if (!r.ok) return void toast.error(r.message ?? 'Error');
+      if (!r.ok) return void toast.error(failed(r));
       after?.();
       router.refresh();
     });

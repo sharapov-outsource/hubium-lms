@@ -1,6 +1,6 @@
 'use client';
 
-import { callModuleAction } from '@hubium/module-sdk/form';
+import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
 import { Button } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { ExternalLink, PhoneOff, RefreshCw } from 'lucide-react';
@@ -9,6 +9,7 @@ import { useTranslations } from 'next-intl';
 import { useTransition } from 'react';
 
 export function JoinButton({ activityId, label }: { activityId: string; label: string }) {
+  const failed = useFailureText();
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
@@ -22,7 +23,7 @@ export function JoinButton({ activityId, label }: { activityId: string; label: s
           const r = await callModuleAction<{ url: string }>(activityId, 'join', {});
           if (!r.ok || !r.data) {
             tab?.close();
-            toast.error(r.message ?? 'Error');
+            toast.error(failed(r));
             return;
           }
           if (tab) tab.location.href = r.data.url;
@@ -47,6 +48,7 @@ export function RecordingToggle({
   id: string;
   published: boolean;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.livesession');
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -61,7 +63,7 @@ export function RecordingToggle({
             id,
             published: !published,
           });
-          if (!r.ok) return void toast.error(r.message ?? 'Error');
+          if (!r.ok) return void toast.error(failed(r));
           router.refresh();
         })
       }
@@ -80,13 +82,14 @@ export function ModeratorButtons({
   live: boolean;
   record: boolean;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.livesession');
   const router = useRouter();
   const [pending, start] = useTransition();
   const run = (action: string, ok: string) =>
     start(async () => {
       const r = await callModuleAction(activityId, action, {});
-      if (!r.ok) return void toast.error(r.message ?? 'Error');
+      if (!r.ok) return void toast.error(failed(r));
       toast.success(ok);
       router.refresh();
     });

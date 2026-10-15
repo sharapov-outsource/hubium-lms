@@ -974,6 +974,9 @@
       "USER_ALREADY_EXISTS": "An account with this email already exists",
       "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "An account with this email already exists",
       "USER_NOT_FOUND": "User not found"
+    },
+    "tasks": {
+      "interrupted": "The task was interrupted when the server stopped; start it again"
     }
   },
   "editor": {

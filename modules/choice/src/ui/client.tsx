@@ -1,6 +1,6 @@
 'use client';
 
-import { callModuleAction } from '@hubium/module-sdk/form';
+import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
 import { Button, Checkbox } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { useRouter } from 'next/navigation';
@@ -8,12 +8,13 @@ import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 
 function useRun(activityId: string) {
+  const failed = useFailureText();
   const router = useRouter();
   const [pending, start] = useTransition();
   const run = (action: string, input: Record<string, unknown>, ok?: string) =>
     start(async () => {
       const r = await callModuleAction(activityId, action, input);
-      if (!r.ok) return void toast.error(r.message ?? 'Error');
+      if (!r.ok) return void toast.error(failed(r));
       if (ok) toast.success(ok);
       router.refresh();
     });

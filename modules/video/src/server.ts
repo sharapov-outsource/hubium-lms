@@ -9,6 +9,7 @@ import {
   type ActivityRef,
   defineAction,
   defineModule,
+  errorText,
   type ModuleCtx,
   ModuleError,
   msg,
@@ -283,7 +284,7 @@ export async function transcodeAsset(ctx: ModuleCtx, assetId: string): Promise<V
     if (junk.length) await removeOutputs(ctx, assetId, { files: junk }).catch(() => {});
     await status({
       status: 'FAILED',
-      error: e instanceof Error ? e.message.slice(0, 2000) : 'Error',
+      error: errorText(e, ctx.locale).slice(0, 2000),
     });
     throw e;
   } finally {

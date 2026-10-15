@@ -1,6 +1,11 @@
 'use client';
 
-import { callModuleAction, uploadResumable } from '@hubium/module-sdk/form';
+import {
+  ActionFailure,
+  callModuleAction,
+  uploadResumable,
+  useFailureText,
+} from '@hubium/module-sdk/form';
 import { Button, Field, Input, Progress, Select } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import {
@@ -420,6 +425,7 @@ export function EmbedPlayer({
 // ── management ───────────────────────────────────────────────────────────────
 
 function useAction(activityId: string) {
+  const failed = useFailureText();
   const router = useRouter();
   const [pending, start] = useTransition();
   const run = (action: string, input: Record<string, unknown>, files?: File[], ok?: string) =>
@@ -430,7 +436,7 @@ function useAction(activityId: string) {
         input,
         files ? { list: files } : undefined,
       );
-      if (!r.ok) return void toast.error(r.message ?? 'Error');
+      if (!r.ok) return void toast.error(failed(r));
       if (ok) toast.success(ok);
       router.refresh();
     });
@@ -439,6 +445,7 @@ function useAction(activityId: string) {
 
 export function VideoUploader({ activityId, hasVideo }: { activityId: string; hasVideo: boolean }) {
   const t = useTranslations('mod.video');
+  const failed = useFailureText();
   const router = useRouter();
   const [progress, setProgress] = useState<number | null>(null);
   const abort = useRef<AbortController | null>(null);
@@ -451,11 +458,11 @@ export function VideoUploader({ activityId, hasVideo }: { activityId: string; ha
         signal: abort.current.signal,
       });
       const r = await callModuleAction(activityId, 'attachUpload', { uploadId });
-      if (!r.ok) throw new Error(r.message);
+      if (!r.ok) throw new ActionFailure(r.message ?? '');
       toast.success(t('uploaded'));
       router.refresh();
     } catch (e) {
-      if (!abort.current?.signal.aborted) toast.error(e instanceof Error ? e.message : String(e));
+      if (!abort.current?.signal.aborted) toast.error(failed(e));
     } finally {
       setProgress(null);
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import { callModuleAction } from '@hubium/module-sdk/form';
+import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
 import { Button, Checkbox, Field, Input, Select, Textarea } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { ArrowDown, ArrowUp, Pencil, Trash2 } from 'lucide-react';
@@ -10,6 +10,7 @@ import { useRef, useState, useTransition } from 'react';
 import { ANSWERED, ITEM_TYPES, type Item, type ItemType } from '../items.ts';
 
 function useRun(activityId: string) {
+  const failed = useFailureText();
   const router = useRouter();
   const [pending, start] = useTransition();
   const run = (
@@ -19,7 +20,7 @@ function useRun(activityId: string) {
   ) =>
     start(async () => {
       const r = await callModuleAction(activityId, action, input);
-      if (!r.ok) return void toast.error(r.message ?? 'Error');
+      if (!r.ok) return void toast.error(failed(r));
       if (opts.ok) toast.success(opts.ok);
       opts.done?.();
       router.refresh();

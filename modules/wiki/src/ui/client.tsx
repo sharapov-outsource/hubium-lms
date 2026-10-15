@@ -1,7 +1,7 @@
 'use client';
 
 import { EditorField } from '@hubium/editor/field';
-import { callModuleAction } from '@hubium/module-sdk/form';
+import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
 import { Alert, Button } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import Link from 'next/link';
@@ -38,6 +38,7 @@ export function WikiEditor({
   back: string;
   canOverride: boolean;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.wiki');
   const tc = useTranslations('common');
   const format = useFormatter();
@@ -54,7 +55,7 @@ export function WikiEditor({
   const take = async (force = false) => {
     if (!pageId) return;
     const r = await callModuleAction<Lock>(activityId, 'lock', { pageId, force });
-    if (!r.ok) return void toast.error(r.message ?? 'Error');
+    if (!r.ok) return void toast.error(failed(r));
     setLock(r.data ?? null);
   };
   // biome-ignore lint/correctness/useExhaustiveDependencies: lock once, renew while open
@@ -103,7 +104,7 @@ export function WikiEditor({
             ...(pageId ? { pageId, baseVersion } : { title }),
             content: String(fd.get('content') ?? ''),
           });
-          if (!r.ok || !r.data) return void toast.error(r.message ?? 'Error');
+          if (!r.ok || !r.data) return void toast.error(failed(r));
           saved.current = true;
           toast.success(t('saved'));
           const url = new URL(back, window.location.origin);
@@ -155,6 +156,7 @@ export function RestoreVersion({
   version: number;
   back: string;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.wiki');
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -167,7 +169,7 @@ export function RestoreVersion({
         if (!window.confirm(t('restoreConfirm', { version }))) return;
         start(async () => {
           const r = await callModuleAction(activityId, 'restore', { pageId, version });
-          if (!r.ok) return void toast.error(r.message ?? 'Error');
+          if (!r.ok) return void toast.error(failed(r));
           toast.success(t('restored'));
           router.push(back);
           router.refresh();
@@ -190,6 +192,7 @@ export function DeletePage({
   title: string;
   back: string;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.wiki');
   const tc = useTranslations('common');
   const router = useRouter();
@@ -203,7 +206,7 @@ export function DeletePage({
         if (!window.confirm(t('deleteConfirm', { title }))) return;
         start(async () => {
           const r = await callModuleAction(activityId, 'deletePage', { pageId });
-          if (!r.ok) return void toast.error(r.message ?? 'Error');
+          if (!r.ok) return void toast.error(failed(r));
           toast.success(t('deleted'));
           router.push(back);
           router.refresh();

@@ -2,7 +2,7 @@
 
 import { RichText } from '@hubium/editor/client';
 import { EditorField } from '@hubium/editor/field';
-import { callModuleAction } from '@hubium/module-sdk/form';
+import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
 import { Button, Checkbox, Field, Input, Select, Textarea } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { Plus, Trash2, X } from 'lucide-react';
@@ -13,6 +13,7 @@ import { useRef, useState, useTransition } from 'react';
 import type { Dimension, Filling, Phase, Strategy } from '../engine.ts';
 
 function useRun(activityId: string) {
+  const failed = useFailureText();
   const router = useRouter();
   const [pending, start] = useTransition();
   const run = <T,>(
@@ -27,7 +28,7 @@ function useRun(activityId: string) {
         input,
         opts.files?.length ? { list: opts.files } : undefined,
       );
-      if (!r.ok) return void toast.error(r.message ?? 'Error');
+      if (!r.ok) return void toast.error(failed(r));
       if (opts.ok) toast.success(opts.ok);
       opts.done?.(r.data as T);
       router.refresh();

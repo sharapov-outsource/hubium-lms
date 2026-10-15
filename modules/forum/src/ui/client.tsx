@@ -2,7 +2,7 @@
 
 import { RichTextEditor } from '@hubium/editor/client';
 import { useEditorLabels } from '@hubium/editor/field';
-import { callModuleAction } from '@hubium/module-sdk/form';
+import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
 import { RatingControl } from '@hubium/module-sdk/ratings-ui';
 import { Button, Card, CardContent, Checkbox, Field, Input, Label, Select } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
@@ -12,6 +12,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, useTransition } from 'react';
 
 function useAction(activityId: string) {
+  const failed = useFailureText();
   const router = useRouter();
   const [pending, start] = useTransition();
   const run = <T,>(
@@ -27,7 +28,7 @@ function useAction(activityId: string) {
         opts.files?.length ? { list: opts.files } : undefined,
       );
       if (!r.ok) {
-        toast.error(r.message ?? 'Error');
+        toast.error(failed(r));
         return;
       }
       if (opts.ok) toast.success(opts.ok);

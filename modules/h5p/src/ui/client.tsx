@@ -1,6 +1,11 @@
 'use client';
 
-import { callModuleAction, uploadResumable } from '@hubium/module-sdk/form';
+import {
+  ActionFailure,
+  callModuleAction,
+  uploadResumable,
+  useFailureText,
+} from '@hubium/module-sdk/form';
 import { Field, Input, Progress } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { useRouter } from 'next/navigation';
@@ -9,6 +14,7 @@ import { useEffect, useRef, useState } from 'react';
 
 export function PackageUploader({ activityId }: { activityId: string }) {
   const t = useTranslations('mod.h5p');
+  const failed = useFailureText();
   const router = useRouter();
   const [progress, setProgress] = useState<number | null>(null);
   return (
@@ -27,11 +33,11 @@ export function PackageUploader({ activityId }: { activityId: string }) {
             try {
               const uploadId = await uploadResumable(f, { onProgress: setProgress });
               const r = await callModuleAction(activityId, 'attachUpload', { uploadId });
-              if (!r.ok) throw new Error(r.message);
+              if (!r.ok) throw new ActionFailure(r.message ?? '');
               toast.success(t('uploaded'));
               router.refresh();
             } catch (err) {
-              toast.error(err instanceof Error ? err.message : String(err));
+              toast.error(failed(err));
             } finally {
               setProgress(null);
             }

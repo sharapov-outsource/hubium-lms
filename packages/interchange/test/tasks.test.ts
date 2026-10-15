@@ -16,6 +16,7 @@ import {
   runImportTask,
   startBackup,
   startImport,
+  taskLocale,
 } from '../src/tasks.ts';
 
 describe('course backups and imports in the background', () => {
@@ -122,7 +123,8 @@ describe('course backups and imports in the background', () => {
     expect(await t.db.course.findUnique({ where: { id: courseId } })).toBeNull();
     expect(await t.db.backgroundTask.findUniqueOrThrow({ where: { id: task.id } })).toMatchObject({
       status: 'FAILED',
-      error: INTERRUPTED,
+      // in the language of whoever started it
+      error: INTERRUPTED.in(await taskLocale(t.db, task)),
     });
   });
 

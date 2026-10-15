@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  AppError,
   ForbiddenError,
   getAllSettings,
   loadUserAccess,
@@ -14,6 +15,7 @@ import { fileUrl, storeFileFromPath } from '@hubium/core/files/files';
 import { consumeUpload } from '@hubium/core/files/uploads';
 import { enqueue } from '@hubium/core/jobs/jobs';
 import type { BackgroundTask, Db, Prisma } from '@hubium/db';
+import { ModuleError, msg } from '@hubium/module-sdk';
 import { discardCourse, restoreCourse, writeCourseArchive } from './hubium.ts';
 import { importMbz, readMbz } from './mbz.ts';
 
@@ -33,7 +35,7 @@ export const BACKUP_JOB = 'interchange.backup';
 const LONG_JOB = { expireInSeconds: 6 * 3600, heartbeatSeconds: 300, retryLimit: 1 };
 /** A task QUEUED or RUNNING this long has lost its job (see failLostTasks). */
 const LOST_AFTER_MS = 7 * 3600_000;
-export const INTERRUPTED = 'The task was interrupted when the server stopped; start it again';
+export const INTERRUPTED = msg('errors.tasks.interrupted');
 
 /** Where a course's backups are kept, and how many: a new one replaces the oldest. */
 export const BACKUP_AREA = { component: 'backup', area: 'course' } as const;
@@ -71,6 +73,14 @@ async function userCtx(db: Db, userId: string): Promise<RequestContext> {
   };
 }
 
+/** The language of whoever started a task: what went wrong is stored in it. */
+export async function taskLocale(db: Db, task: Pick<BackgroundTask, 'createdById'>) {
+  const user = task.createdById
+    ? await db.user.findUnique({ where: { id: task.createdById }, select: { locale: true } })
+    : null;
+  return userLocale(await getAllSettings(db), user?.locale);
+}
+
 function systemCtx(db: Db): RequestContext {
   return {
     db,
@@ -82,13 +92,14 @@ function systemCtx(db: Db): RequestContext {
   };
 }
 
-const errorMessage = (e: unknown) => {
-  const fieldErrors = (e as { fieldErrors?: Record<string, string[]> }).fieldErrors;
-  const message = fieldErrors
-    ? Object.values(fieldErrors).flat().join('; ')
-    : e instanceof Error
-      ? e.message
-      : String(e);
+/** What went wrong: an error for people in their language, else the error's own text. */
+const errorMessage = (e: unknown, locale: string) => {
+  let message: string;
+  if (e instanceof AppError) {
+    const r = e.in(locale);
+    message = r.fieldErrors ? Object.values(r.fieldErrors).flat().join('; ') : r.message;
+  } else if (e instanceof ModuleError && e.msg) message = e.msg.in(locale);
+  else message = e instanceof Error ? e.message : String(e);
   return message.slice(0, 2000);
 };
 
@@ -99,7 +110,11 @@ async function abandonTask(db: Db, task: BackgroundTask) {
     await discardCourse(systemCtx(db), courseId);
   await db.backgroundTask.updateMany({
     where: { id: task.id, status: task.status },
-    data: { status: 'FAILED', finishedAt: new Date(), error: INTERRUPTED },
+    data: {
+      status: 'FAILED',
+      finishedAt: new Date(),
+      error: INTERRUPTED.in(await taskLocale(db, task)),
+    },
   });
 }
 
@@ -146,7 +161,11 @@ export async function runImportTask(db: Db, taskId: string) {
   } catch (e) {
     await db.backgroundTask.update({
       where: { id: taskId },
-      data: { status: 'FAILED', finishedAt: new Date(), error: errorMessage(e) },
+      data: {
+        status: 'FAILED',
+        finishedAt: new Date(),
+        error: errorMessage(e, await taskLocale(db, task)),
+      },
     });
     return null;
   }
@@ -243,7 +262,11 @@ export async function runBackupTask(db: Db, taskId: string) {
   } catch (e) {
     await db.backgroundTask.update({
       where: { id: taskId },
-      data: { status: 'FAILED', finishedAt: new Date(), error: errorMessage(e) },
+      data: {
+        status: 'FAILED',
+        finishedAt: new Date(),
+        error: errorMessage(e, await taskLocale(db, task)),
+      },
     });
     return null;
   } finally {

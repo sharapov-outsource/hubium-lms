@@ -1,7 +1,7 @@
 'use client';
 
 import { RichText } from '@hubium/editor/client';
-import { callModuleAction } from '@hubium/module-sdk/form';
+import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
 import {
   Alert,
   Button,
@@ -30,13 +30,14 @@ type Result = {
 };
 
 function useRun(activityId: string) {
+  const failed = useFailureText();
   const router = useRouter();
   const [pending, start] = useTransition();
   const run = <T,>(action: string, input: Record<string, unknown>, done?: (data: T) => void) =>
     start(async () => {
       const r = await callModuleAction<T>(activityId, action, input);
       if (!r.ok) {
-        toast.error(r.message ?? 'Error');
+        toast.error(failed(r));
         router.refresh();
         return;
       }

@@ -11,6 +11,7 @@ import {
   type ActivityRef,
   defineAction,
   defineModule,
+  errorText,
   type ModuleCtx,
   ModuleError,
   msg,
@@ -164,7 +165,7 @@ export async function extractPackage(ctx: ModuleCtx, packageId: string) {
     if (junk.length) await ctx.storage.delete(junk.map((f) => key(packageId, f))).catch(() => {});
     await ctx.db.h5pPackage.update({
       where: { id: packageId },
-      data: { status: 'FAILED', error: e instanceof Error ? e.message.slice(0, 1000) : 'Error' },
+      data: { status: 'FAILED', error: errorText(e, ctx.locale).slice(0, 1000) },
     });
     throw e;
   } finally {

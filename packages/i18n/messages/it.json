@@ -973,6 +973,9 @@
       "USER_ALREADY_EXISTS": "Esiste già un account con questa email",
       "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "Esiste già un account con questa email",
       "USER_NOT_FOUND": "Utente non trovato"
+    },
+    "tasks": {
+      "interrupted": "L’attività è stata interrotta quando il server si è fermato; avviala di nuovo"
     }
   },
   "editor": {

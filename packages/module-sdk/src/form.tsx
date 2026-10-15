@@ -2,7 +2,7 @@
 
 import { DatePicker, DateTimePicker } from '@hubium/ui';
 import { useLocale, useTimeZone, useTranslations } from 'next-intl';
-import { createContext, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useState } from 'react';
 import { fromZonedValue, toZonedValue } from './zoned.ts';
 
 export { fromZonedValue, toZonedValue } from './zoned.ts';
@@ -177,6 +177,30 @@ export interface ModuleActionResult<T = unknown> {
   fieldErrors?: Record<string, string[]>;
 }
 
+/** A failure the server explained, thrown on with its message in the person's language. */
+export class ActionFailure extends Error {
+  override name = 'ActionFailure';
+}
+
+/**
+ * What a failure says to people: an action's result or an ActionFailure carries the server's
+ * message, in their language; anything else thrown (a lost connection) and a result without
+ * a message read "Something went wrong" in it.
+ */
+export function useFailureText() {
+  const t = useTranslations('common');
+  return useCallback(
+    (failure: unknown) => {
+      const said =
+        failure instanceof ActionFailure || !(failure instanceof Error)
+          ? (failure as { message?: unknown } | null | undefined)?.message
+          : undefined;
+      return typeof said === 'string' && said ? said : t('error');
+    },
+    [t],
+  );
+}
+
 /**
  * Calls a module action through the host's generic endpoint. Files are sent as multipart
  * parts named `files` and arrive in the action input as `{ name, mimeType, data }`.
@@ -198,8 +222,9 @@ export async function callModuleAction<T = unknown>(
   try {
     const r = await fetch('/api/mod/action', { method: 'POST', body: fd });
     return (await r.json()) as ModuleActionResult<T>;
-  } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : 'Network error' };
+  } catch {
+    // no answer, or not one of ours: useFailureText says something went wrong
+    return { ok: false, code: 'NETWORK' };
   }
 }
 
@@ -241,7 +266,7 @@ export async function uploadResumable(
       signal: opts.signal,
     });
     const s = (await r.json()) as { id?: string; chunkSize?: number; message?: string };
-    if (!r.ok || !s.id) throw new Error(s.message ?? 'Upload failed');
+    if (!r.ok || !s.id) throw new ActionFailure(s.message ?? '');
     id = s.id;
     chunkSize = s.chunkSize ?? chunkSize;
     remember(id);
@@ -265,7 +290,7 @@ export async function uploadResumable(
         failures = 0;
         continue;
       }
-      throw new Error(s.message ?? `HTTP ${r.status}`);
+      throw new ActionFailure(s.message ?? '');
     } catch (e) {
       if (opts.signal?.aborted) throw e;
       if (++failures > 6) throw e;

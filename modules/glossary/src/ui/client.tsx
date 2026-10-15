@@ -1,7 +1,7 @@
 'use client';
 
 import { EditorField } from '@hubium/editor/field';
-import { callModuleAction } from '@hubium/module-sdk/form';
+import { callModuleAction, useFailureText } from '@hubium/module-sdk/form';
 import type { RatingAggregate } from '@hubium/module-sdk/ratings';
 import { RatingControl } from '@hubium/module-sdk/ratings-ui';
 import { Button, Checkbox, Field, Input, Textarea } from '@hubium/ui';
@@ -40,6 +40,7 @@ export function EntryForm({
   /** Categories in use, offered as suggestions. */
   categories: string[];
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.glossary');
   const tc = useTranslations('common');
   const router = useRouter();
@@ -79,7 +80,7 @@ export function EntryForm({
                 'addEntry',
                 input,
               );
-          if (!r.ok || !r.data) return void toast.error(r.message ?? 'Error');
+          if (!r.ok || !r.data) return void toast.error(failed(r));
           toast.success(
             'approved' in r.data && !r.data.approved ? t('entry.savedPending') : t('entry.saved'),
           );
@@ -163,6 +164,7 @@ export function EntryTools({
   canEdit: boolean;
   canApprove: boolean;
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.glossary');
   const tc = useTranslations('common');
   const router = useRouter();
@@ -170,7 +172,7 @@ export function EntryTools({
   const run = (action: string, input: Record<string, unknown>, ok: string, after?: () => void) =>
     start(async () => {
       const r = await callModuleAction(activityId, action, { id: entry.id, ...input });
-      if (!r.ok) return void toast.error(r.message ?? 'Error');
+      if (!r.ok) return void toast.error(failed(r));
       toast.success(ok);
       after?.();
       router.refresh();
@@ -254,6 +256,7 @@ export function EntryRating({
     raters: { name: string; value: number }[];
   };
 }) {
+  const failed = useFailureText();
   const t = useTranslations('mod.glossary.rating');
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -270,7 +273,7 @@ export function EntryRating({
       onRate={(value) =>
         start(async () => {
           const r = await callModuleAction(activityId, 'rate', { entryId, value });
-          if (!r.ok) return void toast.error(r.message ?? 'Error');
+          if (!r.ok) return void toast.error(failed(r));
           toast.success(t('saved'));
           router.refresh();
         })
