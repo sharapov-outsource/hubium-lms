@@ -191,26 +191,35 @@ export const duplicateReport = defineOperation({
 
 // ── who views ────────────────────────────────────────────────────────────────
 
-/** Whether the person is in the report's audience. */
-async function inAudience(db: Tx, a: AudiencesT, userId: string): Promise<boolean> {
-  if (a.all || a.userIds.includes(userId)) return true;
-  if (a.roleIds.length) {
-    const n = await db.roleAssignment.count({
-      where: { userId, roleId: { in: a.roleIds }, contextId: SYSTEM_CONTEXT_ID },
-    });
-    if (n) return true;
-  }
-  if (a.cohortIds.length) {
-    const n = await db.cohortMember.count({ where: { userId, cohortId: { in: a.cohortIds } } });
-    if (n) return true;
-  }
-  return false;
+/**
+ * Whether a person is in a report's audience, for any number of reports: their site roles
+ * and global groups are read once.
+ */
+async function audienceOf(db: Tx, userId: string) {
+  const [roles, cohorts] = await Promise.all([
+    db.roleAssignment.findMany({
+      where: { userId, contextId: SYSTEM_CONTEXT_ID },
+      select: { roleId: true },
+    }),
+    db.cohortMember.findMany({ where: { userId }, select: { cohortId: true } }),
+  ]);
+  const roleIds = new Set(roles.map((r) => r.roleId));
+  const cohortIds = new Set(cohorts.map((c) => c.cohortId));
+  return (raw: unknown) => {
+    const a = Audiences.parse(raw);
+    return (
+      a.all ||
+      a.userIds.includes(userId) ||
+      a.roleIds.some((id) => roleIds.has(id)) ||
+      a.cohortIds.some((id) => cohortIds.has(id))
+    );
+  };
 }
 
 export async function canViewReport(ctx: RequestContext, r: CustomReport): Promise<boolean> {
   if (await ctx.perm.can('report:customise')) return true;
   if (!ctx.perm.userId) return false;
-  return inAudience(ctx.db, Audiences.parse(r.audiences), ctx.perm.userId);
+  return (await audienceOf(ctx.db, ctx.perm.userId))(r.audiences);
 }
 
 /** The reports the viewer may see. */
@@ -220,25 +229,22 @@ export async function listReports(ctx: RequestContext) {
     orderBy: { name: 'asc' },
     include: { _count: { select: { schedules: true } } },
   });
-  const visible = customise
-    ? all
-    : (
-        await Promise.all(
-          all.map(async (r) =>
-            ctx.perm.userId &&
-            (await inAudience(ctx.db, Audiences.parse(r.audiences), ctx.perm.userId))
-              ? r
-              : null,
-          ),
-        )
-      ).filter((r): r is (typeof all)[number] => !!r);
-  return { customise, reports: visible };
+  if (customise) return { customise, reports: all };
+  const userId = ctx.perm.userId;
+  if (!userId) return { customise, reports: [] };
+  const sees = await audienceOf(ctx.db, userId);
+  return { customise, reports: all.filter((r) => sees(r.audiences)) };
 }
 
-/** Whether there is any report for the viewer (the menu shows Reports then). */
+/** Whether there is any report for the viewer (the menu shows Reports then), on every page. */
 export async function hasReports(ctx: RequestContext): Promise<boolean> {
   if (await ctx.perm.can('report:customise')) return true;
-  return (await listReports(ctx)).reports.length > 0;
+  const userId = ctx.perm.userId;
+  if (!userId) return false;
+  const audiences = await ctx.db.customReport.findMany({ select: { audiences: true } });
+  if (!audiences.length) return false;
+  const sees = await audienceOf(ctx.db, userId);
+  return audiences.some((r) => sees(r.audiences));
 }
 
 // ── running ──────────────────────────────────────────────────────────────────
