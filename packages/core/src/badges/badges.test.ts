@@ -272,7 +272,11 @@ describe('badges', () => {
     });
     await setBadgeImage.run(admin, { id, name: 'b.svg', data: SVG });
     await setBadgeStatus.run(admin, { id, status: 'ACTIVE' });
-    expect(await reviewAllBadges(t.db)).toBe(2);
+    // two reviews at once (the hourly one and "Run now"): each award is made once, and
+    // neither fails on the unique key
+    const [first, second] = await Promise.all([reviewAllBadges(t.db), reviewAllBadges(t.db)]);
+    expect(first + second).toBe(2);
+    expect(await t.db.badgeAward.count({ where: { badgeId: id } })).toBe(2);
     // once each
     expect(await reviewAllBadges(t.db)).toBe(0);
     const awards = await t.db.badgeAward.findMany({ where: { badgeId: id } });

@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { buffer } from 'node:stream/consumers';
-import { type Badge, type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
+import { type Badge, type BadgeAward, type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { createTranslator } from '@hubium/i18n/packs';
 import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
@@ -71,8 +71,14 @@ async function loadBadge(db: Tx, id: string) {
   return b;
 }
 
-async function mayEarn(tx: Tx, badge: Badge, userId: string): Promise<boolean> {
-  if (badge.courseId) return (await courseLearnerIds(tx, badge.courseId)).includes(userId);
+async function mayEarn(
+  tx: Tx,
+  badge: Badge,
+  userId: string,
+  learners?: Set<string>,
+): Promise<boolean> {
+  if (badge.courseId)
+    return (learners ?? new Set(await courseLearnerIds(tx, badge.courseId))).has(userId);
   const u = await tx.user.findUnique({ where: { id: userId }, select: { status: true } });
   return u?.status === 'ACTIVE';
 }
@@ -346,7 +352,13 @@ export async function awardIfEarned(
   tx: Tx,
   badge: Badge,
   userId: string,
-  opts: { now?: Date; awardedById?: string | null; again?: boolean } = {},
+  opts: {
+    now?: Date;
+    awardedById?: string | null;
+    again?: boolean;
+    /** The course's learners, when the caller has them already (a review of many). */
+    learners?: Set<string>;
+  } = {},
 ): Promise<boolean> {
   if (badge.status !== 'ACTIVE') return false;
   const now = opts.now ?? new Date();
@@ -356,7 +368,7 @@ export async function awardIfEarned(
   if (had && (!opts.again || isValid(had, now))) return false;
   const c = checkCriteria(badge.criteria, !badge.courseId);
   if (!criteriaMet(c, await factsFor(tx, badge, c, userId), badge.courseId)) return false;
-  if (!(await mayEarn(tx, badge, userId))) return false;
+  if (!(await mayEarn(tx, badge, userId, opts.learners))) return false;
   const expiresAt = badge.expiresAfterDays
     ? new Date(now.getTime() + badge.expiresAfterDays * 86_400_000)
     : badge.expiresAt;
@@ -367,14 +379,24 @@ export async function awardIfEarned(
     ...(await recipientOf(tx, userId)),
   };
   // given again, the award keeps its address (and its salt), and stands once more
-  const award = had
-    ? await tx.badgeAward.update({
-        where: { id: had.id },
-        data: { ...data, revokedAt: null, revokedReason: null },
-      })
-    : await tx.badgeAward.create({
-        data: { ...data, badgeId: badge.id, userId, salt: randomBytes(12).toString('hex') },
-      });
+  let award: BadgeAward;
+  if (had)
+    award = await tx.badgeAward.update({
+      where: { id: had.id },
+      data: { ...data, revokedAt: null, revokedReason: null },
+    });
+  else {
+    // awarded meanwhile by another run (completion and the hourly review at once): theirs
+    // stands, and this transaction goes on instead of failing on the unique key
+    const made = await tx.badgeAward.createMany({
+      data: [{ ...data, badgeId: badge.id, userId, salt: randomBytes(12).toString('hex') }],
+      skipDuplicates: true,
+    });
+    if (!made.count) return false;
+    award = await tx.badgeAward.findUniqueOrThrow({
+      where: { badgeId_userId: { badgeId: badge.id, userId } },
+    });
+  }
   await notifyUsers(tx, [userId], {
     type: 'badge.awarded',
     title: { key: 'notifications.text.badgeAwarded', values: { name: badge.name } },
@@ -447,10 +469,16 @@ export async function reviewBadge(db: Db, badgeId: string, now = new Date()): Pr
       (a) => a.userId,
     ),
   );
+  // the course's learners once for the whole review, and a transaction only for those who
+  // have earned the badge
+  const learners = badge.courseId ? new Set(await courseLearnerIds(db, badge.courseId)) : undefined;
+  const c = checkCriteria(badge.criteria, !badge.courseId);
   let n = 0;
   for (const userId of await candidates(db, badge)) {
     if (have.has(userId)) continue;
-    if (await db.$transaction((tx) => awardIfEarned(tx, badge, userId, { now }))) n++;
+    if (learners && !learners.has(userId)) continue;
+    if (!criteriaMet(c, await factsFor(db, badge, c, userId), badge.courseId)) continue;
+    if (await db.$transaction((tx) => awardIfEarned(tx, badge, userId, { now, learners }))) n++;
   }
   return n;
 }

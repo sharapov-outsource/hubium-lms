@@ -261,16 +261,26 @@ async function createIssue(
   for (let attempt = 0; ; attempt++) {
     const code = newCertificateCode();
     if (attempt < 5 && (await tx.certificateIssue.findUnique({ where: { code } }))) continue;
-    const issue = await tx.certificateIssue.create({
-      data: {
-        certificateId: c.id,
-        userId,
-        code,
-        issuedAt: opts.now,
-        data,
-        issuedById: opts.issuedById,
-      },
+    // issued meanwhile by another run (completion and a review at once): that issue stands,
+    // and this transaction goes on instead of failing on the unique key
+    const made = await tx.certificateIssue.createMany({
+      data: [
+        {
+          certificateId: c.id,
+          userId,
+          code,
+          issuedAt: opts.now,
+          data,
+          issuedById: opts.issuedById,
+        },
+      ],
+      skipDuplicates: true,
     });
+    const issue = await tx.certificateIssue.findUnique({
+      where: { certificateId_userId: { certificateId: c.id, userId } },
+    });
+    if (!issue) continue;
+    if (!made.count) return { issue, created: false };
     await notifyUsers(tx, [userId], {
       type: 'certificate.issued',
       title: { key: 'notifications.text.certificateIssued', values: { name: c.name } },
@@ -286,7 +296,7 @@ async function createIssue(
       relatedUserId: userId,
       data: { certificateId: c.id, issueId: issue.id },
     });
-    return issue;
+    return { issue, created: true };
   }
 }
 
@@ -296,6 +306,8 @@ export async function issueIfEarned(
   c: Certificate,
   userId: string,
   now = new Date(),
+  /** The course's learners, when the caller has them already (a review of many). */
+  learners?: Set<string>,
 ): Promise<boolean> {
   if (c.status !== 'ACTIVE' || !c.onCompletion) return false;
   // a revoked certificate is not issued again by itself
@@ -310,9 +322,8 @@ export async function issueIfEarned(
     select: { completedAt: true },
   });
   if (!done?.completedAt) return false;
-  if (!(await courseLearnerIds(tx, c.courseId)).includes(userId)) return false;
-  await createIssue(tx, c, userId, { now, issuedById: null });
-  return true;
+  if (!(learners ?? new Set(await courseLearnerIds(tx, c.courseId))).has(userId)) return false;
+  return (await createIssue(tx, c, userId, { now, issuedById: null })).created;
 }
 
 /** After completion changed in a course: its certificates for the learner. */
@@ -331,9 +342,17 @@ export async function reviewCertificate(db: Db, certificateId: string, now = new
     where: { courseId: c.courseId, completedAt: { not: null } },
     select: { userId: true },
   });
+  const [issued, learners] = await Promise.all([
+    db.certificateIssue.findMany({ where: { certificateId }, select: { userId: true } }),
+    courseLearnerIds(db, c.courseId).then((ids) => new Set(ids)),
+  ]);
+  const have = new Set(issued.map((i) => i.userId));
   let n = 0;
-  for (const { userId } of done)
-    if (await db.$transaction((tx) => issueIfEarned(tx, c, userId, now))) n++;
+  // a transaction only for those who are due one, the course's learners read once
+  for (const { userId } of done) {
+    if (have.has(userId) || !learners.has(userId)) continue;
+    if (await db.$transaction((tx) => issueIfEarned(tx, c, userId, now, learners))) n++;
+  }
   return n;
 }
 
@@ -373,7 +392,7 @@ export const issueCertificate = defineOperation({
       });
       return { id: old.id };
     }
-    const issue = await createIssue(ctx.tx, c, userId, {
+    const { issue } = await createIssue(ctx.tx, c, userId, {
       now: ctx.now,
       issuedById: ctx.perm.userId ?? null,
     });
