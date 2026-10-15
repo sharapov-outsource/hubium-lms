@@ -258,17 +258,18 @@ test('a sign-in from a new device is notified, and "it wasn\'t me" ends all sess
 test('recovery phrase instead of a code, and new backup codes', async ({ page }) => {
   await login(page, 'teacher', DEMO_PASSWORD);
   await page.goto('/settings/security');
-  await page.getByRole('button', { name: /Включить 2FA/ }).click();
-  await page.locator('#tf-password').fill(DEMO_PASSWORD);
-  await page.getByRole('button', { name: 'Подтвердить' }).click();
-  const secret = (await page.locator('code.select-all').innerText()).trim();
-  await page.locator('#tf-code').fill(totp(secret));
-  await page.getByRole('button', { name: 'Подтвердить' }).click();
-  await expect(page.getByTestId('backup-codes')).toBeVisible();
-  const first = await page.getByTestId('backup-codes').innerText();
-  await page.getByRole('button', { name: 'Готово' }).click();
-
+  // from here on the teacher has 2FA, which the finally block takes off for the other tests
   try {
+    await page.getByRole('button', { name: /Включить 2FA/ }).click();
+    await page.locator('#tf-password').fill(DEMO_PASSWORD);
+    await page.getByRole('button', { name: 'Подтвердить' }).click();
+    const secret = (await page.locator('code.select-all').innerText()).trim();
+    await page.locator('#tf-code').fill(totp(secret));
+    await page.getByRole('button', { name: 'Подтвердить' }).click();
+    await expect(page.getByTestId('backup-codes')).toBeVisible();
+    const first = await page.getByTestId('backup-codes').innerText();
+    await page.getByRole('button', { name: 'Готово' }).click();
+
     // backup codes can be issued again
     await page.getByRole('button', { name: 'Новые резервные коды' }).click();
     await page.locator('#tf-password').fill(DEMO_PASSWORD);
