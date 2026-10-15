@@ -38,6 +38,7 @@
     "lastChange": "Version {n}, {time}, {name}",
     "locking": "Ouverture de l'éditeur…",
     "lockedBy": "{name} modifie cette page (jusqu'à {time} s'il ne continue pas). Réessayez plus tard.",
+    "lockLost": "{name} modifie maintenant la page. Votre texte est toujours dans l’éditeur : copiez-le, il ne peut pas être enregistré pour l’instant.",
     "override": "Reprendre la modification",
     "saved": "Page enregistrée",
     "content": "Page",

@@ -38,6 +38,7 @@
     "lastChange": "Version {n}, {time}, {name}",
     "locking": "Opening the editor…",
     "lockedBy": "{name} is changing this page (until {time} unless they go on). Try again later.",
+    "lockLost": "{name} is editing the page now. Your text is still in the editor: copy it, as it cannot be saved now.",
     "override": "Take over the editing",
     "saved": "Page saved",
     "content": "Page",

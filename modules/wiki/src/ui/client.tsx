@@ -47,6 +47,9 @@ export function WikiEditor({
     pageId ? null : { locked: true, by: null, until: null },
   );
   const saved = useRef(false);
+  // once editing, the editor stays: losing the lock (taken over, or run out) must not
+  // take away what was typed
+  const editing = useRef(!pageId);
 
   const take = async (force = false) => {
     if (!pageId) return;
@@ -68,7 +71,9 @@ export function WikiEditor({
   }, [pageId]);
 
   if (!lock) return <p className="text-sm text-muted-foreground">{t('locking')}</p>;
-  if (!lock.locked)
+  if (lock.locked) editing.current = true;
+  const lost = !lock.locked && editing.current;
+  if (!lock.locked && !lost)
     return (
       <div className="grid gap-3">
         <Alert variant="warning">
@@ -89,6 +94,7 @@ export function WikiEditor({
     <form
       className="grid gap-4"
       onSubmit={(e) => {
+        if (lost) return void e.preventDefault();
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
         start(async () => {
@@ -108,6 +114,16 @@ export function WikiEditor({
         });
       }}
     >
+      {lost ? (
+        <Alert variant="warning">
+          {t('lockLost', { name: lock.by ?? '—' })}
+          {canOverride ? (
+            <Button type="button" size="sm" className="ml-2" onClick={() => void take(true)}>
+              {t('override')}
+            </Button>
+          ) : null}
+        </Alert>
+      ) : null}
       <EditorField
         name="content"
         label={t('content')}
@@ -117,7 +133,7 @@ export function WikiEditor({
       />
       <p className="text-xs text-muted-foreground">{t('linkHint')}</p>
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending || lost}>
           {tc('save')}
         </Button>
         <Button asChild variant="outline">
