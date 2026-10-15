@@ -252,7 +252,84 @@ export async function usersWithCap(
     select: { userId: true },
     distinct: ['userId'],
   });
-  return rows.map((r) => r.userId);
+  return allowedAmong(
+    db,
+    rows.map((r) => r.userId),
+    cap,
+    chain,
+    now,
+  );
+}
+
+/**
+ * Those of `userIds` whom can() would allow `cap` along `chain`, from their own assignments:
+ * a PROHIBIT from another of their roles leaves them out, and a role given by an enrolment
+ * counts only while that enrolment is active.
+ */
+async function allowedAmong(
+  db: Db,
+  userIds: string[],
+  cap: Capability,
+  chain: readonly string[],
+  now: Date,
+): Promise<string[]> {
+  if (!userIds.length) return [];
+  const [defs, assignments] = await Promise.all([
+    loadRoleDefinitions(db),
+    db.roleAssignment.findMany({
+      where: { userId: { in: userIds }, contextId: { in: [...chain] } },
+      select: { userId: true, roleId: true, contextId: true, enrolmentId: true },
+    }),
+  ]);
+  const enrolmentIds = [
+    ...new Set(assignments.flatMap((a) => (a.enrolmentId ? [a.enrolmentId] : []))),
+  ];
+  const enrolments = enrolmentIds.length
+    ? await db.enrolment.findMany({
+        where: { id: { in: enrolmentIds } },
+        select: {
+          id: true,
+          status: true,
+          startsAt: true,
+          endsAt: true,
+          method: { select: { enabled: true } },
+        },
+      })
+    : [];
+  const active = new Set(
+    enrolments
+      .filter(
+        (e) =>
+          e.status === 'ACTIVE' &&
+          e.method.enabled &&
+          (!e.startsAt || e.startsAt <= now) &&
+          (!e.endsAt || e.endsAt > now),
+      )
+      .map((e) => e.id),
+  );
+  const def = getCapability(cap);
+  return userIds.filter(
+    (userId) =>
+      explain({
+        actor: {
+          kind: 'user',
+          userId,
+          isSiteAdmin: false,
+          assignments: assignments
+            .filter((a) => a.userId === userId)
+            .map((a) => ({
+              roleId: a.roleId,
+              contextId: a.contextId,
+              active: a.enrolmentId ? active.has(a.enrolmentId) : true,
+            })),
+          userRoleId: defs.byShortName.get('user'),
+        },
+        cap,
+        def,
+        chain,
+        defs,
+      }).result,
+  );
 }
 
 export { capabilities };
