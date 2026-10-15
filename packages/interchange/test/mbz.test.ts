@@ -28,12 +28,15 @@ describe('.mbz import', () => {
     expect(report).toMatchObject({
       moodleRelease: '4.5 (Build: 20241007)',
       sections: 2,
-      activities: 13,
+      activities: 14,
       questions: 6,
     });
     expect(report.warnings.join('\n')).toContain('Формула');
     expect(report.warnings.join('\n')).toContain('Новости');
     expect(report.warnings.join('\n')).toContain('"Пакет" (imscp)');
+    expect(report.warnings.join('\n')).toContain(
+      `"Каталог": left out entries, which are users' data (1); fields of type latlong`,
+    );
     expect(report.warnings.join('\n')).toContain(
       `"Вики": pages are users' data and were left out (1)`,
     );
@@ -82,7 +85,32 @@ describe('.mbz import', () => {
       'glossary:Словарь',
       'lesson:Маршрут',
       'label:Пакет',
+      'data:Каталог',
     ]);
+    const catalog = acts.find((a) => a.moduleKey === 'data')!;
+    expect(catalog.settings).toMatchObject({
+      approvalRequired: true,
+      maxEntries: 3,
+      requiredEntriesToView: 1,
+      defaultSort: 'Год',
+      defaultOrder: 'desc',
+      listTemplate: '<p>[[Книга]] ([[Год]]) ##more## ##delete##</p>',
+      singleTemplate: '<h3>[[Книга]]</h3><p>[[Жанр]]</p>',
+      ratingAggregate: 'average',
+      ratingMax: 10,
+    });
+    const dataFields = await t.db.dataField.findMany({
+      where: { activityId: catalog.id },
+      orderBy: { sortOrder: 'asc' },
+    });
+    expect(dataFields.map((x) => [x.type, x.name, x.required, x.options])).toEqual([
+      ['text', 'Книга', true, {}],
+      ['number', 'Год', false, {}],
+      ['radio', 'Жанр', false, { choices: ['Роман', 'Повесть'] }],
+      ['image', 'Обложка', false, {}],
+      ['url', 'Сайт', false, { linkText: 'Открыть' }],
+    ]);
+    expect(await t.db.dataRecord.count({ where: { activityId: catalog.id } })).toBe(0);
     expect(acts.find((a) => a.moduleKey === 'wiki')!.settings).toEqual({
       mode: 'individual',
       firstPageTitle: 'Начало',

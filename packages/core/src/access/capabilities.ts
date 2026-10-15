@@ -143,6 +143,14 @@ export const coreCapabilities = {
   'mod.wiki:edit': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },
   'mod.wiki:overridelock': { level: 'ACTIVITY', archetypes: [M, ET] },
   'mod.wiki:manage': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  // database: adding entries, managing anyone's (approval, import), fields, ratings, export
+  'mod.data:writeentry': { level: 'ACTIVITY', archetypes: [M, ET, T, S], risk: ['spam'] },
+  'mod.data:manageentries': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  'mod.data:managefields': { level: 'ACTIVITY', archetypes: [M, ET] },
+  'mod.data:rate': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  'mod.data:viewrating': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },
+  'mod.data:viewallratings': { level: 'ACTIVITY', archetypes: [M, ET, T] },
+  'mod.data:exportentries': { level: 'ACTIVITY', archetypes: [M, ET, T], risk: ['personal'] },
   // video / live
   'mod.video:viewprogress': { level: 'ACTIVITY', archetypes: [M, ET, T] },
   'mod.livesession:join': { level: 'ACTIVITY', archetypes: [M, ET, T, S] },

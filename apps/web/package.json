@@ -25,6 +25,7 @@
     "@hubium/mod-book": "workspace:*",
     "@hubium/mod-choice": "workspace:*",
     "@hubium/mod-content": "workspace:*",
+    "@hubium/mod-data": "workspace:*",
     "@hubium/mod-feedback": "workspace:*",
     "@hubium/mod-forum": "workspace:*",
     "@hubium/mod-glossary": "workspace:*",

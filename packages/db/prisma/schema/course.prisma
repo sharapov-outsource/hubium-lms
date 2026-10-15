@@ -173,6 +173,8 @@ model Activity {
   lessonPages        LessonPage[]
   lessonAttempts     LessonAttempt[]
   wikiSubwikis       WikiSubwiki[]
+  dataFields         DataField[]
+  dataRecords        DataRecord[]
   liveMeeting        LiveMeeting?
   liveAttendance     LiveAttendance[]
   liveRecordings     LiveRecording[]

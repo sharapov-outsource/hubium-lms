@@ -1762,6 +1762,86 @@ export async function importMbz(
             });
             break;
           }
+          case 'data': {
+            // fields, templates and settings; entries are users' data
+            const DATA_TYPES: Record<string, string> = {
+              text: 'text',
+              textarea: 'textarea',
+              number: 'number',
+              date: 'date',
+              menu: 'menu',
+              radiobutton: 'radio',
+              checkbox: 'checkbox',
+              multimenu: 'checkbox',
+              url: 'url',
+              file: 'file',
+              picture: 'image',
+            };
+            const all = arr(((data.fields ?? {}) as Node).field as Node | Node[]);
+            const skippedTypes = new Set<string>();
+            const fields = all.flatMap((f) => {
+              const type = DATA_TYPES[txt(f.type)];
+              if (!type) {
+                skippedTypes.add(txt(f.type));
+                return [];
+              }
+              const choices = txt(f.param1)
+                .split(/\r?\n/)
+                .map((c) => c.trim())
+                .filter(Boolean);
+              return [
+                {
+                  type,
+                  name: plainText(txt(f.name)).slice(0, 255),
+                  description: plainText(txt(f.description)).slice(0, 2000),
+                  required: txt(f.required) === '1',
+                  options:
+                    type === 'menu' || type === 'radio' || type === 'checkbox'
+                      ? { choices }
+                      : type === 'url' && txt(f.param2) && txt(f.param2) !== '0'
+                        ? { linkText: plainText(txt(f.param2)) }
+                        : {},
+                },
+              ];
+            });
+            const sortField = all.find((f) => String(f['@_id']) === txt(data.defaultsort));
+            const grading = mbzForumGrading(data, scaleOf);
+            const entries = arr(((data.records ?? {}) as Node).record as Node | Node[]).length;
+            const left: string[] = [];
+            if (entries) left.push(`entries, which are users' data (${entries})`);
+            if (skippedTypes.size) left.push(`fields of type ${[...skippedTypes].join(', ')}`);
+            if (num(data.scale) < 0 && !grading.ratingScaleId)
+              left.push('its scale (graded by points)');
+            if (left.length) warnings.push(`"${name}": left out ${left.join('; ')}`);
+            const { id } = await create({
+              ...base,
+              moduleKey: 'data',
+              settings: {
+                approvalRequired: txt(data.approval) === '1',
+                maxEntries: Math.min(10_000, Math.max(0, num(data.maxentries))),
+                requiredEntriesToView: Math.min(1000, Math.max(0, num(data.requiredentriestoview))),
+                opensAt: date(data.timeavailablefrom),
+                closesAt: date(data.timeavailableto),
+                defaultSort: sortField ? plainText(txt(sortField.name)).slice(0, 255) : '',
+                defaultOrder: txt(data.defaultsortdir) === '1' ? 'desc' : 'asc',
+                listTemplate: txt(data.listtemplate),
+                singleTemplate: txt(data.singletemplate),
+                ratingAggregate: grading.ratingAggregate,
+                ratingMax: grading.ratingMax,
+                ratingScaleId: grading.ratingScaleId,
+                ratingFrom: grading.ratingFrom,
+                ratingTo: grading.ratingTo,
+              },
+            });
+            const act = await db.activity.findUniqueOrThrow({ where: { id } });
+            await getModule('data')?.backup?.import?.(
+              buildModuleCtx(ctx),
+              toActivityRef(act) as never,
+              { fields },
+              () => undefined,
+            );
+            break;
+          }
           case 'glossary': {
             // the settings; entries are users' work and stay out like forum posts
             const grading = mbzForumGrading(data, scaleOf);

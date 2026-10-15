@@ -2,6 +2,7 @@ import { assignUI } from '@hubium/mod-assign/ui';
 import { bookUI } from '@hubium/mod-book/ui';
 import { choiceUI } from '@hubium/mod-choice/ui';
 import { contentModuleUIs } from '@hubium/mod-content/ui';
+import { dataUI } from '@hubium/mod-data/ui';
 import { feedbackUI } from '@hubium/mod-feedback/ui';
 import { forumUI } from '@hubium/mod-forum/ui';
 import { glossaryUI } from '@hubium/mod-glossary/ui';
@@ -23,6 +24,7 @@ for (const ui of [
   glossaryUI,
   lessonUI,
   wikiUI,
+  dataUI,
   assignUI,
   quizUI,
   forumUI,

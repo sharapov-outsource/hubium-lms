@@ -1,6 +1,6 @@
 # Writing an activity module
 
-Every course activity in Hubium — page, book, choice, feedback, glossary, lesson, wiki, assignment, quiz, forum, video, SCORM, LTI — is a module built on `@hubium/module-sdk`. A module owns its settings, tables, UI and actions; core provides permissions, files, grades, completion, notifications, jobs, AI and privacy plumbing through `ctx`.
+Every course activity in Hubium — page, book, choice, feedback, glossary, lesson, wiki, database, assignment, quiz, forum, video, SCORM, LTI — is a module built on `@hubium/module-sdk`. A module owns its settings, tables, UI and actions; core provides permissions, files, grades, completion, notifications, jobs, AI and privacy plumbing through `ctx`.
 
 Modules **never import `@hubium/core`** (dependency-cruiser enforces it). Everything they need arrives in `ModuleCtx`.
 
@@ -78,7 +78,7 @@ Actions run in a transaction by default (`mutation: false` opts out, e.g. for sl
 | `todo` | items for the dashboard "To do" list |
 | `autoLinks(ctx, a)` | words that link to the activity's pages wherever the course's rich texts use them (the glossary's concepts); asked of each activity the viewer may open, and applied in the browser outside quizzes and the glossary itself |
 
-Ratings of items (forum posts, glossary entries) share their settings, aggregation and the rating control: `ratingFields` and `aggregateRatings` from `@hubium/module-sdk/ratings`, `RatingSettingsFields` and `RatingControl` from `@hubium/module-sdk/ratings-ui`.
+Ratings of items (forum posts, glossary entries) share their settings, aggregation and the rating control: `ratingFields` and `aggregateRatings` from `@hubium/module-sdk/ratings`, `RatingSettingsFields` and `RatingControl` from `@hubium/module-sdk/ratings-ui`. CSV for imports and exports: `parseCsv` and `csvFile` from `@hubium/module-sdk/csv`, `writeXlsx` from `@hubium/module-sdk/xlsx`.
 
 ## ModuleCtx
 

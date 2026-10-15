@@ -1,0 +1,70 @@
+// mod-data: a database of entries with the fields a teacher defines, as Moodle's.
+
+model DataField {
+  id          String  @id @default(uuid(7)) @db.Uuid
+  activityId  String  @db.Uuid
+  sortOrder   Int
+  /// text | textarea | number | date | menu | radio | checkbox | url | file | image
+  type        String
+  name        String
+  description String  @default("")
+  required    Boolean @default(false)
+  /// menu, radio, checkbox: { choices }; url: { linkText }
+  options     Json    @default("{}")
+
+  activity Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  contents DataContent[]
+
+  @@unique([activityId, name])
+  @@index([activityId, sortOrder])
+}
+
+model DataRecord {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  activityId String   @db.Uuid
+  userId     String?  @db.Uuid
+  /// The author's group in group mode.
+  groupId    String?  @db.Uuid
+  /// Learners' entries may wait for a teacher.
+  approved   Boolean  @default(true)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  activity Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User?         @relation("DataRecordAuthor", fields: [userId], references: [id], onDelete: SetNull)
+  contents DataContent[]
+  ratings  DataRating[]
+
+  @@index([activityId, createdAt])
+  @@index([userId])
+}
+
+/// A field's value in an entry: text, a number, a day, choices (one per line), a URL,
+/// sanitised HTML (textarea) or a file id (file, image).
+model DataContent {
+  id       String @id @default(uuid(7)) @db.Uuid
+  recordId String @db.Uuid
+  fieldId  String @db.Uuid
+  value    String @default("")
+
+  record DataRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  field  DataField  @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([recordId, fieldId])
+  @@index([fieldId])
+}
+
+model DataRating {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  recordId  String   @db.Uuid
+  raterId   String   @db.Uuid
+  value     Int
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  record DataRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  rater  User       @relation("DataRatingRater", fields: [raterId], references: [id], onDelete: Cascade)
+
+  @@unique([recordId, raterId])
+  @@index([raterId])
+}

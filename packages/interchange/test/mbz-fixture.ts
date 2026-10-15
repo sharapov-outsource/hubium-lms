@@ -6,8 +6,8 @@ import tar from 'tar-stream';
 // a page with an embedded image, a quiz using question bank entries and a random slot,
 // an assignment (teams, marking workflow, blind marking, a rubric, a group's dates), a
 // URL, a file resource, Q&A (rated) and news forums, a book with an image in a chapter, a choice, a feedback,
-// a rated glossary with an entry, a lesson of four pages, a wiki with a page and an unsupported
-// content package; groups and a
+// a rated glossary with an entry, a lesson of four pages, a wiki with a page, a database with
+// fields, templates and an entry, and an unsupported content package; groups and a
 // grouping, a scale, and a gradebook with a category, a manual item and a formula.
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
@@ -51,6 +51,7 @@ export async function mbzFixture(): Promise<Buffer> {
       ${activity(22, 'glossary', 'Словарь', 2)}
       ${activity(23, 'lesson', 'Маршрут', 2)}
       ${activity(24, 'imscp', 'Пакет', 2)}
+      ${activity(25, 'data', 'Каталог', 2)}
     </activities>
     <sections>
       <section><sectionid>1</sectionid><title>0</title><directory>sections/section_1</directory></section>
@@ -61,7 +62,7 @@ export async function mbzFixture(): Promise<Buffer> {
 </information></moodle_backup>`,
     'course/course.xml': `<?xml version="1.0" encoding="UTF-8"?><course id="2" contextid="20"><shortname>MOODLE-PY</shortname><fullname>Python из Moodle</fullname><summary>&lt;p&gt;Курс &lt;img src="@@PLUGINFILE@@/logo.png"&gt;&lt;/p&gt;</summary><format>topics</format><startdate>1735689600</startdate><enddate>0</enddate><customfields><customfield id="1"><shortname>Level</shortname><type>select</type><value>2</value><valueformat>0</valueformat></customfield><customfield id="2"><shortname>starts</shortname><type>date</type><value>1767214800</value><valueformat>0</valueformat></customfield><customfield id="3"><shortname>about</shortname><type>textarea</type><value>&lt;p&gt;Для &lt;b&gt;всех&lt;/b&gt;&lt;/p&gt;</value><valueformat>1</valueformat></customfield><customfield id="4"><shortname>elsewhere</shortname><type>text</type><value>x</value><valueformat>0</valueformat></customfield></customfields></course>`,
     'sections/section_1/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="1"><number>0</number><name>$@NULL@$</name><summary></summary><sequence>11,14</sequence><visible>1</visible></section>`,
-    'sections/section_2/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="2"><number>1</number><name>Тема 1</name><summary>&lt;p&gt;Первая тема&lt;/p&gt;</summary><sequence>12,13,15,16,17,18,19,20,21,22,23,24</sequence><visible>1</visible></section>`,
+    'sections/section_2/section.xml': `<?xml version="1.0" encoding="UTF-8"?><section id="2"><number>1</number><name>Тема 1</name><summary>&lt;p&gt;Первая тема&lt;/p&gt;</summary><sequence>12,13,15,16,17,18,19,20,21,22,23,24,25</sequence><visible>1</visible></section>`,
 
     'activities/page_11/module.xml': moduleXml(11, 'page', 1),
     'activities/page_11/page.xml': wrap(
@@ -200,6 +201,15 @@ export async function mbzFixture(): Promise<Buffer> {
       38,
       '<name>Вики</name><intro>&lt;p&gt;Общая вики&lt;/p&gt;</intro><firstpagetitle>Начало</firstpagetitle><wikimode>individual</wikimode><defaultformat>html</defaultformat><forceformat>1</forceformat><editbegin>0</editbegin><editend>0</editend>' +
         '<subwikis><subwiki id="1"><groupid>0</groupid><userid>3</userid><pages><page id="1"><title>Начало</title><cachedcontent>&lt;p&gt;x&lt;/p&gt;</cachedcontent></page></pages></subwiki></subwikis>',
+    ),
+    'activities/data_25/module.xml': moduleXml(25, 'data', 2),
+    'activities/data_25/data.xml': wrap(
+      25,
+      'data',
+      45,
+      '<name>Каталог</name><intro></intro><timeavailablefrom>0</timeavailablefrom><timeavailableto>0</timeavailableto><requiredentries>0</requiredentries><requiredentriestoview>1</requiredentriestoview><maxentries>3</maxentries><approval>1</approval><manageapproved>1</manageapproved><scale>10</scale><assessed>1</assessed><assesstimestart>0</assesstimestart><assesstimefinish>0</assesstimefinish><defaultsort>52</defaultsort><defaultsortdir>1</defaultsortdir>' +
+        '<listtemplate>&lt;p&gt;[[Книга]] ([[Год]]) ##more## ##delete##&lt;/p&gt;</listtemplate><singletemplate>&lt;h3&gt;[[Книга]]&lt;/h3&gt;&lt;p&gt;[[Жанр]]&lt;/p&gt;</singletemplate>' +
+        '<fields><field id="51"><type>text</type><name>Книга</name><description></description><required>1</required><param1></param1><param2></param2></field><field id="52"><type>number</type><name>Год</name><description></description><required>0</required><param1></param1><param2></param2></field><field id="53"><type>radiobutton</type><name>Жанр</name><description></description><required>0</required><param1>Роман\nПовесть</param1><param2></param2></field><field id="54"><type>latlong</type><name>Место</name><description></description><required>0</required><param1></param1><param2></param2></field><field id="55"><type>picture</type><name>Обложка</name><description></description><required>0</required><param1></param1><param2></param2></field><field id="56"><type>url</type><name>Сайт</name><description></description><required>0</required><param1>0</param1><param2>Открыть</param2></field></fields><records><record id="1"><userid>3</userid></record></records>',
     ),
     'activities/imscp_24/module.xml': moduleXml(24, 'imscp', 2),
     'activities/imscp_24/imscp.xml': wrap(24, 'imscp', 44, '<name>Пакет</name><intro></intro>'),
