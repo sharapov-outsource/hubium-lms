@@ -72,7 +72,7 @@ export default async function CoursePage({
     if (course.format === 'WEEKS' && course.startDate) {
       const start = new Date(course.startDate.getTime() + (s.index - 1) * 7 * 86_400_000);
       const end = new Date(start.getTime() + 6 * 86_400_000);
-      return format.dateTimeRange(start, end, { day: 'numeric', month: 'long' });
+      return format.dateTimeRange(start, end, { day: 'numeric', month: 'long', timeZone: 'UTC' });
     }
     return course.format === 'WEEKS' ? t('week', { n: s.index }) : t('section', { n: s.index });
   };

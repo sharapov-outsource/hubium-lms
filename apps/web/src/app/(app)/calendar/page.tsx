@@ -44,6 +44,9 @@ export default async function CalendarPage({
       month: '2-digit',
       day: '2-digit',
     }).format(d);
+  // an all-day event is a date (stored as its UTC midnight), the same everywhere
+  const dayOf = (e: { startsAt: Date; allDay: boolean }) =>
+    e.allDay ? e.startsAt.toISOString().slice(0, 10) : localDay(e.startsAt);
   const now = new Date();
   const [ty, tm] = localDay(now).split('-').map(Number);
   const [y, m] = /^\d{4}-\d{2}$/.test(sp.m ?? '') ? sp.m!.split('-').map(Number) : [ty, tm];
@@ -103,8 +106,7 @@ export default async function CalendarPage({
   );
   const cellDay = (d: Date) => d.toISOString().slice(0, 10);
   const today = localDay(now);
-  const listed =
-    view === 'month' ? events.filter((e) => localDay(e.startsAt).startsWith(key(start))) : events;
+  const listed = view === 'month' ? events.filter((e) => dayOf(e).startsWith(key(start))) : events;
   return (
     <>
       <PageHeader
@@ -199,7 +201,7 @@ export default async function CalendarPage({
                               </Link>
                               <ul className="mt-1 grid gap-1">
                                 {events
-                                  .filter((e) => localDay(e.startsAt) === cellDay(d))
+                                  .filter((e) => dayOf(e) === cellDay(d))
                                   .map((e) => (
                                     <li
                                       key={e.id}
@@ -293,7 +295,7 @@ export default async function CalendarPage({
                           {format.dateTime(
                             e.startsAt,
                             e.allDay
-                              ? { dateStyle: 'full' }
+                              ? { dateStyle: 'full', timeZone: 'UTC' }
                               : { dateStyle: 'full', timeStyle: 'short' },
                           )}
                           {e.courseName ? ` · ${e.courseName}` : ''}
@@ -457,7 +459,7 @@ function WeekView({
       <ol className="grid gap-2 md:grid-cols-7">
         {days.map((d) => {
           const own = events
-            .filter((e) => localDay(e.startsAt) === iso(d))
+            .filter((e) => (e.allDay ? iso(e.startsAt) : localDay(e.startsAt)) === iso(d))
             .sort((a, b) => Number(b.allDay) - Number(a.allDay) || +a.startsAt - +b.startsAt);
           const isToday = iso(d) === today;
           return (
@@ -537,8 +539,10 @@ function DayView({
 }) {
   const iso = day.toISOString().slice(0, 10);
   const shift = (n: number) => new Date(day.getTime() + n * 86_400_000).toISOString().slice(0, 10);
+  // an all-day event's days are dates (UTC midnights, the last one included)
+  const dayOf = (d: Date, allDay: boolean) => (allDay ? d.toISOString().slice(0, 10) : localDay(d));
   const own = events.filter(
-    (e) => localDay(e.startsAt) <= iso && localDay(e.endsAt ?? e.startsAt) >= iso,
+    (e) => dayOf(e.startsAt, e.allDay) <= iso && dayOf(e.endsAt ?? e.startsAt, e.allDay) >= iso,
   );
   const whole = own.filter((e) => e.allDay || localDay(e.startsAt) < iso);
   const timed = own.filter((e) => !whole.includes(e)).sort((a, b) => +a.startsAt - +b.startsAt);

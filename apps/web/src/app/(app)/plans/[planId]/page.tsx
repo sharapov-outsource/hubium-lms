@@ -130,7 +130,7 @@ export default async function PlanPage({ params }: { params: Promise<{ planId: s
                 {p.dueDate ? (
                   <>
                     <dt className="text-muted-foreground">{t('dueDate')}</dt>
-                    <dd>{format.dateTime(p.dueDate, { dateStyle: 'long' })}</dd>
+                    <dd>{format.dateTime(p.dueDate, { dateStyle: 'long', timeZone: 'UTC' })}</dd>
                   </>
                 ) : null}
                 {d.reviewer ? (

@@ -71,7 +71,12 @@ export default async function PlansPage({
                   </Link>
                   <span className="text-xs text-muted-foreground">
                     {p.dueDate
-                      ? t('due', { date: format.dateTime(p.dueDate, { dateStyle: 'medium' }) })
+                      ? t('due', {
+                          date: format.dateTime(p.dueDate, {
+                            dateStyle: 'medium',
+                            timeZone: 'UTC',
+                          }),
+                        })
                       : null}
                   </span>
                 </div>

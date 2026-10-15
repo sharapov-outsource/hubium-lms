@@ -200,10 +200,13 @@ export default async function DashboardPage() {
                         )}
                         <p className="text-xs text-muted-foreground">
                           {tcal(`kinds.${e.kind}`)} ·{' '}
-                          {format.dateTime(e.startsAt, {
-                            dateStyle: 'medium',
-                            timeStyle: e.allDay ? undefined : 'short',
-                          })}
+                          {format.dateTime(
+                            e.startsAt,
+                            // an all-day event is a date: the same in every time zone
+                            e.allDay
+                              ? { dateStyle: 'medium', timeZone: 'UTC' }
+                              : { dateStyle: 'medium', timeStyle: 'short' },
+                          )}
                           {e.courseName ? ` · ${e.courseName}` : ''}
                         </p>
                       </div>

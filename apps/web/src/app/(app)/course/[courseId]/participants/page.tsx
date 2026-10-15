@@ -175,7 +175,8 @@ export default async function ParticipantsPage({
                       </Badge>
                       {e?.endsAt ? (
                         <p className="text-xs text-muted-foreground">
-                          {t('endsAt')}: {format.dateTime(e.endsAt, { dateStyle: 'medium' })}
+                          {t('endsAt')}:{' '}
+                          {format.dateTime(e.endsAt, { dateStyle: 'medium', timeZone: 'UTC' })}
                         </p>
                       ) : null}
                     </Td>

@@ -80,3 +80,26 @@ test('calendar: a file imported, a feed subscribed, a day at a glance', async ({
     await sql(`DELETE FROM "CalendarSubscription" WHERE "userId" = $1`, [me!.id]);
   }
 });
+
+test('an all-day event keeps its date west of UTC', async ({ page }) => {
+  const [u] = await sql<{ id: string }>(
+    `UPDATE "User" SET timezone = 'America/New_York' WHERE username = 'student2' RETURNING id`,
+  );
+  const title = `Праздник ${Date.now()}`;
+  await sql(
+    `INSERT INTO "CalendarEvent" (id, scope, "userId", title, "startsAt", "allDay", "createdAt", "updatedAt")
+     VALUES (gen_random_uuid(), 'USER', $1, $2, '2026-10-15T00:00:00Z', true, now(), now())`,
+    [u!.id, title],
+  );
+  try {
+    await login(page, 'student2', DEMO_PASSWORD);
+    // a date, not the evening of the day before in New York
+    await page.goto('/calendar?view=day&date=2026-10-15');
+    await expect(page.getByText(title)).toBeVisible();
+    await page.goto('/calendar?view=day&date=2026-10-14');
+    await expect(page.getByText(title)).toHaveCount(0);
+  } finally {
+    await sql(`DELETE FROM "CalendarEvent" WHERE title = $1`, [title]);
+    await sql(`UPDATE "User" SET timezone = NULL WHERE id = $1`, [u!.id]);
+  }
+});

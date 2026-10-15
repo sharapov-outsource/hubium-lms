@@ -67,7 +67,9 @@ export default async function PlanTemplatesPage() {
                         {x.visible ? null : <Badge variant="neutral">{t('hidden')}</Badge>}
                       </Td>
                       <Td>
-                        {x.dueDate ? format.dateTime(x.dueDate, { dateStyle: 'medium' }) : '—'}
+                        {x.dueDate
+                          ? format.dateTime(x.dueDate, { dateStyle: 'medium', timeZone: 'UTC' })
+                          : '—'}
                       </Td>
                       <Td>{x._count.competencies}</Td>
                       <Td>{x._count.plans}</Td>

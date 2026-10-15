@@ -57,13 +57,13 @@ export async function CourseLanding({ courseId }: { courseId: string }) {
             {course.startDate ? (
               <div className="flex gap-2">
                 <dt className="text-muted-foreground">{t('starts')}:</dt>
-                <dd>{format.dateTime(course.startDate, { dateStyle: 'long' })}</dd>
+                <dd>{format.dateTime(course.startDate, { dateStyle: 'long', timeZone: 'UTC' })}</dd>
               </div>
             ) : null}
             {course.endDate ? (
               <div className="flex gap-2">
                 <dt className="text-muted-foreground">{t('ends')}:</dt>
-                <dd>{format.dateTime(course.endDate, { dateStyle: 'long' })}</dd>
+                <dd>{format.dateTime(course.endDate, { dateStyle: 'long', timeZone: 'UTC' })}</dd>
               </div>
             ) : null}
             {fields.map((f) => (
