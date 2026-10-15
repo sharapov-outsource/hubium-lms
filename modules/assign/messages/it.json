@@ -247,6 +247,37 @@
       "scoreOf": "Punti (su {max})",
       "remark": "Commento",
       "incomplete": "Assegna a ogni criterio della guida un punteggio da 0 al suo massimo."
+    },
+    "errors": {
+      "otherMarker": "Questo studente è assegnato a un altro valutatore",
+      "moveStage": "Non puoi spostare i voti a questa fase",
+      "cannotAllocate": "Non puoi assegnare valutatori",
+      "notAMarker": "Questo valutatore non valuta il compito",
+      "blindLocked": "La valutazione anonima non può cambiare dopo che gli studenti hanno consegnato",
+      "notOpenYet": "Le consegne non sono ancora aperte",
+      "closed": "Le consegne sono chiuse",
+      "alreadySubmitted": "Già consegnato",
+      "wordLimit": "Il limite è di {n} parole",
+      "acceptStatement": "Conferma che questo è il tuo lavoro",
+      "tooManyFiles": "Al massimo {n} file",
+      "empty": "La consegna è vuota",
+      "nothingWithdraw": "Niente da ritirare",
+      "alreadyGraded": "Già valutato",
+      "fillRubric": "Compila la rubrica",
+      "fillMarkingGuide": "Compila la guida di valutazione",
+      "gradeRange": "Il voto deve essere tra 0 e {max}",
+      "noAttempt": "Questo tentativo non esiste",
+      "noWorkflow": "Il compito non ha un flusso di valutazione",
+      "noAllocation": "Il compito non assegna valutatori",
+      "notBlind": "Il compito non è valutato in modo anonimo",
+      "invalidForm": "Modulo non valido",
+      "duplicateIds": "Criteri e livelli devono avere ID diversi",
+      "formInUse": "Con questo modulo sono già stati valutati studenti: criteri e livelli non possono essere aggiunti o rimossi",
+      "noSubmission": "Nessuna consegna",
+      "cutOffBeforeDue": "La scadenza ultima non può precedere la data di consegna",
+      "noGroup": "Questo gruppo non esiste",
+      "noOverride": "Questa eccezione non esiste",
+      "noGroupOverride": "Questa eccezione di gruppo non esiste"
     }
   }
 }

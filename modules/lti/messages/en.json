@@ -20,6 +20,11 @@
     "toolDisabled": "The tool is disabled by an administrator.",
     "openNewWindow": "Open in a new window",
     "selectContent": "Select content",
-    "launch": "Open the tool"
+    "launch": "Open the tool",
+    "errors": {
+      "noAppSecret": "APP_SECRET is not set",
+      "noToolKey": "The tool has no public key or JWKS URL",
+      "giveToolKey": "Provide a JWKS URL or a public key"
+    }
   }
 }

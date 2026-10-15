@@ -95,6 +95,15 @@
       "rateLabel": "La tua valutazione della voce di {name}",
       "saved": "Valutazione salvata",
       "raters": "Chi ha valutato"
+    },
+    "errors": {
+      "noEntry": "Voce non trovata",
+      "conceptExists": "Questo concetto è già nel glossario",
+      "cannotChange": "Non puoi modificare questa voce",
+      "cannotDelete": "Non puoi eliminare questa voce",
+      "ratingsOff": "Le valutazioni sono disattivate in questo glossario",
+      "cannotRate": "Non puoi valutare questa voce",
+      "ratingRange": "Una valutazione va da {lo} a {hi}"
     }
   }
 }

@@ -8,6 +8,7 @@ import {
   defineQuery,
   type ModuleCtx,
   ModuleError,
+  msg,
 } from '@hubium/module-sdk';
 import { bool, isoDate, optionalNumber } from '@hubium/module-sdk/fields';
 import { z } from 'zod';
@@ -79,7 +80,7 @@ export type LessonSettingsT = z.output<typeof LessonSettings>;
 type Lesson = ActivityRef<LessonSettingsT>;
 
 const uid = (ctx: ModuleCtx) => {
-  if (ctx.actor.kind !== 'user') throw new Error('Sign in required');
+  if (ctx.actor.kind !== 'user') throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
   return ctx.actor.userId;
 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -175,7 +176,7 @@ export async function lessonPages(db: Prisma.TransactionClient, activityId: stri
 
 async function pageOf(ctx: ModuleCtx, a: ActivityRef, id: string) {
   const row = await ctx.db.lessonPage.findFirst({ where: { id, activityId: a.id } });
-  if (!row) throw new ModuleError('NOT_FOUND', 'Page not found');
+  if (!row) throw new ModuleError('NOT_FOUND', msg('mod.lesson.errors.noPage'));
   return row;
 }
 
@@ -349,7 +350,7 @@ async function refreshOpenAttempts(ctx: ModuleCtx, a: Lesson) {
 
 async function requireOpen(ctx: ModuleCtx, a: Lesson) {
   const at = await openAttempt(ctx, a, uid(ctx));
-  if (!at) throw new ModuleError('CONFLICT', 'The attempt is over');
+  if (!at) throw new ModuleError('CONFLICT', msg('mod.lesson.errors.attemptOver'));
   return at;
 }
 
@@ -726,7 +727,7 @@ export const lesson = defineModule<LessonSettingsT>({
       async handler(ctx, a, input) {
         const pages = await lessonPages(ctx.db, a.id);
         const err = checkPage(input.type, input);
-        if (err) throw new Error(err);
+        if (err) throw new ModuleError('BAD_REQUEST', err);
         const id = randomUUID();
         const answers = answerRows(input.answers, new Set([...pages.map((p) => p.id), id]));
         await ctx.db.lessonPage.create({
@@ -755,7 +756,7 @@ export const lesson = defineModule<LessonSettingsT>({
       async handler(ctx, a, input) {
         const row = await pageOf(ctx, a, input.id);
         const err = checkPage(row.type as PageType, input);
-        if (err) throw new Error(err);
+        if (err) throw new ModuleError('BAD_REQUEST', err);
         const pages = await lessonPages(ctx.db, a.id);
         const answers = answerRows(input.answers, new Set(pages.map((p) => p.id)));
         await ctx.db.lessonPage.update({
@@ -777,7 +778,7 @@ export const lesson = defineModule<LessonSettingsT>({
       async handler(ctx, a, input) {
         const order = (await lessonPages(ctx.db, a.id)).map((p) => p.id);
         const i = order.indexOf(input.id);
-        if (i < 0) throw new ModuleError('NOT_FOUND', 'Page not found');
+        if (i < 0) throw new ModuleError('NOT_FOUND', msg('mod.lesson.errors.noPage'));
         const j = input.direction === 'up' ? i - 1 : i + 1;
         if (j < 0 || j >= order.length) return { ok: true };
         [order[i], order[j]] = [order[j]!, order[i]!];
@@ -833,19 +834,22 @@ export const lesson = defineModule<LessonSettingsT>({
         if (!input.preview) {
           const w = lessonWindow(s, ctx.now);
           if (w)
-            throw new Error(
-              w === 'notOpen' ? 'The lesson is not open yet' : 'The lesson is closed',
+            throw new ModuleError(
+              'BAD_REQUEST',
+              w === 'notOpen'
+                ? msg('mod.lesson.errors.notOpenYet')
+                : msg('mod.lesson.errors.closed'),
             );
           if (s.password && input.password !== s.password)
-            throw new ModuleError('FORBIDDEN', 'The lesson password is wrong');
+            throw new ModuleError('FORBIDDEN', msg('mod.lesson.errors.wrongPassword'));
           const done = await ctx.db.lessonAttempt.count({
             where: { activityId: a.id, userId: me, preview: false },
           });
           if (done && !s.retake)
-            throw new ModuleError('CONFLICT', 'The lesson cannot be taken again');
+            throw new ModuleError('CONFLICT', msg('mod.lesson.errors.noRetake'));
         }
         const pages = await lessonPages(ctx.db, a.id);
-        if (!pages.length) throw new Error('The lesson has no pages yet');
+        if (!pages.length) throw new ModuleError('BAD_REQUEST', msg('mod.lesson.errors.noPages'));
         const last = await ctx.db.lessonAttempt.findFirst({
           where: { activityId: a.id, userId: me, preview: input.preview },
           orderBy: { number: 'desc' },
@@ -877,12 +881,12 @@ export const lesson = defineModule<LessonSettingsT>({
         const a = ref as Lesson;
         const at = await requireOpen(ctx, a);
         if (at.currentPageId !== input.pageId)
-          throw new ModuleError('CONFLICT', 'You are on another page');
+          throw new ModuleError('CONFLICT', msg('mod.lesson.errors.otherPage'));
         const pages = await lessonPages(ctx.db, a.id);
         const page = pages.find((p) => p.id === input.pageId);
         const button =
           page?.type === 'content' && page.answers.find((x) => x.id === input.answerId);
-        if (!button) throw new ModuleError('NOT_FOUND', 'No such button');
+        if (!button) throw new ModuleError('NOT_FOUND', msg('mod.lesson.errors.noButton'));
         const steps = engineSteps(await stepsOf(ctx.db, at.id));
         const next = await moveTo(
           ctx,
@@ -898,12 +902,13 @@ export const lesson = defineModule<LessonSettingsT>({
       input: z.object({ pageId: z.string().uuid() }),
       async handler(ctx, ref, input) {
         const a = ref as Lesson;
-        if (!a.settings.displayMenu) throw new ModuleError('FORBIDDEN', 'The lesson has no menu');
+        if (!a.settings.displayMenu)
+          throw new ModuleError('FORBIDDEN', msg('mod.lesson.errors.noMenu'));
         const at = await requireOpen(ctx, a);
         const page = await pageOf(ctx, a, input.pageId);
         const options = pageFromRow(page).options;
         if (page.type !== 'content' || options.inMenu === false)
-          throw new ModuleError('FORBIDDEN', 'This page is not in the menu');
+          throw new ModuleError('FORBIDDEN', msg('mod.lesson.errors.notInMenu'));
         await moveTo(ctx, a, at, page.id);
         return { ok: true };
       },
@@ -923,10 +928,11 @@ export const lesson = defineModule<LessonSettingsT>({
         const s = a.settings;
         const at = await requireOpen(ctx, a);
         if (at.currentPageId !== input.pageId)
-          throw new ModuleError('CONFLICT', 'You are on another page');
+          throw new ModuleError('CONFLICT', msg('mod.lesson.errors.otherPage'));
         const pages = await lessonPages(ctx.db, a.id);
         const page = pages.find((p) => p.id === input.pageId)!;
-        if (!isQuestion(page.type)) throw new Error('This page asks nothing');
+        if (!isQuestion(page.type))
+          throw new ModuleError('BAD_REQUEST', msg('mod.lesson.errors.noQuestion'));
         const rows = await stepsOf(ctx.db, at.id);
         const r: Response =
           input.choices !== undefined
@@ -937,10 +943,10 @@ export const lesson = defineModule<LessonSettingsT>({
                 ? { matches: input.matches }
                 : { text: input.text ?? '' };
         if (page.type === 'essay' && !('text' in r && r.text.trim()))
-          throw new Error('Write your answer');
+          throw new ModuleError('BAD_REQUEST', msg('mod.lesson.errors.writeAnswer'));
         // a short answer or a number is short: only an essay is long
         if (page.type !== 'essay' && 'text' in r && r.text.length > SHORT_ANSWER_MAX)
-          throw new Error('The answer is too long');
+          throw new ModuleError('BAD_REQUEST', msg('mod.lesson.errors.answerTooLong'));
         const checked = checkResponse(pages, page, r, s.customScoring);
         const essay = page.type === 'essay';
         await addStep(ctx, at.id, {
@@ -989,14 +995,14 @@ export const lesson = defineModule<LessonSettingsT>({
         const a = ref as Lesson;
         const at = await requireOpen(ctx, a);
         if (at.currentPageId !== input.pageId)
-          throw new ModuleError('CONFLICT', 'You are on another page');
+          throw new ModuleError('CONFLICT', msg('mod.lesson.errors.otherPage'));
         const [pages, rows] = await Promise.all([
           lessonPages(ctx.db, a.id),
           stepsOf(ctx.db, at.id),
         ]);
         const last = rows[rows.length - 1];
         if (last?.kind !== 'answer' || last.pageId !== input.pageId || last.correct)
-          throw new ModuleError('CONFLICT', 'Answer the question first');
+          throw new ModuleError('CONFLICT', msg('mod.lesson.errors.answerFirst'));
         const page = pages.find((p) => p.id === input.pageId)!;
         const answer = page.answers.find((x) => x.id === last.answerId);
         let target = answer
@@ -1027,11 +1033,12 @@ export const lesson = defineModule<LessonSettingsT>({
           step.attempt.activityId !== a.id ||
           step.page.type !== 'essay'
         )
-          throw new ModuleError('NOT_FOUND', 'Essay not found');
+          throw new ModuleError('NOT_FOUND', msg('mod.lesson.errors.noEssay'));
         const max = a.settings.customScoring
           ? Math.max(0, ...pageFromRow(step.page).answers.map((x) => x.score))
           : 1;
-        if (input.score > max) throw new Error(`An essay gets 0 to ${max} points`);
+        if (input.score > max)
+          throw new ModuleError('BAD_REQUEST', msg('mod.lesson.errors.essayPoints', { max }));
         await ctx.db.lessonStep.update({
           where: { id: step.id },
           data: {
@@ -1071,7 +1078,7 @@ export const lesson = defineModule<LessonSettingsT>({
         const at = await ctx.db.lessonAttempt.findFirst({
           where: { id: input.attemptId, activityId: a.id },
         });
-        if (!at) throw new ModuleError('NOT_FOUND', 'Attempt not found');
+        if (!at) throw new ModuleError('NOT_FOUND', msg('mod.lesson.errors.noAttempt'));
         await ctx.db.lessonAttempt.delete({ where: { id: at.id } });
         if (!at.preview) {
           await pushGrade(ctx, a, at.userId);

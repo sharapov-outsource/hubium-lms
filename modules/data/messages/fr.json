@@ -141,6 +141,29 @@
       "rateLabel": "Votre évaluation de la fiche de {name}",
       "saved": "Évaluation enregistrée",
       "raters": "Qui a évalué"
+    },
+    "errors": {
+      "giveChoices": "Indiquez les choix, un par ligne",
+      "noEntry": "Entrée introuvable",
+      "notOpenYet": "La base de données n’est pas encore ouverte",
+      "closed": "La base de données est fermée",
+      "fieldNameTaken": "Un champ de ce nom existe déjà",
+      "noField": "Champ introuvable",
+      "noFields": "La base de données n’a pas encore de champs",
+      "cannotChange": "Vous ne pouvez pas modifier cette entrée",
+      "entryLimit": "Vous avez ajouté toutes les entrées autorisées",
+      "cannotDelete": "Vous ne pouvez pas supprimer cette entrée",
+      "ratingsOff": "Les évaluations sont désactivées dans cette base de données",
+      "cannotRate": "Vous ne pouvez pas évaluer cette entrée",
+      "ratingRange": "Une évaluation va de {lo} à {hi}",
+      "fileEmpty": "Le fichier est vide",
+      "noMatchingColumns": "Aucune colonne ne porte le nom d’un champ de la base de données",
+      "value": {
+        "required": "{name} : obligatoire",
+        "invalid": "{name} : non valide",
+        "tooLong": "{name} : trop long",
+        "picture": "{name} : une image est requise"
+      }
     }
   }
 }

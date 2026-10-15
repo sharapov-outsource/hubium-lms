@@ -5,21 +5,23 @@ import {
   defineQuery,
   type ModuleCtx,
   ModuleError,
+  msg,
 } from '@hubium/module-sdk';
 import { csvFile } from '@hubium/module-sdk/csv';
 import { bool, isoDate } from '@hubium/module-sdk/fields';
 import { type Cell, writeXlsx } from '@hubium/module-sdk/xlsx';
 import { z } from 'zod';
+import { checkAnswers } from './answers.ts';
 import {
   ANSWERED,
   type Answer,
-  checkAnswers,
   ITEM_TYPES,
   type Item,
   type ItemType,
   itemNumbers,
 } from './items.ts';
 
+export * from './answers.ts';
 export * from './items.ts';
 
 // mod-feedback: a survey of the teacher's own questions, as Moodle's feedback. Items are
@@ -248,7 +250,7 @@ export async function responseSheet(ctx: ModuleCtx, a: ActivityRef): Promise<Cel
 
 async function itemOf(ctx: ModuleCtx, a: ActivityRef, id: string) {
   const it = await ctx.db.feedbackItem.findFirst({ where: { id, activityId: a.id } });
-  if (!it) throw new ModuleError('NOT_FOUND', 'Question not found');
+  if (!it) throw new ModuleError('NOT_FOUND', msg('mod.feedback.errors.noQuestion'));
   return it;
 }
 
@@ -425,20 +427,22 @@ export const feedback = defineModule<FeedbackSettingsT>({
       async handler(ctx, ref, input) {
         const a = ref as Feedback;
         const me = uid(ctx);
-        if (!me) throw new Error('Sign in required');
+        if (!me) throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
         const state = feedbackState(a.settings, ctx.now);
-        if (state === 'notOpen') throw new Error('The survey is not open yet');
-        if (state === 'closed') throw new Error('The survey is closed');
+        if (state === 'notOpen')
+          throw new ModuleError('BAD_REQUEST', msg('mod.feedback.errors.notOpenYet'));
+        if (state === 'closed')
+          throw new ModuleError('BAD_REQUEST', msg('mod.feedback.errors.closed'));
         if (!a.settings.multipleSubmit) {
           // one answer each: a second sending at the same moment waits here, then finds it
           await ctx.db
             .$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`feedback:${a.id}:${me}`}))::text`;
           if ((await mySubmissions(ctx, a)) > 0)
-            throw new ModuleError('CONFLICT', 'You have answered already');
+            throw new ModuleError('CONFLICT', msg('mod.feedback.errors.answeredAlready'));
         }
         const items = await feedbackItems(ctx, a.id);
         if (!items.some((i) => ANSWERED.includes(i.type)))
-          throw new Error('The survey has no questions yet');
+          throw new ModuleError('BAD_REQUEST', msg('mod.feedback.errors.noQuestions'));
         const answers = checkAnswers(items, input.answers);
         const r = await ctx.db.feedbackResponse.create({
           data: { activityId: a.id, userId: me, anonymous: a.settings.anonymous, answers },
@@ -468,7 +472,7 @@ export const feedback = defineModule<FeedbackSettingsT>({
           where: { id: input.id, activityId: a.id },
           select: { userId: true },
         });
-        if (!r) throw new ModuleError('NOT_FOUND', 'Response not found');
+        if (!r) throw new ModuleError('NOT_FOUND', msg('mod.feedback.errors.noResponse'));
         await ctx.db.feedbackResponse.delete({ where: { id: input.id } });
         await ctx.completion.recompute(a.id, r.userId);
         return { ok: true };

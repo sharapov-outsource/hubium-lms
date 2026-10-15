@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { Prisma } from '@hubium/db';
-import { defineModule, type ModuleCtx } from '@hubium/module-sdk';
+import { defineModule, type ModuleCtx, ModuleError, msg } from '@hubium/module-sdk';
 import { bool, optionalNumber } from '@hubium/module-sdk/fields';
 import { checkUrlShape } from '@hubium/module-sdk/net';
 import { decodeJwt } from 'jose';
@@ -99,7 +99,8 @@ export const ToolInput = z.object({
 
 export async function saveTool(db: Db, raw: unknown) {
   const input = ToolInput.parse(raw);
-  if (!input.jwksUrl && !input.publicKeyPem) throw new Error('Provide a JWKS URL or a public key');
+  if (!input.jwksUrl && !input.publicKeyPem)
+    throw new ModuleError('BAD_REQUEST', msg('mod.lti.errors.giveToolKey'));
   if (input.jwksUrl) checkUrlShape(input.jwksUrl);
   const data = {
     name: input.name,
@@ -244,7 +245,7 @@ async function bearer(db: Db, req: Request, scopes: string[]) {
 
 async function idTokenClaims(ctx: ModuleCtx, hint: NonNullable<ReturnType<typeof readHint>>) {
   const found = await loadLti(ctx.db, hint.a);
-  if (!found) throw new Error('Unknown activity');
+  if (!found) throw new ModuleError('BAD_REQUEST', msg('errors.courses.unknownActivity'));
   const { act, settings: s, tool } = found;
   const [course, user, roles, siteName] = await Promise.all([
     ctx.db.course.findUniqueOrThrow({

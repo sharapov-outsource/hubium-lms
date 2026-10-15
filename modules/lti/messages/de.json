@@ -20,6 +20,11 @@
     "toolDisabled": "Das Tool wurde von der Administration deaktiviert.",
     "openNewWindow": "In neuem Fenster öffnen",
     "selectContent": "Inhalt auswählen",
-    "launch": "Tool öffnen"
+    "launch": "Tool öffnen",
+    "errors": {
+      "noAppSecret": "APP_SECRET ist nicht gesetzt",
+      "noToolKey": "Das Tool hat keinen öffentlichen Schlüssel und keine JWKS-URL",
+      "giveToolKey": "Geben Sie eine JWKS-URL oder einen öffentlichen Schlüssel an"
+    }
   }
 }

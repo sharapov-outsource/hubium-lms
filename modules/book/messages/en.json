@@ -33,6 +33,9 @@
     "deleted": "Chapter deleted",
     "saved": "Chapter saved",
     "empty": "The book has no chapters yet.",
-    "emptyEditor": "The book has no chapters yet. Add the first one."
+    "emptyEditor": "The book has no chapters yet. Add the first one.",
+    "errors": {
+      "noChapter": "Chapter not found"
+    }
   }
 }

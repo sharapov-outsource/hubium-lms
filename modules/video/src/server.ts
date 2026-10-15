@@ -5,7 +5,14 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import type { Prisma } from '@hubium/db';
-import { type ActivityRef, defineAction, defineModule, type ModuleCtx } from '@hubium/module-sdk';
+import {
+  type ActivityRef,
+  defineAction,
+  defineModule,
+  type ModuleCtx,
+  ModuleError,
+  msg,
+} from '@hubium/module-sdk';
 import { bool } from '@hubium/module-sdk/fields';
 import { permanent } from '@hubium/module-sdk/zip';
 import { z } from 'zod';
@@ -74,13 +81,13 @@ const NO_SOURCE =
   'The backup holds no source file of this video: it was deleted after processing. Upload the video again.';
 
 function uid(ctx: ModuleCtx): string {
-  if (ctx.actor.kind !== 'user') throw new Error('Sign in required');
+  if (ctx.actor.kind !== 'user') throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
   return ctx.actor.userId;
 }
 
 async function requireManager(ctx: ModuleCtx, a: { id: string }) {
   const r = await ctx.activities.get(a.id);
-  if (!r?.canManage) throw new Error('Only course editors can manage the video');
+  if (!r?.canManage) throw new ModuleError('BAD_REQUEST', msg('mod.video.errors.editorsOnly'));
 }
 
 async function removeOutputs(ctx: ModuleCtx, assetId: string, outputs: VideoOutputs) {
@@ -110,7 +117,12 @@ function run(
     p.on('close', (code) =>
       code === 0
         ? resolve({ stdout, stderr })
-        : reject(new Error(`${cmd} exited ${code}: ${stderr.slice(-1500)}`)),
+        : reject(
+            new ModuleError(
+              'BAD_REQUEST',
+              msg('mod.video.errors.toolFailed', { cmd, code, value: stderr.slice(-1500) }),
+            ),
+          ),
     );
   });
 }
@@ -130,7 +142,8 @@ export async function probe(file: string) {
     format: { duration?: string };
   };
   const v = info.streams.find((s) => s.codec_type === 'video');
-  if (!v?.width || !v.height) throw new Error('No video stream');
+  if (!v?.width || !v.height)
+    throw new ModuleError('BAD_REQUEST', msg('mod.video.errors.noVideoStream'));
   const rotated = Math.abs(Number(v.tags?.rotate ?? 0)) % 180 === 90;
   return {
     duration: Number(info.format.duration ?? 0),
@@ -153,7 +166,8 @@ async function listFilesRec(dir: string, base = ''): Promise<string[]> {
 /** Downloads the source, probes it, builds the HLS ladder, poster and sprite, uploads all. */
 export async function transcodeAsset(ctx: ModuleCtx, assetId: string): Promise<VideoOutputs> {
   const asset = await ctx.db.videoAsset.findUnique({ where: { id: assetId } });
-  if (!asset?.sourceFileId) throw new Error('Nothing to transcode');
+  if (!asset?.sourceFileId)
+    throw new ModuleError('BAD_REQUEST', msg('mod.video.errors.nothingToTranscode'));
   const source = await ctx.db.file.findUnique({ where: { id: asset.sourceFileId } });
   const owner = source?.uploadedById ? [source.uploadedById] : [];
   const status = async (data: Prisma.VideoAssetUpdateInput) => {
@@ -473,7 +487,8 @@ export const video = defineModule<VideoSettingsT>({
       async handler(ctx, a) {
         await requireManager(ctx, a);
         const asset = await ctx.db.videoAsset.findUnique({ where: { activityId: a.id } });
-        if (!asset?.sourceFileId) throw new Error('The source file was deleted; upload it again');
+        if (!asset?.sourceFileId)
+          throw new ModuleError('BAD_REQUEST', msg('mod.video.errors.sourceDeleted'));
         await ctx.db.videoAsset.update({
           where: { id: asset.id },
           data: { status: 'UPLOADED', progress: 0, error: null },
@@ -499,7 +514,8 @@ export const video = defineModule<VideoSettingsT>({
           (await ctx.db.videoAsset.findUnique({ where: { activityId: a.id } })) ??
           (await ctx.db.videoAsset.create({ data: { activityId: a.id } }));
         const f = input.files[0]!;
-        if (f.data.length > 2 * 1024 * 1024) throw new Error('Caption file is too large');
+        if (f.data.length > 2 * 1024 * 1024)
+          throw new ModuleError('BAD_REQUEST', msg('mod.video.errors.captionsTooLarge'));
         const vtt = srtToVtt(f.data.toString('utf8'));
         const stored = await ctx.files.store(
           a.id,

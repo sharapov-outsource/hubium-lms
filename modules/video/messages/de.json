@@ -43,6 +43,14 @@
     "student": "Teilnehmer/in",
     "progress": "Angesehen",
     "lastWatched": "Zuletzt angesehen",
-    "noStudents": "Keine Teilnehmer/innen"
+    "noStudents": "Keine Teilnehmer/innen",
+    "errors": {
+      "editorsOnly": "Nur Kursbearbeitende können das Video verwalten",
+      "toolFailed": "{cmd} wurde mit {code} beendet: {value}",
+      "noVideoStream": "Kein Videostream",
+      "nothingToTranscode": "Nichts zu transkodieren",
+      "sourceDeleted": "Die Quelldatei wurde gelöscht: Laden Sie sie erneut hoch",
+      "captionsTooLarge": "Die Untertiteldatei ist zu groß"
+    }
   }
 }

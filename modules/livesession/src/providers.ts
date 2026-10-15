@@ -1,4 +1,5 @@
 import { createHash, createHmac } from 'node:crypto';
+import { ModuleError, msg } from '@hubium/module-sdk';
 
 // Webinar providers behind one interface: BigBlueButton (server API with checksums,
 // callbacks, recordings) and Jitsi (JWT-protected self-hosted server or meet.jit.si).
@@ -145,7 +146,12 @@ export class BbbProvider implements LiveProvider {
     if (m.recordingReadyUrl) params['meta_bbb-recording-ready-url'] = m.recordingReadyUrl;
     const xml = await this.call('create', params);
     if (xmlOne(xml, 'returncode') !== 'SUCCESS') {
-      throw new Error(`BigBlueButton: ${xmlOne(xml, 'message') ?? 'create failed'}`);
+      throw new ModuleError(
+        'BAD_REQUEST',
+        msg('mod.livesession.errors.bbbError', {
+          value: xmlOne(xml, 'message') ?? 'create failed',
+        }),
+      );
     }
   }
 
@@ -244,7 +250,7 @@ export function getProvider(kind: ProviderKind, env = process.env): LiveProvider
   if (override) return override(kind);
   if (kind === 'bbb') {
     if (!env.BBB_URL || !env.BBB_SECRET)
-      throw new Error('BigBlueButton is not configured (BBB_URL, BBB_SECRET)');
+      throw new ModuleError('BAD_REQUEST', msg('mod.livesession.errors.bbbNotConfigured'));
     return new BbbProvider(env.BBB_URL, env.BBB_SECRET);
   }
   return new JitsiProvider(

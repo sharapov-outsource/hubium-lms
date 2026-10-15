@@ -83,7 +83,7 @@ describe('manifest', () => {
   });
   it('fails without launchable items', () => {
     expect(() => parseManifest('<manifest><resources/></manifest>')).toThrow('no launchable');
-    expect(() => parseManifest('<x/>')).toThrow('no <manifest>');
+    expect(() => parseManifest('<x/>')).toThrow('no manifest element');
   });
 });
 

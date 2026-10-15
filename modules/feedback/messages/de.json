@@ -74,6 +74,19 @@
     "notify": {
       "submitted": "Neue Antwort auf eine Umfrage",
       "submittedTitle": "Neue Antwort auf die Umfrage „{name}“"
+    },
+    "errors": {
+      "answerRequired": "„{label}“: Eine Antwort ist erforderlich",
+      "oneOption": "„{label}“: Wählen Sie eine Option",
+      "noOption": "„{label}“: Diese Option gibt es nicht",
+      "numberExpected": "„{label}“: Eine Zahl wird erwartet",
+      "numberRange": "„{label}“: Die Zahl liegt außerhalb des Bereichs",
+      "noQuestion": "Frage nicht gefunden",
+      "notOpenYet": "Das Feedback ist noch nicht geöffnet",
+      "closed": "Das Feedback ist geschlossen",
+      "answeredAlready": "Sie haben bereits geantwortet",
+      "noQuestions": "Das Feedback hat noch keine Fragen",
+      "noResponse": "Antwort nicht gefunden"
     }
   }
 }

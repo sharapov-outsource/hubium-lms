@@ -698,7 +698,8 @@
       "onlySubsectionMoves": "Nur ein Unterabschnitt kann in einen Abschnitt verschoben werden",
       "generalNotDeletable": "Der allgemeine Abschnitt kann nicht gelöscht werden",
       "sectionHasActivities": "Verschieben oder löschen Sie zuerst die Aktivitäten dieses Abschnitts",
-      "sectionHasSubsections": "Verschieben oder löschen Sie zuerst die Unterabschnitte dieses Abschnitts"
+      "sectionHasSubsections": "Verschieben oder löschen Sie zuerst die Unterabschnitte dieses Abschnitts",
+      "fieldLocked": "Dieses Feld ist gesperrt"
     },
     "enrol": {
       "cannotAssignRole": "Sie können diese Rolle nicht zuweisen",

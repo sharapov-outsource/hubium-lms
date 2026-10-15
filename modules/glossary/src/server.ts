@@ -7,6 +7,7 @@ import {
   defineQuery,
   type ModuleCtx,
   ModuleError,
+  msg,
 } from '@hubium/module-sdk';
 import { bool } from '@hubium/module-sdk/fields';
 import {
@@ -277,7 +278,7 @@ async function pushGrades(ctx: ModuleCtx, a: Glossary, userIds: (string | null)[
 
 async function entryOf(ctx: ModuleCtx, a: ActivityRef, id: string) {
   const e = await ctx.db.glossaryEntry.findFirst({ where: { id, activityId: a.id } });
-  if (!e) throw new ModuleError('NOT_FOUND', 'Entry not found');
+  if (!e) throw new ModuleError('NOT_FOUND', msg('mod.glossary.errors.noEntry'));
   return e;
 }
 
@@ -297,7 +298,7 @@ async function checkDuplicate(ctx: ModuleCtx, a: Glossary, concept: string, exce
     },
     select: { id: true },
   });
-  if (same) throw new ModuleError('CONFLICT', 'This concept is in the glossary already');
+  if (same) throw new ModuleError('CONFLICT', msg('mod.glossary.errors.conceptExists'));
 }
 
 /** Rewrites ids an import mapped (files in definitions). */
@@ -484,7 +485,7 @@ export const glossary = defineModule<GlossarySettingsT>({
           where: { AND: [await visibleWhere(ctx, a), { id: input.id }] },
           select: entrySelect,
         });
-        if (!e) throw new ModuleError('NOT_FOUND', 'Entry not found');
+        if (!e) throw new ModuleError('NOT_FOUND', msg('mod.glossary.errors.noEntry'));
         return e;
       },
     }),
@@ -497,7 +498,7 @@ export const glossary = defineModule<GlossarySettingsT>({
       async handler(ctx, ref, input) {
         const a = ref as Glossary;
         const me = uid(ctx);
-        if (!me) throw new Error('Sign in required');
+        if (!me) throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
         await checkDuplicate(ctx, a, input.concept);
         const manage = await ctx.perm.can('mod.glossary:manageentries', a.id);
         const e = await ctx.db.glossaryEntry.create({
@@ -524,7 +525,7 @@ export const glossary = defineModule<GlossarySettingsT>({
         const a = ref as Glossary;
         const e = await entryOf(ctx, a, input.id);
         if (!(await mayEdit(ctx, a, e.authorId)))
-          throw new ModuleError('FORBIDDEN', 'You cannot change this entry');
+          throw new ModuleError('FORBIDDEN', msg('mod.glossary.errors.cannotChange'));
         await checkDuplicate(ctx, a, input.concept, e.id);
         const { id, ...data } = input;
         // where entries need approval, a change by anyone but a moderator needs it again
@@ -553,7 +554,7 @@ export const glossary = defineModule<GlossarySettingsT>({
         const a = ref as Glossary;
         const e = await entryOf(ctx, a, input.id);
         if (!(await mayEdit(ctx, a, e.authorId)))
-          throw new ModuleError('FORBIDDEN', 'You cannot delete this entry');
+          throw new ModuleError('FORBIDDEN', msg('mod.glossary.errors.cannotDelete'));
         await ctx.db.glossaryEntry.delete({ where: { id: e.id } });
         await pushGrades(ctx, a, [e.authorId]);
         if (e.authorId) await ctx.completion.recompute(a.id, e.authorId);
@@ -584,9 +585,9 @@ export const glossary = defineModule<GlossarySettingsT>({
       async handler(ctx, ref, input) {
         const a = ref as Glossary;
         const me = uid(ctx);
-        if (!me) throw new Error('Sign in required');
+        if (!me) throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
         if (a.settings.ratingAggregate === 'none')
-          throw new ModuleError('CONFLICT', 'Ratings are off in this glossary');
+          throw new ModuleError('CONFLICT', msg('mod.glossary.errors.ratingsOff'));
         const e = await entryOf(ctx, a, input.entryId);
         if (
           !e.approved ||
@@ -594,14 +595,17 @@ export const glossary = defineModule<GlossarySettingsT>({
           e.authorId === me ||
           !inRatingWindow(e.createdAt, a.settings)
         )
-          throw new ModuleError('FORBIDDEN', 'You cannot rate this entry');
+          throw new ModuleError('FORBIDDEN', msg('mod.glossary.errors.cannotRate'));
         if (input.value === null)
           await ctx.db.glossaryRating.deleteMany({ where: { entryId: e.id, raterId: me } });
         else {
           const scale = await scaleItems(ctx.db, a.courseId, a.settings.ratingScaleId);
           const [lo, hi] = scale ? [1, scale.length] : [0, a.settings.ratingMax];
           if (input.value < lo || input.value > hi)
-            throw new Error(`A rating is from ${lo} to ${hi}`);
+            throw new ModuleError(
+              'BAD_REQUEST',
+              msg('mod.glossary.errors.ratingRange', { lo, hi }),
+            );
           await ctx.db.glossaryRating.upsert({
             where: { entryId_raterId: { entryId: e.id, raterId: me } },
             create: { entryId: e.id, raterId: me, value: input.value },

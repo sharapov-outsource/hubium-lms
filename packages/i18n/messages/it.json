@@ -698,7 +698,8 @@
       "onlySubsectionMoves": "Solo una sottosezione può essere spostata in una sezione",
       "generalNotDeletable": "La sezione generale non può essere eliminata",
       "sectionHasActivities": "Sposta o elimina prima le attività di questa sezione",
-      "sectionHasSubsections": "Sposta o elimina prima le sottosezioni di questa sezione"
+      "sectionHasSubsections": "Sposta o elimina prima le sottosezioni di questa sezione",
+      "fieldLocked": "Questo campo è bloccato"
     },
     "enrol": {
       "cannotAssignRole": "Non puoi assegnare questo ruolo",

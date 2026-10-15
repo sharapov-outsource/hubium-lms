@@ -43,6 +43,14 @@
     "student": "Student",
     "progress": "Watched",
     "lastWatched": "Last watched",
-    "noStudents": "No students"
+    "noStudents": "No students",
+    "errors": {
+      "editorsOnly": "Only course editors can manage the video",
+      "toolFailed": "{cmd} exited {code}: {value}",
+      "noVideoStream": "No video stream",
+      "nothingToTranscode": "Nothing to transcode",
+      "sourceDeleted": "The source file was deleted; upload it again",
+      "captionsTooLarge": "Caption file is too large"
+    }
   }
 }

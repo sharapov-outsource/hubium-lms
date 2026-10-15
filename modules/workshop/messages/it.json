@@ -187,6 +187,28 @@
       "selfAssessment": "Gli studenti possono valutare il proprio lavoro",
       "completionSubmitted": "Consegnare un lavoro",
       "completionAssessed": "Valutare tutti i lavori assegnati"
+    },
+    "errors": {
+      "formEmpty": "Il modulo ha bisogno di un aspetto o di un criterio",
+      "describeAspect": "Descrivi l’aspetto {n}",
+      "maxPoints": "Indica il punteggio massimo del criterio {n}",
+      "twoLevels": "Il criterio {n} ha bisogno di almeno due livelli",
+      "noSubmission": "Consegna non trovata",
+      "noAssessment": "Valutazione non trovata",
+      "formFirst": "Scrivi prima il modulo di valutazione",
+      "formInUse": "Con questo modulo sono già state valutate consegne",
+      "noSelfAssessment": "L’autovalutazione è disattivata in questo workshop",
+      "notAnAssessor": "Questo utente non valuta qui",
+      "assessmentUsed": "Una valutazione da cui sono stati calcolati i voti non può essere ritirata",
+      "evaluationPhaseOnly": "I voti si calcolano nella fase di valutazione delle valutazioni",
+      "submissionsClosed": "Le consegne non sono aperte",
+      "writeText": "Scrivi il testo del tuo lavoro",
+      "noFiles": "Questo workshop non accetta file",
+      "tooManyFiles": "Al massimo {n} file",
+      "attachFile": "Allega un file",
+      "othersAssessment": "Questa è la valutazione di qualcun altro",
+      "notAssessing": "Non valuti in questo workshop",
+      "assessmentClosed": "La valutazione non è aperta"
     }
   }
 }

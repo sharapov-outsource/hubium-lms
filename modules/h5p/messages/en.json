@@ -63,6 +63,18 @@
       "confirmLabel": "Confirm",
       "contentChanged": "This content has changed since you last used it.",
       "startingOver": "You'll be starting over."
+    },
+    "errors": {
+      "badH5pJson": "h5p.json cannot be read: this is not an H5P package",
+      "noMainLibrary": "h5p.json names no main library",
+      "noContentJson": "content/content.json is missing",
+      "missingLibrary": "The package does not include the library {dir}: export the content with its libraries",
+      "badLibraryJson": "{dir}/library.json cannot be read",
+      "mainNotInDependencies": "The main library {mainLibrary} is not among the package's dependencies",
+      "noPlayer": "h5p-standalone not found; set H5P_STANDALONE_DIR",
+      "noPackage": "No package file",
+      "notH5p": "h5p.json is missing: this is not an H5P package",
+      "editorsOnly": "Only course editors can upload packages"
     }
   }
 }

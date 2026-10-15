@@ -698,7 +698,8 @@
       "onlySubsectionMoves": "Seule une sous-section peut être déplacée dans une section",
       "generalNotDeletable": "La section générale ne peut pas être supprimée",
       "sectionHasActivities": "Déplacez ou supprimez d’abord les activités de cette section",
-      "sectionHasSubsections": "Déplacez ou supprimez d’abord les sous-sections de cette section"
+      "sectionHasSubsections": "Déplacez ou supprimez d’abord les sous-sections de cette section",
+      "fieldLocked": "Ce champ est verrouillé"
     },
     "enrol": {
       "cannotAssignRole": "Vous ne pouvez pas attribuer ce rôle",

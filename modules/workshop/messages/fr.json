@@ -187,6 +187,28 @@
       "selfAssessment": "Les étudiants peuvent évaluer leur propre travail",
       "completionSubmitted": "Remettre un travail",
       "completionAssessed": "Évaluer tous les travaux attribués"
+    },
+    "errors": {
+      "formEmpty": "Le formulaire a besoin d’un aspect ou d’un critère",
+      "describeAspect": "Décrivez l’aspect {n}",
+      "maxPoints": "Indiquez le maximum de points du critère {n}",
+      "twoLevels": "Le critère {n} a besoin d’au moins deux niveaux",
+      "noSubmission": "Travail introuvable",
+      "noAssessment": "Évaluation introuvable",
+      "formFirst": "Rédigez d’abord le formulaire d’évaluation",
+      "formInUse": "Des travaux ont déjà été évalués avec ce formulaire",
+      "noSelfAssessment": "L’auto-évaluation est désactivée dans cet atelier",
+      "notAnAssessor": "Cet utilisateur n’évalue pas ici",
+      "assessmentUsed": "Une évaluation dont les notes ont été calculées ne peut pas être retirée",
+      "evaluationPhaseOnly": "Les notes sont calculées pendant la phase d’évaluation des évaluations",
+      "submissionsClosed": "Les remises ne sont pas ouvertes",
+      "writeText": "Rédigez le texte de votre travail",
+      "noFiles": "Cet atelier n’accepte pas de fichiers",
+      "tooManyFiles": "Au plus {n} fichiers",
+      "attachFile": "Joignez un fichier",
+      "othersAssessment": "C’est l’évaluation de quelqu’un d’autre",
+      "notAssessing": "Vous n’évaluez pas dans cet atelier",
+      "assessmentClosed": "L’évaluation n’est pas ouverte"
     }
   }
 }

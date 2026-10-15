@@ -74,6 +74,19 @@
     "notify": {
       "submitted": "New survey response",
       "submittedTitle": "New response to the survey “{name}”"
+    },
+    "errors": {
+      "answerRequired": "\"{label}\": an answer is required",
+      "oneOption": "\"{label}\": choose one option",
+      "noOption": "\"{label}\": no such option",
+      "numberExpected": "\"{label}\": a number is expected",
+      "numberRange": "\"{label}\": the number is out of range",
+      "noQuestion": "Question not found",
+      "notOpenYet": "The survey is not open yet",
+      "closed": "The survey is closed",
+      "answeredAlready": "You have answered already",
+      "noQuestions": "The survey has no questions yet",
+      "noResponse": "Response not found"
     }
   }
 }

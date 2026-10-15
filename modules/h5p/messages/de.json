@@ -63,6 +63,18 @@
       "confirmLabel": "Bestätigen",
       "contentChanged": "Dieser Inhalt hat sich seit Ihrer letzten Nutzung geändert.",
       "startingOver": "Sie beginnen von vorn."
+    },
+    "errors": {
+      "badH5pJson": "h5p.json kann nicht gelesen werden: Dies ist kein H5P-Paket",
+      "noMainLibrary": "h5p.json nennt keine Hauptbibliothek",
+      "noContentJson": "content/content.json fehlt",
+      "missingLibrary": "Das Paket enthält die Bibliothek {dir} nicht: Exportieren Sie den Inhalt mit seinen Bibliotheken",
+      "badLibraryJson": "{dir}/library.json kann nicht gelesen werden",
+      "mainNotInDependencies": "Die Hauptbibliothek {mainLibrary} gehört nicht zu den Abhängigkeiten des Pakets",
+      "noPlayer": "h5p-standalone nicht gefunden: Setzen Sie H5P_STANDALONE_DIR",
+      "noPackage": "Keine Paketdatei",
+      "notH5p": "h5p.json fehlt: Dies ist kein H5P-Paket",
+      "editorsOnly": "Nur Kursbearbeitende können Pakete hochladen"
     }
   }
 }

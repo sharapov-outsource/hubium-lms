@@ -141,6 +141,24 @@
     "gradeItem": {
       "rating": "Valutazioni",
       "whole": "Intero forum"
+    },
+    "errors": {
+      "noDiscussion": "Discussione non trovata",
+      "tooManyAttachments": "Al massimo {n} allegati",
+      "ratingsOff": "Le valutazioni sono disattivate in questo forum",
+      "noPost": "Messaggio non trovato",
+      "cannotRate": "Non puoi valutare questo messaggio",
+      "ratingRange": "Una valutazione va da {lo} a {hi}",
+      "notWholeForum": "Il forum non è valutato nel suo insieme",
+      "gradeRange": "Il voto deve essere tra 0 e {max}",
+      "qandaTeachersOnly": "Solo i docenti possono aprire domande in un forum domande e risposte",
+      "messageEmpty": "Il messaggio è vuoto",
+      "notMember": "Non sei membro di questo gruppo",
+      "locked": "La discussione è bloccata",
+      "noPrivateReplies": "Le risposte private non sono consentite",
+      "editTimeOver": "Non puoi più modificare questo messaggio",
+      "cannotDelete": "Non puoi eliminare questo messaggio",
+      "subscriptionFixed": "Le iscrizioni non possono essere modificate in questo forum"
     }
   }
 }

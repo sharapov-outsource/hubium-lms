@@ -6,6 +6,7 @@ import {
   defineQuery,
   type ModuleCtx,
   ModuleError,
+  msg,
 } from '@hubium/module-sdk';
 import { csvFile } from '@hubium/module-sdk/csv';
 import { bool, isoDate } from '@hubium/module-sdk/fields';
@@ -265,24 +266,28 @@ export const choice = defineModule<ChoiceSettingsT>({
       async handler(ctx, ref, input) {
         const a = ref as Choice;
         const me = uid(ctx);
-        if (!me) throw new Error('Sign in required');
+        if (!me) throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
         const state = choiceState(a.settings, ctx.now);
-        if (state === 'notOpen') throw new Error('The choice is not open yet');
-        if (state === 'closed') throw new Error('The choice is closed');
+        if (state === 'notOpen')
+          throw new ModuleError('BAD_REQUEST', msg('mod.choice.errors.notOpenYet'));
+        if (state === 'closed')
+          throw new ModuleError('BAD_REQUEST', msg('mod.choice.errors.closed'));
         const ids = [...new Set(input.optionIds)];
-        if (ids.length > 1 && !a.settings.allowMultiple) throw new Error('Choose one option only');
+        if (ids.length > 1 && !a.settings.allowMultiple)
+          throw new ModuleError('BAD_REQUEST', msg('mod.choice.errors.oneOnly'));
         const known = new Set(a.settings.options.map((o) => o.id));
-        if (ids.some((id) => !known.has(id))) throw new ModuleError('NOT_FOUND', 'No such option');
+        if (ids.some((id) => !known.has(id)))
+          throw new ModuleError('NOT_FOUND', msg('mod.choice.errors.noOption'));
         // one answer at a time per choice, so that limits hold
         await ctx.db.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${a.id}))::text`;
         const mine = await myAnswers(ctx, a);
         if (mine.length && !a.settings.allowUpdate)
-          throw new ModuleError('CONFLICT', 'You have answered already');
+          throw new ModuleError('CONFLICT', msg('mod.choice.errors.answeredAlready'));
         if (a.settings.limitAnswers) {
           const taken = await takenPlaces(ctx, a, me);
           for (const o of a.settings.options)
             if (ids.includes(o.id!) && o.limit > 0 && (taken.get(o.id!) ?? 0) >= o.limit)
-              throw new ModuleError('CONFLICT', `"${o.text}" is full`);
+              throw new ModuleError('CONFLICT', msg('mod.choice.errors.full', { text: o.text }));
         }
         await ctx.db.choiceAnswer.deleteMany({ where: { activityId: a.id, userId: me } });
         await ctx.db.choiceAnswer.createMany({
@@ -300,10 +305,11 @@ export const choice = defineModule<ChoiceSettingsT>({
       async handler(ctx, ref) {
         const a = ref as Choice;
         const me = uid(ctx);
-        if (!me) throw new Error('Sign in required');
+        if (!me) throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
         if (!a.settings.allowUpdate)
-          throw new ModuleError('FORBIDDEN', 'Answers cannot be changed');
-        if (choiceState(a.settings, ctx.now) !== 'open') throw new Error('The choice is closed');
+          throw new ModuleError('FORBIDDEN', msg('mod.choice.errors.noChange'));
+        if (choiceState(a.settings, ctx.now) !== 'open')
+          throw new ModuleError('BAD_REQUEST', msg('mod.choice.errors.closed'));
         await ctx.db.choiceAnswer.deleteMany({ where: { activityId: a.id, userId: me } });
         await ctx.completion.recompute(a.id, me);
         return { ok: true };

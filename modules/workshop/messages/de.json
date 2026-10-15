@@ -187,6 +187,28 @@
       "selfAssessment": "Studierende dürfen ihre eigene Arbeit beurteilen",
       "completionSubmitted": "Arbeit einreichen",
       "completionAssessed": "Alle zugeteilten Arbeiten beurteilen"
+    },
+    "errors": {
+      "formEmpty": "Das Formular braucht einen Aspekt oder ein Kriterium",
+      "describeAspect": "Beschreiben Sie Aspekt {n}",
+      "maxPoints": "Geben Sie die Höchstpunktzahl von Kriterium {n} an",
+      "twoLevels": "Kriterium {n} braucht zwei oder mehr Stufen",
+      "noSubmission": "Abgabe nicht gefunden",
+      "noAssessment": "Beurteilung nicht gefunden",
+      "formFirst": "Erstellen Sie zuerst das Beurteilungsformular",
+      "formInUse": "Mit diesem Formular wurden bereits Abgaben beurteilt",
+      "noSelfAssessment": "Die Selbstbeurteilung ist in diesem Workshop deaktiviert",
+      "notAnAssessor": "Diese Person beurteilt hier nicht",
+      "assessmentUsed": "Eine Beurteilung, aus der Bewertungen berechnet wurden, kann nicht zurückgenommen werden",
+      "evaluationPhaseOnly": "Bewertungen werden in der Phase der Bewertungsauswertung berechnet",
+      "submissionsClosed": "Abgaben sind nicht geöffnet",
+      "writeText": "Schreiben Sie den Text Ihrer Arbeit",
+      "noFiles": "Dieser Workshop nimmt keine Dateien an",
+      "tooManyFiles": "Höchstens {n} Dateien",
+      "attachFile": "Hängen Sie eine Datei an",
+      "othersAssessment": "Dies ist die Beurteilung einer anderen Person",
+      "notAssessing": "Sie beurteilen in diesem Workshop nicht",
+      "assessmentClosed": "Die Beurteilung ist nicht geöffnet"
     }
   }
 }

@@ -141,6 +141,29 @@
       "rateLabel": "Your rating of the entry by {name}",
       "saved": "Rating saved",
       "raters": "Who rated"
+    },
+    "errors": {
+      "giveChoices": "Give the choices, one per line",
+      "noEntry": "Entry not found",
+      "notOpenYet": "The database is not open yet",
+      "closed": "The database is closed",
+      "fieldNameTaken": "A field with this name exists already",
+      "noField": "Field not found",
+      "noFields": "The database has no fields yet",
+      "cannotChange": "You cannot change this entry",
+      "entryLimit": "You have added all the entries you may",
+      "cannotDelete": "You cannot delete this entry",
+      "ratingsOff": "Ratings are off in this database",
+      "cannotRate": "You cannot rate this entry",
+      "ratingRange": "A rating is from {lo} to {hi}",
+      "fileEmpty": "The file is empty",
+      "noMatchingColumns": "No column names a field of the database",
+      "value": {
+        "required": "{name}: is required",
+        "invalid": "{name}: is not valid",
+        "tooLong": "{name}: is too long",
+        "picture": "{name}: a picture is needed"
+      }
     }
   }
 }

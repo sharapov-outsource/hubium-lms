@@ -240,6 +240,36 @@
       "wrongGroup": "This answer does not go in gap {n}",
       "useLists": "Answer with lists instead",
       "useDrag": "Answer by dragging"
+    },
+    "errors": {
+      "networkOnly": "This quiz can only be taken from certain network addresses",
+      "noQuestions": "This quiz has no questions yet",
+      "notEnoughRandom": "Not enough questions in the random category",
+      "questionMissing": "Question missing",
+      "noAttempt": "Attempt not found",
+      "pageLeft": "That question is on a page you have already left",
+      "closedAttempt": "This attempt is closed",
+      "noSuchQuestion": "No such question in the attempt",
+      "finishedUseReview": "The attempt is finished; read it with review",
+      "inProgress": "The attempt is in progress; finish it first",
+      "questionsLocked": "Cannot change questions after attempts exist",
+      "noCategory": "Category not found",
+      "noSlot": "Slot not found",
+      "wrongPassword": "The quiz password is wrong",
+      "nextAttemptAt": "The next attempt can start at {at}",
+      "notOpenYet": "The quiz is not open yet",
+      "closed": "The quiz is closed",
+      "noAttemptsLeft": "No attempts left",
+      "noPage": "No such page",
+      "noGoingBack": "This quiz goes page by page: you cannot go back",
+      "gradedAtEnd": "This question is graded when the attempt is finished",
+      "alreadyChecked": "This answer is checked already",
+      "answerBeforeCheck": "Answer the question before checking it",
+      "nothingToRetry": "There is nothing to retry",
+      "notFound": "Not found",
+      "otherGroup": "This attempt is of another group",
+      "notFinished": "The attempt is not finished",
+      "markTooHigh": "Mark must be at most {max}"
     }
   }
 }

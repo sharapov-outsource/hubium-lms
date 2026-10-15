@@ -47,6 +47,16 @@
     "scoreCol": "Балл",
     "minutes": "Минут",
     "lastAccess": "Последний вход",
-    "noAttempts": "Попыток пока нет"
+    "noAttempts": "Попыток пока нет",
+    "errors": {
+      "noManifestElement": "В imsmanifest.xml нет элемента manifest",
+      "nothingToLaunch": "В манифесте нет запускаемых элементов",
+      "noRuntime": "Не найден scorm-again: задайте SCORM_AGAIN_DIR",
+      "noPackage": "Нет файла пакета",
+      "notScorm": "Нет imsmanifest.xml: это не пакет SCORM",
+      "editorsOnly": "Загружать пакеты могут только редакторы курса",
+      "finishFirst": "Сначала завершите текущую попытку",
+      "noAttemptsLeft": "Попыток больше нет"
+    }
   }
 }

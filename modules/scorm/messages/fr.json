@@ -47,6 +47,16 @@
     "scoreCol": "Score",
     "minutes": "Minutes",
     "lastAccess": "Dernier accès",
-    "noAttempts": "Aucune tentative pour l’instant"
+    "noAttempts": "Aucune tentative pour l’instant",
+    "errors": {
+      "noManifestElement": "imsmanifest.xml ne contient pas d’élément manifest",
+      "nothingToLaunch": "Le manifeste ne contient aucun élément lançable",
+      "noRuntime": "scorm-again introuvable : définissez SCORM_AGAIN_DIR",
+      "noPackage": "Aucun fichier de paquet",
+      "notScorm": "imsmanifest.xml manque : ce n’est pas un paquet SCORM",
+      "editorsOnly": "Seuls les éditeurs du cours peuvent téléverser des paquets",
+      "finishFirst": "Terminez d’abord la tentative en cours",
+      "noAttemptsLeft": "Plus aucune tentative"
+    }
   }
 }

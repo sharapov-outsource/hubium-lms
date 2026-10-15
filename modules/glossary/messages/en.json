@@ -95,6 +95,15 @@
       "rateLabel": "Your rating of the entry by {name}",
       "saved": "Rating saved",
       "raters": "Who rated"
+    },
+    "errors": {
+      "noEntry": "Entry not found",
+      "conceptExists": "This concept is in the glossary already",
+      "cannotChange": "You cannot change this entry",
+      "cannotDelete": "You cannot delete this entry",
+      "ratingsOff": "Ratings are off in this glossary",
+      "cannotRate": "You cannot rate this entry",
+      "ratingRange": "A rating is from {lo} to {hi}"
     }
   }
 }

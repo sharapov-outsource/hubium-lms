@@ -47,6 +47,19 @@
     "restored": "Version restored",
     "restore": "Restore",
     "deleteConfirm": "Delete the page “{title}” with its history?",
-    "deleted": "Page deleted"
+    "deleted": "Page deleted",
+    "errors": {
+      "noPage": "Page not found",
+      "noVersion": "Version not found",
+      "notWrittenYet": "The page is not written yet",
+      "cannotChange": "You cannot change this page",
+      "pageEmpty": "The page is empty",
+      "baseVersionNeeded": "baseVersion is needed to change a page",
+      "lockedByOther": "Someone else is changing this page",
+      "changedMeanwhile": "The page was changed while you were editing it",
+      "titleRequired": "A page needs a title",
+      "cannotWrite": "You cannot write in this wiki",
+      "titleTaken": "A page with this title exists already"
+    }
   }
 }

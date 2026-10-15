@@ -1,3 +1,4 @@
+import { ModuleError, msg } from '@hubium/module-sdk';
 import { XMLParser } from 'fast-xml-parser';
 
 // SCORM package handling: manifest parsing, and the mapping between scorm-again's CMI
@@ -44,7 +45,7 @@ export function parseManifest(xml: string): Manifest {
   });
   const doc = parser.parse(xml) as Node;
   const manifest = doc.manifest as Node | undefined;
-  if (!manifest) throw new Error('imsmanifest.xml has no <manifest>');
+  if (!manifest) throw new ModuleError('BAD_REQUEST', msg('mod.scorm.errors.noManifestElement'));
   const schemaVersion = text((manifest.metadata as Node | undefined)?.schemaversion);
   const is2004 =
     /2004|CAM 1\.3/i.test(schemaVersion) || /adlcp_v1p3|imscp_v1p1.*2004/i.test(xml.slice(0, 2000));
@@ -91,7 +92,7 @@ export function parseManifest(xml: string): Manifest {
         masteryScore: null,
       });
   }
-  if (!scos.length) throw new Error('The manifest has no launchable items');
+  if (!scos.length) throw new ModuleError('BAD_REQUEST', msg('mod.scorm.errors.nothingToLaunch'));
   return {
     version: is2004 ? 'SCORM_2004' : 'SCORM_12',
     title: text(org?.title) || scos[0]!.title,

@@ -168,6 +168,26 @@
       "attempt": "Attempt {n}",
       "done": "{percent}% in {minutes} min",
       "inProgress": "in progress"
+    },
+    "errors": {
+      "noPage": "Page not found",
+      "attemptOver": "The attempt is over",
+      "notOpenYet": "The lesson is not open yet",
+      "closed": "The lesson is closed",
+      "wrongPassword": "The lesson password is wrong",
+      "noRetake": "The lesson cannot be taken again",
+      "noPages": "The lesson has no pages yet",
+      "otherPage": "You are on another page",
+      "noButton": "No such button",
+      "noMenu": "The lesson has no menu",
+      "notInMenu": "This page is not in the menu",
+      "noQuestion": "This page asks nothing",
+      "writeAnswer": "Write your answer",
+      "answerTooLong": "The answer is too long",
+      "answerFirst": "Answer the question first",
+      "noEssay": "Essay not found",
+      "essayPoints": "An essay gets 0 to {max} points",
+      "noAttempt": "Attempt not found"
     }
   }
 }

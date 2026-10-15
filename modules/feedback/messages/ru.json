@@ -74,6 +74,19 @@
     "notify": {
       "submitted": "Новый ответ на анкету",
       "submittedTitle": "Новый ответ на анкету «{name}»"
+    },
+    "errors": {
+      "answerRequired": "«{label}»: нужен ответ",
+      "oneOption": "«{label}»: выберите один вариант",
+      "noOption": "«{label}»: такого варианта нет",
+      "numberExpected": "«{label}»: нужно число",
+      "numberRange": "«{label}»: число вне допустимого диапазона",
+      "noQuestion": "Вопрос не найден",
+      "notOpenYet": "Анкета ещё не открыта",
+      "closed": "Анкета закрыта",
+      "answeredAlready": "Вы уже ответили",
+      "noQuestions": "В анкете ещё нет вопросов",
+      "noResponse": "Ответ не найден"
     }
   }
 }

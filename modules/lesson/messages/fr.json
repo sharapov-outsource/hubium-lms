@@ -168,6 +168,26 @@
       "attempt": "Tentative {n}",
       "done": "{percent} % en {minutes} min",
       "inProgress": "en cours"
+    },
+    "errors": {
+      "noPage": "Page introuvable",
+      "attemptOver": "La tentative est terminée",
+      "notOpenYet": "La leçon n’est pas encore ouverte",
+      "closed": "La leçon est fermée",
+      "wrongPassword": "Le mot de passe de la leçon est incorrect",
+      "noRetake": "La leçon ne peut pas être refaite",
+      "noPages": "La leçon n’a pas encore de pages",
+      "otherPage": "Vous êtes sur une autre page",
+      "noButton": "Ce bouton n’existe pas",
+      "noMenu": "La leçon n’a pas de menu",
+      "notInMenu": "Cette page n’est pas dans le menu",
+      "noQuestion": "Cette page ne pose pas de question",
+      "writeAnswer": "Écrivez votre réponse",
+      "answerTooLong": "La réponse est trop longue",
+      "answerFirst": "Répondez d’abord à la question",
+      "noEssay": "Rédaction introuvable",
+      "essayPoints": "Une rédaction obtient de 0 à {max} points",
+      "noAttempt": "Tentative introuvable"
     }
   }
 }

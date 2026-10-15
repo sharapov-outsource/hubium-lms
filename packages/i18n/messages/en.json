@@ -699,7 +699,8 @@
       "onlySubsectionMoves": "Only a subsection moves into a section",
       "generalNotDeletable": "The general section cannot be deleted",
       "sectionHasActivities": "Move or delete the activities in this section first",
-      "sectionHasSubsections": "Move or delete the subsections in this section first"
+      "sectionHasSubsections": "Move or delete the subsections in this section first",
+      "fieldLocked": "This field is locked"
     },
     "enrol": {
       "cannotAssignRole": "You cannot assign this role",

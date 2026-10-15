@@ -8,6 +8,7 @@ import {
   defineQuery,
   type ModuleCtx,
   ModuleError,
+  msg,
 } from '@hubium/module-sdk';
 import { bool, isoDate, optionalNumber } from '@hubium/module-sdk/fields';
 import { groupsWhere } from '@hubium/module-sdk/groups';
@@ -101,7 +102,7 @@ type Ws = ActivityRef<WorkshopSettingsT>;
 const uid = (ctx: ModuleCtx) => (ctx.actor.kind === 'user' ? ctx.actor.userId : null);
 const me = (ctx: ModuleCtx) => {
   const id = uid(ctx);
-  if (!id) throw new Error('Sign in required');
+  if (!id) throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
   return id;
 };
 
@@ -146,13 +147,15 @@ export function cleanForm(
   dims: z.output<typeof DimensionInput>[],
   mapping: Record<string, number> = {},
 ): Omit<WorkshopForm, 'strategy'> {
-  if (!dims.length) throw new Error('The form needs an aspect or a criterion');
+  if (!dims.length) throw new ModuleError('BAD_REQUEST', msg('mod.workshop.errors.formEmpty'));
   const dimensions: Dimension[] = dims.map((d, i) => {
     const description = d.description.trim() ? sanitizeRichText(d.description) : '';
-    if (!description || isEmptyRichText(description)) throw new Error(`Describe aspect ${i + 1}`);
+    if (!description || isEmptyRichText(description))
+      throw new ModuleError('BAD_REQUEST', msg('mod.workshop.errors.describeAspect', { n: i + 1 }));
     const id = d.id && /^[\w-]{1,64}$/.test(d.id) ? d.id : randomUUID();
     if (strategy === 'accumulative') {
-      if (!d.maxGrade) throw new Error(`Give the most points of criterion ${i + 1}`);
+      if (!d.maxGrade)
+        throw new ModuleError('BAD_REQUEST', msg('mod.workshop.errors.maxPoints', { n: i + 1 }));
       return { id, description, maxGrade: d.maxGrade, weight: d.weight ?? 1 };
     }
     if (strategy === 'numerrors')
@@ -169,7 +172,8 @@ export function cleanForm(
         grade: l.grade,
         definition: l.definition,
       }));
-      if (levels.length < 2) throw new Error(`Criterion ${i + 1} needs two levels or more`);
+      if (levels.length < 2)
+        throw new ModuleError('BAD_REQUEST', msg('mod.workshop.errors.twoLevels', { n: i + 1 }));
       return { id, description, levels };
     }
     return { id, description };
@@ -387,7 +391,7 @@ const FileInput = z.object({
 
 async function submissionOf(ctx: ModuleCtx, a: ActivityRef, id: string) {
   const s = await ctx.db.workshopSubmission.findFirst({ where: { id, activityId: a.id } });
-  if (!s) throw new ModuleError('NOT_FOUND', 'Submission not found');
+  if (!s) throw new ModuleError('NOT_FOUND', msg('mod.workshop.errors.noSubmission'));
   return s;
 }
 
@@ -396,7 +400,7 @@ async function assessmentOf(ctx: ModuleCtx, a: ActivityRef, id: string) {
     where: { id, submission: { activityId: a.id } },
     include: { submission: true },
   });
-  if (!x) throw new ModuleError('NOT_FOUND', 'Assessment not found');
+  if (!x) throw new ModuleError('NOT_FOUND', msg('mod.workshop.errors.noAssessment'));
   return x;
 }
 
@@ -636,7 +640,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
       async handler(ctx, ref, input) {
         const a = ref as Ws;
         if (input.phase !== 'setup' && !(await formOf(ctx.db, a)).dimensions.length)
-          throw new Error('Write the assessment form first');
+          throw new ModuleError('BAD_REQUEST', msg('mod.workshop.errors.formFirst'));
         await ctx.db.workshop.upsert({
           where: { activityId: a.id },
           create: { activityId: a.id, phase: input.phase },
@@ -670,8 +674,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
         const used = await ctx.db.workshopAssessment.count({
           where: { submission: { activityId: a.id }, assessedAt: { not: null } },
         });
-        if (used)
-          throw new ModuleError('CONFLICT', 'Submissions are assessed with this form already');
+        if (used) throw new ModuleError('CONFLICT', msg('mod.workshop.errors.formInUse'));
         const state = await workshopState(ctx.db, a.id);
         const forms = {
           ...state.forms,
@@ -693,10 +696,10 @@ export const workshop = defineModule<WorkshopSettingsT>({
         const a = ref as Ws;
         const sub = await submissionOf(ctx, a, input.submissionId);
         if (sub.authorId === input.reviewerId && !a.settings.selfAssessment)
-          throw new Error('Self-assessment is off in this workshop');
+          throw new ModuleError('BAD_REQUEST', msg('mod.workshop.errors.noSelfAssessment'));
         const reviewers = await ctx.perm.usersWithCap('mod.workshop:peerassess', a.id);
         if (!reviewers.includes(input.reviewerId))
-          throw new Error('This user does not assess here');
+          throw new ModuleError('BAD_REQUEST', msg('mod.workshop.errors.notAnAssessor'));
         const x = await ctx.db.workshopAssessment.upsert({
           where: {
             submissionId_reviewerId: { submissionId: sub.id, reviewerId: input.reviewerId },
@@ -724,10 +727,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
         // back afterwards would leave grades that no assessment backs
         const { phase } = await workshopState(ctx.db, ref.id);
         if (x.assessedAt && (phase === 'evaluation' || phase === 'closed'))
-          throw new ModuleError(
-            'CONFLICT',
-            'An assessment that grades are worked out from cannot be taken back',
-          );
+          throw new ModuleError('CONFLICT', msg('mod.workshop.errors.assessmentUsed'));
         await ctx.db.workshopAssessment.delete({ where: { id: x.id } });
         return { ok: true };
       },
@@ -818,10 +818,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
         const a = ref as Ws;
         const { phase } = await workshopState(ctx.db, a.id);
         if (phase !== 'evaluation')
-          throw new ModuleError(
-            'CONFLICT',
-            'Grades are calculated in the grading evaluation phase',
-          );
+          throw new ModuleError('CONFLICT', msg('mod.workshop.errors.evaluationPhaseOnly'));
         const comparison =
           input.comparison && (comparisons as readonly number[]).includes(input.comparison)
             ? input.comparison
@@ -905,11 +902,12 @@ export const workshop = defineModule<WorkshopSettingsT>({
           (phase === 'submission' || phase === 'assessment') &&
           !!s.submissionEnd &&
           ctx.now > new Date(s.submissionEnd);
-        if (!open && !late) throw new ModuleError('CONFLICT', 'Submissions are not open');
+        if (!open && !late)
+          throw new ModuleError('CONFLICT', msg('mod.workshop.errors.submissionsClosed'));
         const content = input.content.trim() ? sanitizeRichText(input.content) : '';
         const hasText = !!content && !isEmptyRichText(content);
         if (s.submissionText === 'required' && !hasText)
-          throw new Error('Write the text of your work');
+          throw new ModuleError('BAD_REQUEST', msg('mod.workshop.errors.writeText'));
         const sub = existing
           ? await ctx.db.workshopSubmission.update({
               where: { id: existing.id },
@@ -928,10 +926,14 @@ export const workshop = defineModule<WorkshopSettingsT>({
         if (input.removeFiles.length)
           await ctx.files.remove(a.id, 'submission', input.removeFiles, sub.id);
         if (input.files.length) {
-          if (s.submissionFiles === 'off') throw new Error('This workshop takes no files');
+          if (s.submissionFiles === 'off')
+            throw new ModuleError('BAD_REQUEST', msg('mod.workshop.errors.noFiles'));
           const have = (await ctx.files.list(a.id, 'submission', sub.id)).length;
           if (have + input.files.length > s.maxAttachments)
-            throw new Error(`At most ${s.maxAttachments} files`);
+            throw new ModuleError(
+              'BAD_REQUEST',
+              msg('mod.workshop.errors.tooManyFiles', { n: s.maxAttachments }),
+            );
           for (const f of input.files)
             await ctx.files.store(
               a.id,
@@ -944,7 +946,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
           s.submissionFiles === 'required' &&
           !(await ctx.files.list(a.id, 'submission', sub.id)).length
         )
-          throw new Error('Attach a file');
+          throw new ModuleError('BAD_REQUEST', msg('mod.workshop.errors.attachFile'));
         await ctx.completion.recompute(a.id, user);
         return { id: sub.id };
       },
@@ -982,13 +984,14 @@ export const workshop = defineModule<WorkshopSettingsT>({
           });
           x = { ...row, submission: sub };
         }
-        if (!x) throw new ModuleError('NOT_FOUND', 'Assessment not found');
+        if (!x) throw new ModuleError('NOT_FOUND', msg('mod.workshop.errors.noAssessment'));
         if (x.reviewerId !== user)
-          throw new ModuleError('FORBIDDEN', 'This is someone else’s assessment');
+          throw new ModuleError('FORBIDDEN', msg('mod.workshop.errors.othersAssessment'));
         if (!r.manage) {
-          if (!r.assess) throw new ModuleError('FORBIDDEN', 'You do not assess in this workshop');
+          if (!r.assess)
+            throw new ModuleError('FORBIDDEN', msg('mod.workshop.errors.notAssessing'));
           if (phase !== 'assessment' || !within(ctx.now, s.assessmentStart, s.assessmentEnd))
-            throw new ModuleError('CONFLICT', 'Assessment is not open');
+            throw new ModuleError('CONFLICT', msg('mod.workshop.errors.assessmentClosed'));
         }
         const form = await formOf(ctx.db, a);
         const filling = Object.fromEntries(
@@ -998,7 +1001,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
           }),
         ) as Filling;
         const err = fillingError(form, filling);
-        if (err) throw new Error(err);
+        if (err) throw new ModuleError('BAD_REQUEST', err);
         await ctx.db.workshopAssessment.update({
           where: { id: x.id },
           data: {

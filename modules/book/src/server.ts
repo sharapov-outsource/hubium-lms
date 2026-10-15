@@ -6,6 +6,7 @@ import {
   defineQuery,
   type ModuleCtx,
   ModuleError,
+  msg,
 } from '@hubium/module-sdk';
 import { bool } from '@hubium/module-sdk/fields';
 import { z } from 'zod';
@@ -134,7 +135,7 @@ async function saveOrder(ctx: ModuleCtx, list: Pick<Chapter, 'id' | 'subchapter'
 
 async function chapterOf(ctx: ModuleCtx, a: ActivityRef, id: string) {
   const c = await ctx.db.bookChapter.findFirst({ where: { id, activityId: a.id } });
-  if (!c) throw new ModuleError('NOT_FOUND', 'Chapter not found');
+  if (!c) throw new ModuleError('NOT_FOUND', msg('mod.book.errors.noChapter'));
   return c;
 }
 
@@ -225,7 +226,7 @@ export const book = defineModule<BookSettingsT>({
       input: z.object({ id: z.string().uuid() }),
       async handler(ctx, a, input) {
         const c = (await visibleChapters(ctx, a)).find((x) => x.id === input.id);
-        if (!c) throw new ModuleError('NOT_FOUND', 'Chapter not found');
+        if (!c) throw new ModuleError('NOT_FOUND', msg('mod.book.errors.noChapter'));
         return c;
       },
     }),
@@ -243,7 +244,7 @@ export const book = defineModule<BookSettingsT>({
           const block = input.subchapter
             ? [list.find((c) => c.id === input.afterId)].filter(Boolean)
             : chapterBlock(list, input.afterId);
-          if (!block.length) throw new ModuleError('NOT_FOUND', 'Chapter not found');
+          if (!block.length) throw new ModuleError('NOT_FOUND', msg('mod.book.errors.noChapter'));
           at = list.findIndex((c) => c.id === block.at(-1)!.id) + 1;
         }
         const created = await ctx.db.bookChapter.create({

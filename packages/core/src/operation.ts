@@ -77,7 +77,15 @@ async function runOperation<I extends z.ZodType, O>(
 
 export type ActionResult<T> =
   | { ok: true; data: T }
-  | { ok: false; code: string; message: string; fieldErrors?: Record<string, string[]> };
+  | {
+      ok: false;
+      code: string;
+      /** In the language of whoever asked. */
+      message: string;
+      /** What the message says, for code to tell: its key in the language packs. */
+      reason?: string;
+      fieldErrors?: Record<string, string[]>;
+    };
 
 /**
  * Maps thrown errors to a serialisable result for server actions, in the language of the
@@ -101,6 +109,7 @@ export function toActionError(
         e instanceof ValidationError && e.message === 'Validation failed'
           ? (first ?? t(msg('errors.VALIDATION')))
           : message,
+      ...(e.msg ? { reason: e.msg.key } : {}),
       fieldErrors,
     };
   }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { checkAnswers, type Item, itemNumbers, itemPages } from './items.ts';
+import { checkAnswers } from './answers.ts';
+import { type Item, itemNumbers, itemPages } from './items.ts';
 
 const item = (id: string, type: Item['type'], extra: Partial<Item> = {}): Item => ({
   id,

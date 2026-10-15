@@ -247,6 +247,37 @@
       "scoreOf": "Score (sur {max})",
       "remark": "Commentaire",
       "incomplete": "Donnez à chaque critère du guide un score entre 0 et son maximum."
+    },
+    "errors": {
+      "otherMarker": "Cet étudiant est attribué à un autre correcteur",
+      "moveStage": "Vous ne pouvez pas faire passer les notes à cette étape",
+      "cannotAllocate": "Vous ne pouvez pas attribuer de correcteurs",
+      "notAMarker": "Ce correcteur ne note pas ce devoir",
+      "blindLocked": "La correction anonyme ne peut plus changer une fois que des étudiants ont remis leur travail",
+      "notOpenYet": "Les remises ne sont pas encore ouvertes",
+      "closed": "Les remises sont closes",
+      "alreadySubmitted": "Déjà remis",
+      "wordLimit": "La limite est de {n} mots",
+      "acceptStatement": "Confirmez qu’il s’agit de votre propre travail",
+      "tooManyFiles": "Au plus {n} fichiers",
+      "empty": "Le travail est vide",
+      "nothingWithdraw": "Rien à retirer",
+      "alreadyGraded": "Déjà noté",
+      "fillRubric": "Remplissez la grille d’évaluation",
+      "fillMarkingGuide": "Remplissez le guide d’évaluation",
+      "gradeRange": "La note doit être comprise entre 0 et {max}",
+      "noAttempt": "Cette tentative n’existe pas",
+      "noWorkflow": "Le devoir n’a pas de flux de correction",
+      "noAllocation": "Le devoir n’attribue pas de correcteurs",
+      "notBlind": "Le devoir n’est pas corrigé anonymement",
+      "invalidForm": "Formulaire non valide",
+      "duplicateIds": "Les critères et les niveaux doivent avoir des identifiants différents",
+      "formInUse": "Des étudiants ont été notés avec ce formulaire : les critères et niveaux ne peuvent être ni ajoutés ni supprimés",
+      "noSubmission": "Aucun travail remis",
+      "cutOffBeforeDue": "La date limite ne peut pas précéder la date de remise",
+      "noGroup": "Ce groupe n’existe pas",
+      "noOverride": "Cette dérogation n’existe pas",
+      "noGroupOverride": "Cette dérogation de groupe n’existe pas"
     }
   }
 }

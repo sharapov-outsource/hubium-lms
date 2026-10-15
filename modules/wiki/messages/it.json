@@ -47,6 +47,19 @@
     "restored": "Versione ripristinata",
     "restore": "Ripristina",
     "deleteConfirm": "Eliminare la pagina «{title}» con la sua cronologia?",
-    "deleted": "Pagina eliminata"
+    "deleted": "Pagina eliminata",
+    "errors": {
+      "noPage": "Pagina non trovata",
+      "noVersion": "Versione non trovata",
+      "notWrittenYet": "La pagina non è ancora scritta",
+      "cannotChange": "Non puoi modificare questa pagina",
+      "pageEmpty": "La pagina è vuota",
+      "baseVersionNeeded": "Serve baseVersion per modificare una pagina",
+      "lockedByOther": "Qualcun altro sta modificando questa pagina",
+      "changedMeanwhile": "La pagina è stata modificata mentre la stavi modificando",
+      "titleRequired": "Una pagina ha bisogno di un titolo",
+      "cannotWrite": "Non puoi scrivere in questo wiki",
+      "titleTaken": "Esiste già una pagina con questo titolo"
+    }
   }
 }

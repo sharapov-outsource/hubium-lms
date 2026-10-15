@@ -52,6 +52,15 @@
     "responses": "Antworten",
     "deleteSelected": "{count, plural, =0 {Antworten löschen} other {Antworten löschen (#)}}",
     "deleteConfirm": "{count, plural, one {Antwort von # Person löschen?} other {Antworten von # Personen löschen?}}",
-    "responsesDeleted": "Antworten gelöscht"
+    "responsesDeleted": "Antworten gelöscht",
+    "errors": {
+      "notOpenYet": "Die Abstimmung ist noch nicht geöffnet",
+      "closed": "Die Abstimmung ist geschlossen",
+      "oneOnly": "Wählen Sie nur eine Option",
+      "noOption": "Diese Option gibt es nicht",
+      "answeredAlready": "Sie haben bereits geantwortet",
+      "full": "„{text}“ ist voll",
+      "noChange": "Antworten können nicht geändert werden"
+    }
   }
 }

@@ -7,6 +7,7 @@ import {
   defineQuery,
   type ModuleCtx,
   ModuleError,
+  msg,
 } from '@hubium/module-sdk';
 import { csvFile, parseCsv } from '@hubium/module-sdk/csv';
 import { bool, isoDate } from '@hubium/module-sdk/fields';
@@ -80,7 +81,7 @@ type Db = ActivityRef<DataSettingsT>;
 const uid = (ctx: ModuleCtx) => (ctx.actor.kind === 'user' ? ctx.actor.userId : null);
 const me = (ctx: ModuleCtx) => {
   const id = uid(ctx);
-  if (!id) throw new Error('Sign in required');
+  if (!id) throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
   return id;
 };
 
@@ -130,7 +131,7 @@ export const FieldInput = z.object({
 
 function fieldRow(type: FieldType, input: z.output<typeof FieldInput>) {
   if ((type === 'menu' || type === 'radio' || type === 'checkbox') && input.choices.length < 1)
-    throw new Error('Give the choices, one per line');
+    throw new ModuleError('BAD_REQUEST', msg('mod.data.errors.giveChoices'));
   return {
     name: input.name,
     description: input.description,
@@ -360,7 +361,7 @@ async function pushGrades(ctx: ModuleCtx, a: Db, userIds: (string | null)[]) {
 
 async function recordOf(ctx: ModuleCtx, a: ActivityRef, id: string) {
   const r = await ctx.db.dataRecord.findFirst({ where: { id, activityId: a.id } });
-  if (!r) throw new ModuleError('NOT_FOUND', 'Entry not found');
+  if (!r) throw new ModuleError('NOT_FOUND', msg('mod.data.errors.noEntry'));
   return r;
 }
 
@@ -373,11 +374,11 @@ async function mayChange(ctx: ModuleCtx, a: Db, authorId: string | null) {
 async function checkOpen(ctx: ModuleCtx, a: Db) {
   if (await ctx.perm.can('mod.data:manageentries', a.id)) return;
   const s = a.settings;
-  if (s.opensAt && ctx.now < new Date(s.opensAt)) throw new Error('The database is not open yet');
-  if (s.closesAt && ctx.now > new Date(s.closesAt)) throw new Error('The database is closed');
+  if (s.opensAt && ctx.now < new Date(s.opensAt))
+    throw new ModuleError('BAD_REQUEST', msg('mod.data.errors.notOpenYet'));
+  if (s.closesAt && ctx.now > new Date(s.closesAt))
+    throw new ModuleError('BAD_REQUEST', msg('mod.data.errors.closed'));
 }
-
-const errorText = { required: 'is required', invalid: 'is not valid', tooLong: 'is too long' };
 
 /** Checks values against the fields; throws the first problem with the field's name. */
 function checkValues(fields: Field[], values: Record<string, unknown>) {
@@ -385,7 +386,11 @@ function checkValues(fields: Field[], values: Record<string, unknown>) {
   for (const f of fields) {
     if (fileTypes.includes(f.type)) continue;
     const c = cleanValue(f, values[f.id], sanitizeRichText);
-    if ('error' in c) throw new Error(`${f.name}: ${errorText[c.error]}`);
+    if ('error' in c)
+      throw new ModuleError(
+        'BAD_REQUEST',
+        msg(`mod.data.errors.value.${c.error}`, { name: f.name }),
+      );
     out.set(f.id, c.value);
   }
   return out;
@@ -646,7 +651,7 @@ export const data = defineModule<DataSettingsT>({
       async handler(ctx, a, input) {
         const n = await ctx.db.dataField.count({ where: { activityId: a.id } });
         if (await ctx.db.dataField.findFirst({ where: { activityId: a.id, name: input.name } }))
-          throw new ModuleError('CONFLICT', 'A field with this name exists already');
+          throw new ModuleError('CONFLICT', msg('mod.data.errors.fieldNameTaken'));
         const f = await ctx.db.dataField.create({
           data: {
             activityId: a.id,
@@ -664,11 +669,11 @@ export const data = defineModule<DataSettingsT>({
       input: FieldInput.extend({ id: z.string().uuid() }),
       async handler(ctx, a, input) {
         const f = await ctx.db.dataField.findFirst({ where: { id: input.id, activityId: a.id } });
-        if (!f) throw new ModuleError('NOT_FOUND', 'Field not found');
+        if (!f) throw new ModuleError('NOT_FOUND', msg('mod.data.errors.noField'));
         const same = await ctx.db.dataField.findFirst({
           where: { activityId: a.id, name: input.name, id: { not: f.id } },
         });
-        if (same) throw new ModuleError('CONFLICT', 'A field with this name exists already');
+        if (same) throw new ModuleError('CONFLICT', msg('mod.data.errors.fieldNameTaken'));
         await ctx.db.dataField.update({
           where: { id: f.id },
           data: fieldRow(f.type as FieldType, input),
@@ -683,7 +688,7 @@ export const data = defineModule<DataSettingsT>({
       async handler(ctx, a, input) {
         const order = (await dataFields(ctx.db, a.id)).map((f) => f.id);
         const i = order.indexOf(input.id);
-        if (i < 0) throw new ModuleError('NOT_FOUND', 'Field not found');
+        if (i < 0) throw new ModuleError('NOT_FOUND', msg('mod.data.errors.noField'));
         const j = input.direction === 'up' ? i - 1 : i + 1;
         if (j >= 0 && j < order.length) {
           [order[i], order[j]] = [order[j]!, order[i]!];
@@ -702,7 +707,7 @@ export const data = defineModule<DataSettingsT>({
           where: { id: input.id, activityId: a.id },
           include: { contents: { select: { value: true } } },
         });
-        if (!f) throw new ModuleError('NOT_FOUND', 'Field not found');
+        if (!f) throw new ModuleError('NOT_FOUND', msg('mod.data.errors.noField'));
         if (fileTypes.includes(f.type as FieldType)) {
           const ids = f.contents.map((c) => c.value).filter(Boolean);
           if (ids.length) await ctx.files.remove(a.id, 'content', ids);
@@ -729,16 +734,16 @@ export const data = defineModule<DataSettingsT>({
         const manage = await ctx.perm.can('mod.data:manageentries', a.id);
         await checkOpen(ctx, a);
         const fields = await dataFields(ctx.db, a.id);
-        if (!fields.length) throw new Error('The database has no fields yet');
+        if (!fields.length) throw new ModuleError('BAD_REQUEST', msg('mod.data.errors.noFields'));
         const values = checkValues(fields, input.values);
         let record = input.id ? await recordOf(ctx, a, input.id) : null;
         if (record && !(await mayChange(ctx, a, record.userId)))
-          throw new ModuleError('FORBIDDEN', 'You cannot change this entry');
+          throw new ModuleError('FORBIDDEN', msg('mod.data.errors.cannotChange'));
         if (!record) {
           if (a.settings.maxEntries && !manage) {
             const n = await ctx.db.dataRecord.count({ where: { activityId: a.id, userId: user } });
             if (n >= a.settings.maxEntries)
-              throw new ModuleError('CONFLICT', 'You have added all the entries you may');
+              throw new ModuleError('CONFLICT', msg('mod.data.errors.entryLimit'));
           }
           const groups = a.groupMode === 'NONE' ? [] : await userGroupIds(ctx.db, a, user);
           record = await ctx.db.dataRecord.create({
@@ -769,7 +774,10 @@ export const data = defineModule<DataSettingsT>({
           const old = current.get(f.id) ?? '';
           if (file) {
             if (f.type === 'image' && !file.mimeType.startsWith('image/'))
-              throw new Error(`${f.name}: a picture is needed`);
+              throw new ModuleError(
+                'BAD_REQUEST',
+                msg('mod.data.errors.value.picture', { name: f.name }),
+              );
             const stored = await ctx.files.store(
               a.id,
               'content',
@@ -787,7 +795,11 @@ export const data = defineModule<DataSettingsT>({
               where: { recordId_fieldId: { recordId: record.id, fieldId: f.id } },
             })
           )?.value;
-          if (f.required && !now) throw new Error(`${f.name}: ${errorText.required}`);
+          if (f.required && !now)
+            throw new ModuleError(
+              'BAD_REQUEST',
+              msg('mod.data.errors.value.required', { name: f.name }),
+            );
         }
         await ctx.db.dataRecord.update({ where: { id: record.id }, data: { updatedAt: ctx.now } });
         if (record.userId) await ctx.completion.recompute(a.id, record.userId);
@@ -804,7 +816,7 @@ export const data = defineModule<DataSettingsT>({
         const a = ref as Db;
         const r = await recordOf(ctx, a, input.id);
         if (!(await mayChange(ctx, a, r.userId)))
-          throw new ModuleError('FORBIDDEN', 'You cannot delete this entry');
+          throw new ModuleError('FORBIDDEN', msg('mod.data.errors.cannotDelete'));
         const files = await ctx.files.list(a.id, 'content', r.id);
         if (files.length)
           await ctx.files.remove(
@@ -841,7 +853,7 @@ export const data = defineModule<DataSettingsT>({
         const a = ref as Db;
         const user = me(ctx);
         if (a.settings.ratingAggregate === 'none')
-          throw new ModuleError('CONFLICT', 'Ratings are off in this database');
+          throw new ModuleError('CONFLICT', msg('mod.data.errors.ratingsOff'));
         const r = await recordOf(ctx, a, input.recordId);
         if (
           !r.approved ||
@@ -849,14 +861,14 @@ export const data = defineModule<DataSettingsT>({
           r.userId === user ||
           !inRatingWindow(r.createdAt, a.settings)
         )
-          throw new ModuleError('FORBIDDEN', 'You cannot rate this entry');
+          throw new ModuleError('FORBIDDEN', msg('mod.data.errors.cannotRate'));
         if (input.value === null)
           await ctx.db.dataRating.deleteMany({ where: { recordId: r.id, raterId: user } });
         else {
           const scale = await scaleItems(ctx.db, a.courseId, a.settings.ratingScaleId);
           const [lo, hi] = scale ? [1, scale.length] : [0, a.settings.ratingMax];
           if (input.value < lo || input.value > hi)
-            throw new Error(`A rating is from ${lo} to ${hi}`);
+            throw new ModuleError('BAD_REQUEST', msg('mod.data.errors.ratingRange', { lo, hi }));
           await ctx.db.dataRating.upsert({
             where: { recordId_raterId: { recordId: r.id, raterId: user } },
             create: { recordId: r.id, raterId: user, value: input.value },
@@ -883,13 +895,14 @@ export const data = defineModule<DataSettingsT>({
           input.groupId &&
           !(await ctx.db.group.count({ where: { id: input.groupId, ...groupsWhere(a) } }))
         )
-          throw new Error('Unknown group');
+          throw new ModuleError('BAD_REQUEST', msg('errors.common.unknownGroup'));
         const fields = await dataFields(ctx.db, a.id);
         const [header, ...rows] = parseCsv(input.csv);
-        if (!header) throw new Error('The file is empty');
+        if (!header) throw new ModuleError('BAD_REQUEST', msg('mod.data.errors.fileEmpty'));
         const columns = header.map((h) => fields.find((f) => f.name === h.trim()));
         const unknown = header.filter((h, i) => h.trim() && !columns[i]);
-        if (!columns.some(Boolean)) throw new Error('No column names a field of the database');
+        if (!columns.some(Boolean))
+          throw new ModuleError('BAD_REQUEST', msg('mod.data.errors.noMatchingColumns'));
         const errors: { line: number; message: string }[] = [];
         let created = 0;
         for (const [i, row] of rows.entries()) {

@@ -1,6 +1,13 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { log } from '@hubium/log';
-import { type ActivityRef, defineAction, defineModule, type ModuleCtx } from '@hubium/module-sdk';
+import {
+  type ActivityRef,
+  defineAction,
+  defineModule,
+  type ModuleCtx,
+  ModuleError,
+  msg,
+} from '@hubium/module-sdk';
 import { bool, isoDate } from '@hubium/module-sdk/fields';
 import { z } from 'zod';
 import { getProvider, type MeetingSpec, type ProviderKind } from './providers.ts';
@@ -269,24 +276,28 @@ export const livesession = defineModule<LiveSettingsT>({
       input: z.object({}),
       async handler(ctx, ref) {
         const a = ref as Live;
-        if (ctx.actor.kind !== 'user') throw new Error('Sign in required');
+        if (ctx.actor.kind !== 'user')
+          throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
         const userId = ctx.actor.userId;
         const moderator = await ctx.perm.can('mod.livesession:moderate', a.id);
         const when = canJoinAt(a.settings, ctx.now, moderator);
-        if (when === 'early') throw new Error('The session has not opened yet');
-        if (when === 'over') throw new Error('The session is over');
+        if (when === 'early')
+          throw new ModuleError('BAD_REQUEST', msg('mod.livesession.errors.notOpenYet'));
+        if (when === 'over')
+          throw new ModuleError('BAD_REQUEST', msg('mod.livesession.errors.over'));
         const meeting = await ctx.db.liveMeeting.upsert({
           where: { activityId: a.id },
           create: { activityId: a.id, meetingId: meetingIdFor(a.id) },
           update: {},
         });
-        if (meeting.status === 'ENDED' && !moderator) throw new Error('The session is over');
+        if (meeting.status === 'ENDED' && !moderator)
+          throw new ModuleError('BAD_REQUEST', msg('mod.livesession.errors.over'));
         const provider = getProvider(a.settings.provider);
         const s = spec(a);
         // Viewers may only join a room a moderator has started (BBB creates on demand).
         if (meeting.status !== 'LIVE') {
           if (!moderator && provider.kind === 'bbb') {
-            throw new Error('Waiting for the teacher to start the session');
+            throw new ModuleError('BAD_REQUEST', msg('mod.livesession.errors.waitingForTeacher'));
           }
           await provider.createMeeting(s);
           await ctx.db.liveMeeting.update({

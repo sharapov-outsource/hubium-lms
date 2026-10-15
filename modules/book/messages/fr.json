@@ -33,6 +33,9 @@
     "deleted": "Chapitre supprimé",
     "saved": "Chapitre enregistré",
     "empty": "Le livre n’a pas encore de chapitres.",
-    "emptyEditor": "Le livre n’a pas encore de chapitres. Ajoutez le premier."
+    "emptyEditor": "Le livre n’a pas encore de chapitres. Ajoutez le premier.",
+    "errors": {
+      "noChapter": "Chapitre introuvable"
+    }
   }
 }

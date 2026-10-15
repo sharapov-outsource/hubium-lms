@@ -39,6 +39,13 @@
     "notify": {
       "starting": "Sessione dal vivo in arrivo",
       "startingTitle": "«{name}» inizia tra 15 minuti"
+    },
+    "errors": {
+      "bbbError": "BigBlueButton: {value}",
+      "bbbNotConfigured": "BigBlueButton non è configurato (BBB_URL, BBB_SECRET)",
+      "notOpenYet": "La sessione non è ancora aperta",
+      "over": "La sessione è terminata",
+      "waitingForTeacher": "In attesa che il docente avvii la sessione"
     }
   }
 }

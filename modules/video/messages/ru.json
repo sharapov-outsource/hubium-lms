@@ -43,6 +43,14 @@
     "student": "Студент",
     "progress": "Просмотрено",
     "lastWatched": "Последний просмотр",
-    "noStudents": "Нет студентов"
+    "noStudents": "Нет студентов",
+    "errors": {
+      "editorsOnly": "Управлять видео могут только редакторы курса",
+      "toolFailed": "{cmd} завершился с кодом {code}: {value}",
+      "noVideoStream": "Нет видеопотока",
+      "nothingToTranscode": "Перекодировать нечего",
+      "sourceDeleted": "Исходный файл удалён: загрузите его снова",
+      "captionsTooLarge": "Файл субтитров слишком большой"
+    }
   }
 }

@@ -6,6 +6,7 @@ import {
   defineQuery,
   type ModuleCtx,
   ModuleError,
+  msg,
 } from '@hubium/module-sdk';
 import { groupsWhere, userGroupIds } from '@hubium/module-sdk/groups';
 import { z } from 'zod';
@@ -30,7 +31,7 @@ type Wiki = ActivityRef<WikiSettingsT>;
 export const LOCK_MS = 2 * 60_000;
 
 const uid = (ctx: ModuleCtx) => {
-  if (ctx.actor.kind !== 'user') throw new Error('Sign in required');
+  if (ctx.actor.kind !== 'user') throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
   return ctx.actor.userId;
 };
 
@@ -124,12 +125,13 @@ async function pageAccess(ctx: ModuleCtx, a: Wiki, pageId: string) {
     include: { subwiki: true },
   });
   if (!page || page.subwiki.activityId !== a.id)
-    throw new ModuleError('NOT_FOUND', 'Page not found');
+    throw new ModuleError('NOT_FOUND', msg('mod.wiki.errors.noPage'));
   const r = await resolveSubwiki(ctx, a, {
     groupId: page.subwiki.groupId,
     userId: page.subwiki.userId,
   });
-  if (keyOf(r.ref) !== page.subwiki.key) throw new ModuleError('NOT_FOUND', 'Page not found');
+  if (keyOf(r.ref) !== page.subwiki.key)
+    throw new ModuleError('NOT_FOUND', msg('mod.wiki.errors.noPage'));
   return { page, ...r };
 }
 
@@ -232,7 +234,7 @@ export async function wikiCompare(
   });
   const a = rows.find((r) => r.version === from);
   const b = rows.find((r) => r.version === to);
-  if (!a || !b) throw new ModuleError('NOT_FOUND', 'Version not found');
+  if (!a || !b) throw new ModuleError('NOT_FOUND', msg('mod.wiki.errors.noVersion'));
   return {
     from: { version: a.version, createdAt: a.createdAt, author: a.author?.name ?? null },
     to: { version: b.version, createdAt: b.createdAt, author: b.author?.name ?? null },
@@ -344,7 +346,7 @@ export const wiki = defineModule<WikiSettingsT>({
       async handler(ctx, a, input) {
         const r = await resolveSubwiki(ctx, a, input);
         const p = await wikiPage(ctx, a, r.ref, input);
-        if (!p) throw new ModuleError('NOT_FOUND', 'The page is not written yet');
+        if (!p) throw new ModuleError('NOT_FOUND', msg('mod.wiki.errors.notWrittenYet'));
         const { ids: _ids, ...out } = p;
         return out;
       },
@@ -367,7 +369,7 @@ export const wiki = defineModule<WikiSettingsT>({
         const a = ref as Wiki;
         const me = uid(ctx);
         const { page, canEdit } = await pageAccess(ctx, a, input.pageId);
-        if (!canEdit) throw new ModuleError('FORBIDDEN', 'You cannot change this page');
+        if (!canEdit) throw new ModuleError('FORBIDDEN', msg('mod.wiki.errors.cannotChange'));
         const held = page.lockedById && page.lockedById !== me && page.lockedUntil! > ctx.now;
         if (held && !(input.force && (await ctx.perm.can('mod.wiki:overridelock', a.id)))) {
           const who = await ctx.db.user.findUnique({
@@ -412,31 +414,32 @@ export const wiki = defineModule<WikiSettingsT>({
         const a = ref as Wiki;
         const me = uid(ctx);
         const content = sanitizeRichText(input.content);
-        if (isEmptyRichText(content)) throw new Error('The page is empty');
+        if (isEmptyRichText(content))
+          throw new ModuleError('BAD_REQUEST', msg('mod.wiki.errors.pageEmpty'));
         if (input.pageId) {
           // a change is to the version it was made on, or it would overwrite another's
           if (input.baseVersion === undefined)
-            throw new Error('baseVersion is needed to change a page');
+            throw new ModuleError('BAD_REQUEST', msg('mod.wiki.errors.baseVersionNeeded'));
           await lockPage(ctx, input.pageId);
           const { page, canEdit } = await pageAccess(ctx, a, input.pageId);
-          if (!canEdit) throw new ModuleError('FORBIDDEN', 'You cannot change this page');
+          if (!canEdit) throw new ModuleError('FORBIDDEN', msg('mod.wiki.errors.cannotChange'));
           if (page.lockedById && page.lockedById !== me && page.lockedUntil! > ctx.now)
-            throw new ModuleError('CONFLICT', 'Someone else is changing this page');
+            throw new ModuleError('CONFLICT', msg('mod.wiki.errors.lockedByOther'));
           if (input.baseVersion !== page.version)
-            throw new ModuleError('CONFLICT', 'The page was changed while you were editing it');
+            throw new ModuleError('CONFLICT', msg('mod.wiki.errors.changedMeanwhile'));
           const version = await addVersion(ctx, page, content);
           await ctx.completion.recompute(a.id, me);
           return { pageId: page.id, version };
         }
         const title = normTitle(input.title ?? '');
-        if (!title) throw new Error('A page needs a title');
+        if (!title) throw new ModuleError('BAD_REQUEST', msg('mod.wiki.errors.titleRequired'));
         const r = await resolveSubwiki(ctx, a, input);
-        if (!r.canEdit) throw new ModuleError('FORBIDDEN', 'You cannot write in this wiki');
+        if (!r.canEdit) throw new ModuleError('FORBIDDEN', msg('mod.wiki.errors.cannotWrite'));
         const sw = (await subwikiOf(ctx, a, r.ref, true))!;
         const taken = await ctx.db.wikiPage.findUnique({
           where: { subwikiId_title: { subwikiId: sw.id, title } },
         });
-        if (taken) throw new ModuleError('CONFLICT', 'A page with this title exists already');
+        if (taken) throw new ModuleError('CONFLICT', msg('mod.wiki.errors.titleTaken'));
         const page = await ctx.db.wikiPage.create({
           data: { subwikiId: sw.id, title, createdAt: ctx.now },
         });
@@ -454,13 +457,13 @@ export const wiki = defineModule<WikiSettingsT>({
         const a = ref as Wiki;
         await lockPage(ctx, input.pageId);
         const { page, canEdit } = await pageAccess(ctx, a, input.pageId);
-        if (!canEdit) throw new ModuleError('FORBIDDEN', 'You cannot change this page');
+        if (!canEdit) throw new ModuleError('FORBIDDEN', msg('mod.wiki.errors.cannotChange'));
         if (page.lockedById && page.lockedById !== uid(ctx) && page.lockedUntil! > ctx.now)
-          throw new ModuleError('CONFLICT', 'Someone else is changing this page');
+          throw new ModuleError('CONFLICT', msg('mod.wiki.errors.lockedByOther'));
         const old = await ctx.db.wikiVersion.findUnique({
           where: { pageId_version: { pageId: page.id, version: input.version } },
         });
-        if (!old) throw new ModuleError('NOT_FOUND', 'Version not found');
+        if (!old) throw new ModuleError('NOT_FOUND', msg('mod.wiki.errors.noVersion'));
         return { version: await addVersion(ctx, page, old.content) };
       },
     }),

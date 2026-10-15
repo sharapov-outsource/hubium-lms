@@ -95,6 +95,15 @@
       "rateLabel": "Ihre Bewertung des Eintrags von {name}",
       "saved": "Bewertung gespeichert",
       "raters": "Wer bewertet hat"
+    },
+    "errors": {
+      "noEntry": "Eintrag nicht gefunden",
+      "conceptExists": "Dieser Begriff steht bereits im Glossar",
+      "cannotChange": "Sie können diesen Eintrag nicht ändern",
+      "cannotDelete": "Sie können diesen Eintrag nicht löschen",
+      "ratingsOff": "Bewertungen sind in diesem Glossar deaktiviert",
+      "cannotRate": "Sie können diesen Eintrag nicht bewerten",
+      "ratingRange": "Eine Bewertung liegt zwischen {lo} und {hi}"
     }
   }
 }

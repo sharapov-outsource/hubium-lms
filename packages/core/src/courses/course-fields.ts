@@ -110,7 +110,9 @@ export async function checkCourseValues(
   );
   if (locked.length && !(await ctx.perm.can('course:changelockedfields', contextId)))
     throw new ValidationError(
-      Object.fromEntries(locked.map((f) => [FORM_PREFIX + f.shortName, ['This field is locked']])),
+      Object.fromEntries(
+        locked.map((f) => [FORM_PREFIX + f.shortName, [msg('errors.courses.fieldLocked')]]),
+      ),
     );
   return { ...before, ...values };
 }

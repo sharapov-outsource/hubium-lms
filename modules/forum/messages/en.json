@@ -141,6 +141,24 @@
     "gradeItem": {
       "rating": "Ratings",
       "whole": "Whole forum"
+    },
+    "errors": {
+      "noDiscussion": "Discussion not found",
+      "tooManyAttachments": "At most {n} attachments",
+      "ratingsOff": "Ratings are off in this forum",
+      "noPost": "Post not found",
+      "cannotRate": "You cannot rate this post",
+      "ratingRange": "A rating is from {lo} to {hi}",
+      "notWholeForum": "The forum is not graded as a whole",
+      "gradeRange": "Grade must be between 0 and {max}",
+      "qandaTeachersOnly": "Only teachers can start questions in a Q&A forum",
+      "messageEmpty": "The message is empty",
+      "notMember": "Not a member of this group",
+      "locked": "The discussion is locked",
+      "noPrivateReplies": "Private replies are not allowed",
+      "editTimeOver": "You can no longer edit this post",
+      "cannotDelete": "You cannot delete this post",
+      "subscriptionFixed": "Subscriptions cannot be changed in this forum"
     }
   }
 }

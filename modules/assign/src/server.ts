@@ -7,6 +7,7 @@ import {
   defineQuery,
   type ModuleCtx,
   ModuleError,
+  msg,
 } from '@hubium/module-sdk';
 import { bool } from '@hubium/module-sdk/fields';
 import {
@@ -142,7 +143,7 @@ const FileInput = z.object({
 });
 
 function userId(ctx: ModuleCtx): string {
-  if (ctx.actor.kind !== 'user') throw new Error('Sign in required');
+  if (ctx.actor.kind !== 'user') throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
   return ctx.actor.userId;
 }
 
@@ -390,7 +391,7 @@ async function notifyGraded(ctx: ModuleCtx, a: Assign, userIds: string[]) {
 async function requireMarker(ctx: ModuleCtx, a: Assign, userIds: string[]) {
   const mine = new Set(await markedBy(ctx, a, userIds));
   if (userIds.some((id) => !mine.has(id)))
-    throw new ModuleError('FORBIDDEN', 'This student is allocated to another marker');
+    throw new ModuleError('FORBIDDEN', msg('mod.assign.errors.otherMarker'));
 }
 
 /** Moves students to a marking stage, when the user may (and may mark them). */
@@ -398,7 +399,10 @@ async function moveStage(ctx: ModuleCtx, a: Assign, userIds: string[], to: Workf
   const flags = await flagsFor(ctx.db, a, userIds);
   for (const id of userIds)
     if (!(await canMoveStage(ctx, a, flags.get(id)!.workflowState, to)))
-      throw new ModuleError('FORBIDDEN', `You cannot move grades to ${to.toLowerCase()}`);
+      throw new ModuleError(
+        'FORBIDDEN',
+        msg('mod.assign.errors.moveStage', { value: to.toLowerCase() }),
+      );
   await setFlags(
     ctx.db,
     a,
@@ -411,9 +415,9 @@ async function moveStage(ctx: ModuleCtx, a: Assign, userIds: string[], to: Workf
 /** Gives students a marker (null takes the marker away): someone who grades here. */
 async function allocate(ctx: ModuleCtx, a: Assign, userIds: string[], markerId: string | null) {
   if (!(await ctx.perm.can('mod.assign:manageallocations', a.id)))
-    throw new ModuleError('FORBIDDEN', 'You cannot allocate markers');
+    throw new ModuleError('FORBIDDEN', msg('mod.assign.errors.cannotAllocate'));
   if (markerId && !(await ctx.perm.usersWithCap('mod.assign:grade', a.id)).includes(markerId))
-    throw new Error('The marker does not grade this assignment');
+    throw new ModuleError('BAD_REQUEST', msg('mod.assign.errors.notAMarker'));
   await setFlags(ctx.db, a, userIds, { allocatedMarkerId: markerId });
 }
 
@@ -549,11 +553,7 @@ export const assign = defineModule<AssignSettingsT>({
           }),
           ctx.db.assignGrade.count({ where: { activityId: a.id } }),
         ]);
-        if (subs || grades)
-          throw new ModuleError(
-            'CONFLICT',
-            'Blind marking cannot be changed once students have submitted',
-          );
+        if (subs || grades) throw new ModuleError('CONFLICT', msg('mod.assign.errors.blindLocked'));
       }
       // grades given before the workflow was on had reached the students: they stay released
       if (s.markingWorkflow && !prev.markingWorkflow) {
@@ -864,17 +864,24 @@ export const assign = defineModule<AssignSettingsT>({
         const dates = await effectiveDates(ctx.db, a, uid);
         const window = canSubmitNow(dates, ctx.now);
         if (!window.ok)
-          throw new Error(
-            window.reason === 'notOpen' ? 'Submissions are not open yet' : 'Submissions are closed',
+          throw new ModuleError(
+            'BAD_REQUEST',
+            window.reason === 'notOpen'
+              ? msg('mod.assign.errors.notOpenYet')
+              : msg('mod.assign.errors.closed'),
           );
         let sub = await latestFor(ctx.db, a, uid, team);
-        if (sub?.status === 'SUBMITTED') throw new Error('Already submitted');
+        if (sub?.status === 'SUBMITTED')
+          throw new ModuleError('BAD_REQUEST', msg('mod.assign.errors.alreadySubmitted'));
         const text = s.allowText ? sanitizeRichText(input.text) : '';
         if (s.wordLimit && countWords(text) > s.wordLimit)
-          throw new Error(`Word limit is ${s.wordLimit}`);
+          throw new ModuleError(
+            'BAD_REQUEST',
+            msg('mod.assign.errors.wordLimit', { n: s.wordLimit }),
+          );
         const submitting = input.submit || !s.submitButton;
         if (submitting && s.requireStatement && !input.statement)
-          throw new Error('Accept the statement that this is your own work');
+          throw new ModuleError('BAD_REQUEST', msg('mod.assign.errors.acceptStatement'));
         sub ??= await ctx.db.assignSubmission.create({
           data: { activityId: a.id, attemptNumber: 0, status: 'NEW', ...ownerOf(uid, team) },
         });
@@ -885,7 +892,10 @@ export const assign = defineModule<AssignSettingsT>({
             await ctx.files.remove(a.id, 'submission', input.removeFiles, sub.id);
           const existing = await ctx.files.list(a.id, 'submission', sub.id);
           if (existing.length + input.files.length > s.maxFiles)
-            throw new Error(`At most ${s.maxFiles} files`);
+            throw new ModuleError(
+              'BAD_REQUEST',
+              msg('mod.assign.errors.tooManyFiles', { n: s.maxFiles }),
+            );
           for (const f of input.files) {
             await ctx.files.store(
               a.id,
@@ -897,7 +907,7 @@ export const assign = defineModule<AssignSettingsT>({
         }
         const files = s.allowFiles ? await ctx.files.list(a.id, 'submission', sub.id) : [];
         if (submitting && !text.replace(/<[^>]*>/g, '').trim() && files.length === 0)
-          throw new Error('The submission is empty');
+          throw new ModuleError('BAD_REQUEST', msg('mod.assign.errors.empty'));
         // A team's work goes in once every member has submitted it, when the assignment asks
         // for that; a change by one member asks the others again.
         let complete = submitting;
@@ -988,14 +998,16 @@ export const assign = defineModule<AssignSettingsT>({
         const a = act as Assign;
         const team = await teamOf(ctx.db, a, uid);
         const sub = await latestFor(ctx.db, a, uid, team);
-        if (sub?.status !== 'SUBMITTED') throw new Error('Nothing to withdraw');
+        if (sub?.status !== 'SUBMITTED')
+          throw new ModuleError('BAD_REQUEST', msg('mod.assign.errors.nothingWithdraw'));
         const owners = await ownersOf(ctx, a, uid, team);
         const graded = await ctx.db.assignGrade.count({
           where: { activityId: a.id, userId: { in: owners }, attemptNumber: sub.attemptNumber },
         });
-        if (graded) throw new Error('Already graded');
+        if (graded) throw new ModuleError('BAD_REQUEST', msg('mod.assign.errors.alreadyGraded'));
         const dates = await effectiveDates(ctx.db, a, uid);
-        if (!canSubmitNow(dates, ctx.now).ok) throw new Error('Submissions are closed');
+        if (!canSubmitNow(dates, ctx.now).ok)
+          throw new ModuleError('BAD_REQUEST', msg('mod.assign.errors.closed'));
         await ctx.db.assignSubmission.update({
           where: { id: sub.id },
           data: { status: 'DRAFT', submittedAt: null },
@@ -1039,31 +1051,37 @@ export const assign = defineModule<AssignSettingsT>({
             form.method === 'rubric'
               ? rubricFillingError(form.definition, input.rubric!)
               : guideFillingError(form.definition, input.guide!);
-          if (error) throw new Error(error);
+          if (error) throw new ModuleError('BAD_REQUEST', error);
           input.grade =
             form.method === 'rubric'
               ? rubricGrade(form.definition, input.rubric!, gradeRange(a, scale))
               : guideGrade(form.definition, input.guide!, gradeRange(a, scale));
         } else if (form && input.grade !== null)
-          throw new Error(
-            form.method === 'rubric' ? 'Fill in the rubric' : 'Fill in the marking guide',
+          throw new ModuleError(
+            'BAD_REQUEST',
+            form.method === 'rubric'
+              ? msg('mod.assign.errors.fillRubric')
+              : msg('mod.assign.errors.fillMarkingGuide'),
           );
         if (input.grade !== null) {
           if (scale) {
             if (!Number.isInteger(input.grade) || input.grade < 1 || input.grade > scale.length)
-              throw new Error('Choose a grade of the scale');
+              throw new ModuleError('BAD_REQUEST', msg('errors.grades.chooseGradeScale'));
           } else if (input.grade < 0 || input.grade > s.gradeMax)
-            throw new Error(`Grade must be between 0 and ${s.gradeMax}`);
+            throw new ModuleError(
+              'BAD_REQUEST',
+              msg('mod.assign.errors.gradeRange', { max: s.gradeMax }),
+            );
         }
         const enrolled = await ctx.db.enrolment.findFirst({
           where: { courseId: a.courseId, userId: input.userId },
         });
-        if (!enrolled) throw new Error('User is not enrolled');
+        if (!enrolled) throw new ModuleError('BAD_REQUEST', msg('errors.common.notEnrolled'));
         const team = await teamOf(ctx.db, a, input.userId);
         const latest = await latestFor(ctx.db, a, input.userId, team);
         const attemptNumber = input.attemptNumber ?? gradedAttempt(latest);
         if (attemptNumber > (latest?.attemptNumber ?? 0))
-          throw new Error('There is no such attempt');
+          throw new ModuleError('BAD_REQUEST', msg('mod.assign.errors.noAttempt'));
         // reopening follows a grade of the work last handed in, not of an earlier attempt nor
         // of a reopened one with nothing in it (which would open attempt after attempt)
         const sub =
@@ -1172,7 +1190,7 @@ export const assign = defineModule<AssignSettingsT>({
       async handler(ctx, act, input) {
         const a = act as Assign;
         if (!a.settings.markingWorkflow)
-          throw new ModuleError('CONFLICT', 'The assignment has no marking workflow');
+          throw new ModuleError('CONFLICT', msg('mod.assign.errors.noWorkflow'));
         const userIds = [...new Set(input.userIds)];
         await requireMarker(ctx, a, userIds);
         const moved = await moveStage(ctx, a, userIds, input.state);
@@ -1189,7 +1207,7 @@ export const assign = defineModule<AssignSettingsT>({
       async handler(ctx, act, input) {
         const a = act as Assign;
         if (!allocating(a))
-          throw new ModuleError('CONFLICT', 'The assignment does not allocate markers');
+          throw new ModuleError('CONFLICT', msg('mod.assign.errors.noAllocation'));
         await allocate(ctx, a, [...new Set(input.userIds)], input.markerId);
         return { ok: true };
       },
@@ -1202,7 +1220,7 @@ export const assign = defineModule<AssignSettingsT>({
       async handler(ctx, act) {
         const a = act as Assign;
         if (!a.settings.blindMarking)
-          throw new ModuleError('CONFLICT', 'The assignment is not marked blind');
+          throw new ModuleError('CONFLICT', msg('mod.assign.errors.notBlind'));
         if (await revealedAt(ctx.db, a)) return { ok: true };
         await ctx.db.assignState.upsert({
           where: { activityId: a.id },
@@ -1225,14 +1243,18 @@ export const assign = defineModule<AssignSettingsT>({
           input.method === 'rubric'
             ? Rubric.safeParse(input.definition)
             : Guide.safeParse(input.definition);
-        if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? 'Invalid form');
+        if (!parsed.success)
+          throw new ModuleError(
+            'BAD_REQUEST',
+            parsed.error.issues[0]?.message ?? msg('mod.assign.errors.invalidForm'),
+          );
         const definition = parsed.data;
         const ids = definition.criteria.flatMap((c) => [
           c.id,
           ...('levels' in c ? c.levels.map((l) => `${c.id}/${l.id}`) : []),
         ]);
         if (new Set(ids).size !== ids.length)
-          throw new Error('Criteria and levels need different ids');
+          throw new ModuleError('BAD_REQUEST', msg('mod.assign.errors.duplicateIds'));
         const key = {
           activityId: a.id,
           area: 'submission',
@@ -1245,10 +1267,7 @@ export const assign = defineModule<AssignSettingsT>({
         if (prev?._count.instances) {
           const before = (input.method === 'rubric' ? Rubric : Guide).safeParse(prev.definition);
           if (before.success && !sameStructure(before.data, definition))
-            throw new ModuleError(
-              'CONFLICT',
-              'Students have been graded with this form: criteria and levels cannot be added or removed',
-            );
+            throw new ModuleError('CONFLICT', msg('mod.assign.errors.formInUse'));
         }
         await ctx.db.gradingDefinition.upsert({
           where: { activityId_area_method: key },
@@ -1290,7 +1309,7 @@ export const assign = defineModule<AssignSettingsT>({
         const a = act as Assign;
         await requireMarker(ctx, a, [input.userId]);
         const sub = await latestFor(ctx.db, a, input.userId);
-        if (!sub) throw new Error('No submission');
+        if (!sub) throw new ModuleError('BAD_REQUEST', msg('mod.assign.errors.noSubmission'));
         // with a rubric or marking guide the assistant judges its criteria
         const form = await gradingForm(ctx.db, a);
         return ctx.ai.suggestGrade({
@@ -1325,7 +1344,7 @@ export const assign = defineModule<AssignSettingsT>({
         const enrolled = await ctx.db.enrolment.findFirst({
           where: { courseId: a.courseId, userId: input.userId },
         });
-        if (!enrolled) throw new ModuleError('NOT_FOUND', 'User is not enrolled');
+        if (!enrolled) throw new ModuleError('NOT_FOUND', msg('errors.common.notEnrolled'));
         const own = await ctx.db.assignOverride.findUnique({
           where: { activityId_userId: { activityId: a.id, userId: input.userId } },
         });
@@ -1340,7 +1359,8 @@ export const assign = defineModule<AssignSettingsT>({
         } else {
           const dueAt = new Date(input.dueAt);
           const cutoffAt = input.cutoffAt ? new Date(input.cutoffAt) : dueAt;
-          if (cutoffAt < dueAt) throw new Error('Cut-off must not be before the due date');
+          if (cutoffAt < dueAt)
+            throw new ModuleError('BAD_REQUEST', msg('mod.assign.errors.cutOffBeforeDue'));
           await ctx.db.assignOverride.upsert({
             where: { activityId_userId: { activityId: a.id, userId: input.userId } },
             create: { activityId: a.id, userId: input.userId, dueAt, cutoffAt },
@@ -1377,10 +1397,11 @@ export const assign = defineModule<AssignSettingsT>({
           cutoffAt: d(input.cutoffAt),
         };
         if (values.dueAt && values.cutoffAt && values.cutoffAt < values.dueAt)
-          throw new Error('Cut-off must not be before the due date');
+          throw new ModuleError('BAD_REQUEST', msg('mod.assign.errors.cutOffBeforeDue'));
         if (input.groupId) {
           const g = await ctx.db.group.findUnique({ where: { id: input.groupId } });
-          if (g?.courseId !== a.courseId) throw new ModuleError('NOT_FOUND', 'No such group');
+          if (g?.courseId !== a.courseId)
+            throw new ModuleError('NOT_FOUND', msg('mod.assign.errors.noGroup'));
           const last = await ctx.db.assignOverride.findFirst({
             where: { activityId: a.id, groupId: { not: null } },
             orderBy: { sortOrder: 'desc' },
@@ -1399,7 +1420,7 @@ export const assign = defineModule<AssignSettingsT>({
           const enrolled = await ctx.db.enrolment.findFirst({
             where: { courseId: a.courseId, userId: input.userId! },
           });
-          if (!enrolled) throw new ModuleError('NOT_FOUND', 'User is not enrolled');
+          if (!enrolled) throw new ModuleError('NOT_FOUND', msg('errors.common.notEnrolled'));
           await ctx.db.assignOverride.upsert({
             where: { activityId_userId: { activityId: a.id, userId: input.userId! } },
             create: { activityId: a.id, userId: input.userId!, ...values },
@@ -1428,7 +1449,8 @@ export const assign = defineModule<AssignSettingsT>({
       input: z.object({ id: z.string().uuid() }),
       async handler(ctx, a, { id }) {
         const o = await ctx.db.assignOverride.findUnique({ where: { id } });
-        if (o?.activityId !== a.id) throw new ModuleError('NOT_FOUND', 'No such override');
+        if (o?.activityId !== a.id)
+          throw new ModuleError('NOT_FOUND', msg('mod.assign.errors.noOverride'));
         await ctx.db.assignOverride.delete({ where: { id } });
         await regrade(ctx, a as Assign, await overrideUsers(ctx, o));
         return { ok: true };
@@ -1444,7 +1466,7 @@ export const assign = defineModule<AssignSettingsT>({
           orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
         });
         const i = list.findIndex((o) => o.id === id);
-        if (i < 0) throw new ModuleError('NOT_FOUND', 'No such group override');
+        if (i < 0) throw new ModuleError('NOT_FOUND', msg('mod.assign.errors.noGroupOverride'));
         const j = direction === 'up' ? i - 1 : i + 1;
         if (j < 0 || j >= list.length) return { ok: true };
         const order = list.map((o) => o.id);

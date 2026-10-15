@@ -141,6 +141,29 @@
       "rateLabel": "Ihre Bewertung des Eintrags von {name}",
       "saved": "Bewertung gespeichert",
       "raters": "Wer bewertet hat"
+    },
+    "errors": {
+      "giveChoices": "Geben Sie die Auswahlmöglichkeiten an, eine pro Zeile",
+      "noEntry": "Eintrag nicht gefunden",
+      "notOpenYet": "Die Datenbank ist noch nicht geöffnet",
+      "closed": "Die Datenbank ist geschlossen",
+      "fieldNameTaken": "Ein Feld mit diesem Namen existiert bereits",
+      "noField": "Feld nicht gefunden",
+      "noFields": "Die Datenbank hat noch keine Felder",
+      "cannotChange": "Sie können diesen Eintrag nicht ändern",
+      "entryLimit": "Sie haben alle erlaubten Einträge hinzugefügt",
+      "cannotDelete": "Sie können diesen Eintrag nicht löschen",
+      "ratingsOff": "Bewertungen sind in dieser Datenbank deaktiviert",
+      "cannotRate": "Sie können diesen Eintrag nicht bewerten",
+      "ratingRange": "Eine Bewertung liegt zwischen {lo} und {hi}",
+      "fileEmpty": "Die Datei ist leer",
+      "noMatchingColumns": "Keine Spalte trägt den Namen eines Felds der Datenbank",
+      "value": {
+        "required": "{name}: ist erforderlich",
+        "invalid": "{name}: ist ungültig",
+        "tooLong": "{name}: ist zu lang",
+        "picture": "{name}: ein Bild ist erforderlich"
+      }
     }
   }
 }

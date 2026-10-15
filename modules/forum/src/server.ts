@@ -8,6 +8,7 @@ import {
   type ModuleCtx,
   ModuleError,
   type ModuleFile,
+  msg,
 } from '@hubium/module-sdk';
 import { bool, optionalNumber } from '@hubium/module-sdk/fields';
 import { groupsWhere, userGroupIds, visibleGroupFilter } from '@hubium/module-sdk/groups';
@@ -80,7 +81,7 @@ const FileInput = z.object({
 });
 
 function uid(ctx: ModuleCtx): string {
-  if (ctx.actor.kind !== 'user') throw new Error('Sign in required');
+  if (ctx.actor.kind !== 'user') throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
   return ctx.actor.userId;
 }
 
@@ -524,8 +525,10 @@ const FileOut = z.object({
 
 async function loadDiscussion(ctx: ModuleCtx, a: Forum, discussionId: string) {
   const d = await ctx.db.forumDiscussion.findUnique({ where: { id: discussionId } });
-  if (!d || d.activityId !== a.id) throw new Error('Discussion not found');
-  if (!(await canSeeDiscussion(ctx, a, d, uid(ctx)))) throw new Error('Discussion not found');
+  if (!d || d.activityId !== a.id)
+    throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.noDiscussion'));
+  if (!(await canSeeDiscussion(ctx, a, d, uid(ctx))))
+    throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.noDiscussion'));
   return d;
 }
 
@@ -536,7 +539,10 @@ async function storeAttachments(
   files: z.output<typeof FileInput>[],
 ) {
   if (files.length > a.settings.maxAttachments) {
-    throw new Error(`At most ${a.settings.maxAttachments} attachments`);
+    throw new ModuleError(
+      'BAD_REQUEST',
+      msg('mod.forum.errors.tooManyAttachments', { n: a.settings.maxAttachments }),
+    );
   }
   for (const f of files) {
     await ctx.files.store(
@@ -884,7 +890,7 @@ export const forum = defineModule<ForumSettingsT>({
       }),
       async handler(ctx, a, { discussionId }) {
         const r = await readDiscussion(ctx, a as Forum, discussionId);
-        if (!r) throw new ModuleError('NOT_FOUND', 'Discussion not found');
+        if (!r) throw new ModuleError('NOT_FOUND', msg('mod.forum.errors.noDiscussion'));
         return r;
       },
     }),
@@ -936,9 +942,10 @@ export const forum = defineModule<ForumSettingsT>({
         const a = ref as Forum;
         const me = uid(ctx);
         if (a.settings.ratingAggregate === 'none')
-          throw new ModuleError('CONFLICT', 'Ratings are off in this forum');
+          throw new ModuleError('CONFLICT', msg('mod.forum.errors.ratingsOff'));
         const post = await ctx.db.forumPost.findUnique({ where: { id: input.postId } });
-        if (!post || post.deletedAt) throw new ModuleError('NOT_FOUND', 'Post not found');
+        if (!post || post.deletedAt)
+          throw new ModuleError('NOT_FOUND', msg('mod.forum.errors.noPost'));
         await loadDiscussion(ctx, a, post.discussionId);
         const moderator = await isModerator(ctx, a);
         const hidden =
@@ -946,19 +953,19 @@ export const forum = defineModule<ForumSettingsT>({
           (!!post.parentId &&
             post.authorId !== me &&
             (await qandaLocked(ctx, a, post.discussionId, me)));
-        if (hidden) throw new ModuleError('NOT_FOUND', 'Post not found');
+        if (hidden) throw new ModuleError('NOT_FOUND', msg('mod.forum.errors.noPost'));
         if (
           !(await mayRate(ctx, a)) ||
           !post.authorId ||
           post.authorId === me ||
           !inRatingWindow(post.createdAt, a.settings)
         )
-          throw new ModuleError('FORBIDDEN', 'You cannot rate this post');
+          throw new ModuleError('FORBIDDEN', msg('mod.forum.errors.cannotRate'));
         if (input.value !== null) {
           const scale = await scaleItems(ctx.db, a, a.settings.ratingScaleId);
           const [lo, hi] = scale ? [1, scale.length] : [0, a.settings.ratingMax];
           if (input.value < lo || input.value > hi)
-            throw new Error(`A rating is from ${lo} to ${hi}`);
+            throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.ratingRange', { lo, hi }));
           await ctx.db.forumRating.upsert({
             where: { postId_raterId: { postId: post.id, raterId: me } },
             create: { postId: post.id, raterId: me, value: input.value },
@@ -981,18 +988,21 @@ export const forum = defineModule<ForumSettingsT>({
       async handler(ctx, ref, input) {
         const a = ref as Forum;
         if (!a.settings.wholeForumGrading)
-          throw new ModuleError('CONFLICT', 'The forum is not graded as a whole');
+          throw new ModuleError('CONFLICT', msg('mod.forum.errors.notWholeForum'));
         const enrolled = await ctx.db.enrolment.findFirst({
           where: { courseId: a.courseId, userId: input.userId },
         });
-        if (!enrolled) throw new ModuleError('NOT_FOUND', 'User is not enrolled');
+        if (!enrolled) throw new ModuleError('NOT_FOUND', msg('errors.common.notEnrolled'));
         if (input.grade !== null) {
           const scale = await scaleItems(ctx.db, a, a.settings.gradeScaleId);
           if (scale) {
             if (!Number.isInteger(input.grade) || input.grade < 1 || input.grade > scale.length)
-              throw new Error('Choose a grade of the scale');
+              throw new ModuleError('BAD_REQUEST', msg('errors.grades.chooseGradeScale'));
           } else if (input.grade < 0 || input.grade > a.settings.gradeMax)
-            throw new Error(`Grade must be between 0 and ${a.settings.gradeMax}`);
+            throw new ModuleError(
+              'BAD_REQUEST',
+              msg('mod.forum.errors.gradeRange', { max: a.settings.gradeMax }),
+            );
         }
         const data = {
           grade: input.grade,
@@ -1036,21 +1046,23 @@ export const forum = defineModule<ForumSettingsT>({
         const me = uid(ctx);
         const moderator = await isModerator(ctx, a);
         if (a.settings.type === 'qanda' && !moderator) {
-          throw new Error('Only teachers can start questions in a Q&A forum');
+          throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.qandaTeachersOnly'));
         }
         const html = sanitizeRichText(input.message);
-        if (isEmptyRichText(html)) throw new Error('The message is empty');
+        if (isEmptyRichText(html))
+          throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.messageEmpty'));
         let groupId = input.groupId ?? null;
         if (a.groupMode !== 'NONE' && !moderator) {
           const mine = await userGroupIds(ctx.db, a, me);
-          if (groupId && !mine.includes(groupId)) throw new Error('Not a member of this group');
+          if (groupId && !mine.includes(groupId))
+            throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.notMember'));
           if (!groupId && mine.length) groupId = mine[0]!;
         }
         if (groupId) {
           const g = await ctx.db.group.findFirst({
             where: { id: groupId, ...groupsWhere(a) },
           });
-          if (!g) throw new Error('Unknown group');
+          if (!g) throw new ModuleError('BAD_REQUEST', msg('errors.common.unknownGroup'));
         }
         const d = await ctx.db.forumDiscussion.create({
           data: {
@@ -1088,19 +1100,23 @@ export const forum = defineModule<ForumSettingsT>({
         const a = ref as Forum;
         const me = uid(ctx);
         const parent = await ctx.db.forumPost.findUnique({ where: { id: input.postId } });
-        if (!parent || parent.deletedAt) throw new Error('Post not found');
+        if (!parent || parent.deletedAt)
+          throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.noPost'));
         const d = await loadDiscussion(ctx, a, parent.discussionId);
         const moderator = await isModerator(ctx, a);
-        if (d.locked && !moderator) throw new Error('The discussion is locked');
-        if (!postVisible(parent, me, moderator)) throw new Error('Post not found');
+        if (d.locked && !moderator)
+          throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.locked'));
+        if (!postVisible(parent, me, moderator))
+          throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.noPost'));
         if (a.groupMode !== 'NONE' && d.groupId && !moderator) {
           const mine = await userGroupIds(ctx.db, a, me);
-          if (!mine.includes(d.groupId)) throw new Error('Not a member of this group');
+          if (!mine.includes(d.groupId))
+            throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.notMember'));
         }
         let privateTo: string | null = null;
         if (input.private) {
           if (!a.settings.allowPrivateReplies || !moderator) {
-            throw new Error('Private replies are not allowed');
+            throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.noPrivateReplies'));
           }
           privateTo = parent.authorId;
         } else if (parent.privateToUserId) {
@@ -1108,7 +1124,8 @@ export const forum = defineModule<ForumSettingsT>({
           privateTo = parent.authorId === me ? parent.privateToUserId : parent.authorId;
         }
         const html = sanitizeRichText(input.message);
-        if (isEmptyRichText(html)) throw new Error('The message is empty');
+        if (isEmptyRichText(html))
+          throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.messageEmpty'));
         const post = await ctx.db.forumPost.create({
           data: {
             discussionId: d.id,
@@ -1135,16 +1152,18 @@ export const forum = defineModule<ForumSettingsT>({
         const a = ref as Forum;
         const me = uid(ctx);
         const post = await ctx.db.forumPost.findUnique({ where: { id: input.postId } });
-        if (!post || post.deletedAt) throw new Error('Post not found');
+        if (!post || post.deletedAt)
+          throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.noPost'));
         await loadDiscussion(ctx, a, post.discussionId);
         const moderator = await isModerator(ctx, a);
         const withinWindow =
           ctx.now.getTime() - post.createdAt.getTime() <= a.settings.editMinutes * 60_000;
         if (!moderator && (post.authorId !== me || !withinWindow)) {
-          throw new Error('You can no longer edit this post');
+          throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.editTimeOver'));
         }
         const html = sanitizeRichText(input.message);
-        if (isEmptyRichText(html)) throw new Error('The message is empty');
+        if (isEmptyRichText(html))
+          throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.messageEmpty'));
         await ctx.db.forumPost.update({
           where: { id: post.id },
           data: { contentHtml: html, editedAt: ctx.now },
@@ -1162,13 +1181,14 @@ export const forum = defineModule<ForumSettingsT>({
           where: { id: input.postId },
           include: { _count: { select: { replies: { where: { deletedAt: null } } } } },
         });
-        if (!post || post.deletedAt) throw new Error('Post not found');
+        if (!post || post.deletedAt)
+          throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.noPost'));
         const d = await loadDiscussion(ctx, a, post.discussionId);
         const moderator = await isModerator(ctx, a);
         const withinWindow =
           ctx.now.getTime() - post.createdAt.getTime() <= a.settings.editMinutes * 60_000;
         if (!moderator && (post.authorId !== me || !withinWindow || post._count.replies > 0)) {
-          throw new Error('You cannot delete this post');
+          throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.cannotDelete'));
         }
         if (!post.parentId) {
           // the discussion's posts go with their ratings: their authors' grades change
@@ -1224,7 +1244,7 @@ export const forum = defineModule<ForumSettingsT>({
         const a = ref as Forum;
         const me = uid(ctx);
         if (a.settings.subscription === 'disabled' || a.settings.subscription === 'forced') {
-          throw new Error('Subscriptions cannot be changed in this forum');
+          throw new ModuleError('BAD_REQUEST', msg('mod.forum.errors.subscriptionFixed'));
         }
         const discussionId = input.discussionId ?? null;
         if (discussionId) await loadDiscussion(ctx, a, discussionId);

@@ -95,6 +95,15 @@
       "rateLabel": "Votre évaluation de l'article de {name}",
       "saved": "Évaluation enregistrée",
       "raters": "Qui a évalué"
+    },
+    "errors": {
+      "noEntry": "Article introuvable",
+      "conceptExists": "Ce concept figure déjà dans le glossaire",
+      "cannotChange": "Vous ne pouvez pas modifier cet article",
+      "cannotDelete": "Vous ne pouvez pas supprimer cet article",
+      "ratingsOff": "Les évaluations sont désactivées dans ce glossaire",
+      "cannotRate": "Vous ne pouvez pas évaluer cet article",
+      "ratingRange": "Une évaluation va de {lo} à {hi}"
     }
   }
 }

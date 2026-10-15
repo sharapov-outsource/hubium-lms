@@ -187,6 +187,28 @@
       "selfAssessment": "Learners may assess their own work",
       "completionSubmitted": "Hand in work",
       "completionAssessed": "Assess all allocated work"
+    },
+    "errors": {
+      "formEmpty": "The form needs an aspect or a criterion",
+      "describeAspect": "Describe aspect {n}",
+      "maxPoints": "Give the most points of criterion {n}",
+      "twoLevels": "Criterion {n} needs two levels or more",
+      "noSubmission": "Submission not found",
+      "noAssessment": "Assessment not found",
+      "formFirst": "Write the assessment form first",
+      "formInUse": "Submissions are assessed with this form already",
+      "noSelfAssessment": "Self-assessment is off in this workshop",
+      "notAnAssessor": "This user does not assess here",
+      "assessmentUsed": "An assessment that grades are worked out from cannot be taken back",
+      "evaluationPhaseOnly": "Grades are calculated in the grading evaluation phase",
+      "submissionsClosed": "Submissions are not open",
+      "writeText": "Write the text of your work",
+      "noFiles": "This workshop takes no files",
+      "tooManyFiles": "At most {n} files",
+      "attachFile": "Attach a file",
+      "othersAssessment": "This is someone else’s assessment",
+      "notAssessing": "You do not assess in this workshop",
+      "assessmentClosed": "Assessment is not open"
     }
   }
 }

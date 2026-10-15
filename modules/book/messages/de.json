@@ -33,6 +33,9 @@
     "deleted": "Kapitel gelöscht",
     "saved": "Kapitel gespeichert",
     "empty": "Das Buch hat noch keine Kapitel.",
-    "emptyEditor": "Das Buch hat noch keine Kapitel. Fügen Sie das erste hinzu."
+    "emptyEditor": "Das Buch hat noch keine Kapitel. Fügen Sie das erste hinzu.",
+    "errors": {
+      "noChapter": "Kapitel nicht gefunden"
+    }
   }
 }

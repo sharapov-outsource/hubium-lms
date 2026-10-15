@@ -141,6 +141,29 @@
       "rateLabel": "La tua valutazione della voce di {name}",
       "saved": "Valutazione salvata",
       "raters": "Chi ha valutato"
+    },
+    "errors": {
+      "giveChoices": "Indica le scelte, una per riga",
+      "noEntry": "Voce non trovata",
+      "notOpenYet": "Il database non è ancora aperto",
+      "closed": "Il database è chiuso",
+      "fieldNameTaken": "Esiste già un campo con questo nome",
+      "noField": "Campo non trovato",
+      "noFields": "Il database non ha ancora campi",
+      "cannotChange": "Non puoi modificare questa voce",
+      "entryLimit": "Hai aggiunto tutte le voci consentite",
+      "cannotDelete": "Non puoi eliminare questa voce",
+      "ratingsOff": "Le valutazioni sono disattivate in questo database",
+      "cannotRate": "Non puoi valutare questa voce",
+      "ratingRange": "Una valutazione va da {lo} a {hi}",
+      "fileEmpty": "Il file è vuoto",
+      "noMatchingColumns": "Nessuna colonna ha il nome di un campo del database",
+      "value": {
+        "required": "{name}: obbligatorio",
+        "invalid": "{name}: non valido",
+        "tooLong": "{name}: troppo lungo",
+        "picture": "{name}: serve un’immagine"
+      }
     }
   }
 }

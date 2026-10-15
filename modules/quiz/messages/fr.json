@@ -240,6 +240,36 @@
       "wrongGroup": "Cette réponse ne va pas dans le trou {n}",
       "useLists": "Répondre avec des listes",
       "useDrag": "Répondre en glissant"
+    },
+    "errors": {
+      "networkOnly": "Ce test ne peut être passé que depuis certaines adresses réseau",
+      "noQuestions": "Le test n’a pas encore de questions",
+      "notEnoughRandom": "Pas assez de questions dans la catégorie aléatoire",
+      "questionMissing": "Question manquante",
+      "noAttempt": "Tentative introuvable",
+      "pageLeft": "Cette question se trouve sur une page que vous avez déjà quittée",
+      "closedAttempt": "Cette tentative est close",
+      "noSuchQuestion": "Cette question ne fait pas partie de la tentative",
+      "finishedUseReview": "La tentative est terminée : consultez-la dans la relecture",
+      "inProgress": "La tentative est en cours : terminez-la d’abord",
+      "questionsLocked": "Les questions ne peuvent plus changer une fois des tentatives commencées",
+      "noCategory": "Catégorie introuvable",
+      "noSlot": "Emplacement introuvable",
+      "wrongPassword": "Le mot de passe du test est incorrect",
+      "nextAttemptAt": "La prochaine tentative peut commencer le {at}",
+      "notOpenYet": "Le test n’est pas encore ouvert",
+      "closed": "Le test est fermé",
+      "noAttemptsLeft": "Plus aucune tentative",
+      "noPage": "Cette page n’existe pas",
+      "noGoingBack": "Ce test se passe page par page : impossible de revenir en arrière",
+      "gradedAtEnd": "Cette question est notée à la fin de la tentative",
+      "alreadyChecked": "Cette réponse a déjà été vérifiée",
+      "answerBeforeCheck": "Répondez à la question avant de la vérifier",
+      "nothingToRetry": "Rien à refaire",
+      "notFound": "Introuvable",
+      "otherGroup": "Cette tentative appartient à un autre groupe",
+      "notFinished": "La tentative n’est pas terminée",
+      "markTooHigh": "La note doit être au plus {max}"
     }
   }
 }

@@ -39,6 +39,13 @@
     "notify": {
       "starting": "Session en direct sur le point de commencer",
       "startingTitle": "« {name} » commence dans 15 minutes"
+    },
+    "errors": {
+      "bbbError": "BigBlueButton : {value}",
+      "bbbNotConfigured": "BigBlueButton n’est pas configuré (BBB_URL, BBB_SECRET)",
+      "notOpenYet": "La session n’est pas encore ouverte",
+      "over": "La session est terminée",
+      "waitingForTeacher": "En attente du démarrage de la session par l’enseignant"
     }
   }
 }

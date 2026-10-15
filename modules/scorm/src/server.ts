@@ -12,6 +12,8 @@ import {
   defineAction,
   defineModule,
   type ModuleCtx,
+  ModuleError,
+  msg,
   parseSettings,
 } from '@hubium/module-sdk';
 import { bool, optionalNumber } from '@hubium/module-sdk/fields';
@@ -92,7 +94,7 @@ function runtimeDir(): string {
     }
     dir = path.dirname(dir);
   }
-  throw new Error('scorm-again runtime not found; set SCORM_AGAIN_DIR');
+  throw new ModuleError('BAD_REQUEST', msg('mod.scorm.errors.noRuntime'));
 }
 
 async function runtimeScript(name: 'scorm12.min.js' | 'scorm2004.min.js'): Promise<string> {
@@ -111,7 +113,7 @@ async function runtimeScript(name: 'scorm12.min.js' | 'scorm2004.min.js'): Promi
 
 export async function extractPackage(ctx: ModuleCtx, packageId: string): Promise<Manifest> {
   const pkg = await ctx.db.scormPackage.findUniqueOrThrow({ where: { id: packageId } });
-  if (!pkg.fileId) throw new Error('No package file');
+  if (!pkg.fileId) throw new ModuleError('BAD_REQUEST', msg('mod.scorm.errors.noPackage'));
   const work = await mkdtemp(path.join(tmpdir(), 'hubium-scorm-'));
   const written: string[] = [];
   try {
@@ -136,7 +138,7 @@ export async function extractPackage(ctx: ModuleCtx, packageId: string): Promise
           await stored(ctx.storage.put(key(packageId, p), stream, contentTypeFor(p)));
         }
       }));
-      if (!manifestXml) throw new Error('imsmanifest.xml is missing: this is not a SCORM package');
+      if (!manifestXml) throw new ModuleError('BAD_REQUEST', msg('mod.scorm.errors.notScorm'));
       manifest = parseManifest(manifestXml);
     } catch (e) {
       throw e instanceof StorageFailure ? e.cause : permanent(e);
@@ -549,7 +551,8 @@ export const scorm = defineModule<ScormSettingsT>({
       input: z.object({ uploadId: z.string().uuid() }),
       async handler(ctx, a, input) {
         const access = await ctx.activities.get(a.id);
-        if (!access?.canManage) throw new Error('Only course editors can upload packages');
+        if (!access?.canManage)
+          throw new ModuleError('BAD_REQUEST', msg('mod.scorm.errors.editorsOnly'));
         const file = await ctx.files.storeUpload(a.id, 'package', input.uploadId, {
           maxBytes: SCORM_MAX_BYTES,
           allowedTypes: /^(application\/(zip|x-zip-compressed|octet-stream))$/,
@@ -574,13 +577,15 @@ export const scorm = defineModule<ScormSettingsT>({
       input: z.object({}),
       async handler(ctx, ref) {
         const a = ref as Scorm;
-        if (ctx.actor.kind !== 'user') throw new Error('Sign in required');
+        if (ctx.actor.kind !== 'user')
+          throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
         const userId = ctx.actor.userId;
         const last = await currentAttempt(ctx.db, a.id, userId, false);
         if (!last) return { attempt: (await currentAttempt(ctx.db, a.id, userId))!.attemptNumber };
-        if (!last.finishedAt) throw new Error('Finish the current attempt first');
+        if (!last.finishedAt)
+          throw new ModuleError('BAD_REQUEST', msg('mod.scorm.errors.finishFirst'));
         if (a.settings.maxAttempts && last.attemptNumber >= a.settings.maxAttempts) {
-          throw new Error('No attempts left');
+          throw new ModuleError('BAD_REQUEST', msg('mod.scorm.errors.noAttemptsLeft'));
         }
         const n = await ctx.db.scormAttempt.create({
           data: { activityId: a.id, userId, attemptNumber: last.attemptNumber + 1 },

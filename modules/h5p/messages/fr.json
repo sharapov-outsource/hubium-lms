@@ -63,6 +63,18 @@
       "confirmLabel": "Confirmer",
       "contentChanged": "Ce contenu a changé depuis votre dernière utilisation.",
       "startingOver": "Vous allez recommencer depuis le début."
+    },
+    "errors": {
+      "badH5pJson": "h5p.json est illisible : ce n’est pas un paquet H5P",
+      "noMainLibrary": "h5p.json n’indique aucune bibliothèque principale",
+      "noContentJson": "content/content.json manque",
+      "missingLibrary": "Le paquet ne contient pas la bibliothèque {dir} : exportez le contenu avec ses bibliothèques",
+      "badLibraryJson": "{dir}/library.json est illisible",
+      "mainNotInDependencies": "La bibliothèque principale {mainLibrary} ne fait pas partie des dépendances du paquet",
+      "noPlayer": "h5p-standalone introuvable : définissez H5P_STANDALONE_DIR",
+      "noPackage": "Aucun fichier de paquet",
+      "notH5p": "h5p.json manque : ce n’est pas un paquet H5P",
+      "editorsOnly": "Seuls les éditeurs du cours peuvent téléverser des paquets"
     }
   }
 }

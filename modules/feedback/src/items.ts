@@ -1,4 +1,5 @@
-// Item types and answer checks of mod-feedback, shared by its server code and its forms.
+// Item types of mod-feedback, shared by its server code and its forms (answers.ts checks
+// answers on the server).
 
 export const ITEM_TYPES = ['info', 'text', 'textarea', 'choice', 'number', 'pagebreak'] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
@@ -34,50 +35,4 @@ export function itemPages(items: Item[]): Item[][] {
     else pages.at(-1)!.push(i);
   }
   return pages.filter((p) => p.length);
-}
-
-/**
- * Checks submitted answers against the items: required ones given, choices among the
- * options, numbers in range. Unknown items and empty answers are left out.
- */
-export function checkAnswers(items: Item[], raw: Record<string, unknown>): Record<string, Answer> {
-  const out: Record<string, Answer> = {};
-  for (const i of items) {
-    if (!ANSWERED.includes(i.type)) continue;
-    const v = raw[i.id];
-    const missing = () => {
-      if (i.required) throw new Error(`"${i.label}": an answer is required`);
-    };
-    if (i.type === 'choice') {
-      const picked = (Array.isArray(v) ? v : v === undefined || v === null || v === '' ? [] : [v])
-        .map(String)
-        .filter(Boolean);
-      if (!picked.length) {
-        missing();
-        continue;
-      }
-      if (!i.multiple && picked.length > 1) throw new Error(`"${i.label}": choose one option`);
-      if (picked.some((p) => !i.choices.includes(p)))
-        throw new Error(`"${i.label}": no such option`);
-      out[i.id] = i.multiple ? [...new Set(picked)] : picked[0]!;
-    } else if (i.type === 'number') {
-      if (v === undefined || v === null || v === '') {
-        missing();
-        continue;
-      }
-      const n = Number(v);
-      if (!Number.isFinite(n)) throw new Error(`"${i.label}": a number is expected`);
-      if ((i.min !== null && n < i.min) || (i.max !== null && n > i.max))
-        throw new Error(`"${i.label}": the number is out of range`);
-      out[i.id] = n;
-    } else {
-      const text = typeof v === 'string' ? v.trim() : '';
-      if (!text) {
-        missing();
-        continue;
-      }
-      out[i.id] = text.slice(0, i.type === 'text' ? 1000 : 20_000);
-    }
-  }
-  return out;
 }

@@ -47,6 +47,19 @@
     "restored": "Version wiederhergestellt",
     "restore": "Wiederherstellen",
     "deleteConfirm": "Die Seite „{title}“ samt Verlauf löschen?",
-    "deleted": "Seite gelöscht"
+    "deleted": "Seite gelöscht",
+    "errors": {
+      "noPage": "Seite nicht gefunden",
+      "noVersion": "Version nicht gefunden",
+      "notWrittenYet": "Die Seite ist noch nicht geschrieben",
+      "cannotChange": "Sie können diese Seite nicht ändern",
+      "pageEmpty": "Die Seite ist leer",
+      "baseVersionNeeded": "baseVersion wird benötigt, um eine Seite zu ändern",
+      "lockedByOther": "Jemand anders bearbeitet diese Seite gerade",
+      "changedMeanwhile": "Die Seite wurde geändert, während Sie sie bearbeitet haben",
+      "titleRequired": "Eine Seite braucht einen Titel",
+      "cannotWrite": "Sie können in diesem Wiki nicht schreiben",
+      "titleTaken": "Eine Seite mit diesem Titel existiert bereits"
+    }
   }
 }

@@ -247,6 +247,37 @@
       "scoreOf": "Score (out of {max})",
       "remark": "Comment",
       "incomplete": "Give every criterion of the marking guide a score from 0 to its maximum."
+    },
+    "errors": {
+      "otherMarker": "This student is allocated to another marker",
+      "moveStage": "You cannot move grades to this stage",
+      "cannotAllocate": "You cannot allocate markers",
+      "notAMarker": "The marker does not grade this assignment",
+      "blindLocked": "Blind marking cannot be changed once students have submitted",
+      "notOpenYet": "Submissions are not open yet",
+      "closed": "Submissions are closed",
+      "alreadySubmitted": "Already submitted",
+      "wordLimit": "Word limit is {n}",
+      "acceptStatement": "Accept the statement that this is your own work",
+      "tooManyFiles": "At most {n} files",
+      "empty": "The submission is empty",
+      "nothingWithdraw": "Nothing to withdraw",
+      "alreadyGraded": "Already graded",
+      "fillRubric": "Fill in the rubric",
+      "fillMarkingGuide": "Fill in the marking guide",
+      "gradeRange": "Grade must be between 0 and {max}",
+      "noAttempt": "There is no such attempt",
+      "noWorkflow": "The assignment has no marking workflow",
+      "noAllocation": "The assignment does not allocate markers",
+      "notBlind": "The assignment is not marked blind",
+      "invalidForm": "Invalid form",
+      "duplicateIds": "Criteria and levels need different ids",
+      "formInUse": "Students have been graded with this form: criteria and levels cannot be added or removed",
+      "noSubmission": "No submission",
+      "cutOffBeforeDue": "Cut-off must not be before the due date",
+      "noGroup": "No such group",
+      "noOverride": "No such override",
+      "noGroupOverride": "No such group override"
     }
   }
 }

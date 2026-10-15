@@ -1,3 +1,5 @@
+import { ModuleError, msg } from '@hubium/module-sdk';
+
 // H5P packages without the database: what a package's h5p.json says and whether the
 // package carries the libraries it needs, and the result an xAPI statement reports.
 // Pure, so the server and the tests share them.
@@ -43,11 +45,12 @@ export function checkPackage(
   try {
     meta = JSON.parse(h5pJson) as Record<string, unknown>;
   } catch {
-    throw new Error('h5p.json cannot be read: this is not an H5P package');
+    throw new ModuleError('BAD_REQUEST', msg('mod.h5p.errors.badH5pJson'));
   }
   const mainLibrary = typeof meta.mainLibrary === 'string' ? meta.mainLibrary : '';
-  if (!mainLibrary) throw new Error('h5p.json names no main library');
-  if (!files.includes('content/content.json')) throw new Error('content/content.json is missing');
+  if (!mainLibrary) throw new ModuleError('BAD_REQUEST', msg('mod.h5p.errors.noMainLibrary'));
+  if (!files.includes('content/content.json'))
+    throw new ModuleError('BAD_REQUEST', msg('mod.h5p.errors.noContentJson'));
   const need = new Set<string>();
   const queue = Array.isArray(meta.preloadedDependencies) ? [...meta.preloadedDependencies] : [];
   while (queue.length) {
@@ -58,18 +61,19 @@ export function checkPackage(
     need.add(dir);
     const lib = libraryJson(dir);
     if (lib === null)
-      throw new Error(
-        `The package does not include the library ${dir}: export the content with its libraries`,
-      );
+      throw new ModuleError('BAD_REQUEST', msg('mod.h5p.errors.missingLibrary', { dir }));
     try {
       const l = JSON.parse(lib) as { preloadedDependencies?: unknown[] };
       queue.push(...(l.preloadedDependencies ?? []));
     } catch {
-      throw new Error(`${dir}/library.json cannot be read`);
+      throw new ModuleError('BAD_REQUEST', msg('mod.h5p.errors.badLibraryJson', { dir }));
     }
   }
   if (![...need].some((d) => d.startsWith(`${mainLibrary}-`)))
-    throw new Error(`The main library ${mainLibrary} is not among the package's dependencies`);
+    throw new ModuleError(
+      'BAD_REQUEST',
+      msg('mod.h5p.errors.mainNotInDependencies', { mainLibrary }),
+    );
   return {
     title: typeof meta.title === 'string' ? meta.title.slice(0, 255) : '',
     mainLibrary,

@@ -13,6 +13,8 @@ import type { LiveQuestion, LiveState, PublicQuestion } from '../public.ts';
 import { bodyShowsText, questionBodies } from './qtypes.tsx';
 
 const TIME_WARNINGS = [10, 5, 1];
+/** Why an action on a closed attempt is refused: the attempt then opens in its review. */
+const CLOSED = 'mod.quiz.errors.closedAttempt';
 
 type Answers = Record<string, unknown>;
 
@@ -211,7 +213,7 @@ export function AttemptPlayer({
       if (!r.ok || r.data?.closed) {
         if (r.ok) toast.warning(t('timeUp'));
         else toast.error(r.message ?? 'Error');
-        if (r.ok || /closed/i.test(r.message ?? '')) router.push(reviewUrl);
+        if (r.ok || r.reason === CLOSED) router.push(reviewUrl);
         return false;
       }
       // Answers changed while the request was in flight stay unsaved.
@@ -275,7 +277,7 @@ export function AttemptPlayer({
     if (!r.ok || r.data?.closed || !r.data?.question) {
       if (r.ok) toast.warning(t('timeUp'));
       else toast.error(r.message ?? 'Error');
-      if (r.ok || /closed/i.test(r.message ?? '')) router.push(reviewUrl);
+      if (r.ok || r.reason === CLOSED) router.push(reviewUrl);
       return;
     }
     const q = r.data.question;
@@ -312,7 +314,7 @@ export function AttemptPlayer({
     if (!r.ok || r.data?.closed) {
       if (r.ok) toast.warning(t('timeUp'));
       else toast.error(r.message ?? 'Error');
-      if (r.ok || /closed/i.test(r.message ?? '')) router.push(reviewUrl);
+      if (r.ok || r.reason === CLOSED) router.push(reviewUrl);
       return;
     }
     setDirty(new Set());

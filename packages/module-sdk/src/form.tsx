@@ -170,7 +170,10 @@ export interface ModuleActionResult<T = unknown> {
   data?: T;
   /** On failure: VALIDATION, FORBIDDEN, NOT_FOUND, CONFLICT, … */
   code?: string;
+  /** On failure, in the language of the page. */
   message?: string;
+  /** On failure, what the message says for code to tell: its key in the language packs. */
+  reason?: string;
   fieldErrors?: Record<string, string[]>;
 }
 

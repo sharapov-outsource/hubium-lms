@@ -20,6 +20,11 @@
     "toolDisabled": "Lo strumento è stato disabilitato da un amministratore.",
     "openNewWindow": "Apri in una nuova finestra",
     "selectContent": "Seleziona contenuto",
-    "launch": "Apri lo strumento"
+    "launch": "Apri lo strumento",
+    "errors": {
+      "noAppSecret": "APP_SECRET non è impostato",
+      "noToolKey": "Lo strumento non ha una chiave pubblica né un URL JWKS",
+      "giveToolKey": "Indica un URL JWKS o una chiave pubblica"
+    }
   }
 }

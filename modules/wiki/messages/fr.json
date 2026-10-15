@@ -47,6 +47,19 @@
     "restored": "Version restaurée",
     "restore": "Restaurer",
     "deleteConfirm": "Supprimer la page « {title} » et son historique ?",
-    "deleted": "Page supprimée"
+    "deleted": "Page supprimée",
+    "errors": {
+      "noPage": "Page introuvable",
+      "noVersion": "Version introuvable",
+      "notWrittenYet": "La page n’est pas encore écrite",
+      "cannotChange": "Vous ne pouvez pas modifier cette page",
+      "pageEmpty": "La page est vide",
+      "baseVersionNeeded": "baseVersion est nécessaire pour modifier une page",
+      "lockedByOther": "Quelqu’un d’autre modifie cette page",
+      "changedMeanwhile": "La page a été modifiée pendant que vous la modifiiez",
+      "titleRequired": "Une page a besoin d’un titre",
+      "cannotWrite": "Vous ne pouvez pas écrire dans ce wiki",
+      "titleTaken": "Une page de ce titre existe déjà"
+    }
   }
 }

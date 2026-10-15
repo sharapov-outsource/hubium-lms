@@ -43,6 +43,14 @@
     "student": "Studente",
     "progress": "Visto",
     "lastWatched": "Ultima visualizzazione",
-    "noStudents": "Nessuno studente"
+    "noStudents": "Nessuno studente",
+    "errors": {
+      "editorsOnly": "Solo gli editor del corso possono gestire il video",
+      "toolFailed": "{cmd} è terminato con codice {code}: {value}",
+      "noVideoStream": "Nessun flusso video",
+      "nothingToTranscode": "Niente da transcodificare",
+      "sourceDeleted": "Il file sorgente è stato eliminato: caricalo di nuovo",
+      "captionsTooLarge": "Il file dei sottotitoli è troppo grande"
+    }
   }
 }

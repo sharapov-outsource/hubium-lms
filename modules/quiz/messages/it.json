@@ -240,6 +240,36 @@
       "wrongGroup": "Questa risposta non va nello spazio {n}",
       "useLists": "Rispondere con elenchi",
       "useDrag": "Rispondere trascinando"
+    },
+    "errors": {
+      "networkOnly": "Questo quiz si può svolgere solo da determinati indirizzi di rete",
+      "noQuestions": "Il quiz non ha ancora domande",
+      "notEnoughRandom": "Non ci sono abbastanza domande nella categoria casuale",
+      "questionMissing": "Domanda mancante",
+      "noAttempt": "Tentativo non trovato",
+      "pageLeft": "Questa domanda è su una pagina che hai già lasciato",
+      "closedAttempt": "Questo tentativo è chiuso",
+      "noSuchQuestion": "Questa domanda non è nel tentativo",
+      "finishedUseReview": "Il tentativo è terminato: consultalo nella revisione",
+      "inProgress": "Il tentativo è in corso: terminalo prima",
+      "questionsLocked": "Le domande non possono cambiare dopo che esistono tentativi",
+      "noCategory": "Categoria non trovata",
+      "noSlot": "Posizione non trovata",
+      "wrongPassword": "La password del quiz è errata",
+      "nextAttemptAt": "Il prossimo tentativo può iniziare il {at}",
+      "notOpenYet": "Il quiz non è ancora aperto",
+      "closed": "Il quiz è chiuso",
+      "noAttemptsLeft": "Nessun tentativo rimasto",
+      "noPage": "Questa pagina non esiste",
+      "noGoingBack": "Questo quiz procede pagina per pagina: non puoi tornare indietro",
+      "gradedAtEnd": "Questa domanda viene valutata al termine del tentativo",
+      "alreadyChecked": "Questa risposta è già stata verificata",
+      "answerBeforeCheck": "Rispondi alla domanda prima di verificarla",
+      "nothingToRetry": "Niente da riprovare",
+      "notFound": "Non trovato",
+      "otherGroup": "Questo tentativo è di un altro gruppo",
+      "notFinished": "Il tentativo non è terminato",
+      "markTooHigh": "Il punteggio deve essere al massimo {max}"
     }
   }
 }

@@ -141,6 +141,24 @@
     "gradeItem": {
       "rating": "Bewertungen",
       "whole": "Gesamtes Forum"
+    },
+    "errors": {
+      "noDiscussion": "Diskussion nicht gefunden",
+      "tooManyAttachments": "Höchstens {n} Anhänge",
+      "ratingsOff": "Bewertungen sind in diesem Forum deaktiviert",
+      "noPost": "Beitrag nicht gefunden",
+      "cannotRate": "Sie können diesen Beitrag nicht bewerten",
+      "ratingRange": "Eine Bewertung liegt zwischen {lo} und {hi}",
+      "notWholeForum": "Das Forum wird nicht als Ganzes bewertet",
+      "gradeRange": "Die Bewertung muss zwischen 0 und {max} liegen",
+      "qandaTeachersOnly": "Nur Lehrende können in einem Frage-Antwort-Forum Fragen stellen",
+      "messageEmpty": "Die Nachricht ist leer",
+      "notMember": "Sie sind nicht Mitglied dieser Gruppe",
+      "locked": "Die Diskussion ist gesperrt",
+      "noPrivateReplies": "Private Antworten sind nicht erlaubt",
+      "editTimeOver": "Sie können diesen Beitrag nicht mehr bearbeiten",
+      "cannotDelete": "Sie können diesen Beitrag nicht löschen",
+      "subscriptionFixed": "Abonnements können in diesem Forum nicht geändert werden"
     }
   }
 }

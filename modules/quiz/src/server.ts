@@ -8,6 +8,7 @@ import {
   defineQuery,
   type ModuleCtx,
   ModuleError,
+  msg,
 } from '@hubium/module-sdk';
 import { bool, isoDate, optionalNumber } from '@hubium/module-sdk/fields';
 import { visibleGroupFilter } from '@hubium/module-sdk/groups';
@@ -127,7 +128,7 @@ export const GRACE_MS = 60_000;
 type Db = Prisma.TransactionClient;
 
 function uid(ctx: ModuleCtx): string {
-  if (ctx.actor.kind !== 'user') throw new Error('Sign in required');
+  if (ctx.actor.kind !== 'user') throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
   return ctx.actor.userId;
 }
 
@@ -236,10 +237,7 @@ export function accessRules(
 /** Attempts may only be taken (and continued) from the quiz's network addresses. */
 function requireNetwork(ctx: ModuleCtx, a: ActivityRef<QuizSettingsT>) {
   if (!networkAllowed(a.settings, ctx.ip))
-    throw new ModuleError(
-      'FORBIDDEN',
-      'This quiz can only be taken from certain network addresses',
-    );
+    throw new ModuleError('FORBIDDEN', msg('mod.quiz.errors.networkOnly'));
 }
 
 /**
@@ -465,7 +463,7 @@ export async function startAttempt(
   preview: boolean,
 ) {
   const slots = await slotsWithQuestions(ctx.db, a.id);
-  if (!slots.length) throw new Error('This quiz has no questions yet');
+  if (!slots.length) throw new ModuleError('BAD_REQUEST', msg('mod.quiz.errors.noQuestions'));
   const e = await effectiveQuiz(ctx.db, a, userId);
   const last = await ctx.db.quizAttempt.findFirst({
     where: { activityId: a.id, userId, preview },
@@ -512,11 +510,12 @@ export async function startAttempt(
           id: { notIn: [...used] },
         },
       });
-      if (!pool.length) throw new Error('Not enough questions in the random category');
+      if (!pool.length)
+        throw new ModuleError('BAD_REQUEST', msg('mod.quiz.errors.notEnoughRandom'));
       q = shuffle(pool, subSeed(seed, i))[0]!;
       used.add(q.id);
     }
-    if (!q) throw new Error('Question missing');
+    if (!q) throw new ModuleError('BAD_REQUEST', msg('mod.quiz.errors.questionMissing'));
     let base = snapshotOf(q);
     if (base.data && 'datasets' in base.data) {
       const d = base.data as Parameters<typeof datasetsFor>[0];
@@ -546,7 +545,8 @@ export async function startAttempt(
 
 async function ownAttempt(ctx: ModuleCtx, a: ActivityRef, attemptId: string) {
   const at = await ctx.db.quizAttempt.findUnique({ where: { id: attemptId } });
-  if (!at || at.activityId !== a.id || at.userId !== uid(ctx)) throw new Error('Attempt not found');
+  if (!at || at.activityId !== a.id || at.userId !== uid(ctx))
+    throw new ModuleError('BAD_REQUEST', msg('mod.quiz.errors.noAttempt'));
   return at;
 }
 
@@ -574,7 +574,7 @@ async function saveResponses(
     let changed: unknown;
     if (key in answers) {
       if (onlyPage !== undefined && qa.page !== onlyPage)
-        throw new ModuleError('CONFLICT', 'That question is on a page you have already left');
+        throw new ModuleError('CONFLICT', msg('mod.quiz.errors.pageLeft'));
       const snap = qa.snapshot as unknown as QuestionSnapshot;
       const resp = cleanResponse(snap.type, answers[key]);
       // A step only when the answer changed: autosave sends the same one again and again.
@@ -598,15 +598,16 @@ async function saveResponses(
 async function questionInPlay(ctx: ModuleCtx, a: ActivityRef, attemptId: string, slot: number) {
   const quizA = a as ActivityRef<QuizSettingsT>;
   const at = await ownAttempt(ctx, a, attemptId);
-  if (at.state !== 'IN_PROGRESS') throw new Error('This attempt is closed');
+  if (at.state !== 'IN_PROGRESS')
+    throw new ModuleError('BAD_REQUEST', msg('mod.quiz.errors.closedAttempt'));
   requireNetwork(ctx, quizA);
   const closed = !!at.dueAt && ctx.now.getTime() > at.dueAt.getTime() + GRACE_MS;
   // Returned, not thrown: an error would roll the finishing back with the transaction.
   if (closed) await finishAttempt(ctx, quizA, at.id);
   const qa = await ctx.db.questionAttempt.findFirst({ where: { attemptId: at.id, slot } });
-  if (!qa) throw new ModuleError('NOT_FOUND', 'No such question in the attempt');
+  if (!qa) throw new ModuleError('NOT_FOUND', msg('mod.quiz.errors.noSuchQuestion'));
   if (!closed && quizA.settings.navMethod === 'sequential' && qa.page !== at.currentPage)
-    throw new ModuleError('CONFLICT', 'That question is on a page you have already left');
+    throw new ModuleError('CONFLICT', msg('mod.quiz.errors.pageLeft'));
   const snap = qa.snapshot as unknown as QuestionSnapshot;
   return { quizA, at, qa, snap, behaviour: at.behaviour as Behaviour, closed };
 }
@@ -874,7 +875,7 @@ const scaled = (sum: unknown, max: number, gradeMax: number) =>
 
 /** The learner's view of the quiz: window, attempts, grade and what they may do next. */
 export async function readQuizOverview(ctx: ModuleCtx, a: Quiz) {
-  if (ctx.actor.kind !== 'user') throw new Error('Sign in required');
+  if (ctx.actor.kind !== 'user') throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
   const userId = ctx.actor.userId;
   const [e, attempts, questions, canAttempt, item] = await Promise.all([
     effectiveQuiz(ctx.db, a, userId),
@@ -1405,9 +1406,9 @@ export const quiz = defineModule<QuizSettingsT>({
       }),
       async handler(ctx, a, { attemptId }) {
         const r = await readAttempt(ctx, a as Quiz, attemptId);
-        if (!r) throw new ModuleError('NOT_FOUND', 'Attempt not found');
+        if (!r) throw new ModuleError('NOT_FOUND', msg('mod.quiz.errors.noAttempt'));
         if (r.state !== 'IN_PROGRESS')
-          throw new ModuleError('CONFLICT', 'The attempt is finished; read it with review');
+          throw new ModuleError('CONFLICT', msg('mod.quiz.errors.finishedUseReview'));
         return r;
       },
     }),
@@ -1467,9 +1468,9 @@ export const quiz = defineModule<QuizSettingsT>({
       }),
       async handler(ctx, a, { attemptId }) {
         const r = await readReview(ctx, a as Quiz, attemptId);
-        if (!r) throw new ModuleError('NOT_FOUND', 'Attempt not found');
+        if (!r) throw new ModuleError('NOT_FOUND', msg('mod.quiz.errors.noAttempt'));
         if (r === 'inProgress')
-          throw new ModuleError('CONFLICT', 'The attempt is in progress; finish it first');
+          throw new ModuleError('CONFLICT', msg('mod.quiz.errors.inProgress'));
         return r;
       },
     }),
@@ -1482,7 +1483,7 @@ export const quiz = defineModule<QuizSettingsT>({
       input: z.object({ questionIds: z.array(z.string().uuid()).min(1).max(200) }),
       async handler(ctx, a, { questionIds }) {
         if (await ctx.db.quizAttempt.count({ where: { activityId: a.id, preview: false } }))
-          throw new Error('Cannot change questions after attempts exist');
+          throw new ModuleError('BAD_REQUEST', msg('mod.quiz.errors.questionsLocked'));
         const last = await ctx.db.quizSlot.findFirst({
           where: { activityId: a.id },
           orderBy: { slot: 'desc' },
@@ -1522,11 +1523,11 @@ export const quiz = defineModule<QuizSettingsT>({
       }),
       async handler(ctx, a, input) {
         if (await ctx.db.quizAttempt.count({ where: { activityId: a.id, preview: false } }))
-          throw new Error('Cannot change questions after attempts exist');
+          throw new ModuleError('BAD_REQUEST', msg('mod.quiz.errors.questionsLocked'));
         const cat = await ctx.db.questionCategory.findFirst({
           where: { id: input.categoryId, contextId: a.courseId },
         });
-        if (!cat) throw new Error('Category not found');
+        if (!cat) throw new ModuleError('BAD_REQUEST', msg('mod.quiz.errors.noCategory'));
         const last = await ctx.db.quizSlot.findFirst({
           where: { activityId: a.id },
           orderBy: { slot: 'desc' },
@@ -1565,7 +1566,7 @@ export const quiz = defineModule<QuizSettingsT>({
           orderBy: { slot: 'asc' },
         });
         const i = slots.findIndex((s) => s.slot === input.slot);
-        if (i < 0) throw new Error('Slot not found');
+        if (i < 0) throw new ModuleError('BAD_REQUEST', msg('mod.quiz.errors.noSlot'));
         const hasAttempts =
           (await ctx.db.quizAttempt.count({ where: { activityId: a.id, preview: false } })) > 0;
         if (input.op === 'mark') {
@@ -1586,7 +1587,8 @@ export const quiz = defineModule<QuizSettingsT>({
               await ctx.db.quizSlot.update({ where: { id: s.id }, data: { page: pages[k]! } });
           return { ok: true };
         }
-        if (hasAttempts) throw new Error('Cannot change questions after attempts exist');
+        if (hasAttempts)
+          throw new ModuleError('BAD_REQUEST', msg('mod.quiz.errors.questionsLocked'));
         // Questions move between positions; each position keeps its page.
         const pageAt = slots.map((s) => s.page);
         if (input.op === 'remove') pageAt.splice(i, 1);
@@ -1650,22 +1652,26 @@ export const quiz = defineModule<QuizSettingsT>({
           preview,
         });
         if (refusal?.reason === 'password')
-          throw new ModuleError('FORBIDDEN', 'The quiz password is wrong');
+          throw new ModuleError('FORBIDDEN', msg('mod.quiz.errors.wrongPassword'));
         if (refusal?.reason === 'delay')
           throw new ModuleError(
             'CONFLICT',
-            `The next attempt can start at ${refusal.until.toISOString()}`,
+            msg('mod.quiz.errors.nextAttemptAt', { at: refusal.until.toISOString() }),
           );
         if (!preview) {
           const w = quizIsOpen(e, ctx.now);
           if (!w.ok)
-            throw new Error(
-              w.reason === 'notOpen' ? 'The quiz is not open yet' : 'The quiz is closed',
+            throw new ModuleError(
+              'BAD_REQUEST',
+              w.reason === 'notOpen'
+                ? msg('mod.quiz.errors.notOpenYet')
+                : msg('mod.quiz.errors.closed'),
             );
           const done = await ctx.db.quizAttempt.count({
             where: { activityId: a.id, userId, preview: false },
           });
-          if (e.attempts && done >= e.attempts) throw new Error('No attempts left');
+          if (e.attempts && done >= e.attempts)
+            throw new ModuleError('BAD_REQUEST', msg('mod.quiz.errors.noAttemptsLeft'));
         }
         const at = await startAttempt(ctx, quizA, userId, preview);
         await ctx.log('quiz.attempt.started', { activityId: a.id, attemptId: at.id });
@@ -1682,7 +1688,8 @@ export const quiz = defineModule<QuizSettingsT>({
       async handler(ctx, a, input) {
         const quizA = a as ActivityRef<QuizSettingsT>;
         const at = await ownAttempt(ctx, a, input.attemptId);
-        if (at.state !== 'IN_PROGRESS') throw new Error('This attempt is closed');
+        if (at.state !== 'IN_PROGRESS')
+          throw new ModuleError('BAD_REQUEST', msg('mod.quiz.errors.closedAttempt'));
         requireNetwork(ctx, quizA);
         if (at.dueAt && ctx.now.getTime() > at.dueAt.getTime() + GRACE_MS) {
           // Returned, not thrown: an error would roll the submission back with the transaction.
@@ -1705,7 +1712,8 @@ export const quiz = defineModule<QuizSettingsT>({
       async handler(ctx, a, input) {
         const quizA = a as ActivityRef<QuizSettingsT>;
         const at = await ownAttempt(ctx, a, input.attemptId);
-        if (at.state !== 'IN_PROGRESS') throw new Error('This attempt is closed');
+        if (at.state !== 'IN_PROGRESS')
+          throw new ModuleError('BAD_REQUEST', msg('mod.quiz.errors.closedAttempt'));
         requireNetwork(ctx, quizA);
         if (at.dueAt && ctx.now.getTime() > at.dueAt.getTime() + GRACE_MS) {
           await finishAttempt(ctx, quizA, at.id);
@@ -1716,14 +1724,15 @@ export const quiz = defineModule<QuizSettingsT>({
           select: { page: true },
         });
         const pages = [...new Set(rows.map((r) => r.page))].sort((x, y) => x - y);
-        if (!pages.includes(input.to)) throw new ModuleError('NOT_FOUND', 'No such page');
+        if (!pages.includes(input.to))
+          throw new ModuleError('NOT_FOUND', msg('mod.quiz.errors.noPage'));
         const next = pages.find((p) => p > at.currentPage);
         if (
           quizA.settings.navMethod === 'sequential' &&
           input.to !== at.currentPage &&
           input.to !== next
         )
-          throw new ModuleError('CONFLICT', 'This quiz goes page by page: you cannot go back');
+          throw new ModuleError('CONFLICT', msg('mod.quiz.errors.noGoingBack'));
         await saveResponses(ctx, at.id, input.answers, input.flags, currentPageOnly(quizA, at));
         await ctx.db.quizAttempt.update({ where: { id: at.id }, data: { currentPage: input.to } });
         return { currentPage: input.to, closed: false };
@@ -1746,12 +1755,12 @@ export const quiz = defineModule<QuizSettingsT>({
         );
         if (closed) return { closed: true, question: null };
         if (behaviour === 'deferred' || typeDef(snap.type).grading !== 'auto')
-          throw new ModuleError('CONFLICT', 'This question is graded when the attempt is finished');
+          throw new ModuleError('CONFLICT', msg('mod.quiz.errors.gradedAtEnd'));
         if (qa.state !== 'TODO')
-          throw new ModuleError('CONFLICT', 'This answer is checked already');
+          throw new ModuleError('CONFLICT', msg('mod.quiz.errors.alreadyChecked'));
         const resp = cleanResponse(snap.type, input.response);
         if (!resp || !isAnswered(snap.type, resp))
-          throw new Error('Answer the question before checking it');
+          throw new ModuleError('BAD_REQUEST', msg('mod.quiz.errors.answerBeforeCheck'));
         await addStep(ctx.db, qa.id, { kind: 'CHECK', response: resp });
         await settle(ctx.db, qa, behaviour);
         return { closed: false, question: await liveQuestion(ctx.db, quizA, at, qa.id) };
@@ -1769,7 +1778,8 @@ export const quiz = defineModule<QuizSettingsT>({
           input.slot,
         );
         if (closed) return { closed: true, question: null };
-        if (qa.state !== 'TRYAGAIN') throw new ModuleError('CONFLICT', 'There is nothing to retry');
+        if (qa.state !== 'TRYAGAIN')
+          throw new ModuleError('CONFLICT', msg('mod.quiz.errors.nothingToRetry'));
         const o = replay(snap, await stepsOf(ctx.db, qa.id), behaviour);
         const next = o.hint?.clearWrong ? clearWrongParts(snap, o.response) : o.response;
         await addStep(ctx.db, qa.id, { kind: 'TRYAGAIN', response: next });
@@ -1834,12 +1844,12 @@ export const quiz = defineModule<QuizSettingsT>({
           const enrolled = await ctx.db.enrolment.findFirst({
             where: { courseId: a.courseId, userId: input.userId },
           });
-          if (!enrolled) throw new Error('User is not enrolled');
+          if (!enrolled) throw new ModuleError('BAD_REQUEST', msg('errors.common.notEnrolled'));
         } else {
           const g = await ctx.db.group.findFirst({
             where: { id: input.groupId, courseId: a.courseId },
           });
-          if (!g) throw new Error('Unknown group');
+          if (!g) throw new ModuleError('BAD_REQUEST', msg('errors.common.unknownGroup'));
         }
         const data = {
           openAt: input.openAt ? new Date(input.openAt) : null,
@@ -1900,14 +1910,17 @@ export const quiz = defineModule<QuizSettingsT>({
           where: { id: input.questionAttemptId },
           include: { attempt: true },
         });
-        if (!qa || qa.attempt.activityId !== a.id) throw new Error('Not found');
+        if (!qa || qa.attempt.activityId !== a.id)
+          throw new ModuleError('BAD_REQUEST', msg('mod.quiz.errors.notFound'));
         const seen = await ctx.db.quizAttempt.count({
           where: { id: qa.attemptId, ...(await attemptsSeenBy(ctx, a)) },
         });
-        if (!seen) throw new ModuleError('FORBIDDEN', 'This attempt is of another group');
-        if (qa.attempt.state !== 'FINISHED') throw new Error('The attempt is not finished');
+        if (!seen) throw new ModuleError('FORBIDDEN', msg('mod.quiz.errors.otherGroup'));
+        if (qa.attempt.state !== 'FINISHED')
+          throw new ModuleError('BAD_REQUEST', msg('mod.quiz.errors.notFinished'));
         const max = Number(qa.maxMark);
-        if (input.mark > max) throw new Error(`Mark must be at most ${max}`);
+        if (input.mark > max)
+          throw new ModuleError('BAD_REQUEST', msg('mod.quiz.errors.markTooHigh', { max }));
         const graderId = ctx.actor.kind === 'user' ? ctx.actor.userId : null;
         await ctx.db.questionAttempt.update({
           where: { id: qa.id },

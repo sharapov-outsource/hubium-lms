@@ -7,6 +7,7 @@ import {
   timingSafeEqual,
 } from 'node:crypto';
 import type { Prisma } from '@hubium/db';
+import { ModuleError, msg } from '@hubium/module-sdk';
 import { safeFetch } from '@hubium/module-sdk/net';
 import {
   createRemoteJWKSet,
@@ -55,7 +56,7 @@ export const endpoint = (p: string) => `${appUrl()}/api/mod/lti/${p}`;
 
 function secret(): string {
   const s = process.env.APP_SECRET;
-  if (!s) throw new Error('APP_SECRET is not set');
+  if (!s) throw new ModuleError('BAD_REQUEST', msg('mod.lti.errors.noAppSecret'));
   return s;
 }
 
@@ -151,7 +152,7 @@ export async function verifyToolJwt(
   if (tool.publicKeyPem) {
     return jwtVerify(jwt, await importSPKI(tool.publicKeyPem, 'RS256'), check);
   }
-  if (!tool.jwksUrl) throw new Error('The tool has no public key or JWKS URL');
+  if (!tool.jwksUrl) throw new ModuleError('BAD_REQUEST', msg('mod.lti.errors.noToolKey'));
   let set = remoteSets.get(tool.jwksUrl);
   if (!set)
     remoteSets.set(

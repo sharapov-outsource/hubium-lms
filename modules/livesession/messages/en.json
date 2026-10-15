@@ -39,6 +39,13 @@
     "notify": {
       "starting": "Live session starting soon",
       "startingTitle": "“{name}” starts in 15 minutes"
+    },
+    "errors": {
+      "bbbError": "BigBlueButton: {value}",
+      "bbbNotConfigured": "BigBlueButton is not configured (BBB_URL, BBB_SECRET)",
+      "notOpenYet": "The session has not opened yet",
+      "over": "The session is over",
+      "waitingForTeacher": "Waiting for the teacher to start the session"
     }
   }
 }

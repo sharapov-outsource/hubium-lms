@@ -52,6 +52,15 @@
     "responses": "Answers",
     "deleteSelected": "{count, plural, =0 {Delete answers} other {Delete answers (#)}}",
     "deleteConfirm": "{count, plural, one {Delete the answer of # person?} other {Delete the answers of # people?}}",
-    "responsesDeleted": "Answers deleted"
+    "responsesDeleted": "Answers deleted",
+    "errors": {
+      "notOpenYet": "The choice is not open yet",
+      "closed": "The choice is closed",
+      "oneOnly": "Choose one option only",
+      "noOption": "No such option",
+      "answeredAlready": "You have answered already",
+      "full": "\"{text}\" is full",
+      "noChange": "Answers cannot be changed"
+    }
   }
 }

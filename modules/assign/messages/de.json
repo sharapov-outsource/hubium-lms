@@ -247,6 +247,37 @@
       "scoreOf": "Punkte (von {max})",
       "remark": "Kommentar",
       "incomplete": "Vergeben Sie für jedes Kriterium der Richtlinie 0 Punkte bis zur Höchstpunktzahl."
+    },
+    "errors": {
+      "otherMarker": "Diese Person ist einer anderen bewertenden Person zugeordnet",
+      "moveStage": "Sie können Bewertungen nicht in diesen Schritt verschieben",
+      "cannotAllocate": "Sie können keine bewertenden Personen zuordnen",
+      "notAMarker": "Diese Person bewertet die Aufgabe nicht",
+      "blindLocked": "Die anonyme Bewertung kann nicht mehr geändert werden, sobald Abgaben vorliegen",
+      "notOpenYet": "Abgaben sind noch nicht möglich",
+      "closed": "Abgaben sind geschlossen",
+      "alreadySubmitted": "Bereits abgegeben",
+      "wordLimit": "Die Wortgrenze ist {n}",
+      "acceptStatement": "Bestätigen Sie, dass dies Ihre eigene Arbeit ist",
+      "tooManyFiles": "Höchstens {n} Dateien",
+      "empty": "Die Abgabe ist leer",
+      "nothingWithdraw": "Nichts zurückzuziehen",
+      "alreadyGraded": "Bereits bewertet",
+      "fillRubric": "Füllen Sie die Bewertungsmatrix aus",
+      "fillMarkingGuide": "Füllen Sie den Bewertungsleitfaden aus",
+      "gradeRange": "Die Bewertung muss zwischen 0 und {max} liegen",
+      "noAttempt": "Diesen Versuch gibt es nicht",
+      "noWorkflow": "Die Aufgabe hat keinen Bewertungsablauf",
+      "noAllocation": "Die Aufgabe ordnet keine bewertenden Personen zu",
+      "notBlind": "Die Aufgabe wird nicht anonym bewertet",
+      "invalidForm": "Ungültiges Formular",
+      "duplicateIds": "Kriterien und Stufen brauchen unterschiedliche IDs",
+      "formInUse": "Mit diesem Formular wurde bereits bewertet: Kriterien und Stufen können nicht hinzugefügt oder entfernt werden",
+      "noSubmission": "Keine Abgabe",
+      "cutOffBeforeDue": "Der letzte Abgabetermin darf nicht vor dem Fälligkeitsdatum liegen",
+      "noGroup": "Diese Gruppe gibt es nicht",
+      "noOverride": "Diese Ausnahme gibt es nicht",
+      "noGroupOverride": "Diese Gruppenausnahme gibt es nicht"
     }
   }
 }

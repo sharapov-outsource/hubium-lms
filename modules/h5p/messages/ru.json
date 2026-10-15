@@ -63,6 +63,18 @@
       "confirmLabel": "Подтвердить",
       "contentChanged": "Содержимое изменилось с тех пор, как вы его открывали.",
       "startingOver": "Вы начнёте сначала."
+    },
+    "errors": {
+      "badH5pJson": "Не удаётся прочитать h5p.json: это не пакет H5P",
+      "noMainLibrary": "В h5p.json не указана основная библиотека",
+      "noContentJson": "Нет файла content/content.json",
+      "missingLibrary": "В пакете нет библиотеки {dir}: выгрузите содержимое вместе с библиотеками",
+      "badLibraryJson": "Не удаётся прочитать {dir}/library.json",
+      "mainNotInDependencies": "Основной библиотеки {mainLibrary} нет среди зависимостей пакета",
+      "noPlayer": "Не найден h5p-standalone: задайте H5P_STANDALONE_DIR",
+      "noPackage": "Нет файла пакета",
+      "notH5p": "Нет h5p.json: это не пакет H5P",
+      "editorsOnly": "Загружать пакеты могут только редакторы курса"
     }
   }
 }

@@ -74,6 +74,19 @@
     "notify": {
       "submitted": "Nuova risposta a un sondaggio",
       "submittedTitle": "Nuova risposta al sondaggio «{name}»"
+    },
+    "errors": {
+      "answerRequired": "\"{label}\": serve una risposta",
+      "oneOption": "\"{label}\": scegli un’opzione",
+      "noOption": "\"{label}\": questa opzione non esiste",
+      "numberExpected": "\"{label}\": è atteso un numero",
+      "numberRange": "\"{label}\": il numero è fuori intervallo",
+      "noQuestion": "Domanda non trovata",
+      "notOpenYet": "Il questionario non è ancora aperto",
+      "closed": "Il questionario è chiuso",
+      "answeredAlready": "Hai già risposto",
+      "noQuestions": "Il questionario non ha ancora domande",
+      "noResponse": "Risposta non trovata"
     }
   }
 }

@@ -39,6 +39,13 @@
     "notify": {
       "starting": "Live-Sitzung beginnt bald",
       "startingTitle": "„{name}“ beginnt in 15 Minuten"
+    },
+    "errors": {
+      "bbbError": "BigBlueButton: {value}",
+      "bbbNotConfigured": "BigBlueButton ist nicht eingerichtet (BBB_URL, BBB_SECRET)",
+      "notOpenYet": "Die Sitzung ist noch nicht geöffnet",
+      "over": "Die Sitzung ist beendet",
+      "waitingForTeacher": "Warten, bis die Lehrkraft die Sitzung startet"
     }
   }
 }

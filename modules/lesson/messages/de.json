@@ -168,6 +168,26 @@
       "attempt": "Versuch {n}",
       "done": "{percent} % in {minutes} Min.",
       "inProgress": "läuft"
+    },
+    "errors": {
+      "noPage": "Seite nicht gefunden",
+      "attemptOver": "Der Versuch ist beendet",
+      "notOpenYet": "Die Lektion ist noch nicht geöffnet",
+      "closed": "Die Lektion ist geschlossen",
+      "wrongPassword": "Das Passwort der Lektion ist falsch",
+      "noRetake": "Die Lektion kann nicht erneut bearbeitet werden",
+      "noPages": "Die Lektion hat noch keine Seiten",
+      "otherPage": "Sie sind auf einer anderen Seite",
+      "noButton": "Diese Schaltfläche gibt es nicht",
+      "noMenu": "Die Lektion hat kein Menü",
+      "notInMenu": "Diese Seite ist nicht im Menü",
+      "noQuestion": "Diese Seite stellt keine Frage",
+      "writeAnswer": "Schreiben Sie Ihre Antwort",
+      "answerTooLong": "Die Antwort ist zu lang",
+      "answerFirst": "Beantworten Sie zuerst die Frage",
+      "noEssay": "Aufsatz nicht gefunden",
+      "essayPoints": "Ein Aufsatz erhält 0 bis {max} Punkte",
+      "noAttempt": "Versuch nicht gefunden"
     }
   }
 }

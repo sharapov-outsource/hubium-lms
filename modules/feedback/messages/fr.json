@@ -74,6 +74,19 @@
     "notify": {
       "submitted": "Nouvelle réponse à l’enquête",
       "submittedTitle": "Nouvelle réponse à l’enquête « {name} »"
+    },
+    "errors": {
+      "answerRequired": "« {label} » : une réponse est requise",
+      "oneOption": "« {label} » : choisissez une option",
+      "noOption": "« {label} » : cette option n’existe pas",
+      "numberExpected": "« {label} » : un nombre est attendu",
+      "numberRange": "« {label} » : le nombre est hors limites",
+      "noQuestion": "Question introuvable",
+      "notOpenYet": "Le questionnaire n’est pas encore ouvert",
+      "closed": "Le questionnaire est fermé",
+      "answeredAlready": "Vous avez déjà répondu",
+      "noQuestions": "Le questionnaire n’a pas encore de questions",
+      "noResponse": "Réponse introuvable"
     }
   }
 }

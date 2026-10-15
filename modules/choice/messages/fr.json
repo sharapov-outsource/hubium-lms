@@ -52,6 +52,15 @@
     "responses": "Réponses",
     "deleteSelected": "{count, plural, =0 {Supprimer les réponses} other {Supprimer les réponses (#)}}",
     "deleteConfirm": "{count, plural, one {Supprimer la réponse de # personne ?} other {Supprimer les réponses de # personnes ?}}",
-    "responsesDeleted": "Réponses supprimées"
+    "responsesDeleted": "Réponses supprimées",
+    "errors": {
+      "notOpenYet": "Le sondage n’est pas encore ouvert",
+      "closed": "Le sondage est fermé",
+      "oneOnly": "Choisissez une seule option",
+      "noOption": "Cette option n’existe pas",
+      "answeredAlready": "Vous avez déjà répondu",
+      "full": "« {text} » est complet",
+      "noChange": "Les réponses ne peuvent pas être modifiées"
+    }
   }
 }

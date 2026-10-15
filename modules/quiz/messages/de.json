@@ -240,6 +240,36 @@
       "wrongGroup": "Diese Antwort passt nicht in Lücke {n}",
       "useLists": "Mit Listen antworten",
       "useDrag": "Durch Ziehen antworten"
+    },
+    "errors": {
+      "networkOnly": "Dieser Test kann nur von bestimmten Netzwerkadressen aus bearbeitet werden",
+      "noQuestions": "Der Test hat noch keine Fragen",
+      "notEnoughRandom": "Nicht genügend Fragen in der Kategorie für Zufallsfragen",
+      "questionMissing": "Frage fehlt",
+      "noAttempt": "Versuch nicht gefunden",
+      "pageLeft": "Diese Frage steht auf einer Seite, die Sie bereits verlassen haben",
+      "closedAttempt": "Dieser Versuch ist abgeschlossen",
+      "noSuchQuestion": "Diese Frage gehört nicht zum Versuch",
+      "finishedUseReview": "Der Versuch ist beendet: Sehen Sie ihn in der Überprüfung an",
+      "inProgress": "Der Versuch läuft noch: Beenden Sie ihn zuerst",
+      "questionsLocked": "Fragen können nicht mehr geändert werden, sobald Versuche vorliegen",
+      "noCategory": "Kategorie nicht gefunden",
+      "noSlot": "Fragenplatz nicht gefunden",
+      "wrongPassword": "Das Testpasswort ist falsch",
+      "nextAttemptAt": "Der nächste Versuch kann am {at} beginnen",
+      "notOpenYet": "Der Test ist noch nicht geöffnet",
+      "closed": "Der Test ist geschlossen",
+      "noAttemptsLeft": "Keine Versuche mehr",
+      "noPage": "Diese Seite gibt es nicht",
+      "noGoingBack": "Dieser Test geht Seite für Seite: Sie können nicht zurück",
+      "gradedAtEnd": "Diese Frage wird bewertet, wenn der Versuch beendet ist",
+      "alreadyChecked": "Diese Antwort wurde bereits geprüft",
+      "answerBeforeCheck": "Beantworten Sie die Frage, bevor Sie sie prüfen",
+      "nothingToRetry": "Es gibt nichts zu wiederholen",
+      "notFound": "Nicht gefunden",
+      "otherGroup": "Dieser Versuch gehört zu einer anderen Gruppe",
+      "notFinished": "Der Versuch ist nicht beendet",
+      "markTooHigh": "Die Punktzahl darf höchstens {max} betragen"
     }
   }
 }

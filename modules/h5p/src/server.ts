@@ -12,6 +12,8 @@ import {
   defineAction,
   defineModule,
   type ModuleCtx,
+  ModuleError,
+  msg,
   parseSettings,
 } from '@hubium/module-sdk';
 import { bool, optionalNumber } from '@hubium/module-sdk/fields';
@@ -81,7 +83,7 @@ function playerDir(): string {
     }
     dir = path.dirname(dir);
   }
-  throw new Error('h5p-standalone not found; set H5P_STANDALONE_DIR');
+  throw new ModuleError('BAD_REQUEST', msg('mod.h5p.errors.noPlayer'));
 }
 
 let playerFiles: Set<string> | undefined;
@@ -108,7 +110,7 @@ async function playerFile(file: string): Promise<Buffer | null> {
 
 export async function extractPackage(ctx: ModuleCtx, packageId: string) {
   const pkg = await ctx.db.h5pPackage.findUniqueOrThrow({ where: { id: packageId } });
-  if (!pkg.fileId) throw new Error('No package file');
+  if (!pkg.fileId) throw new ModuleError('BAD_REQUEST', msg('mod.h5p.errors.noPackage'));
   const work = await mkdtemp(path.join(tmpdir(), 'hubium-h5p-'));
   const kept: string[] = [];
   try {
@@ -137,7 +139,7 @@ export async function extractPackage(ctx: ModuleCtx, packageId: string) {
         totalBytes += size;
       });
       const h5pJson = meta.get('h5p.json');
-      if (h5pJson === undefined) throw new Error('h5p.json is missing: this is not an H5P package');
+      if (h5pJson === undefined) throw new ModuleError('BAD_REQUEST', msg('mod.h5p.errors.notH5p'));
       info = checkPackage(kept, h5pJson, (dir) => meta.get(`${dir}/library.json`) ?? null);
     } catch (e) {
       throw e instanceof StorageFailure ? e.cause : permanent(e);
@@ -448,7 +450,8 @@ export const h5p = defineModule<H5pSettingsT>({
       input: z.object({ uploadId: z.string().uuid() }),
       async handler(ctx, a, input) {
         const access = await ctx.activities.get(a.id);
-        if (!access?.canManage) throw new Error('Only course editors can upload packages');
+        if (!access?.canManage)
+          throw new ModuleError('BAD_REQUEST', msg('mod.h5p.errors.editorsOnly'));
         const file = await ctx.files.storeUpload(a.id, 'package', input.uploadId, {
           maxBytes: H5P_MAX_BYTES,
           allowedTypes: /^(application\/(zip|x-zip-compressed|octet-stream|x-h5p))$/,

@@ -20,6 +20,11 @@
     "toolDisabled": "L’outil a été désactivé par un administrateur.",
     "openNewWindow": "Ouvrir dans une nouvelle fenêtre",
     "selectContent": "Sélectionner du contenu",
-    "launch": "Ouvrir l’outil"
+    "launch": "Ouvrir l’outil",
+    "errors": {
+      "noAppSecret": "APP_SECRET n’est pas défini",
+      "noToolKey": "L’outil n’a ni clé publique ni URL JWKS",
+      "giveToolKey": "Indiquez une URL JWKS ou une clé publique"
+    }
   }
 }

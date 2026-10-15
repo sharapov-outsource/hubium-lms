@@ -39,6 +39,13 @@
     "notify": {
       "starting": "Скоро начнётся вебинар",
       "startingTitle": "Через 15 минут начнётся вебинар «{name}»"
+    },
+    "errors": {
+      "bbbError": "BigBlueButton: {value}",
+      "bbbNotConfigured": "BigBlueButton не настроен (BBB_URL, BBB_SECRET)",
+      "notOpenYet": "Вебинар ещё не открыт",
+      "over": "Вебинар окончен",
+      "waitingForTeacher": "Ждём, пока преподаватель начнёт вебинар"
     }
   }
 }
