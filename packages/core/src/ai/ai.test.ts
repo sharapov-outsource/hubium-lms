@@ -372,6 +372,28 @@ describe('AI features', () => {
     expect(await runQuizGeneration(t.db, id)).toBeNull();
   });
 
+  it('holds queued question generation to the limits', async () => {
+    const teacher = await ctxFor(t.db, f.users.teacher!);
+    await acceptConsent(teacher, 'QUIZGEN');
+    await ensureDefaultQuestionCategory(t.db, f.courseId);
+    const cat = await t.db.questionCategory.findFirstOrThrow({ where: { contextId: f.courseId } });
+    // a fresh minute: earlier tests generated questions too
+    await t.db.aiUsage.deleteMany({ where: { feature: 'QUIZGEN' } });
+    await allFeatures({ perMinute: 1 });
+    try {
+      // both pass when queued: the worker spends the tokens, so the worker checks
+      const input = { courseId: f.courseId, categoryId: cat.id, activityIds: [pageId], count: 2 };
+      const first = await startQuizGeneration(teacher, input);
+      const second = await startQuizGeneration(teacher, input);
+      expect((await runQuizGeneration(t.db, first.id))?.questionIds).toHaveLength(2);
+      expect(await runQuizGeneration(t.db, second.id)).toBeNull();
+      const gen = await t.db.aiGeneration.findUniqueOrThrow({ where: { id: second.id } });
+      expect(gen.status).toBe('FAILED');
+    } finally {
+      await allFeatures();
+    }
+  });
+
   it('suggests a grade from pseudonymised input', async () => {
     const teacher = await ctxFor(t.db, f.users.teacher!);
     await acceptConsent(teacher, 'GRADING_ASSIST');

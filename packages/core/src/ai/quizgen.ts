@@ -1,4 +1,4 @@
-import { estimateTokens } from '@hubium/ai';
+import { estimateTokens, type Usage } from '@hubium/ai';
 import type { Db, Prisma } from '@hubium/db';
 import { BASE_LOCALE } from '@hubium/i18n';
 import { languageInfo } from '@hubium/i18n/packs';
@@ -11,7 +11,7 @@ import { localeCode } from '../lib/zod.ts';
 import { ensureDefaultQuestionCategory, saveQuestion } from '../questions/bank.ts';
 import { resolveFeature } from './config.ts';
 import { indexActivity } from './indexing.ts';
-import { aiGate, runAi } from './usage.ts';
+import { aiGate, checkLimits, runAi } from './usage.ts';
 import { userContext } from './user-ctx.ts';
 
 // AI quiz generation: the teacher picks activities, types, count, difficulty and language;
@@ -114,6 +114,14 @@ export async function runQuizGeneration(db: Db, generationId: string) {
     const ctx = await userContext(db, gen.requestedById);
     const f = await resolveFeature(db, 'QUIZGEN');
     if (!f) throw new NotFoundError('AI feature');
+    // Queuing checked the limits without spending anything; each call made here is checked
+    // and counted as it is made, or many queued generations would all run past them.
+    const call = async <T>(fn: () => Promise<{ value: T; usage: Usage; model: string }>) => {
+      f.reservationId = await checkLimits(db, f, gen.requestedById, input.courseId, new Date(), {
+        reserve: true,
+      });
+      return runAi(ctx, f, { courseId: input.courseId }, fn);
+    };
     let sources = await sourcesFor(db, input.activityIds);
     if (!sources.length)
       throw new ValidationError({ activityIds: ['The chosen activities have no text'] });
@@ -121,7 +129,7 @@ export async function runQuizGeneration(db: Db, generationId: string) {
     if (estimateTokens(sources.map((s) => s.text).join('')) > SUMMARY_THRESHOLD) {
       const summarised = [];
       for (const s of sources) {
-        const r = await runAi(ctx, f, { courseId: input.courseId }, async () => {
+        const r = await call(async () => {
           const res = await f.llm.generateText({
             tag: 'quizgen.summary',
             model: f.model('cheap'),
@@ -151,7 +159,7 @@ export async function runQuizGeneration(db: Db, generationId: string) {
       `Use these question types, spread evenly: ${input.types.join(', ')}.`,
       `Difficulty — ${difficultyText[input.difficulty]}.`,
     ].join('\n\n');
-    const r = await runAi(ctx, f, { courseId: input.courseId }, async () => {
+    const r = await call(async () => {
       const res = await f.llm.generateObject({
         tag: 'quizgen',
         model: f.model(),
