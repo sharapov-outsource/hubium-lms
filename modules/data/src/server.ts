@@ -573,6 +573,7 @@ export const data = defineModule<DataSettingsT>({
     },
   },
   backup: {
+    userFileAreas: ['content'],
     // the fields (and templates in the settings) make the database; entries are users' data
     async export(ctx, a) {
       return {

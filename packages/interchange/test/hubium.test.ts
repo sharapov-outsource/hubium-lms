@@ -814,4 +814,24 @@ describe('.hubium backup and restore', () => {
     const b = '0190a8f0-0000-7000-8000-000000000002';
     expect(rewriteIds(`x ${a} y ${b}`, new Map([[a, 'NEW']]))).toBe(`x NEW y ${b}`);
   });
+  it("leaves out learners' workshop work and database entries' files", async () => {
+    const src = await courseFixture(t.db, 'USERFILES');
+    const store = (activityId: string, component: string, area: string, name: string) =>
+      storeFile(t.db, {
+        contextId: activityId,
+        component,
+        area,
+        name,
+        mimeType: 'text/plain',
+        data: Buffer.from(name),
+        uploadedById: src.users.student1!,
+      });
+    const workshop = await src.addActivity('workshop', 'Семинар', {});
+    await store(workshop.id, 'mod.workshop', 'submission', 'my-essay.txt');
+    const data = await src.addActivity('data', 'База', {});
+    await store(data.id, 'mod.data', 'content', 'my-entry.txt');
+    const b = readBackup(await exportCourse(await ctxFor(t.db, src.users.teacher!), src.courseId));
+    expect(b.files.map((x) => x.name)).not.toContain('my-essay.txt');
+    expect(b.files.map((x) => x.name)).not.toContain('my-entry.txt');
+  });
 });

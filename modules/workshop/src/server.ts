@@ -552,6 +552,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
     },
   },
   backup: {
+    userFileAreas: ['submission'],
     // the assessment forms (and the settings) make the workshop; work and reviews are users'
     async export(ctx, a) {
       return { forms: (await workshopState(ctx.db, a.id)).forms };
