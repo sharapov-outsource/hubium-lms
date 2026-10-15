@@ -128,4 +128,18 @@ test.describe
         await sql(`DELETE FROM "Question" WHERE name = $1`, [name]);
       }
     });
+
+    test('numerical answers keep their numbers when one above is removed', async ({ page }) => {
+      await login(page, 'teacher', DEMO_PASSWORD);
+      await page.goto(`/course/${ids.courseId}/question-bank/edit?type=NUMERICAL`);
+      await page.getByRole('button', { name: 'Добавить вариант' }).click();
+      const values = page.getByLabel('Значение', { exact: true });
+      await expect(values).toHaveCount(2);
+      await values.nth(0).fill('3,14');
+      await values.nth(1).fill('2,71');
+      await page.getByRole('button', { name: 'Удалить', exact: true }).first().click();
+      await expect(values).toHaveCount(1);
+      // the row that stays shows its own number, the one that will be saved
+      await expect(values.first()).toHaveValue('2,71');
+    });
   });

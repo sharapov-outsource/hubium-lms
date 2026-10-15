@@ -4,7 +4,7 @@ import type { QuestionType } from '@hubium/questions';
 import { Button, Checkbox, Field, Input } from '@hubium/ui';
 import { Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { ComponentType } from 'react';
+import { type ComponentType, useState } from 'react';
 import { CalculatedFields, calculatedDefaults } from './calculated-fields';
 import { ClozeFields } from './cloze-fields';
 import { FractionSelect } from './fraction-select';
@@ -181,11 +181,15 @@ function NumericalFields(props: FieldsProps) {
   const { data, setData } = props;
   const t = useTranslations('qbank');
   const { list, setItem, removeItem } = listHelpers(props);
+  const answers = list<{ value: number; tolerance: number; fraction: number }>('answers');
+  // The number fields keep what is being typed ("3," on the way to "3,5"), so they are not
+  // tied to the data: each row keeps its own key, or removing a row would leave its numbers
+  // on screen in the row that takes its place.
+  const [keys, setKeys] = useState(() => answers.map(() => nid('na')));
   return (
     <div className="grid gap-3">
-      {list<{ value: number; tolerance: number; fraction: number }>('answers').map((a, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: answers have no ids
-        <div key={i} className="flex flex-wrap items-end gap-2">
+      {answers.map((a, i) => (
+        <div key={keys[i] ?? `na-${i}`} className="flex flex-wrap items-end gap-2">
           <Field label={t('value')} htmlFor={`nv-${i}`}>
             <Input
               id={`nv-${i}`}
@@ -218,7 +222,10 @@ function NumericalFields(props: FieldsProps) {
             variant="ghost"
             size="icon"
             aria-label={t('remove')}
-            onClick={() => removeItem('answers', i)}
+            onClick={() => {
+              setKeys(keys.filter((_, j) => j !== i));
+              removeItem('answers', i);
+            }}
           >
             <X />
           </Button>
@@ -229,12 +236,13 @@ function NumericalFields(props: FieldsProps) {
         variant="outline"
         size="sm"
         className="w-fit"
-        onClick={() =>
+        onClick={() => {
+          setKeys([...answers.map((_, j) => keys[j] ?? nid('na')), nid('na')]);
           setData({
             ...data,
-            answers: [...list('answers'), { value: 0, tolerance: 0, fraction: 1, feedback: '' }],
-          })
-        }
+            answers: [...answers, { value: 0, tolerance: 0, fraction: 1, feedback: '' }],
+          });
+        }}
       >
         <Plus />
         {t('addAnswer')}
