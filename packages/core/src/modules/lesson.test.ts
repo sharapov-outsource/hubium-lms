@@ -321,4 +321,25 @@ describe('mod-lesson', () => {
     // the jump to A now leads to the copy of A
     expect((pages[1]!.answers as { jump: string }[])[0]!.jump).toBe(pages[0]!.id);
   });
+
+  it('the report goes a page of learners at a time, by name', async () => {
+    const { f, id, teacher, add } = await setup('LSNREP', {});
+    await add('content', { title: 'A', answers: [{ text: 'В конец', jump: 'end' }] });
+    const learners = [f.users.student1!, f.users.student2!, f.users.student3!];
+    for (const u of learners) await runModuleAction(await ctxFor(t.db, u), id, 'start', {});
+    const { lessonReport } = await import('@hubium/mod-lesson/server');
+    const { toActivityRef } = await import('./module-ctx.ts');
+    const ref = toActivityRef(await t.db.activity.findUniqueOrThrow({ where: { id } }));
+    const names = (await t.db.user.findMany({ where: { id: { in: learners } } }))
+      .map((u) => u.name)
+      .sort((x, y) => x.localeCompare(y));
+    const seen: string[] = [];
+    for (const page of [1, 2]) {
+      const r = await lessonReport(buildModuleCtx(teacher), ref, { page, pageSize: 2 });
+      expect(r.total).toBe(3);
+      expect(r.users.every((u) => u.attempts.length === 1)).toBe(true);
+      seen.push(...r.users.map((u) => u.user.name));
+    }
+    expect(seen).toEqual(names);
+  });
 });

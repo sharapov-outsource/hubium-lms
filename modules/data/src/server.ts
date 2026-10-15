@@ -218,40 +218,61 @@ export async function dataRecords(
         : []),
     ],
   };
-  const rows = await ctx.db.dataRecord.findMany({
-    where,
-    include: { contents: true, user: { select: { id: true, name: true } } },
-  });
+  const include = {
+    contents: true,
+    user: { select: { id: true, name: true } },
+  } satisfies Prisma.DataRecordInclude;
   const files = new Map(
     (await ctx.files.list(a.id, 'content')).map((f) => [f.id, { url: f.url, name: f.name }]),
   );
   const fileOf = (id: string) => files.get(id);
-  const valuesOf = (r: (typeof rows)[number]) =>
+  type Row = Prisma.DataRecordGetPayload<{ include: typeof include }>;
+  const valuesOf = (r: Row) =>
     Object.fromEntries(r.contents.map((c) => [c.fieldId, c.value])) as Record<string, string>;
   const search = q.search?.trim().toLocaleLowerCase();
-  let list = rows.filter((r) => {
-    if (!search) return true;
-    const v = valuesOf(r);
-    return (
-      (r.user?.name ?? '').toLocaleLowerCase().includes(search) ||
-      fields.some((f) =>
-        valueText(f, v[f.id] ?? '', fileOf)
-          .toLocaleLowerCase()
-          .includes(search),
-      )
-    );
-  });
   const sortField = fields.find((f) => f.name === (q.sort ?? s.defaultSort));
   const order = (q.order ?? s.defaultOrder) === 'asc' ? 1 : -1;
-  list = list.sort((x, y) => {
-    const by = sortField
-      ? compareValues(sortField, valuesOf(x)[sortField.id] ?? '', valuesOf(y)[sortField.id] ?? '')
-      : x.createdAt.getTime() - y.createdAt.getTime();
-    return by * order || (x.createdAt.getTime() - y.createdAt.getTime()) * order;
-  });
-  const total = list.length;
   const page = Math.max(1, q.page ?? 1);
-  const shown = q.all ? list : list.slice((page - 1) * s.entriesPerPage, page * s.entriesPerPage);
+  let total: number;
+  let shown: Row[];
+  if (!search && !sortField && !q.all) {
+    // by the time alone: the database counts and cuts the page
+    const dir = order === 1 ? ('asc' as const) : ('desc' as const);
+    [total, shown] = await Promise.all([
+      ctx.db.dataRecord.count({ where }),
+      ctx.db.dataRecord.findMany({
+        where,
+        include,
+        orderBy: [{ createdAt: dir }, { id: dir }],
+        skip: (page - 1) * s.entriesPerPage,
+        take: s.entriesPerPage,
+      }),
+    ]);
+  } else {
+    // a search reads values as people see them (option labels, file names) and a field
+    // sorts by its type, so these are worked out here
+    const rows = await ctx.db.dataRecord.findMany({ where, include });
+    let list = rows.filter((r) => {
+      if (!search) return true;
+      const v = valuesOf(r);
+      return (
+        (r.user?.name ?? '').toLocaleLowerCase().includes(search) ||
+        fields.some((f) =>
+          valueText(f, v[f.id] ?? '', fileOf)
+            .toLocaleLowerCase()
+            .includes(search),
+        )
+      );
+    });
+    list = list.sort((x, y) => {
+      const by = sortField
+        ? compareValues(sortField, valuesOf(x)[sortField.id] ?? '', valuesOf(y)[sortField.id] ?? '')
+        : x.createdAt.getTime() - y.createdAt.getTime();
+      return by * order || (x.createdAt.getTime() - y.createdAt.getTime()) * order;
+    });
+    total = list.length;
+    shown = q.all ? list : list.slice((page - 1) * s.entriesPerPage, page * s.entriesPerPage);
+  }
   const ratings = await recordRatings(ctx, a, shown);
   return {
     fields,

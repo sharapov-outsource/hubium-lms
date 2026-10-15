@@ -1090,22 +1090,47 @@ export const lesson = defineModule<LessonSettingsT>({
   },
 });
 
-/** Attempts of the lesson's learners with their grades (for the report). */
-export async function lessonReport(ctx: ModuleCtx, ref: ActivityRef) {
+/**
+ * The lesson's learners by name, a page of them at a time, each with their attempts and
+ * grade (for the report).
+ */
+export async function lessonReport(
+  ctx: ModuleCtx,
+  ref: ActivityRef,
+  opts: { page?: number; pageSize?: number } = {},
+) {
   const a = ref as Lesson;
-  const [pages, attempts] = await Promise.all([
+  const where = { activityId: a.id, preview: false };
+  const pageSize = Math.min(200, Math.max(1, Math.floor(opts.pageSize ?? 25)));
+  // who has attempts is read without them; the steps are read for one page of people only
+  const everyone = (
+    await ctx.db.lessonAttempt.findMany({
+      where,
+      distinct: ['userId'],
+      select: { user: { select: { id: true, name: true } } },
+    })
+  )
+    .map((r) => r.user)
+    .sort((x, y) => x.name.localeCompare(y.name) || x.id.localeCompare(y.id));
+  const pages = Math.max(1, Math.ceil(everyone.length / pageSize));
+  const page = Math.min(pages, Math.max(1, Math.floor(opts.page ?? 1)));
+  const users = everyone.slice((page - 1) * pageSize, page * pageSize);
+  const [lesson, attempts] = await Promise.all([
     lessonPages(ctx.db, a.id),
-    ctx.db.lessonAttempt.findMany({
-      where: { activityId: a.id, preview: false },
-      orderBy: [{ startedAt: 'asc' }],
-      include: { user: { select: { id: true, name: true } }, steps: { orderBy: { seq: 'asc' } } },
-    }),
+    users.length
+      ? ctx.db.lessonAttempt.findMany({
+          where: { ...where, userId: { in: users.map((u) => u.id) } },
+          orderBy: [{ number: 'asc' }],
+          include: { steps: { orderBy: { seq: 'asc' } } },
+        })
+      : [],
   ]);
+  const titles = new Map(lesson.map((p) => [p.id, p.title]));
   const rows = attempts.map((at) => {
-    const g = gradeOf(a.settings, pages, at.steps);
+    const g = gradeOf(a.settings, lesson, at.steps);
     return {
       id: at.id,
-      user: at.user,
+      userId: at.userId,
       number: at.number,
       startedAt: at.startedAt,
       finishedAt: at.finishedAt,
@@ -1117,27 +1142,29 @@ export async function lessonReport(ctx: ModuleCtx, ref: ActivityRef) {
         .filter((st) => st.kind === 'answer')
         .map((st) => ({
           id: st.id,
-          page: pages.find((p) => p.id === st.pageId)?.title ?? '',
+          page: titles.get(st.pageId) ?? '',
           response: st.response as Response | null,
           correct: st.correct,
           essayScore: st.essayScore,
         })),
     };
   });
-  const users = [...new Map(rows.map((r) => [r.user.id, r.user])).values()].sort((x, y) =>
-    x.name.localeCompare(y.name),
-  );
-  return users.map((user) => {
-    const list = rows.filter((r) => r.user.id === user.id).sort((x, y) => x.number - y.number);
-    return {
-      user,
-      attempts: list,
-      percent: lessonPercent(
-        list.filter((x) => x.finishedAt).map((x) => x.percent),
-        a.settings.useMaxGrade,
-      ),
-    };
-  });
+  return {
+    total: everyone.length,
+    page,
+    pageSize,
+    users: users.map((user) => {
+      const list = rows.filter((r) => r.userId === user.id);
+      return {
+        user,
+        attempts: list,
+        percent: lessonPercent(
+          list.filter((x) => x.finishedAt).map((x) => x.percent),
+          a.settings.useMaxGrade,
+        ),
+      };
+    }),
+  };
 }
 
 /** Essay answers with their grading, ungraded first (for teachers). */

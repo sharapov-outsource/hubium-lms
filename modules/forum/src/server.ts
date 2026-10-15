@@ -405,14 +405,11 @@ export async function readDiscussion(ctx: ModuleCtx, a: Forum, discussionId: str
   ]);
   const myGroups = d.groupId && !moderator ? await userGroupIds(ctx.db, a, me) : [];
   const inGroup = !d.groupId || moderator || myGroups.includes(d.groupId);
-  const [rows, files] = await Promise.all([
-    ctx.db.forumPost.findMany({
-      where: { discussionId: d.id },
-      orderBy: { createdAt: 'asc' },
-      include: { author: { select: { name: true } } },
-    }),
-    ctx.files.list(a.id, 'attachment'),
-  ]);
+  const rows = await ctx.db.forumPost.findMany({
+    where: { discussionId: d.id },
+    orderBy: { createdAt: 'asc' },
+    include: { author: { select: { name: true } } },
+  });
   const visible = rows.filter(
     (p) =>
       postVisible(p, me, moderator) &&
@@ -420,6 +417,12 @@ export async function readDiscussion(ctx: ModuleCtx, a: Forum, discussionId: str
       (!locked || p.parentId === null || p.authorId === me),
   );
   const shown = new Set(visible.map((p) => p.id));
+  // the attachments of the posts shown, not of the whole forum
+  const files = await ctx.files.list(
+    a.id,
+    'attachment',
+    visible.filter((p) => !p.deletedAt).map((p) => p.id),
+  );
   const hasReplies = new Set(visible.map((p) => p.parentId).filter((x) => x && shown.has(x)));
   const now = Date.now();
   // ratings: the aggregate of one's own posts (viewrating) or anyone's (viewanyrating),

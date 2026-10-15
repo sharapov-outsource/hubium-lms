@@ -1498,31 +1498,40 @@ export const assign = defineModule<AssignSettingsT>({
       const a = { ...(act as unknown as Assign), settings: settings.data };
       const canGrade = await ctx.perm.can('mod.assign:grade', a.id);
       if (canGrade) {
-        // a submission waits until its student (or a member of its team) has a grade for it
+        // a submission waits until its student (or a member of its team) has a grade for it;
+        // read for the whole assignment at once rather than per submission
         const waiting = await ctx.db.assignSubmission.findMany({
           where: { activityId: a.id, latest: true, status: 'SUBMITTED' },
           select: { userId: true, groupId: true, attemptNumber: true },
         });
+        const teamIds = [...new Set(waiting.flatMap((w) => (w.userId ? [] : (w.groupId ?? []))))];
+        const teams = new Map<string, string[]>();
+        for (const m of teamIds.length
+          ? await ctx.db.groupMember.findMany({
+              where: { groupId: { in: teamIds } },
+              select: { groupId: true, userId: true },
+            })
+          : [])
+          teams.set(m.groupId, [...(teams.get(m.groupId) ?? []), m.userId]);
+        const membersOf = (w: (typeof waiting)[number]) =>
+          w.userId ? [w.userId] : w.groupId ? (teams.get(w.groupId) ?? []) : [];
+        const everyone = [...new Set(waiting.flatMap(membersOf))];
+        // with allocation, a marker counts the work of the students allocated to them
+        const mine = new Set(everyone.length ? await markedBy(ctx, a, everyone) : []);
+        const graded = new Set(
+          (everyone.length
+            ? await ctx.db.assignGrade.findMany({
+                where: { activityId: a.id, userId: { in: everyone } },
+                select: { userId: true, attemptNumber: true },
+              })
+            : []
+          ).map((g) => `${g.userId}:${g.attemptNumber}`),
+        );
         let pending = 0;
         for (const w of waiting) {
-          const members = w.userId
-            ? [w.userId]
-            : w.groupId
-              ? (
-                  await ctx.db.groupMember.findMany({
-                    where: { groupId: w.groupId },
-                    select: { userId: true },
-                  })
-                ).map((m) => m.userId)
-              : [];
-          // with allocation, a marker counts the work of the students allocated to them
-          const mine = await markedBy(ctx, a, members);
-          if (!mine.length) continue;
-          const owners = members;
-          const graded = await ctx.db.assignGrade.count({
-            where: { activityId: a.id, attemptNumber: w.attemptNumber, userId: { in: owners } },
-          });
-          if (!graded && owners.length) pending++;
+          const members = membersOf(w);
+          if (!members.some((m) => mine.has(m))) continue;
+          if (!members.some((m) => graded.has(`${m}:${w.attemptNumber}`))) pending++;
         }
         if (pending)
           out.push({

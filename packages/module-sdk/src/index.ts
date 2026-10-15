@@ -35,8 +35,8 @@ export interface ModuleFile {
 }
 
 export interface ModuleFiles {
-  /** Files of an area; without `itemId`, those of every item. */
-  list(activityId: string, area: string, itemId?: string): Promise<ModuleFile[]>;
+  /** Files of an area: of one item, of several, or without `itemId` of every item. */
+  list(activityId: string, area: string, itemId?: string | string[]): Promise<ModuleFile[]>;
   store(
     activityId: string,
     area: string,

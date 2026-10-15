@@ -1,6 +1,7 @@
 import { RichText } from '@hubium/editor/client';
 import type { ViewProps } from '@hubium/module-sdk/ui';
 import { Alert, Badge, Button, Card, CardContent, EmptyState } from '@hubium/ui';
+import { PageNav } from '@hubium/ui/page-nav';
 import Link from 'next/link';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { isQuestion, isStructure, type PageType, pageTypes } from '../engine.ts';
@@ -247,66 +248,92 @@ async function EditTab({ activity: a, course, ctx, searchParams: sp }: Props) {
   );
 }
 
-async function ReportsTab({ activity: a, ctx, canGrade }: Props & { canGrade: boolean }) {
-  const [t, format] = await Promise.all([getTranslations('mod.lesson'), getFormatter()]);
-  const report = await lessonReport(ctx, a);
-  if (!report.length) return <p className="text-sm text-muted-foreground">{t('reports.empty')}</p>;
+async function ReportsTab({
+  activity: a,
+  ctx,
+  canGrade,
+  searchParams: sp,
+}: Props & { canGrade: boolean }) {
+  const [t, tc, format] = await Promise.all([
+    getTranslations('mod.lesson'),
+    getTranslations('common'),
+    getFormatter(),
+  ]);
+  const report = await lessonReport(ctx, a, { page: Number(sp.page) || 1 });
+  if (!report.total) return <p className="text-sm text-muted-foreground">{t('reports.empty')}</p>;
   const minutes = (from: Date, to: Date | null) =>
     to ? Math.max(1, Math.round((to.getTime() - from.getTime()) / 60_000)) : null;
   return (
-    <ul className="grid max-w-4xl gap-3">
-      {report.map((u) => (
-        <li key={u.user.id}>
-          <Card>
-            <CardContent className="grid gap-3 pt-5">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h3 className="font-medium">{u.user.name}</h3>
-                {u.percent !== null ? (
-                  <span className="text-sm">
-                    {t('reports.grade', { percent: Math.round(u.percent * 10) / 10 })}
-                  </span>
-                ) : null}
-              </div>
-              <ol className="grid gap-2">
-                {u.attempts.map((at) => (
-                  <li key={at.id}>
-                    <details className="rounded-md border border-border p-2">
-                      <summary className="cursor-pointer text-sm">
-                        {t('reports.attempt', { n: at.number })} ·{' '}
-                        {format.dateTime(at.startedAt, { dateStyle: 'medium', timeStyle: 'short' })}
-                        {' · '}
-                        {at.finishedAt
-                          ? t('reports.done', {
-                              percent: at.percent === null ? '—' : Math.round(at.percent * 10) / 10,
-                              minutes: minutes(at.startedAt, at.finishedAt) ?? 0,
-                            })
-                          : t('reports.inProgress')}
-                      </summary>
-                      <ul className="mt-2 grid gap-1 text-sm">
-                        {at.answers.map((x) => (
-                          <li key={x.id}>
-                            <span className="text-muted-foreground">{x.page}:</span>{' '}
-                            {responseText(x.response)}{' '}
-                            <Badge variant={x.correct ? 'success' : 'neutral'}>
-                              {x.correct ? t('correct') : t('wrong')}
-                            </Badge>
-                          </li>
-                        ))}
-                      </ul>
-                      {canGrade ? (
-                        <div className="mt-2">
-                          <DeleteAttempt activityId={a.id} attemptId={at.id} />
-                        </div>
-                      ) : null}
-                    </details>
-                  </li>
-                ))}
-              </ol>
-            </CardContent>
-          </Card>
-        </li>
-      ))}
-    </ul>
+    <div className="grid max-w-4xl gap-3">
+      <ul className="grid gap-3">
+        {report.users.map((u) => (
+          <li key={u.user.id}>
+            <Card>
+              <CardContent className="grid gap-3 pt-5">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h3 className="font-medium">{u.user.name}</h3>
+                  {u.percent !== null ? (
+                    <span className="text-sm">
+                      {t('reports.grade', { percent: Math.round(u.percent * 10) / 10 })}
+                    </span>
+                  ) : null}
+                </div>
+                <ol className="grid gap-2">
+                  {u.attempts.map((at) => (
+                    <li key={at.id}>
+                      <details className="rounded-md border border-border p-2">
+                        <summary className="cursor-pointer text-sm">
+                          {t('reports.attempt', { n: at.number })} ·{' '}
+                          {format.dateTime(at.startedAt, {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
+                          {' · '}
+                          {at.finishedAt
+                            ? t('reports.done', {
+                                percent:
+                                  at.percent === null ? '—' : Math.round(at.percent * 10) / 10,
+                                minutes: minutes(at.startedAt, at.finishedAt) ?? 0,
+                              })
+                            : t('reports.inProgress')}
+                        </summary>
+                        <ul className="mt-2 grid gap-1 text-sm">
+                          {at.answers.map((x) => (
+                            <li key={x.id}>
+                              <span className="text-muted-foreground">{x.page}:</span>{' '}
+                              {responseText(x.response)}{' '}
+                              <Badge variant={x.correct ? 'success' : 'neutral'}>
+                                {x.correct ? t('correct') : t('wrong')}
+                              </Badge>
+                            </li>
+                          ))}
+                        </ul>
+                        {canGrade ? (
+                          <div className="mt-2">
+                            <DeleteAttempt activityId={a.id} attemptId={at.id} />
+                          </div>
+                        ) : null}
+                      </details>
+                    </li>
+                  ))}
+                </ol>
+              </CardContent>
+            </Card>
+          </li>
+        ))}
+      </ul>
+      <PageNav
+        page={report.page}
+        pageSize={report.pageSize}
+        total={report.total}
+        href={(p) => `/course/${a.courseId}/a/${a.id}?tab=reports&page=${p}`}
+        labels={{
+          previous: tc('previous'),
+          next: tc('next'),
+          pageOf: (n, of) => tc('pageOf', { page: n, pages: of }),
+        }}
+      />
+    </div>
   );
 }
 

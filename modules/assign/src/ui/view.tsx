@@ -19,6 +19,7 @@ import {
   Th,
   Tr,
 } from '@hubium/ui';
+import { PageNav } from '@hubium/ui/page-nav';
 import { CheckCircle2, Circle, Download, FileIcon } from 'lucide-react';
 import Link from 'next/link';
 import { getFormatter, getTranslations } from 'next-intl/server';
@@ -430,9 +431,15 @@ async function TeacherOverview(props: Props) {
   );
 }
 
+const SUBMISSIONS_PAGE = 50;
+
 async function Submissions({ activity: a, ctx, searchParams }: Props) {
   const scale = await assignScale(ctx.db, a);
-  const [t, format] = await Promise.all([getTranslations('mod.assign'), getFormatter()]);
+  const [t, tc, format] = await Promise.all([
+    getTranslations('mod.assign'),
+    getTranslations('common'),
+    getFormatter(),
+  ]);
   const { users } = await markedLearners(ctx, a);
   const workflow = a.settings.markingWorkflow;
   const allocate = allocating(a);
@@ -482,10 +489,12 @@ async function Submissions({ activity: a, ctx, searchParams }: Props) {
         include: { group: { select: { id: true, name: true } } },
       })
     : [];
+  const teamsOf = new Map<string, { id: string; name: string }[]>();
+  for (const m of memberships) teamsOf.set(m.userId, [...(teamsOf.get(m.userId) ?? []), m.group]);
   const groupOf = new Map<string, { id: string; name: string } | null>();
   for (const u of users) {
-    const mine = memberships.filter((m) => m.userId === u.id);
-    groupOf.set(u.id, mine.length === 1 ? mine[0]!.group : null);
+    const mine = teamsOf.get(u.id) ?? [];
+    groupOf.set(u.id, mine.length === 1 ? mine[0]! : null);
   }
   const [subs, grades] = await Promise.all([
     ctx.db.assignSubmission.findMany({
@@ -502,19 +511,29 @@ async function Submissions({ activity: a, ctx, searchParams }: Props) {
       where: { activityId: a.id, userId: { in: users.map((u) => u.id) } },
     }),
   ]);
+  // looked up by student and team: a course may have many students
+  const subOfUser = new Map(subs.flatMap((x) => (x.userId ? [[x.userId, x] as const] : [])));
+  const subOfTeam = new Map(subs.flatMap((x) => (x.groupId ? [[x.groupId, x] as const] : [])));
+  const lastGrade = new Map<string, (typeof grades)[number]>();
+  for (const x of grades) {
+    const had = lastGrade.get(x.userId);
+    if (!had || x.attemptNumber > had.attemptNumber) lastGrade.set(x.userId, x);
+  }
   const rows = users.map((u) => {
     const g0 = groupOf.get(u.id);
-    const s = g0 ? subs.find((x) => x.groupId === g0.id) : subs.find((x) => x.userId === u.id);
-    const g = grades
-      .filter((x) => x.userId === u.id)
-      .sort((x, y) => y.attemptNumber - x.attemptNumber)[0];
+    const s = g0 ? subOfTeam.get(g0.id) : subOfUser.get(u.id);
+    const g = lastGrade.get(u.id);
     const needs = s?.status === 'SUBMITTED' && !(g && g.attemptNumber === s.attemptNumber);
     return { u, s, g, needs, team: g0 };
   });
   const filter = searchParams.filter;
-  const shown = rows.filter((r) =>
+  const listed = rows.filter((r) =>
     filter === 'needs' ? r.needs : filter === 'none' ? r.s?.status !== 'SUBMITTED' : true,
   );
+  // the counts are of everyone; the table shows a page of them
+  const pages = Math.max(1, Math.ceil(listed.length / SUBMISSIONS_PAGE));
+  const page = Math.min(pages, Math.max(1, Math.floor(Number(searchParams.page)) || 1));
+  const shown = listed.slice((page - 1) * SUBMISSIONS_PAGE, page * SUBMISSIONS_PAGE);
   const base = `/course/${a.courseId}/a/${a.id}`;
   return (
     <div className="grid gap-5">
@@ -661,6 +680,17 @@ async function Submissions({ activity: a, ctx, searchParams }: Props) {
           ))}
         </TBody>
       </Table>
+      <PageNav
+        page={page}
+        pageSize={SUBMISSIONS_PAGE}
+        total={listed.length}
+        href={(p) => `${base}?${filter ? `filter=${encodeURIComponent(filter)}&` : ''}page=${p}`}
+        labels={{
+          previous: tc('previous'),
+          next: tc('next'),
+          pageOf: (n, of) => tc('pageOf', { page: n, pages: of }),
+        }}
+      />
     </div>
   );
 }

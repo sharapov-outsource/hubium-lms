@@ -297,14 +297,18 @@ export async function storeFileFromPath(
 /** Files of an area; without `itemId`, those of every item (like deleteFiles). */
 export async function listFiles(
   db: Tx,
-  q: { contextId: string; component: string; area: string; itemId?: string },
+  q: { contextId: string; component: string; area: string; itemId?: string | string[] },
 ): Promise<File[]> {
   return db.file.findMany({
     where: {
       contextId: q.contextId,
       component: q.component,
       area: q.area,
-      ...(q.itemId !== undefined ? { itemId: q.itemId } : {}),
+      ...(Array.isArray(q.itemId)
+        ? { itemId: { in: q.itemId } }
+        : q.itemId !== undefined
+          ? { itemId: q.itemId }
+          : {}),
     },
     orderBy: [{ sortOrder: 'asc' }, { path: 'asc' }, { name: 'asc' }],
   });

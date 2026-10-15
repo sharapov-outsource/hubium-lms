@@ -17,6 +17,7 @@ import {
   Tr,
 } from '@hubium/ui';
 import { cn } from '@hubium/ui/cn';
+import { PageNav } from '@hubium/ui/page-nav';
 import Link from 'next/link';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import {
@@ -644,27 +645,50 @@ async function EditTab({ activity: a, ctx }: Props) {
   );
 }
 
-async function ResultsTab({ activity: a, ctx }: Props) {
-  const [t, format] = await Promise.all([getTranslations('mod.quiz'), getFormatter()]);
-  const attempts = await ctx.db.quizAttempt.findMany({
-    where: { activityId: a.id, preview: false, ...(await attemptsSeenBy(ctx, a)) },
-    orderBy: [{ user: { lastName: 'asc' } }, { attemptNumber: 'asc' }],
-    include: {
-      user: { select: { name: true } },
-      questions: { select: { maxMark: true, fraction: true, slot: true } },
-    },
-  });
-  if (!attempts.length) return <EmptyState title={t('noAttempts')} />;
-  const canRegrade = await ctx.perm.can('mod.quiz:grade', a.id);
-  const slots = [...new Set(attempts.flatMap((x) => x.questions.map((q) => q.slot)))].sort(
-    (x, y) => x - y,
-  );
+const RESULTS_PAGE = 50;
+
+async function ResultsTab({ activity: a, ctx, searchParams: sp }: Props) {
+  const [t, tc, format] = await Promise.all([
+    getTranslations('mod.quiz'),
+    getTranslations('common'),
+    getFormatter(),
+  ]);
+  const where = { activityId: a.id, preview: false, ...(await attemptsSeenBy(ctx, a)) };
+  const total = await ctx.db.quizAttempt.count({ where });
+  if (!total) return <EmptyState title={t('noAttempts')} />;
+  const pages = Math.ceil(total / RESULTS_PAGE);
+  const page = Math.min(pages, Math.max(1, Math.floor(Number(sp.page)) || 1));
+  // one page of attempts; the facility of each question is worked out by the database
+  // over all of them, and the regrade panel only needs who made them
+  const [attempts, inSlots, finished, people, canRegrade] = await Promise.all([
+    ctx.db.quizAttempt.findMany({
+      where,
+      orderBy: [{ user: { lastName: 'asc' } }, { userId: 'asc' }, { attemptNumber: 'asc' }],
+      skip: (page - 1) * RESULTS_PAGE,
+      take: RESULTS_PAGE,
+      include: {
+        user: { select: { name: true } },
+        questions: { select: { maxMark: true } },
+      },
+    }),
+    ctx.db.questionAttempt.groupBy({ by: ['slot'], where: { attempt: where } }),
+    ctx.db.questionAttempt.groupBy({
+      by: ['slot'],
+      where: { attempt: { ...where, state: 'FINISHED' }, fraction: { not: null } },
+      _avg: { fraction: true },
+    }),
+    ctx.db.quizAttempt.findMany({
+      where,
+      distinct: ['userId'],
+      select: { userId: true, user: { select: { name: true } } },
+    }),
+    ctx.perm.can('mod.quiz:grade', a.id),
+  ]);
+  const slots = inSlots.map((r) => r.slot).sort((x, y) => x - y);
+  const avg = new Map(finished.map((r) => [r.slot, r._avg.fraction]));
   const facility = slots.map((s) => {
-    const fr = attempts
-      .filter((x) => x.state === 'FINISHED')
-      .flatMap((x) => x.questions.filter((q) => q.slot === s && q.fraction !== null))
-      .map((q) => Number(q.fraction));
-    return fr.length ? Math.round((fr.reduce((p, c) => p + c, 0) / fr.length) * 100) : null;
+    const v = avg.get(s);
+    return v === null || v === undefined ? null : Math.round(Number(v) * 100);
   });
   return (
     <div className="grid gap-3">
@@ -672,7 +696,7 @@ async function ResultsTab({ activity: a, ctx }: Props) {
         <RegradePanel
           activityId={a.id}
           gradeMax={a.settings.gradeMax}
-          names={Object.fromEntries(attempts.map((x) => [x.userId, x.user.name]))}
+          names={Object.fromEntries(people.map((x) => [x.userId, x.user.name]))}
         />
       ) : null}
       <Table>
@@ -727,6 +751,17 @@ async function ResultsTab({ activity: a, ctx }: Props) {
           })}
         </TBody>
       </Table>
+      <PageNav
+        page={page}
+        pageSize={RESULTS_PAGE}
+        total={total}
+        href={(p) => `${base(a)}?tab=results&page=${p}`}
+        labels={{
+          previous: tc('previous'),
+          next: tc('next'),
+          pageOf: (n, of) => tc('pageOf', { page: n, pages: of }),
+        }}
+      />
       <Card>
         <CardHeader>
           <CardTitle>{t('facility')}</CardTitle>

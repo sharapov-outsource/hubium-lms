@@ -182,4 +182,27 @@ describe('mod-data', () => {
     expect(await total(s1!)).toBe(3);
     expect(await total(s2!)).toBe(2);
   });
+
+  it('pages entries by time in the database, and by a search the same way', async () => {
+    const f = await courseFixture(t.db, 'DATAPAGE');
+    const { id } = await f.addActivity('data', 'Каталог', { entriesPerPage: 10 });
+    const teacher = await ctxFor(t.db, f.users.teacher!);
+    await runModuleAction(teacher, id, 'addField', { type: 'text', name: 'Код' });
+    const codes = Array.from({ length: 25 }, (_, i) => `K${String(i).padStart(2, '0')}`);
+    await runModuleAction(teacher, id, 'importCsv', { csv: `Код\n${codes.join('\n')}\n` });
+    const list = (q: Record<string, unknown>) =>
+      runModuleQuery(teacher, id, 'entries', q) as Promise<Page>;
+    const seen: string[] = [];
+    for (const page of [1, 2, 3]) {
+      const p = await list({ page, order: 'desc' });
+      expect(p.total).toBe(25);
+      expect(p.items).toHaveLength(page === 3 ? 5 : 10);
+      seen.push(...p.items.map((e) => e.id));
+    }
+    expect(new Set(seen).size).toBe(25);
+    // a search goes through every entry and pages what it finds
+    const found = await list({ search: 'k1', page: 1 });
+    expect(found.total).toBe(10);
+    expect(found.items).toHaveLength(10);
+  });
 });
