@@ -759,13 +759,26 @@ export async function criteriaNarrative(
   const lang = locale ?? siteLocale(await getAllSettings(db));
   const t = createTranslator(lang);
   const c = checkCriteria(badge.criteria, !badge.courseId);
+  // The text is read by learners and, for an active badge, by anyone: hidden activities and
+  // courses are counted, not named.
   const names = async (ids: string[], kind: 'activity' | 'course' | 'role' | 'cohort') => {
     const rows =
       kind === 'activity'
-        ? await db.activity.findMany({ where: { id: { in: ids } }, select: { name: true } })
+        ? await db.activity.findMany({
+            where: {
+              id: { in: ids },
+              deletedAt: null,
+              visibility: 'SHOWN',
+              section: { visible: true },
+            },
+            select: { name: true },
+          })
         : kind === 'course'
           ? (
-              await db.course.findMany({ where: { id: { in: ids } }, select: { fullName: true } })
+              await db.course.findMany({
+                where: { id: { in: ids }, deletedAt: null, visible: true },
+                select: { fullName: true },
+              })
             ).map((x) => ({ name: x.fullName }))
           : kind === 'cohort'
             ? await db.cohort.findMany({ where: { id: { in: ids } }, select: { name: true } })
@@ -775,7 +788,11 @@ export async function criteriaNarrative(
                   select: { name: true, shortName: true },
                 })
               ).map((r) => ({ name: roleName(r, lang) }));
-    return rows.map((r) => r.name).join(', ');
+    const hidden = kind === 'activity' || kind === 'course' ? new Set(ids).size - rows.length : 0;
+    return [
+      ...rows.map((r) => r.name),
+      ...(hidden > 0 ? [t('badges.narrative.hidden', { count: hidden })] : []),
+    ].join(', ');
   };
   const parts: string[] = [];
   for (const r of c.rules) {

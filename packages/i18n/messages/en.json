@@ -3032,7 +3032,8 @@
         "any": "be awarded the badge by hand by any of the roles: {list}"
       },
       "and": "; and ",
-      "or": "; or "
+      "or": "; or ",
+      "hidden": "{count, plural, one {# hidden item} other {# hidden items}}"
     }
   },
   "certificates": {

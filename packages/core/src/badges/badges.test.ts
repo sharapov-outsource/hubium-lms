@@ -11,6 +11,7 @@ import {
   badgeClassDocument,
   badgeDetail,
   bakedBadgeImage,
+  criteriaNarrative,
   deleteBadge,
   markBadge,
   requireBadgeAwardByLogin,
@@ -333,5 +334,25 @@ describe('badges', () => {
     } finally {
       await t.db.badge.update({ where: { id: broken.id }, data: { status: 'ARCHIVED' } });
     }
+  });
+  it('names in its criteria only what is shown: hidden activities are counted', async () => {
+    const f = await courseFixture(t.db, 'BADGENAR');
+    const shown = await f.addActivity('page', 'Открытая лекция', { content: '<p>x</p>' });
+    const hidden = await f.addActivity('page', 'Секретный разбор', { content: '<p>x</p>' });
+    await t.db.activity.update({ where: { id: hidden.id }, data: { visibility: 'HIDDEN' } });
+    const text = await criteriaNarrative(
+      t.db,
+      {
+        courseId: f.courseId,
+        criteria: {
+          method: 'all',
+          rules: [{ kind: 'activities', activityIds: [shown.id, hidden.id], method: 'all' }],
+        },
+      },
+      'ru',
+    );
+    expect(text).toContain('Открытая лекция');
+    expect(text).toContain('1 скрытый элемент');
+    expect(text).not.toContain('Секретный разбор');
   });
 });

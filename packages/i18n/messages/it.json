@@ -3031,7 +3031,8 @@
         "any": "ricevere il badge manualmente da uno qualsiasi dei ruoli: {list}"
       },
       "and": "; e ",
-      "or": "; oppure "
+      "or": "; oppure ",
+      "hidden": "{count, plural, one {# elemento nascosto} other {# elementi nascosti}}"
     }
   },
   "certificates": {

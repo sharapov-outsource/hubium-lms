@@ -3031,7 +3031,8 @@
         "any": "die Auszeichnung manuell von einer der Rollen erhalten: {list}"
       },
       "and": "; und ",
-      "or": "; oder "
+      "or": "; oder ",
+      "hidden": "{count, plural, one {# verborgenes Element} other {# verborgene Elemente}}"
     }
   },
   "certificates": {
