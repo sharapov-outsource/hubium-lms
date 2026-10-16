@@ -677,6 +677,47 @@ export async function getCourseOutline(
   return out;
 }
 
+type CourseAccess = Awaited<ReturnType<typeof getCourseAccess>>;
+type OutlineEntry = Awaited<ReturnType<typeof getCourseOutline>>[number]['activities'][number];
+
+/** Whether the viewer opens the activity, given their course access and its outline entry. */
+async function opens(
+  ctx: RequestContext,
+  a: { id: string; deletedAt: Date | null },
+  access: CourseAccess,
+  entry: OutlineEntry | undefined,
+  moduleDisabled: boolean,
+): Promise<boolean> {
+  return (
+    !a.deletedAt &&
+    !moduleDisabled &&
+    access.canView &&
+    (access.canManageActivities || access.canViewHidden || (entry?.available ?? false)) &&
+    ((await ctx.perm.can('activity:view', a.id)) || access.isGuest || access.canManageActivities)
+  );
+}
+
+/**
+ * Of a course's activities, those the viewer may open, decided as getActivityAccess decides
+ * for one but with the course's outline built once: for lists over many of them.
+ */
+export async function openableActivityIds(
+  ctx: RequestContext,
+  courseId: string,
+  activities: { id: string; moduleKey: string; deletedAt: Date | null }[],
+): Promise<Set<string>> {
+  const access = await getCourseAccess(ctx, courseId);
+  if (!access.canView || !activities.length) return new Set();
+  const outline = await getCourseOutline(ctx, courseId, { includeUnlisted: true });
+  const entries = new Map(outline.flatMap((s) => s.activities).map((e) => [e.activity.id, e]));
+  const settings = await getAllSettings(ctx.db);
+  const out = new Set<string>();
+  for (const a of activities)
+    if (await opens(ctx, a, access, entries.get(a.id), !isModuleEnabled(settings, a.moduleKey)))
+      out.add(a.id);
+  return out;
+}
+
 /**
  * Can the viewer open this activity? Returns the activity and reasons when blocked.
  *
@@ -694,12 +735,7 @@ export async function getActivityAccess(ctx: RequestContext, activityId: string)
     : [];
   const entry = outline.flatMap((s) => s.activities).find((x) => x.activity.id === a.id);
   const moduleDisabled = !isModuleEnabled(await getAllSettings(ctx.db), a.moduleKey);
-  const canOpen =
-    !a.deletedAt &&
-    !moduleDisabled &&
-    access.canView &&
-    (access.canManageActivities || access.canViewHidden || (entry?.available ?? false)) &&
-    ((await ctx.perm.can('activity:view', a.id)) || access.isGuest || access.canManageActivities);
+  const canOpen = await opens(ctx, a, access, entry, moduleDisabled);
   // Hidden activities and "hide entirely" restrictions reveal neither the name nor the conditions.
   const listed =
     !!entry &&

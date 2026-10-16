@@ -1,6 +1,6 @@
 import type { AutoLink } from '@hubium/module-sdk';
 import type { RequestContext } from '../context.ts';
-import { getActivityAccess } from '../courses/activities.ts';
+import { openableActivityIds } from '../courses/activities.ts';
 import { isModuleEnabled } from '../settings/modules.ts';
 import { getAllSettings } from '../settings/settings.ts';
 import { buildModuleCtx, toActivityRef } from './module-ctx.ts';
@@ -19,10 +19,11 @@ export async function courseAutoLinks(ctx: RequestContext, courseId: string): Pr
   const activities = await ctx.db.activity.findMany({
     where: { courseId, deletedAt: null, moduleKey: { in: keys } },
   });
+  // the course's outline once for all of them: this runs on every page of the course
+  const openable = await openableActivityIds(ctx, courseId, activities);
   const out: AutoLink[] = [];
   for (const a of activities) {
-    const access = await getActivityAccess(ctx, a.id).catch(() => null);
-    if (!access?.canOpen) continue;
+    if (!openable.has(a.id)) continue;
     const m = getModule(a.moduleKey)!;
     out.push(...(await m.autoLinks!(buildModuleCtx(ctx), toActivityRef(a) as never)));
   }
