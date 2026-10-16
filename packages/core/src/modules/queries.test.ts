@@ -199,7 +199,14 @@ describe('module queries', () => {
     const item = await t.db.gradeItem.findFirstOrThrow({ where: { activityId: id } });
     await t.db.gradeItem.update({ where: { id: item.id }, data: { hidden: true } });
     expect((await query<Overview>(f.users.student1!, id, 'overview')).grade).toBeNull();
+    // nor in the review of the attempt, where the quiz leads after "Finish"
+    const hiddenReview = await query<Review>(f.users.student1!, id, 'review', { attemptId });
+    expect(hiddenReview).toMatchObject({ showMarks: false, grade: null });
+    for (const q of hiddenReview.questions) expect(q).toMatchObject({ verdict: null, mark: null });
     await t.db.gradeItem.update({ where: { id: item.id }, data: { hidden: false } });
+    expect((await query<Review>(f.users.student1!, id, 'review', { attemptId })).showMarks).toBe(
+      true,
+    );
     expect((await query<Overview>(f.users.student1!, id, 'overview')).grade).not.toBeNull();
     const theirs = await query<Review>(f.users.teacher!, id, 'review', { attemptId });
     expect(theirs).toMatchObject({ showAnswers: true, showMarks: true });

@@ -877,6 +877,21 @@ export async function attemptsSeenBy(
 const scaled = (sum: unknown, max: number, gradeMax: number) =>
   sum === null || sum === undefined || !max ? null : (Number(sum) / max) * gradeMax;
 
+/**
+ * Whether the gradebook hides the learner's grade of the quiz (a teacher may hide an exam's
+ * grade until the results are announced): then the quiz shows no marks either, on its page
+ * or in a review.
+ */
+function gradeHidden(
+  ctx: ModuleCtx,
+  item: { hidden: boolean; hiddenUntil: Date | null } | null,
+  grade: { hidden: boolean } | null | undefined,
+): boolean {
+  return (
+    !!item && (item.hidden || (!!item.hiddenUntil && item.hiddenUntil > ctx.now) || !!grade?.hidden)
+  );
+}
+
 /** The learner's view of the quiz: window, attempts, grade and what they may do next. */
 export async function readQuizOverview(ctx: ModuleCtx, a: Quiz) {
   if (ctx.actor.kind !== 'user') throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
@@ -899,12 +914,7 @@ export async function readQuizOverview(ctx: ModuleCtx, a: Quiz) {
     : null;
   const open = quizIsOpen(e, ctx.now);
   const canReview = reviewAllowed(a.settings, e.closeAt, ctx.now);
-  // Marks show when the quiz shows them and the gradebook does not hide them (a teacher
-  // may hide an exam's grade until the results are announced).
-  const hiddenInGradebook =
-    !!item &&
-    (item.hidden || (!!item.hiddenUntil && item.hiddenUntil > ctx.now) || !!grade?.hidden);
-  const marksShown = a.settings.reviewMarks && !hiddenInGradebook;
+  const marksShown = a.settings.reviewMarks && !gradeHidden(ctx, item, grade);
   const rules = accessRules(a, e);
   const next = nextAttemptAt(
     rules,
@@ -1065,7 +1075,14 @@ export async function readReview(ctx: ModuleCtx, a: Quiz, attemptId: string) {
   if (!teacher && !at.preview && at.state === 'IN_PROGRESS') return 'inProgress' as const;
   const e = await effectiveQuiz(ctx.db, a, at.userId);
   const showAnswers = teacher || at.preview || reviewAllowed(a.settings, e.closeAt, ctx.now);
-  const showMarks = teacher || at.preview || a.settings.reviewMarks;
+  const item = await ctx.db.gradeItem.findFirst({ where: { activityId: a.id, itemNumber: 0 } });
+  const grade = item
+    ? await ctx.db.grade.findUnique({
+        where: { gradeItemId_userId: { gradeItemId: item.id, userId: at.userId } },
+      })
+    : null;
+  const showMarks =
+    teacher || at.preview || (a.settings.reviewMarks && !gradeHidden(ctx, item, grade));
   const max = sumMaxMarks(at.questions);
   // who graded by hand, for the teacher's step history
   const graderIds = teacher
