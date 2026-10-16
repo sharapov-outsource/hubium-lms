@@ -1086,7 +1086,8 @@
       "unsupportedQuestionType": "Tipo di domanda non supportato: {type}",
       "invalidQuestion": "Domanda non valida",
       "aggregationMean": "l’aggregazione {code} della categoria di valutazione non è disponibile: si usa la media",
-      "aggregationWeighted": "l’aggregazione {code} della categoria di valutazione non è disponibile: si usa la media ponderata"
+      "aggregationWeighted": "l’aggregazione {code} della categoria di valutazione non è disponibile: si usa la media ponderata",
+      "activityNote": "«{name}»: {note}"
     },
     "url": {
       "invalid": "Indirizzo non valido",

@@ -1086,7 +1086,8 @@
       "unsupportedQuestionType": "Type de question non pris en charge : {type}",
       "invalidQuestion": "Question invalide",
       "aggregationMean": "l’agrégation {code} de la catégorie de notes n’est pas disponible : la moyenne est utilisée",
-      "aggregationWeighted": "l’agrégation {code} de la catégorie de notes n’est pas disponible : la moyenne pondérée est utilisée"
+      "aggregationWeighted": "l’agrégation {code} de la catégorie de notes n’est pas disponible : la moyenne pondérée est utilisée",
+      "activityNote": "« {name} » : {note}"
     },
     "url": {
       "invalid": "Adresse invalide",

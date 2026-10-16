@@ -52,7 +52,8 @@
       "sourceDeleted": "The source file was deleted; upload it again",
       "captionsTooLarge": "Caption file is too large",
       "pasteLink": "Paste a YouTube, RuTube or VK Video link",
-      "unsupportedLink": "Unsupported video link"
+      "unsupportedLink": "Unsupported video link",
+      "noSourceInBackup": "The copy holds no source file of the video: it was deleted after processing. Upload the video again."
     }
   }
 }

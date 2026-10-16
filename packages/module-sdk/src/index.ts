@@ -440,12 +440,13 @@ export interface ActivityModule<S = Record<string, unknown>> {
     /** File areas holding learners' data, left out of backups without user data. */
     userFileAreas?: string[];
     export?(ctx: ModuleCtx, a: ActivityRef<S>): Promise<unknown>;
+    /** Restores the module's part; what could not come back goes in the restore's report. */
     import?(
       ctx: ModuleCtx,
       a: ActivityRef<S>,
       data: unknown,
       map: (oldId: string) => string | undefined,
-    ): Promise<void>;
+    ): Promise<undefined | { warnings?: Msg[] }>;
   };
 }
 

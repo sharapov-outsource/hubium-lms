@@ -1396,11 +1396,13 @@ async function restoreInto(
       const m = getModule(row.moduleKey);
       if (!m?.backup?.import) continue;
       const act = await db.activity.findUniqueOrThrow({ where: { id } });
-      await db.$transaction((tx) =>
+      const r = await db.$transaction((tx) =>
         m.backup!.import!(buildModuleCtx(ctx, tx), toActivityRef(act) as never, row.module, (old) =>
           map.get(old),
         ),
       );
+      for (const w of r?.warnings ?? [])
+        warnings.push(say('activityNote', { name: act.name, note: w.in(ctx.locale) }));
     }
     if (gb) {
       // formulas refer to items and categories by id: they follow them to the copy

@@ -52,7 +52,8 @@
       "sourceDeleted": "Le fichier source a été supprimé : téléversez-le à nouveau",
       "captionsTooLarge": "Le fichier de sous-titres est trop volumineux",
       "pasteLink": "Collez un lien YouTube, RuTube ou VK Video",
-      "unsupportedLink": "Lien vidéo non pris en charge"
+      "unsupportedLink": "Lien vidéo non pris en charge",
+      "noSourceInBackup": "La copie ne contient pas le fichier source de la vidéo : il a été supprimé après le traitement. Téléversez de nouveau la vidéo."
     }
   }
 }

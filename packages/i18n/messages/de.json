@@ -1086,7 +1086,8 @@
       "unsupportedQuestionType": "Nicht unterstützter Fragetyp: {type}",
       "invalidQuestion": "Ungültige Frage",
       "aggregationMean": "die Zusammenfassung {code} der Bewertungskategorie ist nicht verfügbar: der Mittelwert wird verwendet",
-      "aggregationWeighted": "die Zusammenfassung {code} der Bewertungskategorie ist nicht verfügbar: der gewichtete Mittelwert wird verwendet"
+      "aggregationWeighted": "die Zusammenfassung {code} der Bewertungskategorie ist nicht verfügbar: der gewichtete Mittelwert wird verwendet",
+      "activityNote": "„{name}“: {note}"
     },
     "url": {
       "invalid": "Ungültige Adresse",

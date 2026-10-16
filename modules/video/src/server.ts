@@ -79,8 +79,8 @@ const BackupData = z.object({
     .array(z.object({ lang: z.string(), label: z.string(), fileId: z.string() }))
     .default([]),
 });
-const NO_SOURCE =
-  'The backup holds no source file of this video: it was deleted after processing. Upload the video again.';
+/** Said of a video copied or restored without its source file (deleted after processing). */
+const NO_SOURCE = msg('mod.video.errors.noSourceInBackup');
 
 function uid(ctx: ModuleCtx): string {
   if (ctx.actor.kind !== 'user') throw new ModuleError('BAD_REQUEST', msg('errors.common.signIn'));
@@ -380,13 +380,14 @@ export const video = defineModule<VideoSettingsT>({
       const [source] = await ctx.files.list(a.id, 'source');
       if (!source) {
         // processed with "delete the source": the backup has nothing to build the video from
-        if (exported.success && exported.data.uploaded)
-          await ctx.db.videoAsset.upsert({
-            where: { activityId: a.id },
-            create: { activityId: a.id, status: 'FAILED', error: NO_SOURCE },
-            update: { status: 'FAILED', error: NO_SOURCE },
-          });
-        return;
+        if (!exported.success || !exported.data.uploaded) return;
+        const error = NO_SOURCE.in(ctx.locale);
+        await ctx.db.videoAsset.upsert({
+          where: { activityId: a.id },
+          create: { activityId: a.id, status: 'FAILED', error },
+          update: { status: 'FAILED', error },
+        });
+        return { warnings: [NO_SOURCE] };
       }
       const asset = await ctx.db.videoAsset.upsert({
         where: { activityId: a.id },

@@ -759,6 +759,8 @@ describe('.hubium backup and restore', () => {
       status: 'FAILED',
       error: expect.stringMatching(/no source file/),
     });
+    // and the report of the restore says so
+    expect(r.warnings).toContainEqual(expect.stringMatching(/^"Без исходника": .*no source file/));
   });
 
   it('duplicates an activity with what its module keeps, in its own course', async () => {

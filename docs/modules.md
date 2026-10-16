@@ -71,7 +71,7 @@ Actions run in a transaction by default (`mutation: false` opts out, e.g. for sl
 | `jobs`, `cron` | background work on the `default` or `media` queue |
 | `notifications` | notification types `<key>.<name>`, labels `mod.<key>.notify.<name>` |
 | `files` | file areas and who may read them |
-| `backup` | user file areas to skip, `export`/`import` of module tables for `.hubium` archives |
+| `backup` | user file areas to skip, `export`/`import` of module tables for `.hubium` archives; `import` may return `{ warnings }` (messages) for what could not come back, shown in the restore's report |
 | `ai` | `extract` text for the tutor and quiz generation; `tutorPolicy` (`include`, `exclude`, `exclude-while-open`) and `blocksTutor` |
 | `privacy` | `export(ctx, userId)` for "Download my data", `erase(ctx, userId)` when an account is deleted |
 | `reset` | `userData(ctx, activity)` for a course reset: drop learners' work (attempts, submissions, posts, overrides) and keep the activity. Core clears grades, completion, grading forms and files in `backup.userFileAreas`, and shifts ISO dates in settings |

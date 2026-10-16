@@ -1087,7 +1087,8 @@
       "unsupportedQuestionType": "Unsupported question type: {type}",
       "invalidQuestion": "Invalid question",
       "aggregationMean": "grade category aggregation {code} is not available: the mean is used",
-      "aggregationWeighted": "grade category aggregation {code} is not available: the weighted mean is used"
+      "aggregationWeighted": "grade category aggregation {code} is not available: the weighted mean is used",
+      "activityNote": "\"{name}\": {note}"
     },
     "url": {
       "invalid": "Invalid URL",

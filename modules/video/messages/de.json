@@ -52,7 +52,8 @@
       "sourceDeleted": "Die Quelldatei wurde gelöscht: Laden Sie sie erneut hoch",
       "captionsTooLarge": "Die Untertiteldatei ist zu groß",
       "pasteLink": "Fügen Sie einen Link zu YouTube, RuTube oder VK Video ein",
-      "unsupportedLink": "Nicht unterstützter Videolink"
+      "unsupportedLink": "Nicht unterstützter Videolink",
+      "noSourceInBackup": "Die Kopie enthält keine Quelldatei des Videos: Sie wurde nach der Verarbeitung gelöscht. Laden Sie das Video erneut hoch."
     }
   }
 }

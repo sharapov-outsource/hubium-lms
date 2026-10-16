@@ -52,7 +52,8 @@
       "sourceDeleted": "Il file sorgente è stato eliminato: caricalo di nuovo",
       "captionsTooLarge": "Il file dei sottotitoli è troppo grande",
       "pasteLink": "Incolla un link di YouTube, RuTube o VK Video",
-      "unsupportedLink": "Link video non supportato"
+      "unsupportedLink": "Link video non supportato",
+      "noSourceInBackup": "La copia non contiene il file sorgente del video: è stato eliminato dopo l’elaborazione. Carica di nuovo il video."
     }
   }
 }
