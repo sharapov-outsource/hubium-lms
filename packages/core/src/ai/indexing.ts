@@ -166,6 +166,38 @@ function iterativeScan(db: Db): Promise<boolean> {
 }
 
 /**
+ * The course's chunks nearest to a vector. The HNSW index finds the nearest vectors of the
+ * whole site and the course filter comes after: with many courses that leaves few or none.
+ * An iterative scan (pgvector 0.8) goes on until enough of the course's are found; before
+ * it, the course's own chunks are compared one by one (exact, and bounded by the course).
+ */
+export async function nearestChunks(
+  db: Db,
+  o: {
+    courseId: string;
+    allowed: Prisma.Sql;
+    model: string;
+    vector: string;
+    limit: number;
+    iterative: boolean;
+  },
+): Promise<{ id: string }[]> {
+  const where = Prisma.sql`"courseId" = ${o.courseId}::uuid AND ${o.allowed}
+    AND "embedding" IS NOT NULL AND "embeddingModel" = ${o.model}`;
+  if (o.iterative)
+    return db.$transaction(async (tx) => {
+      await tx.$executeRaw`SET LOCAL hnsw.iterative_scan = strict_order`;
+      return tx.$queryRaw<{ id: string }[]>`
+        SELECT "id" FROM "ContentChunk" WHERE ${where}
+        ORDER BY "embedding" <=> ${o.vector}::vector LIMIT ${o.limit}`;
+    });
+  // OFFSET 0 keeps the planner from taking the ordering to the site-wide HNSW index
+  return db.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM (SELECT "id", "embedding" FROM "ContentChunk" WHERE ${where} OFFSET 0) c
+    ORDER BY "embedding" <=> ${o.vector}::vector LIMIT ${o.limit}`;
+}
+
+/**
  * Hybrid retrieval restricted to `activityIds` (plus the course summary): vector
  * similarity when embeddings are configured, full-text otherwise, merged with reciprocal
  * rank fusion.
@@ -194,23 +226,16 @@ export async function retrieveChunks(
   const embedder = await embeddingProvider(db);
   if (embedder) {
     const [q] = await embedder.embed([query], 'query');
-    const vec = `[${q!.join(',')}]`;
-    const nearest = (tx: Prisma.TransactionClient | Db) => tx.$queryRaw<{ id: string }[]>`
-      SELECT "id" FROM "ContentChunk"
-      WHERE "courseId" = ${courseId}::uuid AND ${allowed}
-        AND "embedding" IS NOT NULL AND "embeddingModel" = ${embedder.model}
-      ORDER BY "embedding" <=> ${vec}::vector
-      LIMIT ${k * 3}`;
-    // The HNSW index finds the nearest vectors of the whole site and the course filter comes
-    // after: with many courses that leaves few or none. An iterative scan (pgvector 0.8)
-    // goes on until enough of the course's are found.
-    const near = (await iterativeScan(db))
-      ? await db.$transaction(async (tx) => {
-          await tx.$executeRaw`SET LOCAL hnsw.iterative_scan = strict_order`;
-          return nearest(tx);
-        })
-      : await nearest(db);
-    lists.push(near);
+    lists.push(
+      await nearestChunks(db, {
+        courseId,
+        allowed,
+        model: embedder.model,
+        vector: `[${q!.join(',')}]`,
+        limit: k * 3,
+        iterative: await iterativeScan(db),
+      }),
+    );
   }
 
   const score = new Map<string, number>();
