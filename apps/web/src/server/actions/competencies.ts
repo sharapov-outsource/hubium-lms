@@ -50,7 +50,7 @@ import { redirect } from 'next/navigation';
 import { getLocale } from 'next-intl/server';
 import { formToObject, runAction } from '../action';
 import { db } from '../db';
-import { formFiles } from '../form-files';
+import { formFile, formFiles } from '../form-files';
 import { getContext } from '../session';
 
 const ADMIN = '/admin/competencies';
@@ -116,7 +116,7 @@ export async function duplicateFrameworkAction(id: string) {
 
 export async function importFrameworkAction(fd: FormData) {
   return runAction(async () => {
-    const file = fd.get('file');
+    const file = await formFile(fd, 'file');
     if (!(file instanceof File) || !file.size)
       throw new ValidationError({ file: [msg('errors.common.chooseCsv')] });
     const csv = decodeCsv(new Uint8Array(await file.arrayBuffer()));

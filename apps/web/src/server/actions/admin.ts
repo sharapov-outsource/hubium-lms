@@ -41,6 +41,7 @@ import { redirect } from 'next/navigation';
 import { formBool, formToObject, runAction } from '../action';
 import { auth } from '../auth';
 import { db } from '../db';
+import { formFile } from '../form-files';
 import { getContext } from '../session';
 
 /** Custom profile fields of the admin user form; required ones must be filled. */
@@ -205,7 +206,7 @@ export async function assignCategoryRoleAction(
 
 export async function uploadUsersAction(fd: FormData) {
   return runAction(async () => {
-    const file = fd.get('file');
+    const file = await formFile(fd, 'file');
     if (!(file instanceof File) || file.size === 0)
       throw new ValidationError({ file: [msg('errors.common.chooseCsv')] });
     const rows = readSheet(new Uint8Array(await file.arrayBuffer()));
@@ -394,7 +395,7 @@ export async function saveLanguagesAction(fd: FormData) {
 /** Installs an uploaded language pack (.zip or .json). */
 export async function installLanguagePackAction(fd: FormData) {
   return runAction(async () => {
-    const file = fd.get('file');
+    const file = await formFile(fd, 'file');
     if (!(file instanceof File) || !file.size)
       throw new ValidationError({ file: [msg('errors.admin.chooseLanguagePack')] });
     const r = await installLanguagePack.run(await getContext(), {
@@ -428,7 +429,7 @@ export async function saveBrandingAction(fd: FormData) {
   return runAction(
     async () => {
       const accent = String(fd.get('accent') ?? '');
-      const logo = fd.get('logo');
+      const logo = await formFile(fd, 'logo');
       await saveBranding.run(await getContext(), {
         accent,
         logo:

@@ -41,7 +41,7 @@ import { safePath } from '@/lib/safe-path';
 import { formBool, formToObject, runAction } from '../action';
 import { courseFieldViews } from '../course-fields';
 import { db } from '../db';
-import { formFiles } from '../form-files';
+import { formFile, formFiles } from '../form-files';
 import { freshContext, getContext, VIEW_AS_COOKIE } from '../session';
 
 function courseFormValues(fd: FormData) {
@@ -83,7 +83,7 @@ async function checkFormFile(
 
 /** The cover from the form, checked (size, type, malware) before the course is saved. */
 async function courseImage(fd: FormData) {
-  const image = fd.get('image');
+  const image = await formFile(fd, 'image');
   if (!(image instanceof File) || image.size === 0) return null;
   const file = {
     name: image.name,

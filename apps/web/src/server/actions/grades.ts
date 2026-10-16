@@ -27,6 +27,7 @@ import { msg } from '@hubium/module-sdk';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { formToObject, runAction } from '../action';
+import { formFile } from '../form-files';
 import { getContext } from '../session';
 
 export async function overrideGradeAction(
@@ -185,7 +186,7 @@ export async function saveLettersAction(fd: FormData) {
 
 /** The sheet of a grade import, and the mapping chosen so far (none: guessed). */
 async function importInput(fd: FormData) {
-  const file = fd.get('file');
+  const file = await formFile(fd, 'file');
   if (!(file instanceof File) || !file.size)
     throw new ValidationError({ file: [msg('errors.grades.chooseSheet')] });
   const mapping = fd.get('mapping');
@@ -279,7 +280,7 @@ export async function importGiftAction(fd: FormData) {
   return runAction(async () => {
     const v = formToObject(fd);
     let gift = v.gift ?? '';
-    const file = fd.get('file');
+    const file = await formFile(fd, 'file');
     if (file instanceof File && file.size)
       gift = Buffer.from(await file.arrayBuffer()).toString('utf8');
     if (!gift.trim()) throw new ValidationError({ gift: [msg('errors.grades.giftMissing')] });

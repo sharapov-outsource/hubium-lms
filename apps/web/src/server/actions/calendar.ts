@@ -18,6 +18,7 @@ import { revalidatePath } from 'next/cache';
 import { getTimeZone } from 'next-intl/server';
 import { formToObject, runAction } from '../action';
 import { db } from '../db';
+import { formFile } from '../form-files';
 import { getContext, requireUser } from '../session';
 
 export async function createEventAction(fd: FormData) {
@@ -79,7 +80,7 @@ export async function importCalendarAction(fd: FormData) {
       revalidatePath('/calendar');
       return { id, events: r.events };
     }
-    const file = fd.get('file');
+    const file = await formFile(fd, 'file');
     if (!(file instanceof File) || !file.size)
       throw new ValidationError({ file: [msg('errors.calendar.chooseIcsFile')] });
     if (file.size > CALENDAR_FEED_LIMITS.maxBytes)

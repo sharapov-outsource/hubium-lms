@@ -17,6 +17,7 @@ import {
 import { msg } from '@hubium/module-sdk';
 import { revalidatePath } from 'next/cache';
 import { formToObject, runAction } from '../action';
+import { formFile } from '../form-files';
 import { getContext } from '../session';
 
 const pathOf = (courseId: string | null | undefined) =>
@@ -34,7 +35,7 @@ export async function saveBadgeAction(fd: FormData) {
       throw new ValidationError({ criteria: [msg('errors.badges.invalidCriteria')] });
     }
     // the image is checked first: a refused image must not leave a new badge behind
-    const image = fd.get('image');
+    const image = await formFile(fd, 'image');
     const data =
       image instanceof File && image.size ? new Uint8Array(await image.arrayBuffer()) : null;
     if (data) checkBadgeImage(data);

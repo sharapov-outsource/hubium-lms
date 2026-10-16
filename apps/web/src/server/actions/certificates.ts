@@ -13,6 +13,7 @@ import {
 import { msg } from '@hubium/module-sdk';
 import { revalidatePath } from 'next/cache';
 import { formToObject, runAction } from '../action';
+import { formFile } from '../form-files';
 import { getContext } from '../session';
 
 const pathOf = (courseId: string | undefined) => `/course/${courseId}/certificates`;
@@ -29,7 +30,7 @@ export async function saveCertificateAction(fd: FormData) {
       throw new ValidationError({ fields: [msg('errors.certificates.invalidFields')] });
     }
     // the picture is checked first: a refused one must not leave a new certificate behind
-    const file = fd.get('background');
+    const file = await formFile(fd, 'background');
     const data =
       file instanceof File && file.size ? new Uint8Array(await file.arrayBuffer()) : null;
     if (data) checkCertificateBackground(data);

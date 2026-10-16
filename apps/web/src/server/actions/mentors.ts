@@ -11,6 +11,7 @@ import { msg } from '@hubium/module-sdk';
 import { decodeCsv } from '@hubium/module-sdk/csv';
 import { revalidatePath } from 'next/cache';
 import { runAction } from '../action';
+import { formFile } from '../form-files';
 import { getContext } from '../session';
 
 // Administration: linking mentors and parents to the users they follow.
@@ -52,7 +53,7 @@ export async function removeUserRelationAction(mentorId: string, menteeId: strin
 
 export async function uploadRelationsAction(fd: FormData) {
   return runAction(async () => {
-    const file = fd.get('file');
+    const file = await formFile(fd, 'file');
     if (!(file instanceof File) || file.size === 0)
       throw new ValidationError({ file: [msg('errors.common.chooseCsv')] });
     const csv = decodeCsv(new Uint8Array(await file.arrayBuffer()));

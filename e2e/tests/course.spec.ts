@@ -67,6 +67,17 @@ test.describe
       expect(await sql(`SELECT 1 FROM "Course" WHERE "shortName" = $1`, [shortName])).toHaveLength(
         0,
       );
+      // so is one too large to go with the form (uploaded ahead of it), not dropped unsaid
+      await page.locator('#f-image').setInputFiles({
+        name: 'huge.png',
+        mimeType: 'image/png',
+        buffer: Buffer.concat([png, Buffer.alloc(11 * 1024 * 1024)]),
+      });
+      await page.getByRole('button', { name: /Создать|Create/ }).click();
+      await expect(page.getByText(/Файл больше/).first()).toBeVisible();
+      expect(await sql(`SELECT 1 FROM "Course" WHERE "shortName" = $1`, [shortName])).toHaveLength(
+        0,
+      );
       // with a cover that fits, the author (a course creator) gets the course and its cover
       await page.locator('#f-image').setInputFiles({
         name: 'cover.png',
