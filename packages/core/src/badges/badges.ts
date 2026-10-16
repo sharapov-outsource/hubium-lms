@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { buffer } from 'node:stream/consumers';
 import { type Badge, type BadgeAward, type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { createTranslator } from '@hubium/i18n/packs';
+import { log } from '@hubium/log';
 import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import { roleName } from '../access/roles.ts';
@@ -35,6 +36,8 @@ import {
   issuerJson,
   revokedJson,
 } from './openbadges.ts';
+
+const logger = log('badges');
 
 // Badges, as Moodle's: site badges and course badges with criteria, awarded when the
 // criteria are met (checked as completion changes, when a badge is activated, and by the
@@ -483,11 +486,24 @@ export async function reviewBadge(db: Db, badgeId: string, now = new Date()): Pr
   return n;
 }
 
-/** Cron (hourly): every active badge, for what completion events do not cover. */
+/**
+ * Cron (hourly): every active badge, for what completion events do not cover. A badge that
+ * fails is logged and left for the next run; the others are reviewed all the same.
+ */
 export async function reviewAllBadges(db: Db, now = new Date()): Promise<number> {
   let n = 0;
-  for (const b of await db.badge.findMany({ where: { status: 'ACTIVE' }, select: { id: true } }))
-    n += await reviewBadge(db, b.id, now);
+  const badges = await db.badge.findMany({
+    where: { status: 'ACTIVE' },
+    select: { id: true },
+    orderBy: { id: 'asc' },
+  });
+  for (const b of badges) {
+    try {
+      n += await reviewBadge(db, b.id, now);
+    } catch (e) {
+      logger.error({ err: e, badgeId: b.id }, 'badge review failed');
+    }
+  }
   return n;
 }
 

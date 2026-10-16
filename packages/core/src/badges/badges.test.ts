@@ -294,4 +294,37 @@ describe('badges', () => {
     expect(await t.db.badgeAward.count({ where: { badgeId: id } })).toBe(2);
     expect((await assertionDocument(t.db, ORIGIN, awards[0]!.id))?.status).toBe(200);
   });
+
+  it('the review goes on past a badge it cannot review', async () => {
+    const admin = await ctxFor(t.db, 'admin@test.local');
+    // reviewed first, and its criteria no longer make sense
+    const broken = await t.db.badge.create({
+      data: { name: 'Сломанный', status: 'ACTIVE', criteria: { rules: [{ kind: 'nonsense' }] } },
+    });
+    const u = await t.db.user.findFirstOrThrow({ where: { username: 'student1' } });
+    const cohort = await t.db.cohort.create({
+      data: {
+        name: 'После сбоя',
+        contextId: SYSTEM_CONTEXT_ID,
+        members: { create: [{ userId: u.id }] },
+      },
+    });
+    const { id } = await saveBadge.run(admin, {
+      courseId: null,
+      name: 'После сбоя',
+      criteria: {
+        method: 'any',
+        rules: [{ kind: 'cohort', cohortIds: [cohort.id], method: 'all' }],
+      },
+      expiry: 'never',
+    });
+    await setBadgeImage.run(admin, { id, name: 'b.svg', data: SVG });
+    await t.db.badge.update({ where: { id }, data: { status: 'ACTIVE' } });
+    try {
+      expect(await reviewAllBadges(t.db)).toBe(1);
+      expect(await t.db.badgeAward.count({ where: { badgeId: id, userId: u.id } })).toBe(1);
+    } finally {
+      await t.db.badge.update({ where: { id: broken.id }, data: { status: 'ARCHIVED' } });
+    }
+  });
 });
