@@ -4,6 +4,7 @@ import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { updateActivity } from '../courses/activities.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { runModuleAction } from '../modules/actions.ts';
+import { courseGradePercent } from './course-grade.ts';
 import {
   createManualItem,
   exportGradesCsv,
@@ -190,6 +191,11 @@ describe('gradebook', () => {
     expect(Number(mine.grades.get(totalId)?.finalGrade)).toBeCloseTo(100);
     const theirs = await userReport(teacher, g.courseId, g.users.student1!);
     expect(Number(theirs.grades.get(totalId)?.finalGrade)).toBeCloseTo(stored);
+    // a certificate prints the total the learner sees; a badge's rule weighs the stored one
+    const percent = (seen: boolean) =>
+      courseGradePercent(t.db, g.courseId, g.users.student1!, { seen });
+    expect(await percent(true)).toBeCloseTo(100);
+    expect(await percent(false)).toBeCloseTo(stored);
   });
 
   it('CSV import fills manual items and reports bad rows; export includes totals', async () => {

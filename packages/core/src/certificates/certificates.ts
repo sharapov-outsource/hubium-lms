@@ -239,7 +239,7 @@ async function snapshot(tx: Tx, c: Certificate, userId: string): Promise<IssueDa
       where: { courseId_userId: { courseId: c.courseId, userId } },
       select: { completedAt: true },
     }),
-    courseGradePercent(tx, c.courseId, userId),
+    courseGradePercent(tx, c.courseId, userId, { seen: true }),
   ]);
   return {
     name: user.name,
