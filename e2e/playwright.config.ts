@@ -15,6 +15,8 @@ export default defineConfig({
   testDir: './tests',
   timeout: 60_000,
   expect: { timeout: 15_000 },
+  // One worker: the scenarios share the demo course, its users and the site's settings,
+  // which some of them change for a while and put back.
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
