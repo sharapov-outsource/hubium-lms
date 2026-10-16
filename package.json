@@ -1,7 +1,7 @@
 {
   "name": "hubium",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.0-rc.3",
   "license": "AGPL-3.0-only",
   "author": "Alexander S. <alexander@sharapov.biz>",
   "type": "module",
