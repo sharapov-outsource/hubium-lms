@@ -185,6 +185,53 @@ export interface RecordRating {
 }
 
 /**
+ * The entries that may match a search, found in the database by the values as they are
+ * shown (text without its markup, choices joined, file names) and by their authors' names;
+ * the exact check is made on these.
+ */
+async function searchCandidates(
+  ctx: ModuleCtx,
+  activityId: string,
+  where: Prisma.DataRecordWhereInput,
+  search: string,
+): Promise<string[]> {
+  const like = `%${search.replace(/[\\%_]/g, '\\$&')}%`;
+  const byValue = await ctx.db.$queryRaw<{ id: string }[]>`
+    SELECT DISTINCT c."recordId" AS id
+      FROM "DataContent" c JOIN "DataField" f ON f.id = c."fieldId"
+     WHERE f."activityId" = ${activityId}::uuid AND f.type NOT IN ('file', 'image')
+       AND (CASE f.type
+              WHEN 'checkbox' THEN replace(c.value, E'\n', ', ')
+              WHEN 'textarea' THEN
+                replace(replace(replace(replace(replace(
+                  regexp_replace(
+                    regexp_replace(c.value, '<br\\s*/?>|</(p|li|h[1-6]|div)>', ' ', 'gi'),
+                    '<[^>]*>', '', 'g'),
+                  '&nbsp;', ' '), '&lt;', '<'), '&gt;', '>'), '&quot;', '"'), '&amp;', '&')
+              ELSE c.value
+            END) ILIKE ${like}`;
+  const fileIds = (await ctx.files.list(activityId, 'content'))
+    .filter((f) => f.name.toLocaleLowerCase().includes(search))
+    .map((f) => f.id);
+  const rows = await ctx.db.dataRecord.findMany({
+    where: {
+      AND: [
+        where,
+        {
+          OR: [
+            { id: { in: byValue.map((r) => r.id) } },
+            { user: { name: { contains: search, mode: 'insensitive' } } },
+            ...(fileIds.length ? [{ contents: { some: { value: { in: fileIds } } } }] : []),
+          ],
+        },
+      ],
+    },
+    select: { id: true },
+  });
+  return rows.map((r) => r.id);
+}
+
+/**
  * A page of entries the user may see: searched in every value and the author's name,
  * sorted by a field or the time, with values, files, rights and ratings.
  */
@@ -223,10 +270,6 @@ export async function dataRecords(
     contents: true,
     user: { select: { id: true, name: true } },
   } satisfies Prisma.DataRecordInclude;
-  const files = new Map(
-    (await ctx.files.list(a.id, 'content')).map((f) => [f.id, { url: f.url, name: f.name }]),
-  );
-  const fileOf = (id: string) => files.get(id);
   type Row = Prisma.DataRecordGetPayload<{ include: typeof include }>;
   const valuesOf = (r: Row) =>
     Object.fromEntries(r.contents.map((c) => [c.fieldId, c.value])) as Record<string, string>;
@@ -234,9 +277,83 @@ export async function dataRecords(
   const sortField = fields.find((f) => f.name === (q.sort ?? s.defaultSort));
   const order = (q.order ?? s.defaultOrder) === 'asc' ? 1 : -1;
   const page = Math.max(1, q.page ?? 1);
+  const pageOf = <T>(list: T[]) =>
+    q.all ? list : list.slice((page - 1) * s.entriesPerPage, page * s.entriesPerPage);
+  // files of the entries read, not of the whole database
+  const filesOf = async (recordIds: string[]) =>
+    new Map(
+      (recordIds.length ? await ctx.files.list(a.id, 'content', recordIds) : []).map((f) => [
+        f.id,
+        { url: f.url, name: f.name },
+      ]),
+    );
   let total: number;
   let shown: Row[];
-  if (!search && !sortField && !q.all) {
+  let files: Map<string, { url: string; name: string }>;
+  if (search) {
+    // A search reads values as people see them (option labels, file names, text without
+    // its markup): the database narrows the entries down, and they are checked here.
+    const candidates = await searchCandidates(ctx, a.id, where, search);
+    const rows = await ctx.db.dataRecord.findMany({
+      where: { AND: [where, { id: { in: candidates } }] },
+      include,
+    });
+    files = await filesOf(rows.map((r) => r.id));
+    const fileOf = (id: string) => files.get(id);
+    const list = rows
+      .filter((r) => {
+        const v = valuesOf(r);
+        return (
+          (r.user?.name ?? '').toLocaleLowerCase().includes(search) ||
+          fields.some((f) =>
+            valueText(f, v[f.id] ?? '', fileOf)
+              .toLocaleLowerCase()
+              .includes(search),
+          )
+        );
+      })
+      .sort((x, y) => {
+        const by = sortField
+          ? compareValues(
+              sortField,
+              valuesOf(x)[sortField.id] ?? '',
+              valuesOf(y)[sortField.id] ?? '',
+            )
+          : x.createdAt.getTime() - y.createdAt.getTime();
+        return by * order || (x.createdAt.getTime() - y.createdAt.getTime()) * order;
+      });
+    total = list.length;
+    shown = pageOf(list);
+  } else if (sortField || q.all) {
+    // A field sorts by its type: the entries are ordered here by that field's value alone,
+    // and only the page's entries are read whole.
+    const keys = await ctx.db.dataRecord.findMany({
+      where,
+      select: {
+        id: true,
+        createdAt: true,
+        contents: sortField
+          ? { where: { fieldId: sortField.id }, select: { value: true } }
+          : { where: { id: { in: [] } }, select: { value: true } },
+      },
+    });
+    keys.sort((x, y) => {
+      const by = sortField
+        ? compareValues(sortField, x.contents[0]?.value ?? '', y.contents[0]?.value ?? '')
+        : x.createdAt.getTime() - y.createdAt.getTime();
+      return by * order || (x.createdAt.getTime() - y.createdAt.getTime()) * order;
+    });
+    total = keys.length;
+    const ids = pageOf(keys).map((k) => k.id);
+    const byId = new Map(
+      (await ctx.db.dataRecord.findMany({ where: { id: { in: ids } }, include })).map((r) => [
+        r.id,
+        r,
+      ]),
+    );
+    shown = ids.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []));
+    files = await filesOf(ids);
+  } else {
     // by the time alone: the database counts and cuts the page
     const dir = order === 1 ? ('asc' as const) : ('desc' as const);
     [total, shown] = await Promise.all([
@@ -249,30 +366,7 @@ export async function dataRecords(
         take: s.entriesPerPage,
       }),
     ]);
-  } else {
-    // a search reads values as people see them (option labels, file names) and a field
-    // sorts by its type, so these are worked out here
-    const rows = await ctx.db.dataRecord.findMany({ where, include });
-    let list = rows.filter((r) => {
-      if (!search) return true;
-      const v = valuesOf(r);
-      return (
-        (r.user?.name ?? '').toLocaleLowerCase().includes(search) ||
-        fields.some((f) =>
-          valueText(f, v[f.id] ?? '', fileOf)
-            .toLocaleLowerCase()
-            .includes(search),
-        )
-      );
-    });
-    list = list.sort((x, y) => {
-      const by = sortField
-        ? compareValues(sortField, valuesOf(x)[sortField.id] ?? '', valuesOf(y)[sortField.id] ?? '')
-        : x.createdAt.getTime() - y.createdAt.getTime();
-      return by * order || (x.createdAt.getTime() - y.createdAt.getTime()) * order;
-    });
-    total = list.length;
-    shown = q.all ? list : list.slice((page - 1) * s.entriesPerPage, page * s.entriesPerPage);
+    files = await filesOf(shown.map((r) => r.id));
   }
   const ratings = await recordRatings(ctx, a, shown);
   return {

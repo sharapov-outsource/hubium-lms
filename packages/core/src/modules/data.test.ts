@@ -83,6 +83,16 @@ describe('mod-data', () => {
     expect((await list(s2!, { search: 'КОСМОС' })).items.map((e) => e.values[title])).toEqual([
       'Дюна',
     ]);
+    // and by a file's name and the author's
+    expect((await list(s2!, { search: 'DUNE.PNG' })).items.map((e) => e.values[title])).toEqual([
+      'Дюна',
+    ]);
+    const author = await t.db.user.findUniqueOrThrow({ where: { id: f.users.student1! } });
+    expect(
+      (await list(s2!, { search: author.lastName.toUpperCase() })).items.map(
+        (e) => e.values[title],
+      ),
+    ).toEqual(['Дюна']);
 
     // ratings make the author's grade
     await runModuleAction(teacher!, id, 'rate', { recordId: dune.id, value: 8 });
@@ -204,5 +214,39 @@ describe('mod-data', () => {
     const found = await list({ search: 'k1', page: 1 });
     expect(found.total).toBe(10);
     expect(found.items).toHaveLength(10);
+    // a field sorts across pages by its type: numbers as numbers
+    const num = (
+      (await runModuleAction(teacher, id, 'addField', { type: 'number', name: 'Номер' })) as {
+        id: string;
+      }
+    ).id;
+    const all = await t.db.dataRecord.findMany({ where: { activityId: id } });
+    for (const [i, r] of all.entries())
+      await t.db.dataContent.create({
+        data: { recordId: r.id, fieldId: num, value: String((i * 7) % 25) },
+      });
+    const byNumber: string[] = [];
+    for (const page of [1, 2, 3]) {
+      const p = await list({ page, sort: 'Номер', order: 'asc' });
+      expect(p.total).toBe(25);
+      byNumber.push(...p.items.map((e) => e.values[num]!));
+    }
+    expect(byNumber).toEqual(Array.from({ length: 25 }, (_, i) => String(i)));
+    // text is searched as it reads, without its markup
+    const about = (
+      (await runModuleAction(teacher, id, 'addField', { type: 'textarea', name: 'Описание' })) as {
+        id: string;
+      }
+    ).id;
+    await t.db.dataContent.create({
+      data: {
+        recordId: all[0]!.id,
+        fieldId: about,
+        value: '<p>Красная <b>планета</b> &amp; спутники</p>',
+      },
+    });
+    expect((await list({ search: 'красная планета & спутники' })).items.map((e) => e.id)).toEqual([
+      all[0]!.id,
+    ]);
   });
 });
