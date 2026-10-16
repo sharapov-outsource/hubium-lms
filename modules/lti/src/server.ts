@@ -47,20 +47,26 @@ const LineItem = z.object({
   tag: z.string().max(255).default(''),
 });
 
-export const LtiSettings = z.object({
-  toolId: z.string().uuid({ message: 'mod.lti.errors.chooseTool' }),
-  customParams: z.string().max(5000).default(''),
-  container: z.enum(['iframe', 'window']).default('iframe'),
-  height: z.coerce.number().int().min(300).max(3000).default(700),
-  sendGrades: bool(true),
-  gradeMax: z.coerce.number().min(1).max(10_000).default(100),
-  gradePass: optionalNumber(0, 10_000),
-  /** Set by Deep Linking: the launch URL of the chosen content. */
-  contentUrl: z.string().max(2000).default(''),
-  contentTitle: z.string().max(255).default(''),
-  /** Columns the tool added over AGS (the default one is the activity's own). */
-  lineItems: z.array(LineItem).max(100).default([]),
-});
+export const LtiSettings = z
+  .object({
+    toolId: z.string().uuid({ message: 'mod.lti.errors.chooseTool' }),
+    customParams: z.string().max(5000).default(''),
+    container: z.enum(['iframe', 'window']).default('iframe'),
+    height: z.coerce.number().int().min(300).max(3000).default(700),
+    sendGrades: bool(true),
+    gradeMax: z.coerce.number().min(1).max(10_000).default(100),
+    gradePass: optionalNumber(0, 10_000),
+    /** Set by Deep Linking: the launch URL of the chosen content. */
+    contentUrl: z.string().max(2000).default(''),
+    contentTitle: z.string().max(255).default(''),
+    /** Columns the tool added over AGS (the default one is the activity's own). */
+    lineItems: z.array(LineItem).max(100).default([]),
+  })
+  // a pass grade no one can reach would fail everyone, as in the other graded activities
+  .refine((s) => s.gradePass === undefined || s.gradePass <= s.gradeMax, {
+    message: 'errors.common.passGradeAboveMax',
+    path: ['gradePass'],
+  });
 
 export type LtiSettingsT = z.output<typeof LtiSettings>;
 type Db = Prisma.TransactionClient;
