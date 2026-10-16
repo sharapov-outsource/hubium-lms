@@ -22,7 +22,7 @@ Hubium LMS is an open-source learning management system (AGPL-3.0), a modern alt
 | i18n | next-intl **without locale URL prefix**. Locale order: `user.locale` → cookie → course forced lang → site default (`ru`) → Accept-Language. | ICU plurals cover Russian one/few/many |
 | REST | Hono + `@hono/zod-openapi`, mounted in a Next catch-all route. Scalar for docs. | Section 1.4 |
 | Email | nodemailer (SMTP) + React Email templates, rendered in the worker | |
-| Tests | vitest 5, Testcontainers, Playwright + `@axe-core/playwright` | Section 10 |
+| Tests | vitest 5 against PostgreSQL (a template database copied per test file), Playwright + `@axe-core/playwright` | Section 10 |
 | Worker build | `tsx watch` in dev, `tsdown` bundle in prod | |
 
 **Data conventions**
@@ -45,7 +45,7 @@ hubium/
     web/                        # Next.js: UI (RSC), server actions, REST /api/v1, SSE, file/content routes, module route dispatcher
     worker/                     # pg-boss consumers + cron; WORKER_QUEUES env selects roles (default | media)
   packages/
-    tooling/                    # tsconfig presets, vitest preset, test utils (Testcontainers template DB)
+    tooling/                    # tsconfig presets, build info
     db/                         # Prisma schema (multi-file), migrations, generated client, createDb(), seed, raw-SQL helpers (pgvector, tsvector)
     core/                       # domain services + operation framework (framework-agnostic: no next/react imports)
     module-sdk/                 # ActivityModule contract, defineModule/defineModuleUI, ModuleCtx interfaces, capability/notification/job defs
@@ -510,21 +510,10 @@ The FK cascade policy: activity → module rows cascade on purge, user → conte
 | Completion | `completion.recompute` (one activity for everyone), `completion.course` (a course's progress) |
 | Reminders and sync | `assign.due.reminder`, `calendar.reminders`, `calendar.subscriptions`, `enrol.expire`, `competency.plans.sync`, `livesession.remind`, `livesession.poll`, `livesession.recordings.sync`, `auth.ldapSync` |
 | Achievements and reports | `badges.review`, `certificates.review`, `reports.schedules` |
-| AI | `ai.index.activity`, `ai.index.course`, `ai.quizgen` |
+| AI | `ai.index.activity` (reads document files through `ctx.files.text`: PDF via unpdf, DOCX/PPTX/ODT/ODP from their XML parts, text and HTML, cached per blob in `FileBlobText`), `ai.index.course`, `ai.index.all` (a reindex of every course, from Administration), `ai.quizgen` |
 | Users and integrations | `users.bulk`, `webhook.deliver`, `webhooks.prune` |
 | Housekeeping | `system.heartbeat`, `files.gc` (unreferenced files, stray objects, expired uploads), `recyclebin.purge`, `eventlog.prune`, `auth.sessions.cleanup` |
 
----|---|
-| Email | `email.send`, `email.digest` (cron hourly, sends at the user's chosen hour), `notification.fanout` (chunked, 500 recipients per job) |
-| Media | `video.probe` → `video.transcode` → `video.thumbnails` (media queue, concurrency 1), `image.variants` (sharp) |
-| Standards | `scorm.extract`, `lti.jwks.refresh` |
-| Interchange | `backup.create`, `backup.restore`, `course.duplicate`, `import.mbz`, `import.questions`, `users.bulkUpload` |
-| Assessment | `quiz.attempt.close` (scheduled at `dueAt`) + `quiz.overdue.sweep` (cron 1 min), `quiz.regrade`, `grades.recalc.course`, `grades.export`, `report.export` |
-| Completion | `completion.recalc` (debounced per course+user), `completion.cron` (date criteria) |
-| Reminders | `assign.dueSoon`, `calendar.reminders`, `enrol.expiry` (notify + end), `cohort.sync` |
-| AI | `ai.index.activity` (debounced singleton; reads document files through `ctx.files.text`: PDF via unpdf, DOCX/PPTX/ODT/ODP from their XML parts, text and HTML, cached per blob in `FileBlobText`), `ai.quizgen`, `ai.gradingSuggest` |
-| Live | `livesession.poll` (attendance while live), `livesession.recordings.sync` |
-| Housekeeping | `files.gc` (orphan blobs older than 24h), `uploads.cleanup`, `recyclebin.purge`, `eventlog.prune`, `auth.sessions.cleanup`, `lti.state.cleanup`, `user.anonymize` |
 
 ---
 
@@ -620,7 +609,7 @@ In dev, `localhost:3000` versus `127.0.0.1:3000` gives two distinct origins for 
 4. axe shows zero serious or critical issues on new pages. Keyboard-only walkthrough of new flows.
 5. ru/en key-parity test passes. Light/dark reviewed.
 6. A 15-minute manual browser smoke checklist (ru/en, light/dark, mobile).
-7. ADRs for decisions taken, short user docs, a changeset, and a `v0.N.0` tag.
+7. ADRs for decisions taken, short user docs, and a `v0.N.0` tag.
 
 ### Phase 1: Foundation (size L)
 
@@ -632,7 +621,7 @@ In dev, `localhost:3000` versus `127.0.0.1:3000` gives two distinct origins for 
 
 **Deliverables**
 - **Repo:** workspace, Turbo, Biome, dependency-cruiser, `LICENSE` (AGPL-3.0), compose files (db, s3, mailpit, caddy, migrate, web, worker), multi-target Dockerfile (`turbo prune`), GitHub Actions.
-- **db:** `prisma.config.ts`, schema files `identity`, `site`, `access`, `files`. Initial migration creates the extensions and the GIN index. `createDb()`, seed (admin, demo users), Testcontainers template-DB helper.
+- **db:** `prisma.config.ts`, schema files `identity`, `site`, `access`, `files`. Initial migration creates the extensions and the GIN index. `createDb()`, seed (admin, demo users), the template-database helper for tests (`@hubium/db/testing`).
 - **core:**
   - env (zod), `crypto` (AES-256-GCM envelope with `APP_SECRET` for stored secrets), `AppError`, the operation framework and transports, actor/context;
   - permissions (contexts, capability registry, `can`, caches with NOTIFY invalidation, `syncCapabilities`), seeded roles;
@@ -918,7 +907,7 @@ interface EmbeddingProvider { model: string; dims: number; embed(texts: string[]
 
 **Test layers**
 - **Unit** (vitest, node): permissions resolution, availability evaluator, grade aggregation (Moodle-parity fixtures), question grading and shuffle, GIFT/XML parsers, SCORM manifest and CMI mapping, LTI claim builder and JWT validation (including negative cases: wrong alg, kid, aud, nonce replay, expired), Tiptap JSON validator and sanitiser, fractional ranks, i18n key parity, capability registry consistency.
-- **Integration** (vitest + **Testcontainers** `pgvector/pgvector:pg18` + S3):
+- **Integration** (vitest against PostgreSQL with pgvector: `docker/compose.dev.yml` locally, a service container in CI; S3 is RustFS):
   - `globalSetup` migrates a template DB once; each test file runs `CREATE DATABASE … TEMPLATE` (about 50 ms), so parallel workers are fully isolated;
   - core operations run against real Prisma;
   - pg-boss is real, with a `drainJobs()` helper;
@@ -938,8 +927,8 @@ interface EmbeddingProvider { model: string; dims: number; embed(texts: string[]
   - `e2e`: Playwright in one job against the built app;
   - `docker` and `native`: the production images and the release archive installed with `install-hubium.sh`, then `e2e/stack` and an upgrade in place;
   - CodeQL and osv-scanner run in their own workflows.
-- **Nightly:** full e2e on production images in compose, the `.mbz` corpus, k6 smoke, and the live AI smoke test (secret-gated).
-- **Release:** changesets → tag → build and push multi-arch images to GHCR → attach the compose bundle. Renovate keeps dependencies up to date.
+- **Nightly** (`nightly.yml`): a dependency audit with osv-scanner, the live Claude API smoke test (when its secret is set), and the local embeddings test against Ollama.
+- **Release** (`release.yml`, see `docs/releasing.md`): a `vX.Y.Z` tag equal to `package.json`'s version runs the whole CI, builds the images for amd64 and arm64 and the release archives, and publishes them, with a GitHub release, only once the checks and installations of these builds have passed. Dependencies are updated by hand.
 
 ---
 
