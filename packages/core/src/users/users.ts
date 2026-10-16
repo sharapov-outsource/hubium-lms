@@ -397,22 +397,19 @@ async function setContextRole(
     userId: string;
     roleId: string;
     contextId: string;
-    level: 'SYSTEM' | 'CATEGORY';
+    level: 'SYSTEM' | 'CATEGORY' | 'ACTIVITY';
     assigned: boolean;
   },
 ) {
   const { userId, roleId, contextId, assigned } = opts;
   const role = await ctx.tx.role.findUnique({ where: { id: roleId } });
   if (!role?.assignableLevels.includes(opts.level)) {
-    throw new ValidationError({
-      roleId: [
-        msg(
-          opts.level === 'SYSTEM'
-            ? 'errors.users.roleNotForSite'
-            : 'errors.users.roleNotForCategory',
-        ),
-      ],
-    });
+    const key = {
+      SYSTEM: 'errors.users.roleNotForSite',
+      CATEGORY: 'errors.users.roleNotForCategory',
+      ACTIVITY: 'errors.users.roleNotForActivity',
+    }[opts.level];
+    throw new ValidationError({ roleId: [msg(key)] });
   }
   const user = await ctx.tx.user.findUnique({ where: { id: userId } });
   if (!user || user.deletedAt) throw new NotFoundError('User');
@@ -464,15 +461,59 @@ export const assignCategoryRole = defineOperation({
   },
 });
 
+/**
+ * A role given in one activity to someone of its course (a learner who moderates a forum,
+ * a teacher who marks one assignment only): it holds in that activity alone.
+ */
+export const assignActivityRole = defineOperation({
+  name: 'user.assignActivityRole',
+  input: z.object({
+    userId: z.string().uuid(),
+    roleId: z.string().uuid(),
+    activityId: z.string().uuid(),
+    assigned: z.boolean(),
+  }),
+  authorize: (ctx, i) => ctx.perm.require('role:assign', i.activityId),
+  async handler(ctx, { activityId, ...input }) {
+    const a = await ctx.tx.activity.findUnique({
+      where: { id: activityId },
+      select: { courseId: true, deletedAt: true },
+    });
+    if (!a || a.deletedAt) throw new NotFoundError('Activity');
+    if (
+      input.assigned &&
+      !(await ctx.tx.enrolment.findFirst({
+        where: { courseId: a.courseId, userId: input.userId },
+        select: { id: true },
+      }))
+    )
+      throw new ValidationError({ userId: [msg('errors.users.notInCourse')] });
+    return setContextRole(ctx, { ...input, contextId: activityId, level: 'ACTIVITY' });
+  },
+});
+
+/** Who holds the roles that may be given in an activity, there itself, by role. */
+export async function activityRoleHolders(ctx: RequestContext, activityId: string) {
+  return roleHoldersAt(ctx, activityId, 'ACTIVITY');
+}
+
 /** Who holds the roles that may be given in a category, there itself, by role. */
 export async function categoryRoleHolders(ctx: RequestContext, categoryId: string) {
-  await ctx.perm.require('role:review', categoryId);
+  return roleHoldersAt(ctx, categoryId, 'CATEGORY');
+}
+
+async function roleHoldersAt(
+  ctx: RequestContext,
+  contextId: string,
+  level: 'CATEGORY' | 'ACTIVITY',
+) {
+  await ctx.perm.require('role:review', contextId);
   const roles = await ctx.db.role.findMany({
-    where: { assignableLevels: { has: 'CATEGORY' } },
+    where: { assignableLevels: { has: level } },
     orderBy: { sortOrder: 'asc' },
   });
   const held = await ctx.db.roleAssignment.findMany({
-    where: { contextId: categoryId, roleId: { in: roles.map((r) => r.id) }, component: 'MANUAL' },
+    where: { contextId, roleId: { in: roles.map((r) => r.id) }, component: 'MANUAL' },
     select: { roleId: true, user: { select: { id: true, name: true, deletedAt: true } } },
     orderBy: { user: { lastName: 'asc' } },
   });

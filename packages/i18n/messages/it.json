@@ -932,7 +932,9 @@
       "emailOrUsername": "Serve l’email o il nome utente",
       "statusValue": "Lo stato è active o suspended",
       "passwordForNew": "Un nuovo utente ha bisogno di una password",
-      "roleNotForCategory": "Questo ruolo non può essere assegnato in una categoria"
+      "roleNotForCategory": "Questo ruolo non può essere assegnato in una categoria",
+      "roleNotForActivity": "Questo ruolo non può essere assegnato in un’attività",
+      "notInCourse": "Questa persona non è iscritta al corso"
     },
     "ai": {
       "apiKeyRequired": "È richiesta una chiave API",
@@ -2611,7 +2613,10 @@
     "addPerson": "Aggiungi una persona",
     "searchPerson": "Nome o email",
     "removeHolder": "Togli il ruolo «{role}» a {name}",
-    "giveRole": "Assegna il ruolo a {name}"
+    "giveRole": "Assegna il ruolo a {name}",
+    "activityRoles": "Ruoli in questa attività",
+    "activityRolesHint": "Un ruolo assegnato qui vale solo in questa attività: uno studente che modera un forum o un docente che valuta solo questo compito.",
+    "searchParticipant": "Nome di un partecipante al corso"
   },
   "profileFields": {
     "title": "Campi del profilo",

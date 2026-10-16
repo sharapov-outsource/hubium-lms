@@ -2,7 +2,9 @@
 
 import {
   addCohortSync,
+  assignActivityRole,
   enrolUsers,
+  listParticipants,
   removeEnrolmentMethod,
   searchEnrollableUsers,
   selfEnrol,
@@ -119,4 +121,33 @@ export async function leaveCourseAction(courseId: string) {
   const res = await runAction(async () => unenrolSelf.run(await getContext(), { courseId }));
   if (res.ok) redirect('/my-courses');
   return res;
+}
+
+/** Course participants found by name, for giving one a role in an activity. */
+export async function searchCourseMembersAction(courseId: string, q: string) {
+  return runAction(async () => {
+    if (q.trim().length < 2) return [];
+    const r = await listParticipants(await getContext(), { courseId, q, pageSize: 10 });
+    return r.users.map((u) => ({ id: u.id, name: u.name, email: u.email || null }));
+  });
+}
+
+/** Gives or takes a role in one activity of the course. */
+export async function assignActivityRoleAction(
+  courseId: string,
+  activityId: string,
+  userId: string,
+  roleId: string,
+  assigned: boolean,
+) {
+  return runAction(async () => {
+    const r = await assignActivityRole.run(await getContext(), {
+      activityId,
+      userId,
+      roleId,
+      assigned,
+    });
+    revalidatePath(`/course/${courseId}/a/${activityId}/permissions`);
+    return r;
+  });
 }

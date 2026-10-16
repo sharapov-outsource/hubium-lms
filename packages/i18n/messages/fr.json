@@ -932,7 +932,9 @@
       "emailOrUsername": "L’email ou le nom d’utilisateur est requis",
       "statusValue": "Le statut est active ou suspended",
       "passwordForNew": "Un nouvel utilisateur a besoin d’un mot de passe",
-      "roleNotForCategory": "Ce rôle ne peut pas être attribué dans une catégorie"
+      "roleNotForCategory": "Ce rôle ne peut pas être attribué dans une catégorie",
+      "roleNotForActivity": "Ce rôle ne peut pas être attribué dans une activité",
+      "notInCourse": "Cette personne n’est pas inscrite au cours"
     },
     "ai": {
       "apiKeyRequired": "Une clé d’API est requise",
@@ -2611,7 +2613,10 @@
     "addPerson": "Ajouter une personne",
     "searchPerson": "Nom ou e-mail",
     "removeHolder": "Retirer le rôle « {role} » à {name}",
-    "giveRole": "Attribuer le rôle à {name}"
+    "giveRole": "Attribuer le rôle à {name}",
+    "activityRoles": "Rôles dans cette activité",
+    "activityRolesHint": "Un rôle attribué ici ne vaut que dans cette activité : un apprenant qui modère un forum, ou un enseignant qui corrige ce seul devoir.",
+    "searchParticipant": "Nom d’un participant du cours"
   },
   "profileFields": {
     "title": "Champs de profil",

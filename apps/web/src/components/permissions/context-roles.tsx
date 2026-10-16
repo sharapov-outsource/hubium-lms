@@ -1,31 +1,39 @@
 'use client';
 
+import type { ActionResult } from '@hubium/core/operation';
 import { Button, Input, Label, Select } from '@hubium/ui';
 import { toast } from '@hubium/ui/theme';
 import { X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState, useTransition } from 'react';
-import { assignCategoryRoleAction } from '@/server/actions/admin';
-import { searchUsersAction } from '@/server/actions/mentors';
 
 type Holder = { id: string; name: string };
+type Found = { id: string; name: string; email: string | null };
 
-/** Who holds which role in a category, with a search to give one. */
-export function CategoryRoles({
-  categoryId,
+/**
+ * Who holds which role in a context (a category, an activity), with a search to give one.
+ * The page says whom to search (`search`) and how to give or take a role (`assign`).
+ */
+export function ContextRoles({
   roles,
   canAssign,
+  search,
+  assign,
+  searchLabel,
 }: {
-  categoryId: string;
   roles: { id: string; name: string; users: Holder[] }[];
   canAssign: boolean;
+  search: (q: string) => Promise<ActionResult<Found[]>>;
+  assign: (userId: string, roleId: string, assigned: boolean) => Promise<ActionResult<unknown>>;
+  /** The search box's placeholder: whom it finds. */
+  searchLabel?: string;
 }) {
   const t = useTranslations('permissions');
   const router = useRouter();
   const [pending, start] = useTransition();
   const [q, setQ] = useState('');
-  const [found, setFound] = useState<{ id: string; name: string; email: string | null }[]>([]);
+  const [found, setFound] = useState<Found[]>([]);
   const [roleId, setRoleId] = useState(roles[0]?.id ?? '');
 
   useEffect(() => {
@@ -36,18 +44,18 @@ export function CategoryRoles({
     // an answer to an earlier query that arrives late is not shown
     let current = true;
     const h = setTimeout(async () => {
-      const r = await searchUsersAction(q).catch(() => null);
+      const r = await search(q).catch(() => null);
       if (current && r?.ok) setFound(r.data);
     }, 250);
     return () => {
       current = false;
       clearTimeout(h);
     };
-  }, [q]);
+  }, [q, search]);
 
   const set = (userId: string, role: string, assigned: boolean) =>
     start(async () => {
-      const r = await assignCategoryRoleAction(categoryId, userId, role, assigned);
+      const r = await assign(userId, role, assigned);
       if (!r.ok) return void toast.error(r.message);
       setQ('');
       router.refresh();
@@ -86,13 +94,13 @@ export function CategoryRoles({
       ))}
       {canAssign && roles.length ? (
         <div className="grid gap-2">
-          <Label htmlFor="cat-role-q">{t('addPerson')}</Label>
+          <Label htmlFor="ctx-role-q">{t('addPerson')}</Label>
           <div className="grid gap-2 sm:grid-cols-[1fr_12rem]">
             <Input
-              id="cat-role-q"
+              id="ctx-role-q"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder={t('searchPerson')}
+              placeholder={searchLabel ?? t('searchPerson')}
               autoComplete="off"
             />
             <Select

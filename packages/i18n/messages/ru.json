@@ -933,7 +933,9 @@
       "emailOrUsername": "Нужен email или имя пользователя",
       "statusValue": "Статус — active или suspended",
       "passwordForNew": "Новому пользователю нужен пароль",
-      "roleNotForCategory": "Эту роль нельзя назначить в категории"
+      "roleNotForCategory": "Эту роль нельзя назначить в категории",
+      "roleNotForActivity": "Эту роль нельзя назначить в элементе курса",
+      "notInCourse": "Этот человек не записан на курс"
     },
     "ai": {
       "apiKeyRequired": "Нужен ключ API",
@@ -2612,7 +2614,10 @@
     "addPerson": "Добавить человека",
     "searchPerson": "Имя или почта",
     "removeHolder": "Снять роль «{role}» с пользователя {name}",
-    "giveRole": "Назначить роль: {name}"
+    "giveRole": "Назначить роль: {name}",
+    "activityRoles": "Роли в этом элементе",
+    "activityRolesHint": "Роль, назначенная здесь, действует только в этом элементе: например, студент — модератор форума или преподаватель, который проверяет только это задание.",
+    "searchParticipant": "Имя участника курса"
   },
   "profileFields": {
     "title": "Поля профиля",

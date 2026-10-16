@@ -933,7 +933,9 @@
       "emailOrUsername": "Email or username is required",
       "statusValue": "Status is active or suspended",
       "passwordForNew": "A new user needs a password",
-      "roleNotForCategory": "This role cannot be given in a category"
+      "roleNotForCategory": "This role cannot be given in a category",
+      "roleNotForActivity": "This role cannot be given in an activity",
+      "notInCourse": "This person is not enrolled in the course"
     },
     "ai": {
       "apiKeyRequired": "An API key is required",
@@ -2612,7 +2614,10 @@
     "addPerson": "Add a person",
     "searchPerson": "Name or email",
     "removeHolder": "Take the role “{role}” from {name}",
-    "giveRole": "Give {name} the role"
+    "giveRole": "Give {name} the role",
+    "activityRoles": "Roles in this activity",
+    "activityRolesHint": "A role given here holds in this activity only: a learner who moderates a forum, or a teacher who marks this assignment.",
+    "searchParticipant": "Name of a course participant"
   },
   "profileFields": {
     "title": "Profile fields",

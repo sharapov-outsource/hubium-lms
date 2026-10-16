@@ -11,11 +11,13 @@ import {
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
+import { ContextRoles } from '@/components/permissions/context-roles';
 import { OverridesPanel } from '@/components/permissions/overrides-panel';
+import { assignCategoryRoleAction } from '@/server/actions/admin';
+import { searchUsersAction } from '@/server/actions/mentors';
 import { db } from '@/server/db';
 import { titled } from '@/server/page-title';
 import { getContext, orRefused } from '@/server/session';
-import { CategoryRoles } from './category-roles';
 
 export const generateMetadata = titled('permissions', 'title');
 
@@ -58,9 +60,10 @@ export default async function CategoryPermissionsPage({
           <CardDescription>{t('categoryRolesHint')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <CategoryRoles
-            categoryId={id}
+          <ContextRoles
             canAssign={canAssign}
+            search={searchUsersAction}
+            assign={assignCategoryRoleAction.bind(null, id)}
             roles={holders.map((h) => ({
               id: h.role.id,
               name: roleName(h.role, locale),
