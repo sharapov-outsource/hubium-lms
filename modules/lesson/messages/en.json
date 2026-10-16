@@ -189,6 +189,7 @@
       "essayPoints": "An essay gets 0 to {max} points",
       "noAttempt": "Attempt not found",
       "closeAfterOpen": "The lesson must close after it opens"
-    }
+    },
+    "earlierEssays": "Graded essays of earlier attempts"
   }
 }

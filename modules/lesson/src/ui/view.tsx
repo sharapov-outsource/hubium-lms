@@ -17,6 +17,7 @@ import { AddPage, DeleteAttempt, EssayGrade, PageForm, PageTools } from './edito
 import { LessonPlayer, StartLesson } from './player.tsx';
 
 type Props = ViewProps<LessonSettingsT>;
+type GradedEssay = Awaited<ReturnType<typeof lessonState>>['past'][number]['essays'][number];
 const TABS = ['lesson', 'edit', 'reports', 'essays'] as const;
 
 export async function LessonView(props: Props) {
@@ -86,6 +87,11 @@ async function LessonTab({ activity: a, ctx, canPreview }: Props & { canPreview:
   const when = (d: Date) => format.dateTime(d, { dateStyle: 'long', timeStyle: 'short' });
   const mine = st.past.filter((x) => x.preview === !canAttempt);
   const last = mine[mine.length - 1];
+  // essays a teacher graded after the learner moved on to another attempt
+  const earlier = mine
+    .slice(0, -1)
+    .filter((x) => x.essays.length)
+    .reverse();
   const window = lessonWindow(s, ctx.now);
   return (
     <div className="grid max-w-3xl gap-4">
@@ -113,19 +119,7 @@ async function LessonTab({ activity: a, ctx, canPreview }: Props & { canPreview:
                 {t('pendingEssays', { n: last.pending })}
               </p>
             ) : null}
-            {last.essays.length ? (
-              <ul className="grid gap-2 text-sm">
-                {last.essays.map((e, i) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: an attempt's essays in order
-                  <li key={i} className="rounded-md border border-border p-3">
-                    <p className="font-medium">
-                      {t('essayGraded', { title: e.title, score: e.score, max: e.max })}
-                    </p>
-                    {e.comment ? <p className="mt-1 whitespace-pre-line">{e.comment}</p> : null}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+            {last.essays.length ? <EssayList essays={last.essays} /> : null}
             {mine.length > 1 && st.lessonPercent !== null && !s.practice ? (
               <p className="text-sm">
                 {t(s.useMaxGrade ? 'gradeBest' : 'gradeMean', {
@@ -133,6 +127,19 @@ async function LessonTab({ activity: a, ctx, canPreview }: Props & { canPreview:
                 })}
               </p>
             ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+      {earlier.length ? (
+        <Card>
+          <CardContent className="grid gap-3 pt-6">
+            <h2 className="text-lg font-semibold">{t('earlierEssays')}</h2>
+            {earlier.map((x) => (
+              <section key={x.id} className="grid gap-2">
+                <h3 className="text-sm font-medium">{t('reports.attempt', { n: x.number })}</h3>
+                <EssayList essays={x.essays} />
+              </section>
+            ))}
           </CardContent>
         </Card>
       ) : null}
@@ -157,6 +164,23 @@ async function LessonTab({ activity: a, ctx, canPreview }: Props & { canPreview:
         <StartLesson activityId={a.id} label={t('preview')} preview password={false} />
       ) : null}
     </div>
+  );
+}
+
+async function EssayList({ essays }: { essays: GradedEssay[] }) {
+  const t = await getTranslations('mod.lesson');
+  return (
+    <ul className="grid gap-2 text-sm">
+      {essays.map((e, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: an attempt's essays in order
+        <li key={i} className="rounded-md border border-border p-3">
+          <p className="font-medium">
+            {t('essayGraded', { title: e.title, score: e.score, max: e.max })}
+          </p>
+          {e.comment ? <p className="mt-1 whitespace-pre-line">{e.comment}</p> : null}
+        </li>
+      ))}
+    </ul>
   );
 }
 

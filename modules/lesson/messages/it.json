@@ -189,6 +189,7 @@
       "essayPoints": "Un saggio riceve da 0 a {max} punti",
       "noAttempt": "Tentativo non trovato",
       "closeAfterOpen": "La lezione deve chiudere dopo l’apertura"
-    }
+    },
+    "earlierEssays": "Saggi valutati dei tentativi precedenti"
   }
 }
