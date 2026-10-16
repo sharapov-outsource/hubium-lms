@@ -107,6 +107,11 @@ describe('question behaviours', () => {
     const o = replay(mc, [{ kind: 'CHECK', response: { selected: ['a', 'c'] } }], 'interactive');
     expect(o.numCorrect).toEqual({ right: 1, total: 2 });
     expect(clearWrongParts(mc, o.response)).toEqual({ selected: ['a'] });
+    // one answer allowed: picking them all must not leave the right one picked for the next try
+    const single = { ...mc, data: MultichoiceData.parse({ ...mc.data, single: true }) };
+    expect(clearWrongParts(single, { selected: ['a', 'b', 'c'] })).toEqual({ selected: [] });
+    expect(clearWrongParts(single, { selected: ['c'] })).toEqual({ selected: [] });
+    expect(clearWrongParts(single, { selected: ['a'] })).toEqual({ selected: ['a'] });
     const match: QuestionSnapshot = {
       ...mc,
       type: 'MATCH',

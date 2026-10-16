@@ -65,9 +65,12 @@ export const multichoice: QuestionTypeDef<'MULTICHOICE'> = {
     };
   },
   clearWrong: (q, r) => ({
-    selected: r.selected.filter(
-      (id) => (q.data.answers.find((a) => a.id === id)?.fraction ?? 0) > 0,
-    ),
+    // one answer allowed and several picked: the response is wrong as a whole, and keeping
+    // the options with credit would hand over the right one for the next try
+    selected:
+      q.data.single && r.selected.length > 1
+        ? []
+        : r.selected.filter((id) => (q.data.answers.find((a) => a.id === id)?.fraction ?? 0) > 0),
   }),
   gift(d, { head, gf, fb, esc }) {
     // As Moodle writes it: "=" marks the full-credit answer of a one-answer question,
