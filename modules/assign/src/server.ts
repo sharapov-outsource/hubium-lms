@@ -22,6 +22,7 @@ import {
   rubricGrade,
   sameStructure,
 } from '@hubium/module-sdk/grading';
+import { inVisibleGroups } from '@hubium/module-sdk/groups';
 import { FileInput } from '@hubium/module-sdk/inputs';
 import { z } from 'zod';
 import { AssignSettings, type AssignSettingsT } from './config.ts';
@@ -100,6 +101,16 @@ export async function latestFor(db: Db, a: Assign, userId: string, team?: Team) 
 }
 
 /** The members of a team who submit to the assignment. */
+/**
+ * Whether the user sees the work of any of these students: everyone's, or in separate
+ * groups, for someone who cannot see all groups, that of their groups' members.
+ */
+async function seesWorkOf(ctx: ModuleCtx, a: ActivityRef, userIds: string[]) {
+  if (ctx.actor.kind !== 'user' || !userIds.length) return false;
+  const canSeeAll = await ctx.perm.can('group:accessall', a.id);
+  return (await inVisibleGroups(ctx.db, a, ctx.actor.userId, canSeeAll, userIds)).length > 0;
+}
+
 export async function teamMembers(ctx: ModuleCtx, a: Assign, groupId: string) {
   const [learners, members] = await Promise.all([
     ctx.perm.usersWithCap('mod.assign:submit', a.id),
@@ -683,27 +694,36 @@ export const assign = defineModule<AssignSettingsT>({
     submission: {
       canRead: async (ctx, a, f) => {
         if (ctx.actor.kind !== 'user') return false;
-        if (f.uploadedById === ctx.actor.userId) return true;
-        if (await ctx.perm.can('mod.assign:grade', a.id)) return true;
-        if (!f.itemId) return false;
+        const me = ctx.actor.userId;
+        if (f.uploadedById === me) return true;
+        const grader = await ctx.perm.can('mod.assign:grade', a.id);
+        if (!f.itemId) return grader;
         const sub = await ctx.db.assignSubmission.findUnique({
           where: { id: f.itemId },
           select: { activityId: true, userId: true, groupId: true },
         });
         if (!sub || sub.activityId !== a.id) return false;
-        if (sub.userId === ctx.actor.userId) return true;
-        return (
-          !!sub.groupId &&
-          !!(await ctx.db.groupMember.findUnique({
-            where: { groupId_userId: { groupId: sub.groupId, userId: ctx.actor.userId } },
-          }))
-        );
+        if (sub.userId === me) return true;
+        const team = sub.groupId
+          ? (
+              await ctx.db.groupMember.findMany({
+                where: { groupId: sub.groupId },
+                select: { userId: true },
+              })
+            ).map((m) => m.userId)
+          : [];
+        if (team.includes(me)) return true;
+        // a grader reads the work of the students they see: in separate groups, their own
+        return grader && seesWorkOf(ctx, a, sub.userId ? [sub.userId] : team);
       },
     },
     feedback: {
       canRead: async (ctx, a, f) =>
         ctx.actor.kind === 'user' &&
-        (f.itemId === ctx.actor.userId || (await ctx.perm.can('mod.assign:grade', a.id))),
+        (f.itemId === ctx.actor.userId ||
+          (!!f.itemId &&
+            (await ctx.perm.can('mod.assign:grade', a.id)) &&
+            (await seesWorkOf(ctx, a, [f.itemId])))),
     },
   },
   cron: [

@@ -1,5 +1,5 @@
 import { markedBy } from '@hubium/mod-assign/server';
-import { attemptsSeenBy, readReview } from '@hubium/mod-quiz/server';
+import { attemptsSeenBy, readReview, regradeQuiz } from '@hubium/mod-quiz/server';
 import { describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
@@ -8,6 +8,7 @@ import { enrolUsers } from '../enrol/enrol.ts';
 import { importGift } from '../questions/bank.ts';
 import { runModuleAction } from './actions.ts';
 import { buildModuleCtx, toActivityRef } from './module-ctx.ts';
+import { getModule } from './registry.ts';
 
 describe('separate groups in assignments and quizzes', () => {
   const t = useTestDb();
@@ -67,6 +68,22 @@ describe('separate groups in assignments and quizzes', () => {
       runModuleAction(assistant, assignId, 'grade', { userId: s2, grade: 5 }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     await runModuleAction(assistant, assignId, 'grade', { userId: s1, grade: 5 });
+    // nor reads the files of the other group's work, by their address
+    const submissionOf = async (userId: string) =>
+      (await t.db.assignSubmission.findFirstOrThrow({ where: { activityId: assignId, userId } }))
+        .id;
+    const readsFile = async (ctx: typeof teacher, userId: string) =>
+      getModule('assign')!.files!.submission!.canRead(
+        buildModuleCtx(ctx),
+        (await assign()) as never,
+        {
+          itemId: await submissionOf(userId),
+          uploadedById: userId,
+        },
+      );
+    expect(await readsFile(assistant, s2)).toBe(false);
+    expect(await readsFile(assistant, s1)).toBe(true);
+    expect(await readsFile(teacher, s2)).toBe(true);
 
     // the quiz
     await importGift.run(teacher, { courseId: f.courseId, gift: '::Q1:: Земля круглая {T}' });
@@ -103,5 +120,10 @@ describe('separate groups in assignments and quizzes', () => {
       readReview(buildModuleCtx(ctx), quiz as Parameters<typeof readReview>[1], attempts[userId]!);
     expect(await review(assistant, s2)).toBeNull();
     expect(await review(assistant, s1)).not.toBeNull();
+    // a regrade's report lists the attempts the teacher sees
+    const regraded = (ctx: typeof teacher) =>
+      regradeQuiz(buildModuleCtx(ctx), quiz as Parameters<typeof regradeQuiz>[1], true);
+    expect((await regraded(assistant)).attempts.map((x) => x.userId)).toEqual([s1]);
+    expect((await regraded(teacher)).attempts).toHaveLength(2);
   });
 });

@@ -844,7 +844,17 @@ export async function regradeQuiz(
       changed: report.attempts.filter((x) => x.before !== x.after || x.maxBefore !== x.maxAfter)
         .length,
     });
-  return report;
+  // every attempt is regraded, but the report lists only those the teacher sees: in
+  // separate groups, their groups' members
+  const seen = new Set(
+    (
+      await ctx.db.quizAttempt.findMany({
+        where: { activityId: a.id, ...(await attemptsSeenBy(ctx, a)) },
+        select: { id: true },
+      })
+    ).map((x) => x.id),
+  );
+  return { ...report, attempts: report.attempts.filter((x) => seen.has(x.attemptId)) };
 }
 
 /** Can the learner see correct answers and feedback for this attempt now? */
