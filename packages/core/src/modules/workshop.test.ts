@@ -132,6 +132,15 @@ describe('mod-workshop', () => {
     await expect(act(teacher, 'deallocate', { assessmentId: given.id })).rejects.toMatchObject({
       code: 'CONFLICT',
     });
+    // taken back a phase, it can go: the reviewer's grade for assessing goes with it
+    expect(await gradeOf(1, given.reviewerId)).not.toBeNull();
+    await act(teacher, 'switchPhase', { phase: 'assessment' });
+    for (const x of await t.db.workshopAssessment.findMany({
+      where: { reviewerId: given.reviewerId, submission: { activityId: id } },
+    }))
+      await act(teacher, 'deallocate', { assessmentId: x.id });
+    await act(teacher, 'switchPhase', { phase: 'closed' });
+    expect(await gradeOf(1, given.reviewerId)).toBeNull();
     // the form cannot change once work has been assessed with it
     await expect(
       act(teacher, 'saveForm', { dimensions: [{ description: 'Новое', maxGrade: 5 }] }),

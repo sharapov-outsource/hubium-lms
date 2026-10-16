@@ -346,6 +346,23 @@ async function pushGrades(ctx: ModuleCtx, a: Ws, onlyUsers?: string[]) {
   }
   for (const [userId, list] of given)
     grades.push({ userId, itemNumber: 1, rawGrade: points(gradingGrade(list), s.gradingGradeMax) });
+  // A grade given before and no longer earned (an assessment taken away after the workshop
+  // went back a phase, a submission deleted) is cleared, not left in the gradebook.
+  const earned = new Set(grades.map((g) => `${g.itemNumber}:${g.userId}`));
+  const items = await ctx.db.gradeItem.findMany({
+    where: { activityId: a.id, itemNumber: { in: [0, 1] } },
+    select: { id: true, itemNumber: true },
+  });
+  const numberOf = new Map(items.map((i) => [i.id, i.itemNumber]));
+  const before = await ctx.db.grade.findMany({
+    where: { gradeItemId: { in: items.map((i) => i.id) }, rawGrade: { not: null } },
+    select: { userId: true, gradeItemId: true },
+  });
+  for (const g of before) {
+    const itemNumber = numberOf.get(g.gradeItemId)!;
+    if (!earned.has(`${itemNumber}:${g.userId}`))
+      grades.push({ userId: g.userId, itemNumber, rawGrade: null });
+  }
   const chosen = onlyUsers ? grades.filter((g) => onlyUsers.includes(g.userId)) : grades;
   if (chosen.length) await ctx.grades.setGrades(a.id, chosen);
 }
