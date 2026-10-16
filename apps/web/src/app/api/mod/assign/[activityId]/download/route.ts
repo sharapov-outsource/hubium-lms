@@ -21,10 +21,16 @@ const MAX_BYTES = 500 * 1024 * 1024;
 export async function GET(_req: Request, { params }: { params: Promise<{ activityId: string }> }) {
   const { activityId } = await params;
   const ctx = await getContext();
-  const a = /^[0-9a-f-]{36}$/.test(activityId)
-    ? await db.activity.findUnique({ where: { id: activityId } })
+  const found = /^[0-9a-f-]{36}$/.test(activityId)
+    ? await db.activity.findUnique({
+        where: { id: activityId },
+        include: { course: { select: { deletedAt: true } } },
+      })
     : null;
-  if (a?.moduleKey !== 'assign' || a.deletedAt) return new Response('Not found', { status: 404 });
+  // an assignment in the bin, or in a course in the bin, has nothing to download
+  if (found?.moduleKey !== 'assign' || found.deletedAt || found.course.deletedAt)
+    return new Response('Not found', { status: 404 });
+  const { course: _course, ...a } = found;
   if (!isModuleEnabled(await getAllSettings(db), 'assign'))
     return new Response('Not found', { status: 404 });
   if (!(await ctx.perm.can('mod.assign:grade', a.id)))
