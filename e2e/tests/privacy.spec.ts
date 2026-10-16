@@ -58,6 +58,22 @@ test.describe
       await expect(page.getByRole('heading', { name: 'Правила e2e' })).toBeVisible();
       await expect(page.getByText('Не списывать на тестах.')).toBeVisible();
       await expectAccessible(page);
+      // the API behind module activities and the AI tutor is held as well, and says why
+      const origin = new URL(page.url()).origin;
+      const held = await page.request.post('/api/mod/action', {
+        headers: { origin },
+        multipart: { activityId: crypto.randomUUID(), action: 'submit', input: '{}' },
+      });
+      expect(await held.json()).toMatchObject({
+        ok: false,
+        code: 'FORBIDDEN',
+        message: 'Сначала примите политики сайта',
+      });
+      const tutor = await page.request.post('/api/ai/tutor', {
+        headers: { origin },
+        data: { courseId: crypto.randomUUID(), message: 'Привет' },
+      });
+      expect(tutor.status()).toBe(403);
       await expect(page.getByRole('button', { name: 'Продолжить' })).toBeDisabled();
       await page.getByLabel('Я прочитал(а) и принимаю эти документы').check();
       await page.getByRole('button', { name: 'Продолжить' }).click();

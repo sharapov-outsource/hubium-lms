@@ -572,7 +572,13 @@ export function createApi(opts: ApiOptions) {
         'WWW-Authenticate': 'Bearer',
       });
     // policies to accept, a password to change: on the site first, as for its pages
-    if (r.gate) return c.json({ code: `GATE_${r.gate}`, message: gateError(r.gate).message }, 403);
+    if (r.gate) {
+      const e = gateError(r.gate);
+      return c.json(
+        { code: `GATE_${r.gate}`, message: e.msg && locale ? e.msg.in(locale) : e.message },
+        403,
+      );
+    }
     const rl = limiter(r.tokenId);
     c.header('X-RateLimit-Limit', String(rl.limit));
     c.header('X-RateLimit-Remaining', String(rl.remaining));

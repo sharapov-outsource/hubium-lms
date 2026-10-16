@@ -967,7 +967,10 @@
     "account": {
       "unknownTimeZone": "Такого часового пояса нет",
       "passwordsDiffer": "Пароли не совпадают",
-      "phrasesDiffer": "Фразы не совпадают"
+      "phrasesDiffer": "Фразы не совпадают",
+      "gatePolicies": "Сначала примите политики сайта",
+      "gatePassword": "Сначала смените пароль",
+      "gateTwoFactor": "Сначала включите двухфакторный вход"
     },
     "admin": {
       "unknownSettingsSection": "Такого раздела настроек нет",

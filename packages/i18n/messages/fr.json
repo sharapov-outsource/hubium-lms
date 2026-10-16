@@ -966,7 +966,10 @@
     "account": {
       "unknownTimeZone": "Fuseau horaire inconnu",
       "passwordsDiffer": "Les mots de passe ne correspondent pas",
-      "phrasesDiffer": "Les phrases ne correspondent pas"
+      "phrasesDiffer": "Les phrases ne correspondent pas",
+      "gatePolicies": "Acceptez d’abord les politiques du site",
+      "gatePassword": "Changez d’abord votre mot de passe",
+      "gateTwoFactor": "Activez d’abord la connexion à deux facteurs"
     },
     "admin": {
       "unknownSettingsSection": "Section de paramètres inconnue",

@@ -967,7 +967,10 @@
     "account": {
       "unknownTimeZone": "Unknown time zone",
       "passwordsDiffer": "Passwords do not match",
-      "phrasesDiffer": "Phrases do not match"
+      "phrasesDiffer": "Phrases do not match",
+      "gatePolicies": "Accept the site policies first",
+      "gatePassword": "Change your password first",
+      "gateTwoFactor": "Turn on two-factor sign-in first"
     },
     "admin": {
       "unknownSettingsSection": "Unknown section",

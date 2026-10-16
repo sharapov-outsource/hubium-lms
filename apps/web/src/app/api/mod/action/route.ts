@@ -1,6 +1,6 @@
 import { actionInputFromForm, runModuleAction, toActionError } from '@hubium/core';
 import { getTranslations } from 'next-intl/server';
-import { getContext } from '@/server/session';
+import { getContext, requireNoGate } from '@/server/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +17,9 @@ export async function POST(req: Request) {
       { status: 401 },
     );
   try {
+    // a step to take first (policies, a new password, two-factor sign-in) holds module
+    // actions as it holds the site's own forms
+    await requireNoGate();
     const fd = await req.formData();
     const activityId = String(fd.get('activityId') ?? '');
     const action = String(fd.get('action') ?? '');

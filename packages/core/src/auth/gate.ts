@@ -1,4 +1,5 @@
 import type { Db } from '@hubium/db';
+import { type Msg, msg } from '@hubium/module-sdk';
 import { ForbiddenError } from '../errors.ts';
 import { pendingPolicies } from '../privacy/privacy.ts';
 import { getSetting } from '../settings/settings.ts';
@@ -18,10 +19,10 @@ export const GATE_PAGES: Record<AccountGate, string> = {
   TWO_FACTOR: '/settings/security?required=2fa',
 };
 
-const GATE_MESSAGES: Record<AccountGate, string> = {
-  POLICIES: 'Accept the site policies first',
-  PASSWORD: 'Change your password first',
-  TWO_FACTOR: 'Turn on two-factor sign-in first',
+const GATE_MESSAGES: Record<AccountGate, Msg> = {
+  POLICIES: msg('errors.account.gatePolicies'),
+  PASSWORD: msg('errors.account.gatePassword'),
+  TWO_FACTOR: msg('errors.account.gateTwoFactor'),
 };
 
 /** The step the person has to take first, if any. */

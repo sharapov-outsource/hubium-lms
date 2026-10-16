@@ -1,6 +1,12 @@
-import { buildModuleCtx, getAllSettings, getModule, isModuleEnabled } from '@hubium/core';
+import {
+  buildModuleCtx,
+  getAllSettings,
+  getModule,
+  isModuleEnabled,
+  toActionError,
+} from '@hubium/core';
 import { db } from '@/server/db';
-import { getContext } from '@/server/session';
+import { getContext, requireNoGate } from '@/server/session';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -15,6 +21,14 @@ async function handle(
   if (!m?.http || !isModuleEnabled(await getAllSettings(db), m.key))
     return new Response('Not found', { status: 404 });
   const ctx = await getContext();
+  // a signed-in person with a step to take first is held here too (a tool's own calls
+  // come without a session and are not)
+  try {
+    await requireNoGate();
+  } catch (e) {
+    const r = toActionError(e, ctx.locale);
+    return Response.json(r, { status: 403 });
+  }
   return m.http(buildModuleCtx(ctx), req, path);
 }
 

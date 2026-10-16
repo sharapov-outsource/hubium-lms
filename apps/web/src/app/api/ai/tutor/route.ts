@@ -1,5 +1,5 @@
 import { AppError, askTutor, toActionError } from '@hubium/core';
-import { getContext } from '@/server/session';
+import { getContext, requireNoGate } from '@/server/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +20,11 @@ export async function POST(req: Request) {
   const ctx = await getContext();
   if (ctx.actor.kind !== 'user')
     return Response.json({ ok: false, code: 'UNAUTHENTICATED' }, { status: 401 });
+  try {
+    await requireNoGate();
+  } catch (e) {
+    return Response.json(toActionError(e, ctx.locale), { status: 403 });
+  }
   let body: { courseId?: string; conversationId?: string | null; message?: string };
   try {
     body = await req.json();

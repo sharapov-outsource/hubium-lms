@@ -212,9 +212,10 @@ async function buildProvider(
   if (input.protocol === 'oidc') {
     const storedSecret = same?.clientSecretEnc ?? null;
     const errors: Record<string, MsgOrText[]> = {};
-    if (!input.issuer) errors.issuer = ['Required'];
-    if (!input.clientId) errors.clientId = ['Required'];
-    if (!input.clientSecret && !storedSecret) errors.clientSecret = ['Required'];
+    const required = msg('errors.field.required');
+    if (!input.issuer) errors.issuer = [required];
+    if (!input.clientId) errors.clientId = [required];
+    if (!input.clientSecret && !storedSecret) errors.clientSecret = [required];
     if (Object.keys(errors).length) throw new ValidationError(errors);
     const d = await discoverOidc(input.issuer!);
     const methods = d.token_endpoint_auth_methods_supported ?? ['client_secret_basic'];
