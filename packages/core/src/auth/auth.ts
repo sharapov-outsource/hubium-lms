@@ -296,8 +296,10 @@ export function createAuth({
     account: {
       accountLinking: {
         enabled: true,
-        // custom providers the administrator lets sign in to accounts with the same email
-        trustedProviders: customOAuth.filter((p) => p.linkByEmail).map((p) => p.providerId),
+        // No provider is trusted with an email it does not vouch for: a custom provider the
+        // administrator lets sign in to accounts with the same email links only an address
+        // it reports as verified (email_verified), and never an administrator's (below).
+        trustedProviders: [],
       },
     },
     hooks: {
@@ -454,13 +456,20 @@ export function createAuth({
       // so the new hash itself identifies the account afterwards.
       account: {
         create: {
-          // a custom provider that must not sign in to existing accounts by email: an
-          // account linked to a user who already has others is such a link
+          // An account linked to a user who already has others is a sign-in to an existing
+          // account by email: refused for a custom provider not allowed to, and for an
+          // administrator's account whatever the provider is allowed.
           async before(account) {
             const p = custom.get(account.providerId);
-            if (!p || p.linkByEmail) return { data: account };
+            if (!p) return { data: account };
             const others = await db.account.count({ where: { userId: account.userId } });
-            return others ? false : { data: account };
+            if (!others) return { data: account };
+            if (!p.linkByEmail) return false;
+            const user = await db.user.findUnique({
+              where: { id: account.userId },
+              select: { isSiteAdmin: true },
+            });
+            return user?.isSiteAdmin ? false : { data: account };
           },
           async after(account) {
             if (account.password) await recordPasswordChange(db, account.userId);

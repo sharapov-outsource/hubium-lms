@@ -251,4 +251,51 @@ describe('auth', () => {
       });
     }
   });
+  it('links a custom OAuth 2 account by email only where allowed, and never an administrator', async () => {
+    const provider = (providerId: string, linkByEmail: boolean) => ({
+      providerId,
+      name: providerId,
+      clientId: 'id',
+      clientSecret: 'secret',
+      authorizationUrl: 'https://idp.test/authorize',
+      tokenUrl: 'https://idp.test/token',
+      userInfoUrl: 'https://idp.test/userinfo',
+      scopes: ['openid', 'email'],
+      mapping: { email: 'email', firstName: 'given_name', lastName: 'family_name' },
+      linkByEmail,
+      autoCreate: true,
+    });
+    const withCustom = createAuth({
+      db: t.db,
+      baseURL: 'http://lms.test',
+      secret: 's'.repeat(40),
+      customOAuth: [provider('linking', true), provider('separate', false)],
+    });
+    // no provider is trusted with an email it does not report as verified
+    expect(withCustom.options.account?.accountLinking?.trustedProviders).toEqual([]);
+    const before = withCustom.options.databaseHooks!.account!.create!.before! as (
+      a: Record<string, unknown>,
+    ) => Promise<unknown>;
+    const someone = async (email: string, isSiteAdmin: boolean) => {
+      const u = await t.db.user.create({
+        data: { email, name: 'L K', firstName: 'L', lastName: 'K', isSiteAdmin },
+      });
+      await t.db.account.create({
+        data: { userId: u.id, providerId: 'credential', accountId: u.id },
+      });
+      return u.id;
+    };
+    const learner = await someone('link-learner@example.org', false);
+    const admin = await someone('link-admin@example.org', true);
+    const link = (userId: string, providerId: string) =>
+      before({ userId, providerId, accountId: `${providerId}-${userId}` });
+    expect(await link(learner, 'linking')).toMatchObject({ data: { userId: learner } });
+    expect(await link(learner, 'separate')).toBe(false);
+    expect(await link(admin, 'linking')).toBe(false);
+    // a new person's first account is no link
+    const fresh = await t.db.user.create({
+      data: { email: 'link-new@example.org', name: 'N', firstName: 'N', lastName: '' },
+    });
+    expect(await link(fresh.id, 'separate')).toMatchObject({ data: { userId: fresh.id } });
+  });
 });
