@@ -63,9 +63,15 @@ async function requireAward(ctx: RequestContext, courseId: string | null) {
   else await ctx.perm.require('badge:managesite');
 }
 
-/** Refuses unless the caller may award the badge by hand. */
-export async function requireBadgeAward(ctx: RequestContext, badgeId: string) {
-  await requireAward(ctx, (await loadBadge(ctx.db, badgeId)).courseId);
+/**
+ * Refuses unless the caller may award the badge by hand to someone named by email or login.
+ * Only a site badge is awarded so, by those who manage site badges: a course badge's
+ * learners are chosen from its list, and looking people up across the site by address
+ * would tell a course's teacher who has an account here.
+ */
+export async function requireBadgeAwardByLogin(ctx: RequestContext, badgeId: string) {
+  if ((await loadBadge(ctx.db, badgeId)).courseId) throw new ForbiddenError();
+  await requireAward(ctx, null);
 }
 
 async function loadBadge(db: Tx, id: string) {

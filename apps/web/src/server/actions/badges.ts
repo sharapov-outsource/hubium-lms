@@ -5,7 +5,7 @@ import {
   checkBadgeImage,
   deleteBadge,
   markBadge,
-  requireBadgeAward,
+  requireBadgeAwardByLogin,
   resolveLogins,
   revokeBadgeAward,
   saveBadge,
@@ -83,7 +83,7 @@ export async function markBadgeAction(fd: FormData) {
     let userId = v.userId ?? '';
     if (!userId && v.login !== undefined) {
       const [id] = await resolveLogins(ctx, v.login, {
-        allowed: () => requireBadgeAward(ctx, v.badgeId ?? ''),
+        allowed: () => requireBadgeAwardByLogin(ctx, v.badgeId ?? ''),
         field: 'login',
       });
       if (!id) throw new ValidationError({ login: [msg('errors.common.userNotFound')] });

@@ -13,6 +13,7 @@ import {
   bakedBadgeImage,
   deleteBadge,
   markBadge,
+  requireBadgeAwardByLogin,
   reviewAllBadges,
   reviewBadge,
   revokeBadgeAward,
@@ -221,6 +222,10 @@ describe('badges', () => {
     await expect(
       markBadge.run(student, { badgeId: id, userId: f.users.student2! }),
     ).rejects.toBeInstanceOf(ForbiddenError);
+    // a course badge's learners come from its list: nobody looks people up by address
+    // for it, which would tell the teacher who has an account on the site
+    await expect(requireBadgeAwardByLogin(teacher, id)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(requireBadgeAwardByLogin(admin, id)).rejects.toBeInstanceOf(ForbiddenError);
     // the teacher's mark alone is not enough
     expect(await markBadge.run(teacher, { badgeId: id, userId: f.users.student2! })).toEqual({
       awarded: false,
@@ -277,6 +282,8 @@ describe('badges', () => {
     });
     await setBadgeImage.run(admin, { id, name: 'b.svg', data: SVG });
     await setBadgeStatus.run(admin, { id, status: 'ACTIVE' });
+    // a site badge is awarded by login by those who manage site badges
+    await expect(requireBadgeAwardByLogin(admin, id)).resolves.toBeUndefined();
     // two reviews at once (the hourly one and "Run now"): each award is made once, and
     // neither fails on the unique key
     const [first, second] = await Promise.all([reviewAllBadges(t.db), reviewAllBadges(t.db)]);
