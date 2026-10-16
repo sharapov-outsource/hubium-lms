@@ -1,4 +1,5 @@
 import type { Activity, Db, Prisma } from '@hubium/db';
+import { log } from '@hubium/log';
 import { Permissions } from '../access/permissions.ts';
 import type { RequestContext } from '../context.ts';
 import { buildModuleCtx, toActivityRef } from '../modules/module-ctx.ts';
@@ -10,6 +11,7 @@ import { dropAvailabilityRefs, namesActivity } from './availability-refs.ts';
 // by hand or once they have been there for the days the site keeps them (recyclebin.purge).
 
 type Tx = Prisma.TransactionClient;
+const logger = log('recyclebin');
 
 /** Deletes an activity for good: its module's clean-up (stored packages, media), then its
  *  context with what hangs on it (its calendar events too). */
@@ -35,6 +37,28 @@ export async function purgeCourseRecord(ctx: RequestContext, tx: Tx, courseId: s
   await tx.context.delete({ where: { id: courseId } });
 }
 
+/**
+ * Runs a deletion for good (purgeActivityRecord, purgeCourseRecord) in a transaction of its
+ * own. The modules' stored objects go once it has committed: a deletion that fails and rolls
+ * back leaves no rows that name objects already gone.
+ */
+export async function purgeCommitted(
+  ctx: RequestContext,
+  fn: (ctx: RequestContext, tx: Tx) => Promise<void>,
+  opts?: { timeout?: number },
+) {
+  const after: (() => void | Promise<void>)[] = [];
+  const deferred = { ...ctx, afterCommit: (f: () => void | Promise<void>) => after.push(f) };
+  await ctx.db.$transaction((tx) => fn(deferred, tx), opts);
+  for (const f of after) {
+    try {
+      await f();
+    } catch (e) {
+      logger.error({ err: e }, 'deleting stored objects after a purge failed');
+    }
+  }
+}
+
 function systemCtx(db: Db, now: Date): RequestContext {
   return {
     db,
@@ -54,26 +78,16 @@ export async function purgeRecycleBin(
   const days = await getSetting(db, 'recyclebin.days');
   if (!days) return { courses: 0, activities: 0 };
   const before = new Date(now.getTime() - days * 86_400_000);
-  // the modules' stored objects go once each deletion has committed
-  const after: (() => void | Promise<void>)[] = [];
-  const ctx = {
-    ...systemCtx(db, now),
-    afterCommit: (fn: () => void | Promise<void>) => after.push(fn),
-  };
-  const purge = async (fn: (tx: Tx) => Promise<void>) => {
-    after.length = 0;
-    await db.$transaction(fn);
-    for (const f of after.splice(0)) await f();
-  };
+  const ctx = systemCtx(db, now);
   const courses = await db.course.findMany({
     where: { deletedAt: { lt: before } },
     select: { id: true },
   });
-  for (const c of courses) await purge((tx) => purgeCourseRecord(ctx, tx, c.id));
+  for (const c of courses) await purgeCommitted(ctx, (cx, tx) => purgeCourseRecord(cx, tx, c.id));
   // activities binned in courses that stay
   const activities = await db.activity.findMany({
     where: { deletedAt: { lt: before }, course: { deletedAt: null } },
   });
-  for (const a of activities) await purge((tx) => purgeActivityRecord(ctx, tx, a));
+  for (const a of activities) await purgeCommitted(ctx, (cx, tx) => purgeActivityRecord(cx, tx, a));
   return { courses: courses.length, activities: activities.length };
 }

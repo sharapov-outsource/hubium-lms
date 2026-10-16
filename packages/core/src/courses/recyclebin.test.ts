@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
+import type { MutationContext, RequestContext } from '../context.ts';
 import { ValidationError } from '../errors.ts';
 import { setSettings } from '../settings/settings.ts';
 import { deleteActivity, purgeActivity } from './activities.ts';
 import { createCourse, deleteCourse, purgeCourse, restoreCourse } from './courses.ts';
-import { purgeRecycleBin } from './recyclebin.ts';
+import { purgeCommitted, purgeRecycleBin } from './recyclebin.ts';
 
 describe('recycle bin', () => {
   const t = useTestDb();
@@ -59,6 +60,24 @@ describe('recycle bin', () => {
     expect(await t.db.course.findUnique({ where: { id: h.courseId } })).toBeNull();
     expect(await t.db.activity.findUnique({ where: { id: old } })).toBeNull();
     expect(await t.db.activity.findUnique({ where: { id: fresh } })).not.toBeNull();
+  });
+
+  it('deletes the stored objects of a purge only once it has committed', async () => {
+    const ctx = await ctxFor(t.db, 'admin@test.local');
+    const deleted: string[] = [];
+    // what a module's storage.delete does in a purge
+    const deleteLater = (cx: RequestContext, key: string) =>
+      (cx as Partial<MutationContext>).afterCommit?.(() => {
+        deleted.push(key);
+      });
+    await expect(
+      purgeCommitted(ctx, async (cx) => {
+        deleteLater(cx, 'rolled back');
+        throw new Error('the purge fails');
+      }),
+    ).rejects.toThrow('the purge fails');
+    await purgeCommitted(ctx, async (cx) => deleteLater(cx, 'committed'));
+    expect(deleted).toEqual(['committed']);
   });
 
   it('takes the calendar events of an activity or a group deleted for good', async () => {

@@ -29,7 +29,11 @@ import {
   toActivityRef,
   ValidationError,
 } from '@hubium/core';
-import { purgeActivityRecord, purgeCourseRecord } from '@hubium/core/courses/recyclebin';
+import {
+  purgeActivityRecord,
+  purgeCommitted,
+  purgeCourseRecord,
+} from '@hubium/core/courses/recyclebin';
 import { storeFile } from '@hubium/core/files/files';
 import { getStorage } from '@hubium/core/files/storage';
 import { type Db, type Prisma, uuidv7 } from '@hubium/db';
@@ -1500,7 +1504,8 @@ async function restoreInto(
       // as deleting them for good does: the modules' clean-up, contexts, calendar events
       for (const id of made.activities) {
         const a = await db.activity.findUnique({ where: { id } });
-        if (a) await db.$transaction((tx) => purgeActivityRecord(ctx, tx, a)).catch(() => {});
+        if (a)
+          await purgeCommitted(ctx, (cx, tx) => purgeActivityRecord(cx, tx, a)).catch(() => {});
       }
       if (made.categories.length)
         await db.questionCategory
@@ -1544,7 +1549,9 @@ async function freeIdNumber(
  */
 export async function discardCourse(ctx: RequestContext, courseId: string) {
   try {
-    await ctx.db.$transaction((tx) => purgeCourseRecord(ctx, tx, courseId), { timeout: 300_000 });
+    await purgeCommitted(ctx, (cx, tx) => purgeCourseRecord(cx, tx, courseId), {
+      timeout: 300_000,
+    });
   } catch {
     await ctx.db.course.delete({ where: { id: courseId } }).catch(() => {});
     await ctx.db.context.delete({ where: { id: courseId } }).catch(() => {});
