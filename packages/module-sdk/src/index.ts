@@ -213,7 +213,12 @@ export interface ModuleCtx {
   activities: ModuleActivities;
   ai: ModuleAi;
   content: ModuleContent;
-  log(event: string, data?: Record<string, unknown>): Promise<void>;
+  /**
+   * Writes an event to the course log; `data` names the activity (`activityId`) and the
+   * person concerned (`userId`). With `anonymous` the event says nothing of who did it (an
+   * anonymous survey's answer).
+   */
+  log(event: string, data?: Record<string, unknown>, opts?: { anonymous?: boolean }): Promise<void>;
 }
 
 export interface ActivityRef<S = unknown> {

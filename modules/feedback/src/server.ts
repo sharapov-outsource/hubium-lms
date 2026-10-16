@@ -448,7 +448,12 @@ export const feedback = defineModule<FeedbackSettingsT>({
           data: { activityId: a.id, userId: me, anonymous: a.settings.anonymous, answers },
         });
         await ctx.completion.recompute(a.id, me);
-        await ctx.log('feedback.submitted', { activityId: a.id });
+        // an anonymous answer leaves no trace of who gave it, in the course log either
+        await ctx.log(
+          'feedback.submitted',
+          { activityId: a.id },
+          { anonymous: a.settings.anonymous },
+        );
         if (a.settings.notifyTeachers) {
           const teachers = await ctx.perm.usersWithCap('mod.feedback:viewreports', a.id);
           await ctx.notify.send(teachers, {

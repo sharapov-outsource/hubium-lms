@@ -96,6 +96,13 @@ describe('mod-feedback', () => {
     };
     expect(full.items.find((i) => i.label === 'Комментарий')?.texts).toEqual(['Всё понятно']);
 
+    // anonymous: the course log does not say who answered
+    const logged = await t.db.eventLog.findMany({
+      where: { name: 'feedback.submitted', contextId: id },
+      select: { actorId: true, ip: true },
+    });
+    expect(logged.length).toBeGreaterThan(0);
+    expect(logged.every((e) => e.actorId === null && e.ip === null)).toBe(true);
     // anonymous: the export has no names; teachers were told of each response
     const a = await t.db.activity.findUniqueOrThrow({ where: { id } });
     const rows = await responseSheet(buildModuleCtx(teacher), {
