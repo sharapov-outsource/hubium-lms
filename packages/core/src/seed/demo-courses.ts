@@ -1,31 +1,15 @@
 import type { Db } from '@hubium/db';
-import { Permissions } from '../access/permissions.ts';
 import { indexCourse } from '../ai/indexing.ts';
 import { createEvent } from '../calendar/calendar.ts';
-import type { RequestContext } from '../context.ts';
 import { createActivity } from '../courses/activities.ts';
 import { createCategory } from '../courses/categories.ts';
 import { createCourse } from '../courses/courses.ts';
 import { enrolUsers, updateSelfEnrolment } from '../enrol/enrol.ts';
 import { createGroup, setGroupMembers } from '../groups/groups.ts';
-import { isModuleEnabled } from '../settings/modules.ts';
-import { getAllSettings, setSettings } from '../settings/settings.ts';
-
-/** The demo leaves out activity types turned off in Administration → Modules. */
-async function enabled(db: Db, key: string): Promise<boolean> {
-  return isModuleEnabled(await getAllSettings(db), key);
-}
-
-function systemCtx(db: Db): RequestContext {
-  return {
-    db,
-    actor: { kind: 'system' },
-    perm: new Permissions(db, { kind: 'system' }),
-    now: new Date(),
-    locale: 'ru',
-    origin: 'CLI',
-  };
-}
+import { setSettings } from '../settings/settings.ts';
+import { seedDemoAchievements } from './demo-achievements.ts';
+import { enabled, systemCtx } from './demo-ctx.ts';
+import { seedDemoLiterature } from './demo-literature.ts';
 
 /** Demo categories, courses, materials and enrolments (idempotent by course short name). */
 export async function seedDemoCourses(db: Db, users: Record<string, string>) {
@@ -35,6 +19,9 @@ export async function seedDemoCourses(db: Db, users: Record<string, string>) {
     await seedDemoComms(db, existing.id);
     await seedDemoMedia(db, existing.id);
     await seedDemoAi(db, existing.id);
+    const lit = await db.course.findUnique({ where: { shortName: 'DEMO-LIT' } });
+    if (lit) await seedDemoLiterature(db, lit.id);
+    await seedDemoAchievements(db);
     return { created: false };
   }
   const ctx = systemCtx(db);
@@ -199,6 +186,8 @@ export async function seedDemoCourses(db: Db, users: Record<string, string>) {
   await seedDemoComms(db, py);
   await seedDemoMedia(db, py);
   await seedDemoAi(db, py);
+  await seedDemoLiterature(db, hist);
+  await seedDemoAchievements(db);
   return { created: true, courses: [py, hist] };
 }
 

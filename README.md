@@ -280,6 +280,11 @@ pnpm dev                                          # http://localhost:3000
 
 - Administrator: `admin@hubium.local` / `Admin12345!`.
 - Demo users `teacher`, `assistant`, `student1`…`student3`, `manager` and `parent` (student1's parent), password `Demo12345!`.
+- Demo courses:
+  - "Python для начинающих": pages, an assignment, a quiz, a forum, a video and a live session, and AI on the built-in test provider;
+  - "История русской литературы XIX века": activities of the other types (book, glossary, choice, feedback, lesson, wiki, database, workshop, SCORM and H5P), subsections, and the answers, entries and assessed essays of three learners.
+- The site has badges (two of them awarded), a certificate, a competency framework with learning plans, a report for managers, and a custom profile field and course field.
+- Demo data is added once, when the database is first seeded. To see newer demo data in a database seeded before, create it again.
 - Outgoing mail: http://localhost:8025 (Mailpit).
 
 | Command | What it does |

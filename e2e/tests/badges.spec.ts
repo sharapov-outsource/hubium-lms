@@ -87,7 +87,11 @@ test('badges: a course badge awarded by hand, verified in public and revoked', a
     await expect(page.getByRole('link', { name })).toBeVisible();
     await expectAccessible(page);
     const download = page.waitForEvent('download');
-    await page.getByRole('link', { name: 'Скачать значок' }).click();
+    // the demo gave the learner a badge of their own already: this award's link
+    await page
+      .getByRole('link', { name: 'Скачать значок' })
+      .and(page.locator(`[href*="/assertions/${awardId}/"]`))
+      .click();
     const baked = readFileSync(await (await download).path(), 'utf8');
     expect(baked).toContain(`<openbadges:assertion verify="`);
     expect(baked).toContain(awardId);
