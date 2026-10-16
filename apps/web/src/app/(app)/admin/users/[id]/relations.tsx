@@ -35,11 +35,16 @@ export function UserRelations({
       setFound([]);
       return;
     }
+    // an answer to an earlier query that arrives late is not shown
+    let current = true;
     const h = setTimeout(async () => {
-      const r = await searchUsersAction(q);
-      if (r.ok) setFound(r.data.filter((u) => u.id !== userId));
+      const r = await searchUsersAction(q).catch(() => null);
+      if (current && r?.ok) setFound(r.data.filter((u) => u.id !== userId));
     }, 250);
-    return () => clearTimeout(h);
+    return () => {
+      current = false;
+      clearTimeout(h);
+    };
   }, [q, userId]);
 
   const run = (fn: () => Promise<{ ok: boolean; message?: string }>) =>
