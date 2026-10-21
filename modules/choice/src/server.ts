@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { opRandom } from '@hubium/db';
 import {
   type ActivityRef,
   defineAction,
@@ -39,7 +39,7 @@ const Options = z.preprocess(
     .array(ChoiceOption)
     .min(1, 'mod.choice.errors.addOption')
     .max(100)
-    .transform((list) => list.map((o) => ({ ...o, id: o.id || randomUUID() }))),
+    .transform((list) => list.map((o) => ({ ...o, id: o.id || opRandom().uuid() }))),
 );
 
 export const ChoiceSettings = z

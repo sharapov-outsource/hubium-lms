@@ -1,6 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import { buffer } from 'node:stream/consumers';
-import { type Badge, type BadgeAward, type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
+import {
+  type Badge,
+  type BadgeAward,
+  type Db,
+  opNow,
+  type Prisma,
+  SYSTEM_CONTEXT_ID,
+} from '@hubium/db';
 import { createTranslator } from '@hubium/i18n/packs';
 import { log } from '@hubium/log';
 import { msg } from '@hubium/module-sdk';
@@ -375,7 +382,7 @@ export async function awardIfEarned(
   } = {},
 ): Promise<boolean> {
   if (badge.status !== 'ACTIVE') return false;
-  const now = opts.now ?? new Date();
+  const now = opts.now ?? opNow();
   const had = await tx.badgeAward.findUnique({
     where: { badgeId_userId: { badgeId: badge.id, userId } },
   });

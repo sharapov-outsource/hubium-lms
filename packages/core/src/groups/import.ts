@@ -1,3 +1,4 @@
+import { opRandom } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
@@ -339,9 +340,10 @@ export const autoCreateGroups = defineOperation({
     if (!people.length)
       throw new ValidationError({ roleId: [msg('errors.groups.nobodyWithRole')] });
     const ids = people.map((p) => p.id);
+    const random = opRandom();
     if (input.order === 'random')
       for (let i = ids.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
+        const j = random.int(0, i + 1);
         [ids[i], ids[j]] = [ids[j]!, ids[i]!];
       }
     const count =

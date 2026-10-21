@@ -1,5 +1,4 @@
-import { randomUUID } from 'node:crypto';
-import type { Prisma } from '@hubium/db';
+import { opRandom, type Prisma } from '@hubium/db';
 import { isEmptyRichText, sanitizeRichText } from '@hubium/editor/server';
 import {
   type ActivityRef,
@@ -153,7 +152,7 @@ export function cleanForm(
     const description = d.description.trim() ? sanitizeRichText(d.description) : '';
     if (!description || isEmptyRichText(description))
       throw new ModuleError('BAD_REQUEST', msg('mod.workshop.errors.describeAspect', { n: i + 1 }));
-    const id = d.id && /^[\w-]{1,64}$/.test(d.id) ? d.id : randomUUID();
+    const id = d.id && /^[\w-]{1,64}$/.test(d.id) ? d.id : opRandom().uuid();
     if (strategy === 'accumulative') {
       if (!d.maxGrade)
         throw new ModuleError('BAD_REQUEST', msg('mod.workshop.errors.maxPoints', { n: i + 1 }));
@@ -169,7 +168,7 @@ export function cleanForm(
       };
     if (strategy === 'rubric') {
       const levels = (d.levels ?? []).map((l) => ({
-        id: l.id && /^[\w-]{1,64}$/.test(l.id) ? l.id : randomUUID(),
+        id: l.id && /^[\w-]{1,64}$/.test(l.id) ? l.id : opRandom().uuid(),
         grade: l.grade,
         definition: l.definition,
       }));
@@ -787,7 +786,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
         const shuffle = <T>(xs: T[]) => {
           const out = [...xs];
           for (let i = out.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
+            const j = ctx.random.int(0, i + 1);
             [out[i], out[j]] = [out[j]!, out[i]!];
           }
           return out;

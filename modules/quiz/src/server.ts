@@ -473,7 +473,7 @@ export async function startAttempt(
     where: { activityId: a.id, userId, preview },
     orderBy: { attemptNumber: 'desc' },
   });
-  const seed = Math.floor(Math.random() * 2 ** 31);
+  const seed = ctx.random.int(0, 2 ** 31);
   const order = a.settings.shuffleQuestions ? shuffle(slots, seed) : slots;
   // calculated questions draw from their own datasets and the ones their category shares
   const shared = new Map<string, Dataset[]>();

@@ -1,4 +1,4 @@
-import { type Course, type Db, Prisma, SYSTEM_CONTEXT_ID, uuidv7 } from '@hubium/db';
+import { type Course, type Db, opNow, Prisma, SYSTEM_CONTEXT_ID, uuidv7 } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { msg } from '@hubium/module-sdk';
 import { FileInput } from '@hubium/module-sdk/inputs';
@@ -806,8 +806,8 @@ export async function recordCourseAccess(
 ): Promise<void> {
   await db.courseAccess.upsert({
     where: { userId_courseId: { userId, courseId } },
-    create: { userId, courseId, lastAccessAt: new Date(), lastActivityId: activityId ?? null },
-    update: { lastAccessAt: new Date(), ...(activityId ? { lastActivityId: activityId } : {}) },
+    create: { userId, courseId, lastAccessAt: opNow(), lastActivityId: activityId ?? null },
+    update: { lastAccessAt: opNow(), ...(activityId ? { lastActivityId: activityId } : {}) },
   });
 }
 

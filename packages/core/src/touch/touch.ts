@@ -34,7 +34,7 @@ export type Touch =
 
 /** Records what someone looked at or used, at `at`. */
 export function touch(db: Db, t: Touch, at = new Date()): Promise<void> {
-  return withWriteScope('touch', t.kind, () => record(db, t, at));
+  return withWriteScope('touch', t.kind, () => record(db, t, at), { now: at });
 }
 
 async function record(db: Db, t: Touch, at: Date): Promise<void> {

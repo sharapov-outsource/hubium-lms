@@ -1,5 +1,4 @@
-import { randomUUID } from 'node:crypto';
-import type { Prisma } from '@hubium/db';
+import { opRandom, type Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import {
   type ActivityRef,
@@ -141,7 +140,7 @@ function checkPage(type: PageType, p: PageInputT): string | null {
 /** Answers as stored: ids kept or given, jumps only to keywords or pages of the lesson. */
 function answerRows(rows: PageInputT['answers'], pageIds: Set<string>): Answer[] {
   return rows.map((r) => ({
-    id: r.id && UUID.test(r.id) ? r.id : randomUUID(),
+    id: r.id && UUID.test(r.id) ? r.id : opRandom().uuid(),
     text: r.text,
     response: r.response,
     jump:
@@ -190,7 +189,7 @@ async function renumber(db: Prisma.TransactionClient, ids: string[]) {
 
 type AttemptRow = Prisma.LessonAttemptGetPayload<object>;
 
-const pick = <T>(items: T[]): T => items[Math.floor(Math.random() * items.length)]!;
+const pick = <T>(items: T[]): T => items[opRandom().int(0, items.length)]!;
 
 async function stepsOf(db: Prisma.TransactionClient, attemptId: string) {
   return db.lessonStep.findMany({ where: { attemptId }, orderBy: { seq: 'asc' } });
@@ -509,7 +508,7 @@ export async function importPages(
   list: z.input<typeof ExportedPage>[],
   map: (old: string) => string | undefined = () => undefined,
 ) {
-  const ids = new Map(list.map((p) => [p.key, randomUUID()]));
+  const ids = new Map(list.map((p) => [p.key, opRandom().uuid()]));
   const known = new Set(ids.values());
   for (const [i, raw] of list.entries()) {
     const p = ExportedPage.safeParse(raw);
@@ -729,7 +728,7 @@ export const lesson = defineModule<LessonSettingsT>({
         const pages = await lessonPages(ctx.db, a.id);
         const err = checkPage(input.type, input);
         if (err) throw new ModuleError('BAD_REQUEST', err);
-        const id = randomUUID();
+        const id = opRandom().uuid();
         const answers = answerRows(input.answers, new Set([...pages.map((p) => p.id), id]));
         await ctx.db.lessonPage.create({
           data: {

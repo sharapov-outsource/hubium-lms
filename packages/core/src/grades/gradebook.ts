@@ -1,4 +1,4 @@
-import { type Db, type GradeCategory, type GradeItem, Prisma } from '@hubium/db';
+import { type Db, type GradeCategory, type GradeItem, opNow, Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { isLocale } from '@hubium/i18n';
 import { createTranslator } from '@hubium/i18n/packs';
@@ -254,7 +254,7 @@ export async function writeGrade(
     feedback: values.feedback === undefined ? (existing?.feedback ?? null) : values.feedback,
     overridden,
     gradedById: meta.changedById ?? null,
-    gradedAt: new Date(),
+    gradedAt: opNow(),
   };
   // No grade yet and none to give (a total with nothing to total): no empty row, history
   // or grade.updated with a null grade for everyone.

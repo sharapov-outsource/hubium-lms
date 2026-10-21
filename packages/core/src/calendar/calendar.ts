@@ -1,4 +1,4 @@
-import type { CalendarEvent, Db, Prisma } from '@hubium/db';
+import { type CalendarEvent, type Db, opNow, type Prisma } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import { userContext } from '../ai/user-ctx.ts';
@@ -196,7 +196,7 @@ export async function resetFeedToken(db: Tx, userId: string): Promise<string> {
     where: { userId },
     create: { userId, tokenHash: sha256Hex(token) },
     // createdAt: when the link in use was issued
-    update: { tokenHash: sha256Hex(token), createdAt: new Date() },
+    update: { tokenHash: sha256Hex(token), createdAt: opNow() },
   });
   return token;
 }

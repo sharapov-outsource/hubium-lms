@@ -542,6 +542,9 @@ importers:
 
   modules/choice:
     dependencies:
+      '@hubium/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@hubium/module-sdk':
         specifier: workspace:*
         version: link:../../packages/module-sdk
@@ -901,6 +904,9 @@ importers:
 
   modules/livesession:
     dependencies:
+      '@hubium/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@hubium/log':
         specifier: workspace:*
         version: link:../../packages/log

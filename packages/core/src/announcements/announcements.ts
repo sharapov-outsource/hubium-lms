@@ -1,4 +1,4 @@
-import { type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
+import { type Db, opNow, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { extractText, sanitizeRichText } from '@hubium/editor/server';
 import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
@@ -37,7 +37,7 @@ async function authorizeScope(ctx: RequestContext, courseId: string | null | und
 }
 
 /** Sends the notifications of a published announcement once. */
-export async function notifyAnnouncement(tx: Tx, id: string, now = new Date()): Promise<number> {
+export async function notifyAnnouncement(tx: Tx, id: string, now = opNow()): Promise<number> {
   const a = await tx.announcement.findUnique({
     where: { id },
     include: { course: { select: { fullName: true, visible: true } } },

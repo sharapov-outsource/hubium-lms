@@ -194,10 +194,25 @@ export interface NotificationTypeDef {
   inApp?: boolean;
 }
 
+/**
+ * Random numbers of an action (an order of questions, a random allocation): the cloud
+ * replaying an action a local node ran draws the same ones. Not for secrets.
+ */
+export interface ModuleRandom {
+  /** A number in [0, 1). */
+  next(): number;
+  /** An integer in [min, max). */
+  int(min: number, max: number): number;
+  /** A UUID with the version 4 layout. */
+  uuid(): string;
+}
+
 export interface ModuleCtx {
   db: Prisma.TransactionClient;
   actor: ModuleActor;
+  /** When the action runs: dates it writes are this one, not the clock's. */
   now: Date;
+  random: ModuleRandom;
   /** Language of the request: a code of an installed language pack. */
   locale: string;
   /** The client's address (see TRUSTED_PROXY_HOPS), or null outside a request. */

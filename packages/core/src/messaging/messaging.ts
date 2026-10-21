@@ -1,4 +1,4 @@
-import { type Db, Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
+import { type Db, opNow, Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
@@ -227,7 +227,7 @@ export async function leaveGroupChats(
           ? { groupId: { in: where.groupIds } }
           : { courseId: where.courseId, groupId: { not: null } },
     },
-    data: { leftAt: new Date() },
+    data: { leftAt: opNow() },
   });
 }
 

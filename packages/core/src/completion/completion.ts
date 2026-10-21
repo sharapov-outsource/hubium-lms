@@ -1,4 +1,4 @@
-import type { CompletionState, Db, Prisma } from '@hubium/db';
+import { type CompletionState, type Db, opNow, type Prisma } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import { Permissions } from '../access/permissions.ts';
@@ -46,7 +46,7 @@ export async function recomputeCourseProgress(
       })
     : 0;
   const percent = tracked.length ? Math.round((done / tracked.length) * 100) : 0;
-  const now = new Date();
+  const now = opNow();
   const existing = await tx.courseCompletion.findUnique({
     where: { courseId_userId: { courseId, userId } },
   });
@@ -87,10 +87,10 @@ async function writeState(
       activityId,
       userId,
       state,
-      completedAt: state === 'INCOMPLETE' ? null : new Date(),
+      completedAt: state === 'INCOMPLETE' ? null : opNow(),
       ...extra,
     },
-    update: { state, completedAt: state === 'INCOMPLETE' ? null : new Date(), ...extra },
+    update: { state, completedAt: state === 'INCOMPLETE' ? null : opNow(), ...extra },
   });
   if (state !== 'INCOMPLETE' && (before?.state ?? 'INCOMPLETE') === 'INCOMPLETE') {
     await emitWebhook(tx, 'activity.completed', {
@@ -201,8 +201,8 @@ export async function markActivityViewed(
   if (!a) return;
   await tx.activityCompletion.upsert({
     where: { activityId_userId: { activityId, userId } },
-    create: { activityId, userId, viewedAt: new Date() },
-    update: { viewedAt: new Date() },
+    create: { activityId, userId, viewedAt: opNow() },
+    update: { viewedAt: opNow() },
   });
   if (a.completionMode === 'AUTO') await recomputeActivityCompletion(ctx, tx, activityId, userId);
 }

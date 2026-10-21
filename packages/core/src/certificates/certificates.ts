@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { buffer } from 'node:stream/consumers';
-import type { Certificate, Db, Prisma } from '@hubium/db';
+import { type Certificate, type Db, opNow, type Prisma } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
@@ -309,7 +309,7 @@ export async function issueIfEarned(
   tx: Tx,
   c: Certificate,
   userId: string,
-  now = new Date(),
+  now = opNow(),
   /** The course's learners, when the caller has them already (a review of many). */
   learners?: Set<string>,
 ): Promise<boolean> {

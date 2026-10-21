@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { opNow } from '@hubium/db';
 import { log } from '@hubium/log';
 import {
   type ActivityRef,
@@ -185,7 +186,7 @@ export const livesession = defineModule<LiveSettingsT>({
   settings: {
     schema: LiveSettings as unknown as z.ZodType<LiveSettingsT>,
     defaults: () => ({
-      ...LiveSettings.parse({ startsAt: new Date(Date.now() + 86_400_000).toISOString() }),
+      ...LiveSettings.parse({ startsAt: new Date(opNow().getTime() + 86_400_000).toISOString() }),
     }),
   },
   calendar: {

@@ -1,4 +1,4 @@
-import { withWriteScope } from '@hubium/db';
+import { newSeed, withWriteScope } from '@hubium/db';
 import { log } from '@hubium/log';
 import { msg, type OfflinePolicy, renderMsg } from '@hubium/module-sdk';
 import { z } from 'zod';
@@ -80,30 +80,36 @@ async function runOperation<I extends z.ZodType, O>(
 ): Promise<O> {
   const input = parseInput(def.input, raw);
   if (def.authorize) await def.authorize(ctx, input);
-  // the handler's writes and its after-commit steps belong to the operation
-  return withWriteScope('operation', def.name, async () => {
-    const after: (() => void | Promise<void>)[] = [];
-    let result: O;
-    if (def.mutation === false) {
-      result = await def.handler(
-        { ...ctx, tx: ctx.db, afterCommit: (fn) => after.push(fn) },
-        input,
-      );
-    } else {
-      result = await ctx.db.$transaction(
-        (tx) => def.handler({ ...ctx, tx, afterCommit: (fn) => after.push(fn) }, input),
-        { timeout: 30_000 },
-      );
-    }
-    for (const fn of after) {
-      try {
-        await fn();
-      } catch (e) {
-        logger.error({ err: e, operation: def.name }, 'after-commit step failed');
+  // the handler's writes and its after-commit steps belong to the operation, dated with
+  // its time, with random numbers of its own
+  return withWriteScope(
+    'operation',
+    def.name,
+    async () => {
+      const after: (() => void | Promise<void>)[] = [];
+      let result: O;
+      if (def.mutation === false) {
+        result = await def.handler(
+          { ...ctx, tx: ctx.db, afterCommit: (fn) => after.push(fn) },
+          input,
+        );
+      } else {
+        result = await ctx.db.$transaction(
+          (tx) => def.handler({ ...ctx, tx, afterCommit: (fn) => after.push(fn) }, input),
+          { timeout: 30_000 },
+        );
       }
-    }
-    return result;
-  });
+      for (const fn of after) {
+        try {
+          await fn();
+        } catch (e) {
+          logger.error({ err: e, operation: def.name }, 'after-commit step failed');
+        }
+      }
+      return result;
+    },
+    { now: ctx.now, seed: newSeed() },
+  );
 }
 
 export type ActionResult<T> =
