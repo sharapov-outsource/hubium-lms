@@ -364,12 +364,16 @@ export interface ActivityModule<S = Record<string, unknown>> {
   }[];
   /**
    * HTTP endpoints under /api/mod/<key>/<...path> (streaming media, provider callbacks).
-   * The ModuleCtx carries the caller's session; anonymous callers are allowed.
+   * The ModuleCtx carries the caller's session; anonymous callers are allowed. What they
+   * write records an exchange with a system outside Hubium (an LTI tool, a webinar
+   * server), which only the cloud makes: a person's own change is an action instead.
    */
   http?(ctx: ModuleCtx, req: Request, path: string[]): Promise<Response>;
   /**
    * Untrusted content served from CONTENT_HOST at /c/<token>/<...path>. The signed token
-   * identifies the activity, the user and module data; there is no session.
+   * identifies the activity, the user and module data; there is no session. A POST is the
+   * user's own change (a SCORM commit, an H5P result) and runs as an operation; a GET
+   * writes at most side records of the view.
    */
   content?(
     ctx: ModuleCtx,

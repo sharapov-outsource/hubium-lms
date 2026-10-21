@@ -95,6 +95,28 @@ describe('mod-scorm', () => {
     expect((await rt.text()).startsWith('this.Scorm12API=')).toBe(true);
   });
 
+  it('starts a first attempt with its first commit, not with the view', async () => {
+    const sco = await t.db.scormSco.findFirstOrThrow({ where: { packageId } });
+    const userId = f.users.student2!;
+    const g = { userId, data: { attempt: '', sco: sco.id } };
+    // the player of a first attempt takes commits, though there is no attempt yet
+    expect(await (await content(g, ['player'])).text()).toContain('"commit":"commit"');
+    expect(await t.db.scormAttempt.count({ where: { activityId: scormId, userId } })).toBe(0);
+    const r = await content(g, ['commit'], {
+      method: 'POST',
+      body: JSON.stringify({
+        cmi: { core: { lesson_status: 'incomplete', session_time: '00:00:10' } },
+      }),
+      headers: { 'content-type': 'text/plain' },
+    });
+    expect(await r.json()).toEqual({ result: true, errorCode: 0 });
+    const attempts = await t.db.scormAttempt.findMany({
+      where: { activityId: scormId, userId },
+      include: { tracks: true },
+    });
+    expect(attempts).toMatchObject([{ attemptNumber: 1, tracks: [{ scoId: sco.id }] }]);
+  });
+
   it('records commits, resumes and grades', async () => {
     const sco = await t.db.scormSco.findFirstOrThrow({ where: { packageId } });
     const attempt = await t.db.scormAttempt.findFirstOrThrow({

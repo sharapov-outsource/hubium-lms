@@ -9,6 +9,7 @@ import {
   siteLocale,
   verifyContentToken,
 } from '@hubium/core';
+import { withWriteScope } from '@hubium/db';
 import { db } from '@/server/db';
 
 export const dynamic = 'force-dynamic';
@@ -46,11 +47,16 @@ async function handle(
     locale: siteLocale(settings),
     origin: 'WEB',
   };
-  return m.content(
-    buildModuleCtx(ctx),
-    { activityId: grant.a, userId: grant.u, data: grant.d ?? {}, token },
-    req,
-    path,
+  // what the user does in the content (a commit, a result) is their change; a view
+  // writes side records at most
+  const write = req.method === 'POST' ? 'operation' : 'touch';
+  return withWriteScope(write, `${m.key}.content`, () =>
+    m.content!(
+      buildModuleCtx(ctx),
+      { activityId: grant.a, userId: grant.u, data: grant.d ?? {}, token },
+      req,
+      path,
+    ),
   );
 }
 

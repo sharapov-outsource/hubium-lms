@@ -71,32 +71,35 @@ export async function ScormView({ activity: a, ctx, canManage, searchParams }: P
   let player: React.ReactNode = null;
   let summary: React.ReactNode = null;
   if (pkg?.status === 'READY' && me && pkg.scos.length && canLaunch) {
-    const attempt = await currentAttempt(ctx.db, a.id, me);
-    const tracks = await ctx.db.scormTrack.findMany({ where: { attemptId: attempt!.id } });
+    // a first attempt starts with the player's first commit: viewing writes nothing
+    const attempt = await currentAttempt(ctx.db, a.id, me, false);
+    const tracks = attempt
+      ? await ctx.db.scormTrack.findMany({ where: { attemptId: attempt.id } })
+      : [];
     const attempts = await ctx.db.scormAttempt.count({ where: { activityId: a.id, userId: me } });
     const outOfAttempts =
-      !!attempt!.finishedAt && !!a.settings.maxAttempts && attempts >= a.settings.maxAttempts;
+      !!attempt?.finishedAt && !!a.settings.maxAttempts && attempts >= a.settings.maxAttempts;
     const sco =
       pkg.scos.find((s) => s.id === searchParams.sco) ??
       pkg.scos.find((s) => !tracks.some((x) => x.scoId === s.id && isCompleted(x))) ??
       pkg.scos[0]!;
-    const review = !!attempt!.finishedAt;
+    const review = !!attempt?.finishedAt;
     const url = ctx.content.url(a.id, 'player', {
-      data: { attempt: attempt!.id, sco: sco.id, ...(review ? { review: 1 } : {}) },
+      data: { attempt: attempt?.id ?? '', sco: sco.id, ...(review ? { review: 1 } : {}) },
     });
     const track = tracks.find((x) => x.scoId === sco.id);
-    const pct = attempt!.score;
+    const pct = attempt?.score;
     summary = (
       <div className="flex flex-wrap items-center gap-3 text-sm">
-        <Badge variant="accent">{t('attempt', { n: attempt!.attemptNumber })}</Badge>
-        <Badge variant={attempt!.finishedAt ? 'success' : 'warning'}>
-          {attempt!.finishedAt ? t('finished') : track ? t('inProgress') : t('notStarted')}
+        <Badge variant="accent">{t('attempt', { n: attempt?.attemptNumber ?? 1 })}</Badge>
+        <Badge variant={attempt?.finishedAt ? 'success' : 'warning'}>
+          {attempt?.finishedAt ? t('finished') : track ? t('inProgress') : t('notStarted')}
         </Badge>
         {pct !== null && pct !== undefined ? (
           <span>{t('score', { score: Math.round(pct) })}</span>
         ) : null}
         {review ? <span className="text-muted-foreground">{t('reviewMode')}</span> : null}
-        {attempt!.finishedAt && !outOfAttempts ? <NewAttemptButton activityId={a.id} /> : null}
+        {attempt?.finishedAt && !outOfAttempts ? <NewAttemptButton activityId={a.id} /> : null}
         <a
           href={url}
           target="_blank"

@@ -314,7 +314,13 @@ export async function commitTrack(
   grant: { userId: string; attemptId: string; scoId: string },
   body: unknown,
 ) {
-  const attempt = await ctx.db.scormAttempt.findUnique({ where: { id: grant.attemptId } });
+  // the player of a first attempt names none: the attempt starts with its first commit
+  // (a commit sent alongside may have made it already)
+  const attempt = grant.attemptId
+    ? await ctx.db.scormAttempt.findUnique({ where: { id: grant.attemptId } })
+    : await currentAttempt(ctx.db, a.id, grant.userId).catch(() =>
+        currentAttempt(ctx.db, a.id, grant.userId, false),
+      );
   if (!attempt || attempt.activityId !== a.id || attempt.userId !== grant.userId) {
     throw new RefusedCommit('Unknown attempt');
   }
@@ -674,17 +680,20 @@ export const scorm = defineModule<ScormSettingsT>({
     if (kind === 'player') {
       const sco = await ctx.db.scormSco.findUnique({ where: { id: scoId } });
       if (!sco || sco.packageId !== pkg.id) return new Response('Not found', { status: 404 });
-      // a link to an attempt that has finished since opens it for review only
+      // a link to an attempt that has finished since opens it for review only; the player
+      // of a first attempt names none, and the attempt starts with its first commit
       const attempt = attemptId
         ? await ctx.db.scormAttempt.findUnique({ where: { id: attemptId } })
-        : null;
+        : await currentAttempt(ctx.db, a.id, grant.userId, false);
       const review =
         !!grant.data.review ||
-        !attempt ||
-        attempt.userId !== grant.userId ||
-        (await attemptClosed(ctx, a, attempt));
-      const track = attemptId
-        ? await ctx.db.scormTrack.findUnique({ where: { attemptId_scoId: { attemptId, scoId } } })
+        (attempt
+          ? attempt.userId !== grant.userId || (await attemptClosed(ctx, a, attempt))
+          : !!attemptId);
+      const track = attempt
+        ? await ctx.db.scormTrack.findUnique({
+            where: { attemptId_scoId: { attemptId: attempt.id, scoId } },
+          })
         : null;
       if (track && !review) {
         // the new session's time is added on top of what was recorded so far

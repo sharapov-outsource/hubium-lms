@@ -5,6 +5,7 @@ import {
   isModuleEnabled,
   toActionError,
 } from '@hubium/core';
+import { withWriteScope } from '@hubium/db';
 import { db } from '@/server/db';
 import { getContext, requireNoGate } from '@/server/session';
 
@@ -29,7 +30,8 @@ async function handle(
     const r = toActionError(e, ctx.locale);
     return Response.json(r, { status: 403 });
   }
-  return m.http(buildModuleCtx(ctx), req, path);
+  // tools and servers outside Hubium call these: what they write records the exchange
+  return withWriteScope('external', `${m.key}.http`, () => m.http!(buildModuleCtx(ctx), req, path));
 }
 
 export { handle as GET, handle as POST };
