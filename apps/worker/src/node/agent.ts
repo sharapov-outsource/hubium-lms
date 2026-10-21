@@ -96,7 +96,8 @@ async function heartbeat() {
       logger.warn('the cloud lost this node’s replication slot: copying the database again');
       await cloudCall(s, 'POST', 'slot');
       await replicas.requestCopy('a');
-      if (s.databaseB) await replicas.requestCopy('b');
+      // B in use holds the journal: it is copied anew after the sync, as always
+      if (s.databaseB && machine.state.replicaB !== 'promoted') await replicas.requestCopy('b');
       setTimeout(() => (renewing = false), 60_000);
     }
   } catch (err) {
