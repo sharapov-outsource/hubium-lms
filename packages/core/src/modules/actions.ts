@@ -1,3 +1,4 @@
+import { withWriteScope } from '@hubium/db';
 import { ModuleError, msg } from '@hubium/module-sdk';
 import type { RequestContext } from '../context.ts';
 import { getActivityAccess } from '../courses/activities.ts';
@@ -101,8 +102,11 @@ async function runAction(
   if (action.capability) await ctx.perm.require(action.capability as never, activityId);
   const input = parseInput(action.input, raw);
   const ref = toActivityRef(activity);
-  if (action.mutation === false) return action.handler(buildModuleCtx(ctx), ref, input);
-  return ctx.db.$transaction((tx) => action.handler(buildModuleCtx(ctx, tx), ref, input), {
-    timeout: 60_000,
-  });
+  return withWriteScope('operation', `${m.key}.${name}`, () =>
+    action.mutation === false
+      ? action.handler(buildModuleCtx(ctx), ref, input)
+      : ctx.db.$transaction((tx) => action.handler(buildModuleCtx(ctx, tx), ref, input), {
+          timeout: 60_000,
+        }),
+  );
 }

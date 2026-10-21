@@ -1472,6 +1472,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@hubium/log':
+        specifier: workspace:*
+        version: link:../log
       '@prisma/adapter-pg':
         specifier: 7.10.0
         version: 7.10.0

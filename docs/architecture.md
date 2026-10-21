@@ -118,6 +118,12 @@ export const updateCourse = defineOperation({
   - pg-boss `send(..., { db: txAdapter })` enqueues jobs inside the Prisma transaction (outbox for free).
   - `pg_notify` inside the transaction delivers only on commit.
   - Non-transactional effects (S3 deletes) go through `afterCommit`.
+- **Write scopes.** Every write to the database belongs to a scope (`withWriteScope` in `packages/db`):
+  - operations and module actions open `operation`, the worker's jobs `job`, the CLI and the seed `system`, and Better Auth's adapter writes in `auth`;
+  - side records of page views belong to `touch`, data that can be computed again to `derived`;
+  - the registry of stored blobs and the sessions of uploads belong to `files`, and the state of protocols other systems call (LTI, webinar callbacks) to `external`.
+
+  A local node records the operations it runs to replay them in the cloud, so a write outside any scope would be lost there. `HUBIUM_WRITE_GUARD=report` logs each kind of write found outside a scope once, and `strict` refuses it.
 - **Module actions and queries.** `ActivityModule.actions` are exposed through one web endpoint (`/api/mod/action`) and one REST route, `POST /api/v1/activities/{id}/actions/{name}`; both take JSON or multipart with files. `ActivityModule.queries` are the reads behind them, `GET /api/v1/activities/{id}/queries/{name}`: the module's pages and the queries call the same functions, so the visibility rules live in one place. The OpenAPI spec documents every action from its zod input and every query from its input and output, with their `summary`. Mobile gets module features without per-module endpoints.
 
 ### 1.5 `ActivityModule` contract

@@ -1,4 +1,4 @@
-import { type Db, uuidv7 } from '@hubium/db';
+import { type Db, inWriteScope, uuidv7 } from '@hubium/db';
 import { type BetterAuthOptions, type BetterAuthPlugin, betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
@@ -223,8 +223,12 @@ export function createAuth({
     baseURL,
     secret,
     // Transactions are required by the SSO plugin's user resolution. SSO rows come with
-    // their client secret unsealed (see sso.ts).
-    database: prismaAdapter(withSsoSecrets(db), { provider: 'postgresql', transaction: true }),
+    // their client secret unsealed (see sso.ts). Better Auth's own writes (sessions,
+    // accounts, verifications, rate limits) belong to the auth write scope.
+    database: prismaAdapter(withSsoSecrets(inWriteScope(db, 'auth', 'better-auth')), {
+      provider: 'postgresql',
+      transaction: true,
+    }),
     // identity providers on internal hosts that SSRF_ALLOW_HOSTS allows
     trustedOrigins: () => ssoTrustedOrigins(db),
     advanced: {

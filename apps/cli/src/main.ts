@@ -1,4 +1,5 @@
 import { parseArgs } from 'node:util';
+import { withWriteScope } from '@hubium/db';
 
 // `hubium <command>`: what an administrator runs on the server besides the web and worker
 // processes. Every command takes its settings from the environment (bin/hubium loads
@@ -86,7 +87,8 @@ export async function cli(argv: string[], io: Io): Promise<number> {
     return 1;
   }
   try {
-    return await (await load())(args, io);
+    const run = await load();
+    return await withWriteScope('system', `hubium ${name}`, () => run(args, io));
   } catch (e) {
     if (e instanceof UsageError || (e as { code?: string }).code?.startsWith('ERR_PARSE_ARGS')) {
       io.err(`${(e as Error).message}\n\nRun "hubium help" for the commands.`);

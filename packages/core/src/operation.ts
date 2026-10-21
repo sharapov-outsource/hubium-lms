@@ -1,3 +1,4 @@
+import { withWriteScope } from '@hubium/db';
 import { log } from '@hubium/log';
 import { msg, renderMsg } from '@hubium/module-sdk';
 import { z } from 'zod';
@@ -55,24 +56,30 @@ async function runOperation<I extends z.ZodType, O>(
 ): Promise<O> {
   const input = parseInput(def.input, raw);
   if (def.authorize) await def.authorize(ctx, input);
-  const after: (() => void | Promise<void>)[] = [];
-  let result: O;
-  if (def.mutation === false) {
-    result = await def.handler({ ...ctx, tx: ctx.db, afterCommit: (fn) => after.push(fn) }, input);
-  } else {
-    result = await ctx.db.$transaction(
-      (tx) => def.handler({ ...ctx, tx, afterCommit: (fn) => after.push(fn) }, input),
-      { timeout: 30_000 },
-    );
-  }
-  for (const fn of after) {
-    try {
-      await fn();
-    } catch (e) {
-      logger.error({ err: e, operation: def.name }, 'after-commit step failed');
+  // the handler's writes and its after-commit steps belong to the operation
+  return withWriteScope('operation', def.name, async () => {
+    const after: (() => void | Promise<void>)[] = [];
+    let result: O;
+    if (def.mutation === false) {
+      result = await def.handler(
+        { ...ctx, tx: ctx.db, afterCommit: (fn) => after.push(fn) },
+        input,
+      );
+    } else {
+      result = await ctx.db.$transaction(
+        (tx) => def.handler({ ...ctx, tx, afterCommit: (fn) => after.push(fn) }, input),
+        { timeout: 30_000 },
+      );
     }
-  }
-  return result;
+    for (const fn of after) {
+      try {
+        await fn();
+      } catch (e) {
+        logger.error({ err: e, operation: def.name }, 'after-commit step failed');
+      }
+    }
+    return result;
+  });
 }
 
 export type ActionResult<T> =

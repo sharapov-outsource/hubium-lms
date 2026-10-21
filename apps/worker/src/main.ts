@@ -7,7 +7,7 @@ import {
   TASK_LOG_DAYS,
 } from '@hubium/core';
 import { getBoss, stopBoss } from '@hubium/core/jobs/jobs';
-import { getDb } from '@hubium/db';
+import { getDb, withWriteScope } from '@hubium/db';
 import { log } from '@hubium/log';
 import { shutdownTelemetry, startTelemetry } from '@hubium/telemetry';
 import type { JobHandlerDef } from './handlers.ts';
@@ -38,7 +38,9 @@ async function run(def: JobHandlerDef, job: { id: string; data: unknown }) {
     ms: Math.round(performance.now() - started),
   });
   try {
-    const out = await def.handler(job.data as never, { db, jobId: job.id });
+    const out = await withWriteScope('job', def.name, () =>
+      def.handler(job.data as never, { db, jobId: job.id }),
+    );
     jobs.debug(fields(), 'job done');
     return out;
   } catch (e) {
@@ -49,8 +51,10 @@ async function run(def: JobHandlerDef, job: { id: string; data: unknown }) {
 }
 
 async function main() {
-  await ensureSystemContext(db);
-  await syncCapabilities(db);
+  await withWriteScope('system', 'worker start', async () => {
+    await ensureSystemContext(db);
+    await syncCapabilities(db);
+  });
   await startCacheListener();
   const boss = await getBoss({ role: 'worker' });
   for (const def of allHandlers.filter((h) => roles.includes(h.queue ?? 'default'))) {
