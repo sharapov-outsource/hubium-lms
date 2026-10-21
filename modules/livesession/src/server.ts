@@ -163,6 +163,7 @@ export async function pollMeetings(ctx: ModuleCtx, intervalSec = 60): Promise<nu
 
 export const livesession = defineModule<LiveSettingsT>({
   key: 'livesession',
+  httpExternal: true,
   archetype: 'activity',
   icon: 'Presentation',
   supports: { viewCompletion: true },

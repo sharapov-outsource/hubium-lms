@@ -2,7 +2,8 @@ import { safeEqual } from '@hubium/module-sdk/crypto';
 import { ipInList } from '@hubium/module-sdk/net';
 
 // Quiz access rules, as Moodle's: a password to start an attempt, network addresses an
-// attempt may be taken from, and a wait between attempts. Pure functions; server.ts reads
+// attempt may be taken from, and a wait between attempts; and the local nodes it may be
+// taken through (an exam in the rooms of chosen branches). Pure functions; server.ts reads
 // the settings and overrides and turns refusals into errors.
 
 export interface AccessRules {
@@ -13,6 +14,8 @@ export interface AccessRules {
   passwords: string[];
   /** Address list (see ipInList); empty: anywhere. */
   subnet: string;
+  /** Local nodes attempts may only be taken through; empty: through any or none. */
+  nodeIds: string[];
   /** Wait after the first attempt, and after each later one, in seconds. */
   delay1Sec: number;
   delay2Sec: number;
@@ -21,6 +24,7 @@ export interface AccessRules {
 export type AccessRefusal =
   | { reason: 'password' }
   | { reason: 'subnet' }
+  | { reason: 'node' }
   | { reason: 'delay'; until: Date };
 
 /**
@@ -50,11 +54,17 @@ export function networkAllowed(rules: Pick<AccessRules, 'subnet'>, ip: string | 
   return !rules.subnet.trim() || ipInList(ip, rules.subnet);
 }
 
+/** Whether a request through this node (null: none, the cloud itself) may take attempts. */
+export function nodeAllowed(rules: Pick<AccessRules, 'nodeIds'>, nodeId: string | null): boolean {
+  return !rules.nodeIds.length || (!!nodeId && rules.nodeIds.includes(nodeId));
+}
+
 /** Why a new attempt may not start now, or null. Previews skip the wait. */
 export function checkStart(
   rules: AccessRules,
   o: {
     ip: string | null;
+    nodeId?: string | null;
     now: Date;
     finished: (Date | null)[];
     password?: string;
@@ -62,6 +72,7 @@ export function checkStart(
   },
 ): AccessRefusal | null {
   if (!networkAllowed(rules, o.ip)) return { reason: 'subnet' };
+  if (!nodeAllowed(rules, o.nodeId ?? null)) return { reason: 'node' };
   if (!o.preview) {
     const until = nextAttemptAt(rules, o.finished);
     if (until && o.now < until) return { reason: 'delay', until };

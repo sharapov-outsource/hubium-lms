@@ -7,6 +7,8 @@ export interface CourseLogFilter {
   /** An event name, e.g. `activity.viewed`. */
   name?: string;
   activityId?: string;
+  /** The local node the events came through or happened on; 'none': in the cloud itself. */
+  nodeId?: string;
   from?: Date;
   /** Up to, not including. */
   to?: Date;
@@ -54,6 +56,7 @@ export async function courseEventLog(
     ...(actors ? { actorId: { in: actors } } : {}),
     ...(f.name ? { name: f.name } : {}),
     ...(f.activityId ? { contextId: f.activityId } : {}),
+    ...(f.nodeId ? { nodeId: f.nodeId === 'none' ? null : f.nodeId } : {}),
     AND: [
       f.from || f.to
         ? { createdAt: { ...(f.from ? { gte: f.from } : {}), ...(f.to ? { lt: f.to } : {}) } }
@@ -88,6 +91,7 @@ export async function courseEventLog(
       name: l.name,
       createdAt: l.createdAt,
       contextId: l.contextId,
+      nodeId: l.nodeId,
       actor: l.actorId ? (names.get(l.actorId) ?? null) : null,
     })),
     next: rows.length > limit ? String(items.at(-1)!.id) : null,

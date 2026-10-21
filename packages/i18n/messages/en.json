@@ -535,7 +535,8 @@
       "security": "Security",
       "email": "Email",
       "maintenance": "Maintenance"
-    }
+    },
+    "nodes": "Nodes"
   },
   "email": {
     "footer": "You received this email because you have an account on this site.",
@@ -1110,6 +1111,15 @@
       "tooManyColumns": "At most {n} columns",
       "tooLarge": "The file is larger than {n} MB",
       "notSheet": "Not a spreadsheet: use CSV, XLSX or ODS"
+    },
+    "node": {
+      "onlineOnly": "This needs the connection to the main server: it is not available now.",
+      "readonly": "No connection to the main server: for now you can only look.",
+      "syncing": "The work done without a connection is being passed on to the main server: try again in a minute.",
+      "cannotDecide": "Only the course's teachers and the administrators decide on this.",
+      "notANode": "This server is not a local node.",
+      "agent": "The node's agent did not answer.",
+      "badCode": "The installation code is wrong or has expired."
     }
   },
   "editor": {
@@ -1199,6 +1209,7 @@
       "groups": "Groups",
       "grades": "Grades",
       "completion": "Completion",
+      "nodeConflicts": "Node conflicts",
       "reports": "Reports",
       "settings": "Settings",
       "enrolment": "Enrolment",
@@ -1614,6 +1625,9 @@
     "who": "Who (name or email)",
     "anyEvent": "Any event",
     "anyActivity": "Any activity",
+    "node": "Node",
+    "anyNode": "Any node",
+    "noNode": "No node",
     "from": "From",
     "to": "To",
     "noLogs": "No events found",
@@ -2127,7 +2141,8 @@
       "badge_awarded": "Badges earned",
       "certificate_issued": "Certificates issued",
       "competency_plan": "Learning plans",
-      "competency_comment": "Comments on plans and competencies"
+      "competency_comment": "Comments on plans and competencies",
+      "node_conflict": "Work done without a connection"
     },
     "text": {
       "enrolled": "You were enrolled in “{course}”",
@@ -2139,7 +2154,9 @@
       "planCreated": "A learning plan “{name}” was created for you",
       "planApproved": "Learning plan “{name}” approved",
       "planCompleted": "Learning plan “{name}” completed",
-      "competencyComment": "A new comment on your plan or competency"
+      "competencyComment": "A new comment on your plan or competency",
+      "nodeConflict": "Work you did without a connection at {node} was not accepted",
+      "nodeConflictAccepted": "Work you did without a connection at {node} has been accepted"
     },
     "email": {
       "open": "Open",
@@ -3593,6 +3610,147 @@
       "intro": "The report “{name}” is attached: {rows, plural, one {# row} other {# rows}}.",
       "open": "Open the report",
       "footer": "Schedule “{schedule}”."
+    }
+  },
+  "nodes": {
+    "title": "Local nodes",
+    "description": "Servers in the networks of branches and buildings: people there work through them, quickly, and go on working while the line to this server is down. What they do without it comes here once the line is back.",
+    "name": "Name",
+    "nameHint": "The branch or building, as people know it.",
+    "state": "State",
+    "lastSeen": "Last heard from",
+    "lag": "Behind",
+    "files": "Files copied",
+    "conflicts": "Conflicts",
+    "allConflicts": "All conflicts",
+    "new": "Add a node",
+    "newHint": "You get a code that installs the node on a server of that network (valid for a day).",
+    "add": "Add node",
+    "categories": "Files of these categories only",
+    "categoriesHint": "None: every file is copied to the node. With categories, their courses' files are copied ahead and the rest when someone opens them (with the connection).",
+    "codeTitle": "Install the node with this command",
+    "codeHint": "Run it on the node's server; the code is shown once and works for a day.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "mode": {
+      "revoked": "Revoked",
+      "notInstalled": "Not installed",
+      "silent": "No signal",
+      "NEW": "New",
+      "ONLINE": "Connected",
+      "READONLY": "No connection: viewing only",
+      "OFFLINE": "Working on its own",
+      "SYNC": "Syncing",
+      "PASSTHROUGH": "Passing everything on"
+    },
+    "modeHint": {
+      "ONLINE": "Pages and files come from the node; changes go to the main server.",
+      "READONLY": "The main server is not reachable: people can look, changes wait. Soon the node works on its own.",
+      "OFFLINE": "The node works on its own database and keeps a journal; it passes it on once the main server is back.",
+      "SYNC": "The journal is going to the main server; changes wait for a minute or two.",
+      "PASSTHROUGH": "The node's copy of the database is not ready (or runs another release): everything goes to the main server."
+    },
+    "nodeDescription": "Its state as it reported it, its installation, the people who look after it, and its outages.",
+    "release": "Release",
+    "replicaB": "Own database",
+    "replicaState": {
+      "ready": "ready",
+      "copying": "being copied",
+      "promoted": "in use",
+      "missing": "not there"
+    },
+    "pendingOps": "Journal entries waiting",
+    "offlineSince": "No connection since",
+    "slot": "Replication slot",
+    "slotState": {
+      "reserved": "kept",
+      "extended": "kept beyond the usual",
+      "unreserved": "about to be lost",
+      "lost": "lost: the node copies the database anew"
+    },
+    "openConflicts": "{n, plural, one {# open conflict} other {# open conflicts}}",
+    "installation": "Installation",
+    "installedHint": "The node is installed. A new code installs it again (another server, a new disk); the old installation stops when the new one registers.",
+    "codeExpires": "Not installed yet. Its code works until {at}.",
+    "reinstall": "New code to reinstall",
+    "newCode": "New installation code",
+    "settings": "Settings",
+    "admins": "Node administrators",
+    "adminsHint": "They see the node's state on the node (/node), turn its autonomous mode on and put off its sync, without administering the site.",
+    "outages": "Outages",
+    "outagesHint": "Times this server did not hear from the node, and what came of the work done then.",
+    "outageFrom": "From",
+    "outageTo": "To",
+    "applied": "Taken",
+    "synced": "Synced",
+    "ongoing": "still",
+    "noOutages": "None so far.",
+    "revokeTitle": "Revoke the node",
+    "revokeHint": "Its token, database role and replication slot go: it gets nothing more from this server. What it holds stays on its disk; wipe that server.",
+    "revoke": "Revoke",
+    "revokeConfirm": "Revoke this node? It stops working for its network at once.",
+    "revoked": "Node revoked",
+    "deleteTitle": "Remove the node",
+    "deleteHint": "Removes the revoked node from the list, with its outages and conflicts.",
+    "delete": "Remove",
+    "deleteConfirm": "Remove this node, its outages and its conflicts?",
+    "conflictsTitle": "Conflicts of work done without a connection",
+    "conflictsDescription": "Work done on nodes without a connection that this server did not take: something changed it here meanwhile, or a rule refuses it now. Its authors were told.",
+    "courseConflictsDescription": "Work done in this course on nodes without a connection that was not taken. You may accept a student's work anyway (an attempt over the limit, work after the deadline).",
+    "noConflicts": "No conflicts.",
+    "when": "When",
+    "node": "Node",
+    "author": "Author",
+    "why": "Why",
+    "status": "Status",
+    "conflictStatus": {
+      "OPEN": "Open",
+      "ACCEPTED": "Accepted",
+      "DISMISSED": "Dismissed"
+    },
+    "conflictTitle": "Work not taken",
+    "conflictDescription": "Done on a local node without a connection; this server did not take it. Nothing of it is lost: here is what it held.",
+    "doneAt": "Done at",
+    "activity": "Activity",
+    "what": "Action",
+    "content": "What it held",
+    "decideHint": "Accepting runs it again as its author did it, rules of time and number giving way, and the work of the same person in this activity that it held up with it.",
+    "accept": "Accept",
+    "acceptConfirm": "Accept this work despite the rule?",
+    "accepted": "Accepted",
+    "dismiss": "Dismiss",
+    "dismissConfirm": "Dismiss it? It stays here to read.",
+    "dismissed": "Dismissed",
+    "thisNode": "This node",
+    "thisNodeDescription": "The local node of your network: its connection to the main server and what it does without one.",
+    "since": "In this state since",
+    "lastHeartbeat": "Main server last reached",
+    "goOffline": "Work without the main server now",
+    "goOfflineConfirm": "The node stops sending changes to the main server and works on its own until you turn this off (an exam on a poor line). Continue?",
+    "goOnline": "Back to the main server",
+    "goOnlineConfirm": "The node passes on what it did on its own and goes back to the main server, once timed quizzes in progress end. Continue?",
+    "commandDone": "Done",
+    "postponeUntil": "Put the sync off until",
+    "postpone": "Put off",
+    "postponedTill": "The sync waits until {at}.",
+    "banner": {
+      "readonly": "No connection to the main server. For now you can view materials; making changes will be possible again shortly.",
+      "offline": "No connection to the main server. Your work is saved on your organisation's server and will be passed on automatically.",
+      "sync": "The work done without a connection is being passed on to the main server: changes are paused for a minute or two."
+    },
+    "unavailable": {
+      "title": "Not available right now",
+      "offline": "There is no connection to the main server: this cannot be done now. Viewing works; try again later.",
+      "sync": "The work done without a connection is being passed on to the main server. Try again in a minute.",
+      "back": "Back to the dashboard"
+    },
+    "reason": {
+      "time": "The time it was done is outside the node's outage (a clock out of step?)",
+      "actorGone": "Its author's account is no longer active",
+      "changed": "Changed on the main server meanwhile",
+      "unknown": "This server does not know the action {name}",
+      "refused": "Refused by the main server",
+      "failed": "The main server could not do it"
     }
   }
 }

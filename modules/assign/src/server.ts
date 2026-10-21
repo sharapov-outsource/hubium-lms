@@ -902,7 +902,8 @@ export const assign = defineModule<AssignSettingsT>({
         if (team.kind === 'blocked') throw new ModuleError('CONFLICT', blockedMessage(team.reason));
         const dates = await effectiveDates(ctx.db, a, uid);
         const window = canSubmitNow(dates, ctx.now);
-        if (!window.ok)
+        // a teacher accepting work handed in on a node without a connection lets it be
+        if (!window.ok && !ctx.override)
           throw new ModuleError(
             'BAD_REQUEST',
             window.reason === 'notOpen'

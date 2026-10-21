@@ -1,0 +1,166 @@
+// Local nodes: servers in the network of a branch or building that serve it from there and
+// keep it working while its link to the cloud is down (docs/architecture.md §1.7).
+
+/// What a node is doing, as it said in its last heartbeat.
+enum NodeMode {
+  NEW
+  /// reads from its replica of the cloud's database, sends every change to the cloud
+  ONLINE
+  /// no connection for less than the threshold: reads only
+  READONLY
+  /// no connection: works on its own database and keeps a journal of what it did
+  OFFLINE
+  /// sends its journal to the cloud
+  SYNC
+  /// its replica is not ready (first copy, a new copy, another release): sends everything on
+  PASSTHROUGH
+}
+
+enum NodeOpStatus {
+  PENDING
+  APPLIED
+  CONFLICT
+  REJECTED
+}
+
+enum NodeConflictStatus {
+  OPEN
+  ACCEPTED
+  DISMISSED
+}
+
+/// A local node, as the cloud knows it.
+model Node {
+  id                    String    @id @default(uuid(7)) @db.Uuid
+  name                  String
+  /// sha256 of the installation code, shown once and valid for a day; null once used
+  registrationHash      String?   @unique
+  registrationExpiresAt DateTime? @db.Timestamptz(3)
+  /// sha256 of the token the node calls the node API with and signs the requests it passes
+  /// on with; null until the node is installed and after it is revoked
+  tokenHash             String?   @unique
+  /// The database role and the replication slot of the node (one name for both)
+  dbRole                String    @unique
+  /// Files of courses in these categories and below are copied to the node; empty: all
+  categoryIds           String[]  @db.Uuid
+  mode                  NodeMode  @default(NEW)
+  version               String?
+  /// The rest of the last heartbeat: replication lag, copied files, journal, PostgreSQL
+  status                Json      @default("{}")
+  lastSeenAt            DateTime? @db.Timestamptz(3)
+  /// When the cloud last took a batch of the node's journal: the cloud replays one node's
+  /// journal at a time, the others wait their turn
+  replayingAt           DateTime? @db.Timestamptz(3)
+  revokedAt             DateTime? @db.Timestamptz(3)
+  createdAt             DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(3)
+
+  admins    NodeAdmin[]
+  outages   NodeOutage[]
+  results   NodeOpResult[]
+  conflicts NodeConflict[]
+}
+
+/// People who look after one node (its state, the autonomous mode, the sync) without
+/// administering the site.
+model NodeAdmin {
+  nodeId    String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  node Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([nodeId, userId])
+  @@index([userId])
+}
+
+/// A time the cloud did not hear from a node: from its last heartbeat before the gap to the
+/// first one after it. What the node did without a connection is accepted only with times
+/// inside such a gap.
+model NodeOutage {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  nodeId    String    @db.Uuid
+  startedAt DateTime  @db.Timestamptz(3)
+  endedAt   DateTime? @db.Timestamptz(3)
+  /// Operations of the gap the cloud took, refused as conflicts, and when the sync ended
+  applied   Int       @default(0)
+  conflicts Int       @default(0)
+  syncedAt  DateTime? @db.Timestamptz(3)
+
+  node Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  @@index([nodeId, startedAt])
+}
+
+/// The journal of a node working without a connection, written on the node in the
+/// transaction of each operation and sent to the cloud by the sync. The cloud's own table
+/// stays empty; it keeps NodeOpResult.
+model NodeOp {
+  /// Made on the node: unique across nodes, the key of the replay's idempotency
+  id         String       @id @db.Uuid
+  seq        BigInt       @unique @default(autoincrement())
+  /// operation, action (of a module), content (a POST to the content origin), touch, auth
+  kind       String
+  name       String
+  /// The release the node ran
+  version    String
+  activityId String?      @db.Uuid
+  /// { userId, realUserId } or { kind: 'system' }
+  actor      Json
+  input      Json
+  ip         String?
+  at         DateTime     @db.Timestamptz(3)
+  seed       String
+  /// The ids of the rows it created, by model, in order: the replay gives them the same
+  ids        Json         @default("{}")
+  /// Rows it changed with their version before (guarded operations)
+  guards     Json         @default("[]")
+  /// Storage keys of the files it stored: they go to the cloud before it
+  files      String[]
+  /// Uploads it consumed, by upload id: where their content went (a key of `files`)
+  uploads    Json         @default("{}")
+  status     NodeOpStatus @default(PENDING)
+  error      String?
+}
+
+/// What the cloud did with an operation of a node's journal: the replay does each once.
+model NodeOpResult {
+  opId      String       @id @db.Uuid
+  nodeId    String       @db.Uuid
+  status    NodeOpStatus
+  error     String?
+  createdAt DateTime     @default(now()) @db.Timestamptz(3)
+
+  node Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  @@index([nodeId, createdAt])
+}
+
+/// An operation of a node's journal the cloud did not take: something changed it in the
+/// cloud meanwhile, or a rule refuses it now. Its author is told; a teacher may accept the
+/// work of a student anyway.
+model NodeConflict {
+  id           String             @id @default(uuid(7)) @db.Uuid
+  nodeId       String             @db.Uuid
+  opId         String             @unique @db.Uuid
+  kind         String
+  name         String
+  actorId      String?            @db.Uuid
+  courseId     String?            @db.Uuid
+  activityId   String?            @db.Uuid
+  /// The journal entry, to run it again when accepted
+  op           Json
+  /// Why: a message key with its values, and the rows that differ
+  reason       Json
+  status       NodeConflictStatus @default(OPEN)
+  resolvedById String?            @db.Uuid
+  resolvedAt   DateTime?          @db.Timestamptz(3)
+  createdAt    DateTime           @default(now()) @db.Timestamptz(3)
+
+  node Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  @@index([status, courseId])
+  @@index([actorId])
+  @@index([nodeId, createdAt])
+}

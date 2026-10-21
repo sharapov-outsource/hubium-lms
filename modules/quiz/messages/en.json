@@ -159,6 +159,8 @@
       "enterPassword": "Quiz password",
       "subnet": "Network addresses",
       "subnetHint": "Attempts only from these addresses: e.g. 192.168.1.0/24, 10.1 or 172.16.5.10-20. Empty: from anywhere.",
+      "nodes": "Only through local nodes",
+      "nodesHint": "Attempts only in the networks of the chosen nodes, such as the rooms of a branch. None chosen: anywhere.",
       "delay1": "Wait after the first attempt, min",
       "delay2": "Wait after later attempts, min",
       "navMethod": "Navigation",
@@ -168,6 +170,7 @@
         "sequential": "Sequential"
       },
       "networkBlocked": "This quiz can only be taken from certain network addresses, and yours is not one of them.",
+      "nodeBlocked": "This quiz is taken only in the rooms of certain branches.",
       "waitUntil": "The next attempt can start on {date}.",
       "sequentialNotice": "Pages go in order: you cannot return to a page once you leave it.",
       "wrongPassword": "The quiz password is wrong"
@@ -243,6 +246,7 @@
     },
     "errors": {
       "networkOnly": "This quiz can only be taken from certain network addresses",
+      "nodeOnly": "This quiz can only be taken through the local nodes of certain branches",
       "noQuestions": "This quiz has no questions yet",
       "notEnoughRandom": "Not enough questions in the random category",
       "questionMissing": "Question missing",

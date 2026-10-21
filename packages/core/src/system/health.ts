@@ -159,6 +159,7 @@ export async function prometheusMetrics(db: Db): Promise<string> {
       SELECT name, state::text AS state, count(*) AS n FROM pgboss.job
       WHERE state IN ('created', 'retry', 'active', 'failed') GROUP BY name, state`.catch(() => []);
   const hb = await lastHeartbeat(db);
+  const nodes = await nodeMetrics(db);
   const c = counts!;
   const lines = [
     '# HELP hubium_users Registered people (not deleted).',
@@ -184,8 +185,49 @@ export async function prometheusMetrics(db: Db): Promise<string> {
     ...queues.map(
       (q) => `hubium_jobs{queue="${q.name.replace(/"/g, '')}",state="${q.state}"} ${Number(q.n)}`,
     ),
+    ...nodes,
     '# TYPE process_resident_memory_bytes gauge',
     `process_resident_memory_bytes ${process.memoryUsage().rss}`,
   ];
   return `${lines.join('\n')}\n`;
+}
+
+/** The local nodes: since their last heartbeat, how far their replica is, what waits. */
+async function nodeMetrics(db: Db): Promise<string[]> {
+  const nodes = await db.node.findMany({
+    where: { revokedAt: null, tokenHash: { not: null } },
+    select: {
+      id: true,
+      name: true,
+      mode: true,
+      lastSeenAt: true,
+      status: true,
+      _count: { select: { conflicts: { where: { status: 'OPEN' } } } },
+    },
+  });
+  if (!nodes.length) return [];
+  const label = (n: { id: string; name: string }) =>
+    `node="${n.id}",name="${n.name.replace(/["\\\n]/g, ' ')}"`;
+  const status = (n: { status: unknown }) =>
+    (n.status ?? {}) as { lagBytes?: number | null; pendingOps?: number };
+  return [
+    '# HELP hubium_node_heartbeat_age_seconds Seconds since a local node was last heard.',
+    '# TYPE hubium_node_heartbeat_age_seconds gauge',
+    ...nodes.map(
+      (n) =>
+        `hubium_node_heartbeat_age_seconds{${label(n)}} ${n.lastSeenAt ? Math.round((Date.now() - n.lastSeenAt.getTime()) / 1000) : -1}`,
+    ),
+    '# HELP hubium_node_mode A local node in its mode (1).',
+    '# TYPE hubium_node_mode gauge',
+    ...nodes.map((n) => `hubium_node_mode{${label(n)},mode="${n.mode}"} 1`),
+    '# HELP hubium_node_replica_lag_bytes How far the replica of a node is behind, in bytes of WAL.',
+    '# TYPE hubium_node_replica_lag_bytes gauge',
+    ...nodes.map((n) => `hubium_node_replica_lag_bytes{${label(n)}} ${status(n).lagBytes ?? -1}`),
+    '# HELP hubium_node_journal_pending Journal entries of a node the cloud has not taken.',
+    '# TYPE hubium_node_journal_pending gauge',
+    ...nodes.map((n) => `hubium_node_journal_pending{${label(n)}} ${status(n).pendingOps ?? 0}`),
+    '# HELP hubium_node_conflicts_open Work done on a node without a connection, not taken.',
+    '# TYPE hubium_node_conflicts_open gauge',
+    ...nodes.map((n) => `hubium_node_conflicts_open{${label(n)}} ${n._count.conflicts}`),
+  ];
 }

@@ -1,4 +1,10 @@
-import { newSeed, withWriteScope } from '@hubium/db';
+import {
+  currentWriteScope,
+  newOpRecord,
+  newSeed,
+  type WriteScope,
+  withWriteScope,
+} from '@hubium/db';
 import { log } from '@hubium/log';
 import { msg, type OfflinePolicy, renderMsg } from '@hubium/module-sdk';
 import { z } from 'zod';
@@ -6,6 +12,9 @@ import type { MutationContext, RequestContext } from './context.ts';
 import { AppError, type MsgOrText, ValidationError } from './errors.ts';
 import { withActorScope } from './events/actor-scope.ts';
 import { issueMsg } from './issue-messages.ts';
+import { isNode } from './node/config.ts';
+import { journalActor, journaling, writeJournal } from './node/journal.ts';
+import { nodeState } from './node/runtime.ts';
 
 const logger = log('operations');
 
@@ -51,7 +60,7 @@ export function defineOperation<I extends z.ZodType, O>(def: OperationDef<I, O>)
   const op: Operation<I, O> = {
     ...def,
     run(ctx, raw) {
-      return withActorScope(ctx.actor, () => runOperation(def, ctx, raw));
+      return withActorScope(ctx.actor, () => runOperation(def, ctx, raw), ctx.nodeId);
     },
   };
   registry.set(def.name, op as Operation<z.ZodType, unknown>);
@@ -73,13 +82,55 @@ export function duplicateOperationNames(): string[] {
   return [...definitions].filter(([, n]) => n > 1).map(([name]) => name);
 }
 
+/**
+ * The seed of an operation's random numbers: the journal's when the cloud replays it, one
+ * drawn from the enclosing operation's for an operation inside another (so that replaying
+ * the outer one draws the same), a new one otherwise.
+ */
+export function operationSeed(outer: WriteScope | undefined): string {
+  if (outer?.kind === 'operation' && outer.random) return outer.random.uuid().replace(/-/g, '');
+  return outer?.replay?.seed ?? newSeed();
+}
+
+/**
+ * Refuses what a local node may not do now: anything while it reads its replica (changes go
+ * to the cloud; without a connection, or while it syncs, they wait), and without a
+ * connection what needs the cloud (OfflinePolicy 'online').
+ */
+export function assertOfflineAllowed(offline: OfflinePolicy): void {
+  if (!isNode()) return;
+  const { mode } = nodeState();
+  if (mode === 'SYNC') throw new AppError('UNAVAILABLE', msg('errors.node.syncing'));
+  if (mode !== 'OFFLINE') throw new AppError('UNAVAILABLE', msg('errors.node.readonly'));
+  if (offline === 'online') throw new AppError('UNAVAILABLE', msg('errors.node.onlineOnly'));
+}
+
 async function runOperation<I extends z.ZodType, O>(
   def: OperationDef<I, O>,
   ctx: RequestContext,
   raw: unknown,
 ): Promise<O> {
+  assertOfflineAllowed(def.offline);
   const input = parseInput(def.input, raw);
   if (def.authorize) await def.authorize(ctx, input);
+  const outer = currentWriteScope();
+  const seed = operationSeed(outer);
+  // a node working alone records the outermost operation (the inner ones are part of it)
+  const record =
+    journaling() && outer?.kind !== 'operation'
+      ? newOpRecord(def.offline === 'guarded')
+      : undefined;
+  // the cloud replaying a node's entry: its result goes with its changes
+  const replayed = outer?.kind !== 'operation' ? outer?.replay?.commit : undefined;
+  const entry = record && {
+    kind: 'operation' as const,
+    name: def.name,
+    actor: journalActor(ctx.actor),
+    input: raw,
+    ip: ctx.ip,
+    at: ctx.now,
+    seed,
+  };
   // the handler's writes and its after-commit steps belong to the operation, dated with
   // its time, with random numbers of its own
   return withWriteScope(
@@ -93,9 +144,17 @@ async function runOperation<I extends z.ZodType, O>(
           { ...ctx, tx: ctx.db, afterCommit: (fn) => after.push(fn) },
           input,
         );
+        if (entry) await writeJournal(ctx.db, entry, record!);
+        if (replayed) await replayed(ctx.db as never);
       } else {
         result = await ctx.db.$transaction(
-          (tx) => def.handler({ ...ctx, tx, afterCommit: (fn) => after.push(fn) }, input),
+          async (tx) => {
+            const r = await def.handler({ ...ctx, tx, afterCommit: (fn) => after.push(fn) }, input);
+            // in the change's own transaction: the journal has it if and only if it happened
+            if (entry) await writeJournal(tx, entry, record!);
+            if (replayed) await replayed(tx as never);
+            return r;
+          },
           { timeout: 30_000 },
         );
       }
@@ -108,7 +167,7 @@ async function runOperation<I extends z.ZodType, O>(
       }
       return result;
     },
-    { now: ctx.now, seed: newSeed() },
+    { now: ctx.now, seed, record },
   );
 }
 

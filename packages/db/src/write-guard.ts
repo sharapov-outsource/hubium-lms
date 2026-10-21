@@ -1,5 +1,6 @@
 import { log } from '@hubium/log';
 import type { PrismaClient } from './generated/prisma/client.ts';
+import { routedClient, routeOf } from './node-router.ts';
 import { currentWriteScope, type WriteScopeKind, withWriteScope } from './write-scope.ts';
 
 // Checks that every write to the database runs in a write scope (write-scope.ts). Off by
@@ -58,10 +59,43 @@ type Guarded = WeakMap<object, { base: PrismaClient; mode: 'report' | 'strict' }
 const shared = globalThis as unknown as { hubiumGuardedClients?: Guarded };
 const guarded = (shared.hubiumGuardedClients ??= new WeakMap());
 
+// A local node working alone (packages/core/src/node/journal.ts) also needs every change
+// people make in its journal: a write of an operation or a page view without its record
+// would be lost to the cloud, and so would one of an exchange with an outside system.
+const journal = globalThis as unknown as { hubiumJournalRequired?: () => boolean };
+
+/** Set by a node's runtime: whether writes must go to the journal now. */
+export function setJournalRequired(fn: () => boolean): void {
+  journal.hubiumJournalRequired = fn;
+}
+
+export class UnjournaledWriteError extends Error {
+  readonly write: string;
+  constructor(write: string) {
+    super(`${write} runs outside the journal of a node working without a connection`);
+    this.name = 'UnjournaledWriteError';
+    this.write = write;
+  }
+}
+
+/** Whether a write in this scope is lost to the cloud: a node working alone without its record. */
+function unjournaled(): boolean {
+  if (!journal.hubiumJournalRequired?.()) return false;
+  const scope = currentWriteScope();
+  if (!scope) return false;
+  if (scope.kind === 'external') return true;
+  return (scope.kind === 'operation' || scope.kind === 'touch') && !scope.record;
+}
+
 /** The client with the guard. A query extension leaves the client's API as it is. */
 export function withWriteGuard(client: PrismaClient, mode: 'report' | 'strict'): PrismaClient {
   const reported = new Set<string>();
   const check = (write: string) => {
+    if (unjournaled()) {
+      if (mode === 'strict') throw new UnjournaledWriteError(write);
+      logger.error({ write }, 'database write outside the journal of a node working alone');
+      return;
+    }
     if (currentWriteScope()) return;
     if (mode === 'strict') throw new UnscopedWriteError(write);
     if (reported.has(write)) return;
@@ -95,6 +129,14 @@ export function inWriteScope<T>(client: T, kind: WriteScopeKind, name: string): 
       },
     },
   };
+  // a node's client over its two databases: each gets the scope
+  const route = routeOf(client as object);
+  if (route)
+    return routedClient(
+      inWriteScope(route.a, kind, name),
+      inWriteScope(route.b, kind, name),
+      route.pick,
+    ) as T;
   // Prisma runs extensions in the order they were added, so a guarded client gets its
   // scope added to the client it guards, and the guard again after it.
   const g = guarded.get(client as object);

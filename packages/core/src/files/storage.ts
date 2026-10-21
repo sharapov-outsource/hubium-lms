@@ -17,6 +17,7 @@ import {
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { sign, verifySignature } from '../crypto.ts';
+import { fetchFromCloud } from './mirror.ts';
 
 // Storage drivers. Keys are opaque, e.g. "blobs/01/9f/<uuid>". The bucket is never public:
 // downloads go through ACL-checked routes that stream (FS) or redirect to a presigned URL (S3).
@@ -26,10 +27,16 @@ export interface StoredObject {
   contentType?: string;
 }
 
+/** Bytes `start` to `end` (inclusive) of an object, as an HTTP Range asks. */
+export interface ByteRange {
+  start: number;
+  end: number;
+}
+
 export interface StorageDriver {
   readonly kind: 'fs' | 's3';
   put(key: string, body: Buffer | Readable, contentType: string): Promise<void>;
-  getStream(key: string): Promise<Readable>;
+  getStream(key: string, range?: ByteRange): Promise<Readable>;
   head(key: string): Promise<StoredObject | null>;
   delete(key: string): Promise<void>;
   copy(from: string, to: string): Promise<void>;
@@ -66,8 +73,8 @@ export class FsStorage implements StorageDriver {
     if (Buffer.isBuffer(body)) await pipeline(Readable.from([body]), createWriteStream(p));
     else await pipeline(body, createWriteStream(p));
   }
-  async getStream(key: string) {
-    return createReadStream(safeJoin(this.root, key));
+  async getStream(key: string, range?: ByteRange) {
+    return createReadStream(safeJoin(this.root, key), range);
   }
   async head(key: string) {
     try {
@@ -124,6 +131,32 @@ export class FsStorage implements StorageDriver {
   }
 }
 
+/**
+ * The storage of a local node: its own disk, with the cloud's files copied there by the
+ * node's agent ahead of time; a file not copied yet is fetched from the cloud when someone
+ * opens it (while the node is connected). Files stored on the node go to its disk, and to
+ * the cloud with the sync.
+ */
+export class MirrorStorage extends FsStorage {
+  private readonly fetchMissing: (key: string) => Promise<boolean>;
+
+  constructor(root: string, secret: string, fetchMissing: (key: string) => Promise<boolean>) {
+    super(root, secret, '');
+    this.fetchMissing = fetchMissing;
+  }
+
+  override async head(key: string) {
+    const here = await super.head(key);
+    if (here) return here;
+    return (await this.fetchMissing(key)) ? super.head(key) : null;
+  }
+
+  override async getStream(key: string, range?: ByteRange) {
+    if (!(await super.head(key))) await this.fetchMissing(key);
+    return super.getStream(key, range);
+  }
+}
+
 export interface S3Config {
   endpoint?: string;
   publicUrl?: string;
@@ -177,8 +210,14 @@ export class S3Storage implements StorageDriver {
     // streams in one request and large ones as a multipart upload.
     await new Upload({ client: this.client, params }).done();
   }
-  async getStream(key: string) {
-    const r = await this.client.send(new GetObjectCommand({ Bucket: this.cfg.bucket, Key: key }));
+  async getStream(key: string, range?: ByteRange) {
+    const r = await this.client.send(
+      new GetObjectCommand({
+        Bucket: this.cfg.bucket,
+        Key: key,
+        ...(range ? { Range: `bytes=${range.start}-${range.end}` } : {}),
+      }),
+    );
     return r.Body as Readable;
   }
   async head(key: string) {
@@ -243,7 +282,10 @@ let storage: StorageDriver | undefined;
 export function getStorage(): StorageDriver {
   if (storage) return storage;
   const env = process.env;
-  if (env.STORAGE_DRIVER === 's3') {
+  if (env.STORAGE_DRIVER === 'mirror') {
+    // a local node: its own disk, filled from the cloud (mirror.ts)
+    storage = new MirrorStorage(fsStorageRoot(), env.APP_SECRET ?? 'dev-secret', fetchFromCloud);
+  } else if (env.STORAGE_DRIVER === 's3') {
     storage = new S3Storage({
       endpoint: env.S3_ENDPOINT,
       publicUrl: env.S3_PUBLIC_URL,
@@ -276,4 +318,19 @@ export function fsStorageRoot(env = process.env): string {
 
 export function setStorage(s: StorageDriver | undefined): void {
   storage = s;
+}
+
+/** A file on the local disk, when it is there (a node's sync sends it to the cloud). */
+export async function localStorageFile(
+  key: string,
+): Promise<{ path: string; size: number } | null> {
+  const root = path.resolve(fsStorageRoot());
+  const p = path.resolve(root, key);
+  if (!p.startsWith(root + path.sep)) return null;
+  try {
+    const s = await stat(p);
+    return s.isFile() ? { path: p, size: s.size } : null;
+  } catch {
+    return null;
+  }
 }

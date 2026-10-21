@@ -151,6 +151,8 @@ async function StudentView({ activity: a, ctx }: Props) {
         <Alert variant="warning">{t('empty')}</Alert>
       ) : !o.networkAllowed ? (
         <Alert variant="warning">{t('access.networkBlocked')}</Alert>
+      ) : !o.nodeAllowed ? (
+        <Alert variant="warning">{t('access.nodeBlocked')}</Alert>
       ) : o.inProgressAttemptId ? (
         <Button asChild size="lg" className="w-fit">
           <Link href={`${base(a)}?attempt=${o.inProgressAttemptId}`}>{t('continue')}</Link>

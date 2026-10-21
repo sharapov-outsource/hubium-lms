@@ -534,7 +534,8 @@
       "security": "Sicherheit",
       "email": "E-Mail",
       "maintenance": "Wartung"
-    }
+    },
+    "nodes": "Knoten"
   },
   "email": {
     "footer": "Sie erhalten diese E-Mail, weil Sie ein Konto auf dieser Website haben.",
@@ -1109,6 +1110,15 @@
       "tooManyColumns": "Höchstens {n} Spalten",
       "tooLarge": "Die Datei ist größer als {n} MB",
       "notSheet": "Keine Tabelle: Verwenden Sie CSV, XLSX oder ODS"
+    },
+    "node": {
+      "onlineOnly": "Dafür ist die Verbindung zum Hauptserver nötig: Das ist gerade nicht verfügbar.",
+      "readonly": "Keine Verbindung zum Hauptserver: Vorerst ist nur Ansehen möglich.",
+      "syncing": "Die ohne Verbindung erledigte Arbeit wird an den Hauptserver übertragen: Versuchen Sie es in einer Minute erneut.",
+      "cannotDecide": "Darüber entscheiden nur die Lehrenden des Kurses und die Administratoren.",
+      "notANode": "Dieser Server ist kein lokaler Knoten.",
+      "agent": "Der Agent des Knotens hat nicht geantwortet.",
+      "badCode": "Der Installationscode ist falsch oder abgelaufen."
     }
   },
   "editor": {
@@ -1198,6 +1208,7 @@
       "groups": "Gruppen",
       "grades": "Bewertungen",
       "completion": "Abschluss",
+      "nodeConflicts": "Knotenkonflikte",
       "reports": "Berichte",
       "settings": "Einstellungen",
       "enrolment": "Einschreibung",
@@ -1613,6 +1624,9 @@
     "who": "Wer (Name oder E-Mail)",
     "anyEvent": "Jedes Ereignis",
     "anyActivity": "Jede Aktivität",
+    "node": "Knoten",
+    "anyNode": "Jeder Knoten",
+    "noNode": "Ohne Knoten",
     "from": "Von",
     "to": "Bis",
     "noLogs": "Keine Ereignisse gefunden",
@@ -2126,7 +2140,8 @@
       "badge_awarded": "Erhaltene Auszeichnungen",
       "certificate_issued": "Ausgestellte Zertifikate",
       "competency_plan": "Lernpläne",
-      "competency_comment": "Kommentare zu Plänen und Kompetenzen"
+      "competency_comment": "Kommentare zu Plänen und Kompetenzen",
+      "node_conflict": "Ohne Verbindung erledigte Arbeit"
     },
     "text": {
       "enrolled": "Sie wurden in „{course}“ eingeschrieben",
@@ -2138,7 +2153,9 @@
       "planCreated": "Für Sie wurde der Lernplan „{name}“ erstellt",
       "planApproved": "Lernplan „{name}“ genehmigt",
       "planCompleted": "Lernplan „{name}“ abgeschlossen",
-      "competencyComment": "Ein neuer Kommentar zu Ihrem Plan oder Ihrer Kompetenz"
+      "competencyComment": "Ein neuer Kommentar zu Ihrem Plan oder Ihrer Kompetenz",
+      "nodeConflict": "Ohne Verbindung erledigte Arbeit ({node}) wurde nicht angenommen",
+      "nodeConflictAccepted": "Ohne Verbindung erledigte Arbeit ({node}) wurde angenommen"
     },
     "email": {
       "open": "Öffnen",
@@ -3592,6 +3609,147 @@
       "intro": "Der Bericht „{name}“ ist angehängt: {rows, plural, one {# Zeile} other {# Zeilen}}.",
       "open": "Bericht öffnen",
       "footer": "Versand „{schedule}“."
+    }
+  },
+  "nodes": {
+    "title": "Lokale Knoten",
+    "description": "Server in den Netzen von Standorten und Gebäuden: Dort arbeitet man schnell über sie und arbeitet weiter, wenn die Leitung zu diesem Server ausfällt. Was ohne sie getan wird, kommt hierher, sobald die Leitung wieder steht.",
+    "name": "Name",
+    "nameHint": "Der Standort oder das Gebäude, wie man es kennt.",
+    "state": "Zustand",
+    "lastSeen": "Zuletzt gehört",
+    "lag": "Rückstand",
+    "files": "Dateien kopiert",
+    "conflicts": "Konflikte",
+    "allConflicts": "Alle Konflikte",
+    "new": "Knoten hinzufügen",
+    "newHint": "Sie erhalten einen Code, der den Knoten auf einem Server dieses Netzes installiert (einen Tag gültig).",
+    "add": "Knoten hinzufügen",
+    "categories": "Nur Dateien dieser Kategorien",
+    "categoriesHint": "Keine: Alle Dateien werden auf den Knoten kopiert. Mit Kategorien werden die Dateien ihrer Kurse vorab kopiert, der Rest beim Öffnen (mit Verbindung).",
+    "codeTitle": "Installieren Sie den Knoten mit diesem Befehl",
+    "codeHint": "Führen Sie ihn auf dem Server des Knotens aus; der Code wird einmal angezeigt und gilt einen Tag.",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "mode": {
+      "revoked": "Widerrufen",
+      "notInstalled": "Nicht installiert",
+      "silent": "Kein Signal",
+      "NEW": "Neu",
+      "ONLINE": "Verbunden",
+      "READONLY": "Keine Verbindung: nur Ansicht",
+      "OFFLINE": "Arbeitet eigenständig",
+      "SYNC": "Synchronisiert",
+      "PASSTHROUGH": "Leitet alles weiter"
+    },
+    "modeHint": {
+      "ONLINE": "Seiten und Dateien kommen vom Knoten; Änderungen gehen an den Hauptserver.",
+      "READONLY": "Der Hauptserver ist nicht erreichbar: Man kann ansehen, Änderungen warten. Bald arbeitet der Knoten eigenständig.",
+      "OFFLINE": "Der Knoten arbeitet mit seiner eigenen Datenbank und führt ein Journal; er überträgt es, sobald der Hauptserver zurück ist.",
+      "SYNC": "Das Journal geht an den Hauptserver; Änderungen warten ein bis zwei Minuten.",
+      "PASSTHROUGH": "Die Datenbankkopie des Knotens ist nicht bereit (oder eine andere Version): Alles geht an den Hauptserver."
+    },
+    "nodeDescription": "Sein gemeldeter Zustand, seine Installation, die Verantwortlichen und seine Ausfälle.",
+    "release": "Version",
+    "replicaB": "Eigene Datenbank",
+    "replicaState": {
+      "ready": "bereit",
+      "copying": "wird kopiert",
+      "promoted": "in Gebrauch",
+      "missing": "fehlt"
+    },
+    "pendingOps": "Wartende Journaleinträge",
+    "offlineSince": "Ohne Verbindung seit",
+    "slot": "Replikationsslot",
+    "slotState": {
+      "reserved": "gehalten",
+      "extended": "über das Übliche gehalten",
+      "unreserved": "bald verloren",
+      "lost": "verloren: der Knoten kopiert die Datenbank neu"
+    },
+    "openConflicts": "{n, plural, one {# offener Konflikt} other {# offene Konflikte}}",
+    "installation": "Installation",
+    "installedHint": "Der Knoten ist installiert. Ein neuer Code installiert ihn erneut (anderer Server, neue Platte); die alte Installation endet, wenn die neue sich registriert.",
+    "codeExpires": "Noch nicht installiert. Sein Code gilt bis {at}.",
+    "reinstall": "Neuer Code zur Neuinstallation",
+    "newCode": "Neuer Installationscode",
+    "settings": "Einstellungen",
+    "admins": "Knoten-Administratoren",
+    "adminsHint": "Sie sehen den Zustand des Knotens auf dem Knoten (/node), schalten seinen autonomen Modus ein und verschieben die Synchronisierung, ohne die Website zu verwalten.",
+    "outages": "Ausfälle",
+    "outagesHint": "Zeiten, in denen dieser Server nichts vom Knoten hörte, und was aus der Arbeit dieser Zeit wurde.",
+    "outageFrom": "Von",
+    "outageTo": "Bis",
+    "applied": "Übernommen",
+    "synced": "Synchronisiert",
+    "ongoing": "andauernd",
+    "noOutages": "Bisher keine.",
+    "revokeTitle": "Knoten widerrufen",
+    "revokeHint": "Token, Datenbankrolle und Replikationsslot werden entfernt: Er erhält nichts mehr von diesem Server. Was er hält, bleibt auf seiner Platte; löschen Sie diesen Server.",
+    "revoke": "Widerrufen",
+    "revokeConfirm": "Diesen Knoten widerrufen? Er hört sofort auf, für sein Netz zu arbeiten.",
+    "revoked": "Knoten widerrufen",
+    "deleteTitle": "Knoten entfernen",
+    "deleteHint": "Entfernt den widerrufenen Knoten mit seinen Ausfällen und Konflikten aus der Liste.",
+    "delete": "Entfernen",
+    "deleteConfirm": "Diesen Knoten, seine Ausfälle und Konflikte entfernen?",
+    "conflictsTitle": "Konflikte bei ohne Verbindung erledigter Arbeit",
+    "conflictsDescription": "Auf Knoten ohne Verbindung erledigte Arbeit, die dieser Server nicht übernommen hat: Hier hat sich inzwischen etwas geändert oder eine Regel lehnt sie jetzt ab. Die Autoren wurden benachrichtigt.",
+    "courseConflictsDescription": "In diesem Kurs auf Knoten ohne Verbindung erledigte, nicht übernommene Arbeit. Sie können die Arbeit von Lernenden trotzdem annehmen (Versuch über dem Limit, Abgabe nach der Frist).",
+    "noConflicts": "Keine Konflikte.",
+    "when": "Wann",
+    "node": "Knoten",
+    "author": "Autor",
+    "why": "Warum",
+    "status": "Status",
+    "conflictStatus": {
+      "OPEN": "Offen",
+      "ACCEPTED": "Angenommen",
+      "DISMISSED": "Verworfen"
+    },
+    "conflictTitle": "Nicht übernommene Arbeit",
+    "conflictDescription": "Auf einem lokalen Knoten ohne Verbindung erledigt; dieser Server hat sie nicht übernommen. Nichts geht verloren: Hier ist ihr Inhalt.",
+    "doneAt": "Erledigt am",
+    "activity": "Aktivität",
+    "what": "Aktion",
+    "content": "Inhalt",
+    "decideHint": "Annehmen führt sie erneut aus wie der Autor, Zeit- und Anzahlregeln weichen, zusammen mit der davon aufgehaltenen Arbeit derselben Person in dieser Aktivität.",
+    "accept": "Annehmen",
+    "acceptConfirm": "Diese Arbeit trotz der Regel annehmen?",
+    "accepted": "Angenommen",
+    "dismiss": "Verwerfen",
+    "dismissConfirm": "Verwerfen? Sie bleibt hier lesbar.",
+    "dismissed": "Verworfen",
+    "thisNode": "Dieser Knoten",
+    "thisNodeDescription": "Der lokale Knoten Ihres Netzes: seine Verbindung zum Hauptserver und was er ohne sie tut.",
+    "since": "In diesem Zustand seit",
+    "lastHeartbeat": "Hauptserver zuletzt erreicht",
+    "goOffline": "Jetzt ohne Hauptserver arbeiten",
+    "goOfflineConfirm": "Der Knoten sendet keine Änderungen mehr an den Hauptserver und arbeitet eigenständig, bis Sie dies ausschalten (eine Prüfung bei schlechter Leitung). Fortfahren?",
+    "goOnline": "Zurück zum Hauptserver",
+    "goOnlineConfirm": "Der Knoten überträgt, was er eigenständig getan hat, und kehrt zum Hauptserver zurück, sobald laufende zeitbegrenzte Tests enden. Fortfahren?",
+    "commandDone": "Erledigt",
+    "postponeUntil": "Synchronisierung verschieben bis",
+    "postpone": "Verschieben",
+    "postponedTill": "Die Synchronisierung wartet bis {at}.",
+    "banner": {
+      "readonly": "Keine Verbindung zum Hauptserver. Vorerst können Sie Inhalte ansehen; Änderungen sind bald wieder möglich.",
+      "offline": "Keine Verbindung zum Hauptserver. Ihre Arbeit wird auf dem Server Ihrer Einrichtung gespeichert und automatisch übertragen.",
+      "sync": "Die ohne Verbindung erledigte Arbeit wird an den Hauptserver übertragen: Änderungen pausieren ein bis zwei Minuten."
+    },
+    "unavailable": {
+      "title": "Gerade nicht verfügbar",
+      "offline": "Keine Verbindung zum Hauptserver: Das geht gerade nicht. Ansehen funktioniert; versuchen Sie es später.",
+      "sync": "Die ohne Verbindung erledigte Arbeit wird an den Hauptserver übertragen. Versuchen Sie es in einer Minute.",
+      "back": "Zurück zur Übersicht"
+    },
+    "reason": {
+      "time": "Der Zeitpunkt liegt außerhalb des Ausfalls des Knotens (falsche Uhr?)",
+      "actorGone": "Das Konto des Autors ist nicht mehr aktiv",
+      "changed": "Inzwischen auf dem Hauptserver geändert",
+      "unknown": "Dieser Server kennt die Aktion {name} nicht",
+      "refused": "Vom Hauptserver abgelehnt",
+      "failed": "Der Hauptserver konnte es nicht ausführen"
     }
   }
 }

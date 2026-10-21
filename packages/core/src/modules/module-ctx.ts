@@ -12,6 +12,7 @@ import { getStorage } from '../files/storage.ts';
 import { fileText } from '../files/text.ts';
 import { consumeUpload } from '../files/uploads.ts';
 import { enqueue } from '../jobs/jobs.ts';
+import { nodeWorkWaitingSince } from '../node/waiting.ts';
 import { publishRealtime } from '../realtime.ts';
 import { requireModule } from './registry.ts';
 
@@ -126,6 +127,9 @@ export function buildModuleCtx(
     },
     locale: ctx.locale,
     ip: ctx.ip ?? null,
+    nodeId: ctx.nodeId ?? null,
+    override: ctx.override ?? false,
+    nodes: { waitingSince: () => nodeWorkWaitingSince(tx) },
     perm: {
       can: (cap, contextId) => ctx.perm.can(cap as Capability, contextId),
       require: (cap, contextId) => ctx.perm.require(cap as Capability, contextId),

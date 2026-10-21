@@ -633,9 +633,12 @@ export const lesson = defineModule<LessonSettingsT>({
       name: 'lesson.overdue.sweep',
       schedule: '* * * * *',
       async handler(ctx) {
-        // ends attempts whose time ran out while the learner was away
+        // ends attempts whose time ran out while the learner was away (not yet those of
+        // a time a local node may still bring answers for)
+        const waiting = await ctx.nodes.waitingSince();
+        const before = waiting && waiting < ctx.now ? waiting : ctx.now;
         const due = await ctx.db.lessonAttempt.findMany({
-          where: { finishedAt: null, dueAt: { lt: ctx.now } },
+          where: { finishedAt: null, dueAt: { lt: before } },
           include: { activity: true },
           take: 200,
         });

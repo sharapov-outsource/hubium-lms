@@ -207,6 +207,16 @@ export interface ModuleRandom {
   uuid(): string;
 }
 
+/** The local nodes of the site (docs/architecture.md §1.7). */
+export interface ModuleNodes {
+  /**
+   * Since when work done on a node without a connection may still come (its journal not
+   * yet replayed); null when nothing waits. What closes by time (overdue attempts) waits
+   * for times before this, so that the work comes first.
+   */
+  waitingSince(): Promise<Date | null>;
+}
+
 export interface ModuleCtx {
   db: Prisma.TransactionClient;
   actor: ModuleActor;
@@ -217,6 +227,8 @@ export interface ModuleCtx {
   locale: string;
   /** The client's address (see TRUSTED_PROXY_HOPS), or null outside a request. */
   ip: string | null;
+  /** The local node the request came through or ran on; null in the cloud itself. */
+  nodeId: string | null;
   perm: ModulePermissions;
   files: ModuleFiles;
   grades: ModuleGrades;
@@ -228,6 +240,13 @@ export interface ModuleCtx {
   activities: ModuleActivities;
   ai: ModuleAi;
   content: ModuleContent;
+  /**
+   * A teacher accepts work a student did on a local node without a connection that a rule
+   * refuses now (a quiz attempt over the limit, work after the deadline): the action is run
+   * again with this set, and the rules of time and number give way.
+   */
+  override: boolean;
+  nodes: ModuleNodes;
   /**
    * Writes an event to the course log; `data` names the activity (`activityId`) and the
    * person concerned (`userId`). With `anonymous` the event says nothing of who did it (an
@@ -396,6 +415,12 @@ export interface ActivityModule<S = Record<string, unknown>> {
    * server), which only the cloud makes: a person's own change is an action instead.
    */
   http?(ctx: ModuleCtx, req: Request, path: string[]): Promise<Response>;
+  /**
+   * The HTTP endpoints talk to systems outside Hubium (an LTI tool, a webinar server): a
+   * local node passes them on to the cloud, and without a connection they are not there.
+   * Otherwise a node answers their reads itself (video, exports).
+   */
+  httpExternal?: boolean;
   /**
    * Untrusted content served from CONTENT_HOST at /c/<token>/<...path>. The signed token
    * identifies the activity, the user and module data; there is no session. A POST is the

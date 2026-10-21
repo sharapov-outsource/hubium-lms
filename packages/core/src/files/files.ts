@@ -2,11 +2,12 @@ import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { open, stat } from 'node:fs/promises';
 import {
+  currentWriteScope,
   type Db,
   type File,
+  modelUuidv7,
   type Prisma,
   SYSTEM_CONTEXT_ID,
-  uuidv7,
   withWriteScope,
 } from '@hubium/db';
 import { log } from '@hubium/log';
@@ -159,13 +160,15 @@ async function storeBlob(
           db.fileBlob.update({ where: { id: existing.id }, data: { scannedAt: new Date() } }),
         )
       : existing;
-  const id = uuidv7();
+  const id = modelUuidv7('FileBlob');
   const storageKey = `blobs/${id.slice(-2)}/${id}`;
   await getStorage().put(
     storageKey,
     'data' in content ? content.data : createReadStream(content.filePath),
     meta.mimeType,
   );
+  // a node without a connection sends the file to the cloud before the operation
+  currentWriteScope()?.record?.files.add(storageKey);
   return withWriteScope('files', 'blob', () =>
     db.fileBlob.create({
       data: {

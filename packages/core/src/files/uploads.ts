@@ -1,10 +1,19 @@
+import { createReadStream, createWriteStream } from 'node:fs';
 import { appendFile, mkdir, readdir, rm, stat, truncate } from 'node:fs/promises';
 import path from 'node:path';
-import { type Db, type Prisma, withWriteScope } from '@hubium/db';
+import { pipeline } from 'node:stream/promises';
+import {
+  currentWriteScope,
+  type Db,
+  freshUuidv7,
+  type JournalUpload,
+  type Prisma,
+  withWriteScope,
+} from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { checkFileFromPath } from './files.ts';
-import { fsStorageRoot } from './storage.ts';
+import { fsStorageRoot, getStorage } from './storage.ts';
 
 // Resumable uploads (tus-like): the client creates a session, appends chunks at the
 // current offset and resumes from `received` after a network failure. Chunks are kept
@@ -172,7 +181,19 @@ export async function consumeUpload<T>(
   id: string,
   use: (file: { path: string; name: string; mimeType: string; size: number }) => Promise<T>,
 ): Promise<T> {
+  const scope = currentWriteScope();
+  // the cloud replaying a node's operation: the upload was the node's, its content came
+  // with the journal
+  const replayed = scope?.replay?.uploads[id];
+  if (replayed) return useReplayedUpload(replayed, use);
   const s = await finished(db, userId, id);
+  // a node working alone keeps the content for the cloud
+  if (scope?.record) {
+    const key = `blobs/journal/${freshUuidv7()}`;
+    await getStorage().put(key, createReadStream(tempPath(id)), s.mimeType);
+    scope.record.files.add(key);
+    scope.record.uploads[id] = { key, name: s.name, mimeType: s.mimeType, size: Number(s.size) };
+  }
   const out = await use({
     path: tempPath(id),
     name: s.name,
@@ -182,6 +203,21 @@ export async function consumeUpload<T>(
   await upload(() => db.uploadSession.update({ where: { id }, data: { completedAt: new Date() } }));
   await rm(tempPath(id), { force: true });
   return out;
+}
+
+async function useReplayedUpload<T>(
+  u: JournalUpload,
+  use: (file: { path: string; name: string; mimeType: string; size: number }) => Promise<T>,
+): Promise<T> {
+  const dir = path.join(uploadTempDir(), 'replay');
+  await mkdir(dir, { recursive: true });
+  const file = path.join(dir, freshUuidv7());
+  try {
+    await pipeline(await getStorage().getStream(u.key), createWriteStream(file));
+    return await use({ path: file, name: u.name, mimeType: u.mimeType, size: u.size });
+  } finally {
+    await rm(file, { force: true });
+  }
 }
 
 /** Cron: drops expired sessions and their temp files. */

@@ -14,6 +14,7 @@ import { decryptSecret, encryptSecret } from '../crypto.ts';
 import { getEnv } from '../env.ts';
 import { ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { journaling } from '../node/journal.ts';
 import { defineOperation } from '../operation.ts';
 import {
   listProfileFields,
@@ -323,6 +324,14 @@ export async function signInWithLdap(
     };
   if (user && user.status !== 'ACTIVE')
     return { kind: 'refused', code: 'ACCOUNT_SUSPENDED', message: 'This account is suspended' };
+  // a node without a connection signs in accounts the cloud has linked already: a new one
+  // would be the node's alone
+  if (journaling() && (!user || !linked))
+    return {
+      kind: 'refused',
+      code: 'LDAP_OFFLINE',
+      message: 'The first sign-in with the directory needs the connection to the main server',
+    };
   let id = user?.id;
   if (user && !linked) {
     // a directory entry never takes over an administrator's account

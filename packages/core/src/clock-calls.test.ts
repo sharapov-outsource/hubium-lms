@@ -6,8 +6,9 @@ import { describe, expect, it } from 'vitest';
 // numbers from ctx.random (opRandom), so that the cloud replaying an operation a local node
 // ran gets the values the node had (docs/PLAN.md). The clock and Math.random stay where they
 // decide nothing an operation stores: expiries of links, tokens and uploads, timing and
-// rate limits, the worker's schedules and housekeeping, sign-in bookkeeping, exchanges with
-// other servers and reads ("is it open now?"). These are the calls of each file; a new one
+// rate limits, the worker's schedules and housekeeping, sign-in bookkeeping (and the time of
+// its journal entries on a node), exchanges with other servers and nodes, and reads ("is it
+// open now?"). These are the calls of each file; a new one
 // needs that reason, and a file that drops one lowers its number.
 
 const ALLOWED: Record<string, number> = {
@@ -25,7 +26,7 @@ const ALLOWED: Record<string, number> = {
   'packages/core/src/ai/user-ctx.ts': 1,
   'packages/core/src/announcements/announcements.ts': 3,
   'packages/core/src/api-tokens/tokens.ts': 1,
-  'packages/core/src/auth/auth.ts': 2,
+  'packages/core/src/auth/auth.ts': 4,
   'packages/core/src/auth/devices.ts': 3,
   'packages/core/src/auth/ldap.ts': 3,
   'packages/core/src/auth/lockout.ts': 3,
@@ -51,10 +52,16 @@ const ALLOWED: Record<string, number> = {
   'packages/core/src/files/text.ts': 1,
   'packages/core/src/files/uploads.ts': 7,
   'packages/core/src/grades/gradebook.ts': 3,
+  'packages/core/src/node/auth.ts': 2,
+  'packages/core/src/node/files-api.ts': 2,
+  'packages/core/src/node/hub.ts': 3,
+  'packages/core/src/node/replay.ts': 3,
+  'packages/core/src/node/runtime.ts': 1,
+  'packages/core/src/node/waiting.ts': 1,
   'packages/core/src/notifications/notifications.ts': 2,
   'packages/core/src/notifications/push.ts': 1,
   'packages/core/src/reports/reports.ts': 2,
-  'packages/core/src/system/health.ts': 3,
+  'packages/core/src/system/health.ts': 4,
   'packages/core/src/system/maintenance.ts': 1,
   'packages/core/src/touch/touch.ts': 1,
   'packages/core/src/users/last-access.ts': 1,

@@ -1,4 +1,4 @@
-import { type Db, type EmailMode, type Prisma, uuidv7 } from '@hubium/db';
+import { type Db, type EmailMode, modelUuidv7, type Prisma } from '@hubium/db';
 import type { Locale } from '@hubium/i18n';
 import { createTranslator } from '@hubium/i18n/packs';
 import { log } from '@hubium/log';
@@ -41,6 +41,8 @@ const coreTypes = new Map<string, NotificationTypeDef>([
   ['certificate.issued', { email: 'IMMEDIATE' }],
   ['competency.plan', { email: 'IMMEDIATE' }],
   ['competency.comment', { email: 'IMMEDIATE' }],
+  // work done on a local node without a connection that the cloud did not take
+  ['node.conflict', { email: 'IMMEDIATE' }],
 ]);
 
 export function registerNotificationType(type: string, def: NotificationTypeDef): void {
@@ -141,7 +143,7 @@ export async function deliverNotifications(
     let t = translators.get(locale);
     if (!t) translators.set(locale, (t = createTranslator(locale, siteLocale(settings))));
     rows.push({
-      id: uuidv7(),
+      id: modelUuidv7('Notification'),
       userId: u.id,
       type: n.type,
       actorId: n.actorId ?? null,

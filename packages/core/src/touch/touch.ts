@@ -1,17 +1,21 @@
-import { type Db, withWriteScope } from '@hubium/db';
+import { type Db, newOpRecord, withWriteScope } from '@hubium/db';
 import { Permissions } from '../access/permissions.ts';
 import { markActivityViewed } from '../completion/completion.ts';
 import type { RequestContext } from '../context.ts';
 import { recordCourseAccess } from '../courses/courses.ts';
 import { type LogEventInput, logEvent } from '../events/log.ts';
+import { isNode } from '../node/config.ts';
+import { type JournalActor, journaling, writeJournal } from '../node/journal.ts';
+import { nodeTouchesLocally, sendTouchToAgent } from '../node/runtime.ts';
 import { noteUserAccess } from '../users/last-access.ts';
 
 // Side records of what people look at and use: their last visit, the course and activity
 // they opened last, an activity viewed (which may complete it), the last use of an API
 // token and the log of an access (a data export). Nobody asks for them, so they are not
 // operations, yet others see them (mentors, teachers, administrators). Pages and the API
-// record them through touch(), in the touch write scope; a local node will send them to
-// the cloud instead of writing its read-only copy of the database (docs/PLAN.md).
+// record them through touch(), in the touch write scope. A local node sends them to the
+// cloud through its agent instead of writing its read-only replica, and records them
+// itself only while it works without a connection (docs/architecture.md §1.7).
 
 export type Touch =
   /** A visit of the signed-in person (at most once a minute: `lastAccessAt` tells). */
@@ -34,7 +38,48 @@ export type Touch =
 
 /** Records what someone looked at or used, at `at`. */
 export function touch(db: Db, t: Touch, at = new Date()): Promise<void> {
-  return withWriteScope('touch', t.kind, () => record(db, t, at), { now: at });
+  if (isNode() && !nodeTouchesLocally()) return sendTouchToAgent(t, at);
+  // a node working alone records it in its journal too
+  const rec = journaling() ? newOpRecord(false) : undefined;
+  return withWriteScope(
+    'touch',
+    t.kind,
+    async () => {
+      await record(db, t, at);
+      if (rec)
+        await writeJournal(
+          db,
+          {
+            kind: 'touch',
+            name: t.kind,
+            actor: touchActor(t),
+            input: touchToWire(t, at),
+            at,
+            seed: '',
+          },
+          rec,
+        );
+    },
+    { now: at, record: rec },
+  );
+}
+
+function touchActor(t: Touch): JournalActor {
+  const userId = 'userId' in t ? t.userId : t.kind === 'event' ? t.event.actorId : null;
+  return userId ? { kind: 'user', userId } : { kind: 'system' };
+}
+
+const DATE_FIELDS = ['lastAccessAt', 'lastUsedAt'] as const;
+
+/** A Touch as JSON (dates as strings), as it travels from a node to the cloud. */
+export function touchToWire(t: Touch, at: Date) {
+  return { at: at.toISOString(), touch: t };
+}
+
+export function touchFromWire(w: { touch: Record<string, unknown> }): Touch {
+  const t = { ...w.touch };
+  for (const f of DATE_FIELDS) if (typeof t[f] === 'string') t[f] = new Date(t[f] as string);
+  return t as unknown as Touch;
 }
 
 async function record(db: Db, t: Touch, at: Date): Promise<void> {

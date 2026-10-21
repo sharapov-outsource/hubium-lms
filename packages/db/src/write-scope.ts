@@ -11,6 +11,7 @@ import { newSeed, type Random, seededRandom } from './random.ts';
 //   tool, a webinar server), which only the cloud makes;
 // - job: a job or a scheduled task of the worker;
 // - auth: Better Auth's own tables;
+// - node: the cloud's records of its local nodes (heartbeats, outages, replay results);
 // - system: start-up, the seed and the other commands of the CLI.
 // The write guard (write-guard.ts) reports or refuses writes outside any of them.
 // An operation's scope also carries its time and its random numbers (random.ts), so that
@@ -25,7 +26,47 @@ export type WriteScopeKind =
   | 'external'
   | 'job'
   | 'auth'
+  | 'node'
   | 'system';
+
+/**
+ * What a local node records of an operation it runs without a connection, for the cloud to
+ * do the same (packages/core/src/node/journal.ts): the ids it made by model, in order (ids
+ * made outside a model under '#'), the rows it changed as they were before (guarded
+ * operations only), and the files it stored.
+ */
+export interface OpRecord {
+  ids: Record<string, string[]>;
+  guards: { model: string; where: Record<string, unknown>; hash: string | null }[] | null;
+  files: Set<string>;
+  /** Uploads it consumed (by upload id): their content stored under these keys. */
+  uploads: Record<string, JournalUpload>;
+}
+
+export interface JournalUpload {
+  key: string;
+  name: string;
+  mimeType: string;
+  size: number;
+}
+
+/**
+ * The cloud replaying an operation of a node's journal: the k-th row of a model it makes
+ * gets the k-th id the node made for that model, so links people saw keep working even
+ * where the cloud's state makes the operation skip a row the node made (a file it holds).
+ */
+export interface OpReplay {
+  ids: Record<string, string[]>;
+  next: Record<string, number>;
+  seed: string;
+  uploads: Record<string, JournalUpload>;
+  /**
+   * Records the entry as done, in the transaction of the operation that replays it: the
+   * cloud has its changes if and only if it has its result, so a sync cut off and sent
+   * again does each entry once.
+   */
+  commit?: (tx: never) => Promise<void>;
+}
 
 export interface WriteScope {
   kind: WriteScopeKind;
@@ -35,6 +76,8 @@ export interface WriteScope {
   now?: Date;
   /** The operation's random numbers. */
   random?: Random;
+  record?: OpRecord;
+  replay?: OpReplay;
 }
 
 // One store in the process: a bundler may load this module more than once (Next.js does
@@ -50,8 +93,11 @@ export function withWriteScope<T>(
   kind: WriteScopeKind,
   name: string,
   fn: () => T | PromiseLike<T>,
-  /** Its time and the seed of its random numbers; a scope inside another keeps the outer's. */
-  opts: { now?: Date; seed?: string } = {},
+  /**
+   * Its time and the seed of its random numbers, what it records or replays; a scope inside
+   * another keeps the outer's.
+   */
+  opts: { now?: Date; seed?: string; record?: OpRecord; replay?: OpReplay } = {},
 ): Promise<T> {
   const outer = scopes.getStore();
   const scope: WriteScope = {
@@ -59,8 +105,15 @@ export function withWriteScope<T>(
     name,
     now: opts.now ?? outer?.now,
     random: opts.seed ? seededRandom(opts.seed) : outer?.random,
+    record: opts.record ?? outer?.record,
+    replay: opts.replay ?? outer?.replay,
   };
   return scopes.run(scope, async () => await fn());
+}
+
+/** A new, empty record of an operation (guarded: with the rows it changes). */
+export function newOpRecord(guarded: boolean): OpRecord {
+  return { ids: {}, guards: guarded ? [] : null, files: new Set(), uploads: {} };
 }
 
 /** The time of the operation the code runs in, or the clock's outside any. */

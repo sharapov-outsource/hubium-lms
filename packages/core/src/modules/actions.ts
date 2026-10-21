@@ -1,10 +1,11 @@
-import { newSeed, withWriteScope } from '@hubium/db';
+import { currentWriteScope, newOpRecord, withWriteScope } from '@hubium/db';
 import { ModuleError, msg } from '@hubium/module-sdk';
 import type { RequestContext } from '../context.ts';
 import { getActivityAccess } from '../courses/activities.ts';
 import { AppError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { withActorScope } from '../events/actor-scope.ts';
-import { parseInput } from '../operation.ts';
+import { journalActor, journaling, writeJournal } from '../node/journal.ts';
+import { assertOfflineAllowed, operationSeed, parseInput } from '../operation.ts';
 import { buildModuleCtx, toActivityRef } from './module-ctx.ts';
 import { requireModule } from './registry.ts';
 
@@ -15,9 +16,11 @@ export function runModuleAction(
   name: string,
   raw: unknown,
 ): Promise<unknown> {
-  return withActorScope(ctx.actor, () => runAction(ctx, activityId, name, raw)).catch((e) => {
-    throw userError(e);
-  });
+  return withActorScope(ctx.actor, () => runAction(ctx, activityId, name, raw), ctx.nodeId).catch(
+    (e) => {
+      throw userError(e);
+    },
+  );
 }
 
 /**
@@ -99,18 +102,47 @@ async function runAction(
   const { activity, module: m } = await openModuleActivity(ctx, activityId);
   const action = m.actions?.[name];
   if (!action) throw new NotFoundError(`Action ${name}`);
+  assertOfflineAllowed(action.offline);
   if (action.capability) await ctx.perm.require(action.capability as never, activityId);
   const input = parseInput(action.input, raw);
   const ref = toActivityRef(activity);
+  const outer = currentWriteScope();
+  const seed = operationSeed(outer);
+  const record =
+    journaling() && outer?.kind !== 'operation'
+      ? newOpRecord(action.offline === 'guarded')
+      : undefined;
+  const replayed = outer?.kind !== 'operation' ? outer?.replay?.commit : undefined;
+  const entry = record && {
+    kind: 'action' as const,
+    name: `${m.key}.${name}`,
+    activityId,
+    actor: journalActor(ctx.actor),
+    input: raw,
+    ip: ctx.ip,
+    at: ctx.now,
+    seed,
+  };
   return withWriteScope(
     'operation',
     `${m.key}.${name}`,
-    () =>
-      action.mutation === false
-        ? action.handler(buildModuleCtx(ctx), ref, input)
-        : ctx.db.$transaction((tx) => action.handler(buildModuleCtx(ctx, tx), ref, input), {
-            timeout: 60_000,
-          }),
-    { now: ctx.now, seed: newSeed() },
+    async () => {
+      if (action.mutation === false) {
+        const r = await action.handler(buildModuleCtx(ctx), ref, input);
+        if (entry) await writeJournal(ctx.db, entry, record!);
+        if (replayed) await replayed(ctx.db as never);
+        return r;
+      }
+      return ctx.db.$transaction(
+        async (tx) => {
+          const r = await action.handler(buildModuleCtx(ctx, tx), ref, input);
+          if (entry) await writeJournal(tx, entry, record!);
+          if (replayed) await replayed(tx as never);
+          return r;
+        },
+        { timeout: 60_000 },
+      );
+    },
+    { now: ctx.now, seed, record },
   );
 }

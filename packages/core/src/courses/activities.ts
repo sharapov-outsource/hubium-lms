@@ -1,4 +1,4 @@
-import { type Activity, type CompletionState, Prisma, uuidv7 } from '@hubium/db';
+import { type Activity, type CompletionState, modelUuidv7, Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { type CalendarEventSpec, msg, parseSettings } from '@hubium/module-sdk';
 import { FileInput } from '@hubium/module-sdk/inputs';
@@ -228,7 +228,7 @@ async function insertActivity(ctx: MutationContext, input: z.output<typeof Activ
   );
   const availability = validateAvailability(input.availability);
   const groups = await groupSetup(ctx.tx, input.courseId, input);
-  const id = uuidv7();
+  const id = modelUuidv7('Activity');
   await createContext(ctx.tx, id, 'ACTIVITY', input.courseId);
   await requireActivityIdNumber(ctx.tx, input.courseId, input.idNumber);
   const a = await ctx.tx.activity.create({

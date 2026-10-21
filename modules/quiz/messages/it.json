@@ -159,6 +159,8 @@
       "enterPassword": "Password del quiz",
       "subnet": "Indirizzi di rete",
       "subnetHint": "Tentativi solo da questi indirizzi: ad es. 192.168.1.0/24, 10.1 o 172.16.5.10-20. Vuoto: da ovunque.",
+      "nodes": "Solo tramite nodi locali",
+      "nodesHint": "Tentativi solo nelle reti dei nodi scelti, ad esempio le aule di una sede. Nessuno scelto: ovunque.",
       "delay1": "Attesa dopo il primo tentativo, min",
       "delay2": "Attesa dopo i tentativi successivi, min",
       "navMethod": "Navigazione",
@@ -168,6 +170,7 @@
         "sequential": "Sequenziale"
       },
       "networkBlocked": "Questo quiz si può svolgere solo da determinati indirizzi di rete, e il tuo non è tra questi.",
+      "nodeBlocked": "Questo quiz si svolge solo nelle aule di alcune sedi.",
       "waitUntil": "Il prossimo tentativo potrà iniziare il {date}.",
       "sequentialNotice": "Le pagine sono in ordine: non puoi tornare a una pagina che hai lasciato.",
       "wrongPassword": "La password del quiz è errata"
@@ -243,6 +246,7 @@
     },
     "errors": {
       "networkOnly": "Questo quiz si può svolgere solo da determinati indirizzi di rete",
+      "nodeOnly": "Questo quiz può essere svolto solo tramite i nodi locali di alcune sedi",
       "noQuestions": "Il quiz non ha ancora domande",
       "notEnoughRandom": "Non ci sono abbastanza domande nella categoria casuale",
       "questionMissing": "Domanda mancante",

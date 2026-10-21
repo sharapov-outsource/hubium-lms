@@ -23,6 +23,10 @@ export interface RequestContext {
   locale: Locale;
   ip?: string | null;
   origin: 'WEB' | 'API' | 'WORKER' | 'CLI';
+  /** The local node the request came through, or that runs it without a connection. */
+  nodeId?: string | null;
+  /** Rules of time and number give way: a teacher accepts a node's conflicted work. */
+  override?: boolean;
 }
 
 /** Context passed to mutation handlers: `tx` is the open transaction. */

@@ -499,7 +499,9 @@ export const workshop = defineModule<WorkshopSettingsT>({
       name: 'workshop.phase.switch',
       schedule: '*/5 * * * *',
       async handler(ctx) {
-        // workshops whose submissions ended go on to assessment, if they are set to
+        // workshops whose submissions ended go on to assessment, if they are set to; not
+        // while a local node may still bring work handed in before the end
+        const waiting = await ctx.nodes.waitingSince();
         const rows = await ctx.db.workshop.findMany({
           where: { phase: 'submission' },
           include: { activity: true },
@@ -509,7 +511,8 @@ export const workshop = defineModule<WorkshopSettingsT>({
         for (const w of rows) {
           const s = WorkshopSettings.safeParse(w.activity.settings);
           if (!s.success || !s.data.phaseSwitch || !s.data.submissionEnd) continue;
-          if (new Date(s.data.submissionEnd) > ctx.now) continue;
+          const end = new Date(s.data.submissionEnd);
+          if (end > ctx.now || (waiting && end >= waiting)) continue;
           await ctx.db.workshop.update({
             where: { activityId: w.activityId },
             data: { phase: 'assessment' },
