@@ -1,6 +1,7 @@
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { clientIp } from '@hubium/core/client-ip';
 import { NODE_SIGNATURE_HEADER, signForward, tokenHash } from '@hubium/core/node/auth';
+import { lsnValue } from '@hubium/core/node/replication';
 import { NODE_MODE_HEADER, type NodeMode } from '@hubium/core/node/runtime';
 import { log } from '@hubium/log';
 import { cloudTarget, type Target } from './cloud.ts';
@@ -133,49 +134,57 @@ const CHANGE_MEMORY_MS = 60_000;
 /** A change still on its way holds up reads this long (not an upload, which takes longer). */
 const IN_FLIGHT_MS = 2000;
 
-interface Change {
-  /** The cloud's WAL position after it; null until known. */
+interface Address {
+  /** The cloud's WAL position after the latest change from the address, once known. */
   lsn: string | null;
-  /** Settles once the position is known (or the change failed). */
-  done: Promise<void>;
-  /** When the change was sent, or answered: reads wait for it from then on. */
+  /** Changes on their way: settle once their position is known (or they failed). */
+  pending: Set<Promise<void>>;
+  /** When a change was last sent or answered: reads wait for it from then on. */
   since: number;
 }
 
 /**
- * The last change made from each address, for the reads that follow it: from the pages of
- * the app, from the content origin (SCORM, H5P), and while the change is still on its way
- * (a page sending its state as it unloads). The position is asked of the cloud once the
- * answer has gone back, so a change takes no longer than without the node. An address in
- * a school's network is one computer: waiting for another person's change behind it costs
- * a moment.
+ * The changes made from each address, for the reads that follow them: from the pages of
+ * the app, from the content origin (SCORM, H5P), the side records of page views (an
+ * activity viewed completes it), and changes still on their way (a page sending its state
+ * as it unloads). The position is asked of the cloud once the answer has gone back, so a
+ * change takes no longer than without the node. An address in a school's network is one
+ * computer: waiting for another person's change behind it costs a moment.
  */
-const changes = new Map<string, Change>();
+const addresses = new Map<string, Address>();
 
-function changeStarted(ip: string): {
+export interface PendingChange {
+  /** Gone through: the cloud's position after it, when it comes. */
   answered(lsn: Promise<string | null>): void;
+  /** Did not go through (or its answer did not): nothing to wait for. */
   failed(): void;
-} {
+}
+
+/** A change from `ip` on its way to the cloud. */
+export function changeStarted(ip: string): PendingChange {
+  let a = addresses.get(ip);
+  if (!a) {
+    if (addresses.size > 10_000)
+      for (const [k, v] of addresses)
+        if (Date.now() - v.since > CHANGE_MEMORY_MS && !v.pending.size) addresses.delete(k);
+    addresses.set(ip, (a = { lsn: null, pending: new Set(), since: Date.now() }));
+  }
+  const at = a;
+  at.since = Date.now();
   let settle!: () => void;
-  const c: Change = {
-    lsn: changes.get(ip)?.lsn ?? null,
-    done: new Promise<void>((ok) => (settle = ok)),
-    since: Date.now(),
-  };
-  if (changes.size > 10_000)
-    for (const [k, v] of changes) if (Date.now() - v.since > CHANGE_MEMORY_MS) changes.delete(k);
-  changes.set(ip, c);
+  const done = new Promise<void>((ok) => (settle = ok));
+  at.pending.add(done);
+  void done.then(() => at.pending.delete(done));
   let answered = false;
   return {
     answered(lsn) {
       answered = true;
-      c.since = Date.now();
+      at.since = Date.now();
       void lsn.then((v) => {
-        if (v) c.lsn = v;
+        if (v && (!at.lsn || lsnValue(v) > lsnValue(at.lsn))) at.lsn = v;
         settle();
       });
     },
-    // the change did not go through (or its answer did): nothing more to wait for
     failed() {
       if (!answered) settle();
     },
@@ -184,11 +193,12 @@ function changeStarted(ip: string): {
 
 /** The WAL position a read from this address must wait for, or null. */
 async function readAfter(req: IncomingMessage, waitMs: number): Promise<string | null> {
-  const c = changes.get(remoteIp(req));
-  if (!c || Date.now() - c.since > CHANGE_MEMORY_MS) return null;
-  const wait = Math.min(waitMs, c.since + IN_FLIGHT_MS - Date.now());
-  if (wait > 0) await Promise.race([c.done, new Promise((ok) => setTimeout(ok, wait))]);
-  return c.lsn;
+  const a = addresses.get(remoteIp(req));
+  if (!a || Date.now() - a.since > CHANGE_MEMORY_MS) return null;
+  const wait = Math.min(waitMs, a.since + IN_FLIGHT_MS - Date.now());
+  if (wait > 0 && a.pending.size)
+    await Promise.race([Promise.all([...a.pending]), new Promise((ok) => setTimeout(ok, wait))]);
+  return a.lsn;
 }
 
 async function handle(deps: GatewayDeps, req: IncomingMessage, res: ServerResponse) {
@@ -305,9 +315,9 @@ const webAgent = new http.Agent({ keepAlive: true });
 function toWeb(deps: GatewayDeps, req: IncomingMessage, res: ServerResponse) {
   const { s } = deps;
   const headers = copyHeaders(req.headers);
-  headers['x-forwarded-for'] = [req.headers['x-forwarded-for'], req.socket.remoteAddress]
-    .filter(Boolean)
-    .join(', ');
+  // the person's address as the gateway takes it (NODE_TRUSTED_PROXY_HOPS): the web server
+  // trusts the gateway alone, and its side records name the same address
+  headers['x-forwarded-for'] = remoteIp(req);
   headers['x-forwarded-proto'] ??= s.public.app.protocol.replace(':', '');
   headers['x-forwarded-host'] ??= req.headers.host ?? '';
   // the web server polls the agent; this request reads the database of the mode it is in

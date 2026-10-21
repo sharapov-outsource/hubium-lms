@@ -220,5 +220,6 @@ export async function receiveTouches(db: Db, node: Node, raw: unknown) {
       logger.debug({ err, nodeId: node.id, kind: w.touch.kind }, 'side record of a node dropped');
     }
   }
-  return { recorded };
+  // the position the node's replica must reach for the person to see them
+  return { recorded, lsn: await currentLsn(db) };
 }

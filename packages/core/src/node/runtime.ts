@@ -128,13 +128,28 @@ export function nodeTouchesLocally(): boolean {
   return nodeState().mode === 'OFFLINE';
 }
 
+let touchAddress: () => Promise<string | null> = async () => null;
+
+/**
+ * Where the node's web server finds the address of the person a side record comes from
+ * (the request's): the agent holds that person's next reads until the cloud has it.
+ */
+export function setTouchAddress(fn: () => Promise<string | null>): void {
+  touchAddress = fn;
+}
+
 /** A side record for the agent to send to the cloud (or keep until it can). */
 export function sendTouchToAgent(t: { kind: string }, at: Date): Promise<void> {
-  fetch(`${nodeConfig().agentUrl}/touch`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ at: at.toISOString(), touch: t }),
-    signal: AbortSignal.timeout(2000),
-  }).catch((err) => logger.debug({ err, kind: t.kind }, 'side record not passed to the agent'));
+  void touchAddress()
+    .catch(() => null)
+    .then((ip) =>
+      fetch(`${nodeConfig().agentUrl}/touch`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ at: at.toISOString(), touch: t, ...(ip ? { ip } : {}) }),
+        signal: AbortSignal.timeout(2000),
+      }),
+    )
+    .catch((err) => logger.debug({ err, kind: t.kind }, 'side record not passed to the agent'));
   return Promise.resolve();
 }

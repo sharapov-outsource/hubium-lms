@@ -46,7 +46,7 @@ const publish = () => setNodeState(machine.state);
 publish();
 
 const bus = new BusRelay(s, () => replicas.replayedA());
-const touches = new TouchQueue(s);
+const touches = new TouchQueue(s, () => machine.state.mode === 'ONLINE');
 const files = new FileMirror(s, replicas, () => machine.state.mode);
 
 const observed: Pick<Observed, 'cloudOk' | 'cloudRelease' | 'cloudLsn'> = {
