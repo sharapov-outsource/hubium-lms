@@ -8,7 +8,7 @@ import { getContext } from '../session';
 export async function createApiTokenAction(fd: FormData) {
   return runAction(async () => {
     const v = formToObject(fd);
-    const r = await createApiToken(await getContext(), {
+    const r = await createApiToken.run(await getContext(), {
       name: v.name,
       scopes: fd.getAll('scopes').map(String),
       expiresInDays: v.expiresInDays === 'never' ? null : v.expiresInDays,
@@ -20,7 +20,7 @@ export async function createApiTokenAction(fd: FormData) {
 
 export async function revokeApiTokenAction(id: string) {
   return runAction(async () => {
-    const r = await revokeApiToken(await getContext(), id);
+    const r = await revokeApiToken.run(await getContext(), { id });
     revalidatePath('/settings/api-tokens');
     return r;
   });

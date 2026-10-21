@@ -410,7 +410,7 @@ export const publishPolicyVersion = defineOperation({
   },
 });
 
-export async function listPolicies(db: Db) {
+export async function listPolicies(db: Db | Prisma.TransactionClient) {
   const policies = await db.policy.findMany({
     orderBy: { createdAt: 'asc' },
     include: {
@@ -426,7 +426,7 @@ export async function listPolicies(db: Db) {
 }
 
 /** Latest published mandatory versions the user has not accepted yet. */
-export async function pendingPolicies(db: Db, userId: string) {
+export async function pendingPolicies(db: Db | Prisma.TransactionClient, userId: string) {
   const policies = await listPolicies(db);
   const current = policies.flatMap((p) =>
     p.current?.mandatory ? [{ policy: p, version: p.current }] : [],
@@ -451,16 +451,21 @@ export async function pendingPolicies(db: Db, userId: string) {
     }));
 }
 
-export async function acceptPolicies(ctx: RequestContext, versionIds: string[]) {
-  if (ctx.actor.kind !== 'user') throw new ForbiddenError();
-  const userId = ctx.actor.userId;
-  const pending = await pendingPolicies(ctx.db, userId);
-  const ids = new Set(pending.map((p) => p.versionId));
-  const missing = [...ids].filter((id) => !versionIds.includes(id));
-  if (missing.length) throw new ValidationError({ versionIds: [msg('errors.privacy.acceptAll')] });
-  await ctx.db.policyAcceptance.createMany({
-    data: [...ids].map((versionId) => ({ userId, versionId })),
-    skipDuplicates: true,
-  });
-  return { accepted: ids.size };
-}
+export const acceptPolicies = defineOperation({
+  name: 'policy.accept',
+  input: z.object({ versionIds: z.array(z.string().uuid()).max(100) }),
+  async handler(ctx, { versionIds }) {
+    if (ctx.actor.kind !== 'user') throw new ForbiddenError();
+    const userId = ctx.actor.userId;
+    const pending = await pendingPolicies(ctx.tx, userId);
+    const ids = new Set(pending.map((p) => p.versionId));
+    const missing = [...ids].filter((id) => !versionIds.includes(id));
+    if (missing.length)
+      throw new ValidationError({ versionIds: [msg('errors.privacy.acceptAll')] });
+    await ctx.tx.policyAcceptance.createMany({
+      data: [...ids].map((versionId) => ({ userId, versionId })),
+      skipDuplicates: true,
+    });
+    return { accepted: ids.size };
+  },
+});

@@ -9,7 +9,7 @@ import { enqueue } from '../jobs/jobs.ts';
 import { zoneOr } from '../lib/zod.ts';
 import { deliverMail, renderActionEmail, renderDigestEmail } from '../mail/mail.ts';
 import { provideModuleServices, service } from '../modules/module-ctx.ts';
-import { getModule } from '../modules/registry.ts';
+import { getModule, listModules } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
 import { publishRealtime } from '../realtime.ts';
 import { isModuleEnabled } from '../settings/modules.ts';
@@ -326,7 +326,7 @@ export function parseUnsubscribeToken(token: string): { userId: string; type: st
 
 /** Turns email off for the token's type (or all types). Works without signing in. */
 export async function applyUnsubscribe(
-  db: Db,
+  db: Db | Prisma.TransactionClient,
   token: string,
   moduleKeys: string[],
 ): Promise<{ type: string } | null> {
@@ -349,6 +349,18 @@ export async function applyUnsubscribe(
   }
   return { type: parsed.type };
 }
+
+/** The unsubscribe link of an email: its page and the one-click endpoint (RFC 8058). */
+export const unsubscribeByToken = defineOperation({
+  name: 'notification.unsubscribe',
+  input: z.object({ token: z.string().max(1000) }),
+  handler: (ctx, { token }) =>
+    applyUnsubscribe(
+      ctx.tx,
+      token,
+      listModules().map((m) => m.key),
+    ),
+});
 
 // ── email delivery (worker) ───────────────────────────────────────────────────
 

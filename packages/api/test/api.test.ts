@@ -45,7 +45,7 @@ describe('REST API v1', () => {
     days: number | null = 30,
   ) =>
     (
-      await createApiToken(await ctxFor(t.db, who), {
+      await createApiToken.run(await ctxFor(t.db, who), {
         name: `t-${who}`,
         scopes,
         expiresInDays: days,
@@ -83,11 +83,11 @@ describe('REST API v1', () => {
     expect((await call(null, '/me')).status).toBe(401);
     expect((await call('hub_nope', '/me')).status).toBe(401);
     const ctx = await ctxFor(t.db, f.users.student3!);
-    const temp = await createApiToken(ctx, { name: 'temp', scopes: ['read'] });
+    const temp = await createApiToken.run(ctx, { name: 'temp', scopes: ['read'] });
     expect((await call(temp.token, '/me')).status).toBe(200);
-    await revokeApiToken(ctx, temp.id);
+    await revokeApiToken.run(ctx, { id: temp.id });
     expect((await call(temp.token, '/me')).status).toBe(401);
-    const old = await createApiToken(ctx, { name: 'old', scopes: ['read'], expiresInDays: 1 });
+    const old = await createApiToken.run(ctx, { name: 'old', scopes: ['read'], expiresInDays: 1 });
     await t.db.apiToken.update({
       where: { id: old.id },
       data: { expiresAt: new Date(Date.now() - 1000) },

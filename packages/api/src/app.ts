@@ -1605,7 +1605,7 @@ export function createApi(opts: ApiOptions) {
       request: { params: IdParam },
       responses: { 200: ok(z.object({ id: Id })), ...errors },
     }),
-    async (c) => c.json(await revokeApiToken(ctxOf(c), c.req.valid('param').id), 200),
+    async (c) => c.json(await revokeApiToken.run(ctxOf(c), { id: c.req.valid('param').id }), 200),
   );
 
   // ── /webhooks (administrators) ──

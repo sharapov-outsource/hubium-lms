@@ -1,15 +1,10 @@
 'use server';
 
-import { applyUnsubscribe } from '@hubium/core';
+import { unsubscribeByToken } from '@hubium/core';
 import { redirect } from 'next/navigation';
-import { serverModules } from '@/modules/server';
-import { db } from '@/server/db';
+import { getContext } from '@/server/session';
 
 export async function unsubscribeAction(token: string): Promise<void> {
-  await applyUnsubscribe(
-    db,
-    token,
-    serverModules.map((m) => m.key),
-  );
+  await unsubscribeByToken.run(await getContext(), { token });
   redirect(`/unsubscribe/${token}?done=1`);
 }

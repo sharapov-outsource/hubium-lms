@@ -64,7 +64,7 @@ describe('privacy', () => {
     await runModuleAction(s3, assign.id, 'saveSubmission', { text: '<p>Текст работы</p>' });
     const conv = await openDirectConversation.run(s3, { userId: f.users.student1! });
     await sendMessage.run(s3, { conversationId: conv.id, body: 'Удалите меня' });
-    await createApiToken(s3, { name: 'x', scopes: ['read'] });
+    await createApiToken.run(s3, { name: 'x', scopes: ['read'] });
     await t.db.pushSubscription.create({
       data: {
         userId: victim,
@@ -190,11 +190,8 @@ describe('privacy', () => {
     const pending = await pendingPolicies(t.db, teacher.id);
     expect(pending.map((p) => p.content.ru)).toEqual(['Версия 1']);
     const ctx = await ctxFor(t.db, teacher.id);
-    await expect(acceptPolicies(ctx, [])).rejects.toThrow();
-    await acceptPolicies(
-      ctx,
-      pending.map((p) => p.versionId),
-    );
+    await expect(acceptPolicies.run(ctx, { versionIds: [] })).rejects.toThrow();
+    await acceptPolicies.run(ctx, { versionIds: pending.map((p) => p.versionId) });
     expect(await pendingPolicies(t.db, teacher.id)).toEqual([]);
     // a new version asks again; optional ones never block
     await publishPolicyVersion.run(admin, { policyId: id, content: { ru: 'Версия 2', en: 'v2' } });
