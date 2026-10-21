@@ -1,6 +1,6 @@
 import { appendFile, mkdir, readdir, rm, stat, truncate } from 'node:fs/promises';
 import path from 'node:path';
-import type { Db, Prisma } from '@hubium/db';
+import { type Db, type Prisma, withWriteScope } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { checkFileFromPath } from './files.ts';
@@ -35,6 +35,9 @@ function tempPath(id: string): string {
 export const UPLOAD_PENDING_MAX_BYTES = 2 * UPLOAD_MAX_BYTES;
 export const UPLOAD_PENDING_MAX_COUNT = 20;
 
+/** Writes of the upload sessions: they travel with the files, not with what uses them. */
+const upload = <T>(fn: () => Promise<T>) => withWriteScope('files', 'upload', fn);
+
 export async function createUpload(
   db: Tx,
   userId: string,
@@ -53,16 +56,18 @@ export async function createUpload(
     Number(pending._sum.size ?? 0n) + input.size > UPLOAD_PENDING_MAX_BYTES
   )
     throw new ValidationError({ size: [msg('errors.files.tooManyUploads')] });
-  const s = await db.uploadSession.create({
-    data: {
-      userId,
-      name: input.name.slice(0, 255),
-      size: BigInt(input.size),
-      mimeType: input.mimeType || 'application/octet-stream',
-      storageKey: `uploads/${crypto.randomUUID()}`,
-      expiresAt: new Date(Date.now() + TTL_MS),
-    },
-  });
+  const s = await upload(() =>
+    db.uploadSession.create({
+      data: {
+        userId,
+        name: input.name.slice(0, 255),
+        size: BigInt(input.size),
+        mimeType: input.mimeType || 'application/octet-stream',
+        storageKey: `uploads/${crypto.randomUUID()}`,
+        expiresAt: new Date(Date.now() + TTL_MS),
+      },
+    }),
+  );
   await mkdir(uploadTempDir(), { recursive: true });
   await appendFile(tempPath(s.id), Buffer.alloc(0));
   return { id: s.id, chunkSize: UPLOAD_CHUNK_BYTES, received: 0 };
@@ -99,7 +104,9 @@ export async function appendUploadChunk(
   );
   if (onDisk > received) await truncate(tempPath(id), received);
   if (onDisk < received) {
-    await db.uploadSession.update({ where: { id }, data: { received: BigInt(onDisk) } });
+    await upload(() =>
+      db.uploadSession.update({ where: { id }, data: { received: BigInt(onDisk) } }),
+    );
     return { received: onDisk, conflict: true };
   }
   if (offset !== received) return { received, conflict: true };
@@ -108,19 +115,23 @@ export async function appendUploadChunk(
   }
   // Claim the offset first so a retried request racing the original cannot append twice.
   const next = received + chunk.length;
-  const claim = await db.uploadSession.updateMany({
-    where: { id, received: s.received },
-    data: { received: BigInt(next) },
-  });
+  const claim = await upload(() =>
+    db.uploadSession.updateMany({
+      where: { id, received: s.received },
+      data: { received: BigInt(next) },
+    }),
+  );
   if (!claim.count)
     return { received: Number((await own(db, userId, id)).received), conflict: true };
   try {
     await appendFile(tempPath(id), chunk);
   } catch (e) {
-    await db.uploadSession.updateMany({
-      where: { id, received: BigInt(next) },
-      data: { received: s.received },
-    });
+    await upload(() =>
+      db.uploadSession.updateMany({
+        where: { id, received: BigInt(next) },
+        data: { received: s.received },
+      }),
+    );
     throw e;
   }
   return { received: next };
@@ -168,7 +179,7 @@ export async function consumeUpload<T>(
     mimeType: s.mimeType,
     size: Number(s.size),
   });
-  await db.uploadSession.update({ where: { id }, data: { completedAt: new Date() } });
+  await upload(() => db.uploadSession.update({ where: { id }, data: { completedAt: new Date() } }));
   await rm(tempPath(id), { force: true });
   return out;
 }

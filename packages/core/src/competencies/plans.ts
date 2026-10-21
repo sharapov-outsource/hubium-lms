@@ -6,11 +6,13 @@ import {
   SYSTEM_CONTEXT_ID,
 } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
+import { FileInput } from '@hubium/module-sdk/inputs';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
-import { deleteFiles, registerFileArea } from '../files/files.ts';
+import { deleteFiles, registerFileArea, storeFile, storeFileFromPath } from '../files/files.ts';
+import { consumeUpload } from '../files/uploads.ts';
 import { notifyUsers } from '../notifications/notifications.ts';
 import { defineOperation } from '../operation.ts';
 import { competencyScale } from './frameworks.ts';
@@ -601,6 +603,11 @@ export const saveUserEvidence = defineOperation({
     name: z.string().trim().min(1).max(255),
     description: z.string().max(10_000).default(''),
     url: z.union([z.literal(''), z.url({ protocol: /^https?$/ }).max(2000)]).default(''),
+    /** Files added to the evidence: sent with the form or uploaded before it. */
+    files: z
+      .array(z.union([FileInput, z.object({ uploadId: z.string().uuid() })]))
+      .max(20)
+      .default([]),
   }),
   async authorize(ctx, i) {
     const userId = i.id
@@ -611,14 +618,33 @@ export const saveUserEvidence = defineOperation({
   },
   async handler(ctx, i) {
     const data = { name: i.name, description: i.description, url: i.url };
-    if (i.id) {
-      await ctx.tx.userEvidence.update({ where: { id: i.id }, data });
-      return { id: i.id };
+    const id = i.id
+      ? (await ctx.tx.userEvidence.update({ where: { id: i.id }, data })).id
+      : (
+          await ctx.tx.userEvidence.create({
+            data: { ...data, userId: i.userId ?? ctx.perm.userId! },
+          })
+        ).id;
+    const where = {
+      contextId: SYSTEM_CONTEXT_ID,
+      component: USER_EVIDENCE_COMPONENT,
+      area: 'userevidence',
+      itemId: id,
+      uploadedById: ctx.perm.userId ?? null,
+    };
+    for (const f of i.files) {
+      if ('uploadId' in f)
+        await consumeUpload(ctx.tx, ctx.perm.userId ?? '', f.uploadId, (u) =>
+          storeFileFromPath(ctx.tx, {
+            ...where,
+            name: u.name,
+            mimeType: u.mimeType,
+            filePath: u.path,
+          }),
+        );
+      else await storeFile(ctx.tx, { ...where, ...f });
     }
-    const e = await ctx.tx.userEvidence.create({
-      data: { ...data, userId: i.userId ?? ctx.perm.userId! },
-    });
-    return { id: e.id };
+    return { id };
   },
 });
 

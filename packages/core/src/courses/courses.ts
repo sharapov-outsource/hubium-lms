@@ -1,6 +1,7 @@
 import { type Course, type Db, Prisma, SYSTEM_CONTEXT_ID, uuidv7 } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { msg } from '@hubium/module-sdk';
+import { FileInput } from '@hubium/module-sdk/inputs';
 import { z } from 'zod';
 import type { Capability } from '../access/capabilities.ts';
 import { createContext } from '../access/contexts.ts';
@@ -10,6 +11,7 @@ import type { RequestContext } from '../context.ts';
 import { logEnrolments } from '../enrol/enrol.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { fileUrl, storeFile } from '../files/files.ts';
 import { rankBetween } from '../lib/rank.ts';
 import { localeCode, optionalText } from '../lib/zod.ts';
 import { defineOperation } from '../operation.ts';
@@ -213,13 +215,60 @@ export const updateCourse = defineOperation({
   },
 });
 
-export const setCourseImage = async (
-  ctx: RequestContext,
-  courseId: string,
-  fileId: string | null,
-) => {
-  await ctx.perm.require('course:update', courseId);
-  await ctx.db.course.update({ where: { id: courseId }, data: { imageFileId: fileId } });
+/** What a course's cover may be. */
+export const COURSE_IMAGE = {
+  maxBytes: 5 * 1024 * 1024,
+  allowedTypes: /^image\/(png|jpeg|webp|gif)$/,
+};
+
+/** The course's cover, stored in its "image" area, or none. */
+export const setCourseImage = defineOperation({
+  name: 'course.image.set',
+  input: z.object({ courseId: z.string().uuid(), image: FileInput.nullable() }),
+  authorize: (ctx, i) => ctx.perm.require('course:update', i.courseId),
+  async handler(ctx, { courseId, image }) {
+    const file = image
+      ? await storeFile(ctx.tx, {
+          contextId: courseId,
+          component: 'course',
+          area: 'image',
+          ...image,
+          ...COURSE_IMAGE,
+          uploadedById: ctx.perm.userId,
+          replace: true,
+        })
+      : null;
+    await ctx.tx.course.update({
+      where: { id: courseId },
+      data: { imageFileId: file?.id ?? null },
+    });
+    return { fileId: file?.id ?? null };
+  },
+});
+
+/** A picture put in a text of the course with the editor, stored in its "editor" area. */
+export const storeEditorImage = defineOperation({
+  name: 'course.editorImage.store',
+  input: FileInput.extend({ courseId: z.string().uuid() }),
+  authorize: (ctx, i) => ctx.perm.require('course:manageactivities', i.courseId),
+  async handler(ctx, { courseId, ...image }) {
+    const f = await storeFile(ctx.tx, {
+      contextId: courseId,
+      component: 'course',
+      area: 'editor',
+      path: `/${ctx.now.getTime()}/`,
+      ...image,
+      uploadedById: ctx.perm.userId,
+      ...EDITOR_IMAGE,
+    });
+    return { url: fileUrl(f) };
+  },
+});
+
+/** What a picture put in a text with the editor may be. */
+export const EDITOR_IMAGE = {
+  maxBytes: 10 * 1024 * 1024,
+  allowedTypes: /^image\/(png|jpeg|gif|webp)$/,
 };
 
 /** Refuses a short name another course has, saying when that course is in the recycle bin:

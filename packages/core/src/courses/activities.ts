@@ -1,6 +1,7 @@
 import { type Activity, type CompletionState, Prisma, uuidv7 } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { type CalendarEventSpec, msg, parseSettings } from '@hubium/module-sdk';
+import { FileInput } from '@hubium/module-sdk/inputs';
 import { z } from 'zod';
 import { createContext } from '../access/contexts.ts';
 import { countsTowardsProgress, scheduleCourseProgress } from '../completion/schedule.ts';
@@ -353,6 +354,61 @@ async function authorizeActivity(
   await ctx.perm.require('course:manageactivities', a.courseId);
   if (opts.enabledType) await assertModuleEnabled(ctx.db, a.moduleKey);
 }
+
+/** How large a file of an activity's form may be. */
+export const ACTIVITY_FILE_BYTES = 200 * 1024 * 1024;
+
+const FileArea = z.string().min(1).max(100);
+
+/**
+ * The files of an activity's form, in the areas the form names: sent with the form or
+ * uploaded before it (resumable), and the ones to remove.
+ */
+export const saveActivityFiles = defineOperation({
+  name: 'activity.files.save',
+  input: z.object({
+    activityId: z.string().uuid(),
+    add: z
+      .array(
+        z.union([
+          FileInput.extend({ area: FileArea }),
+          z.object({ area: FileArea, uploadId: z.string().uuid() }),
+        ]),
+      )
+      .max(100)
+      .default([]),
+    remove: z.array(z.string().uuid()).max(1000).default([]),
+  }),
+  authorize: (ctx, i) => authorizeActivity(ctx, i.activityId),
+  async handler(ctx, { activityId, add, remove }) {
+    const mctx = buildModuleCtx(ctx, ctx.tx);
+    for (const f of add) {
+      if ('uploadId' in f)
+        await mctx.files.storeUpload(activityId, f.area, f.uploadId, {
+          maxBytes: ACTIVITY_FILE_BYTES,
+        });
+      else
+        await mctx.files.store(
+          activityId,
+          f.area,
+          { name: f.name, mimeType: f.mimeType, data: f.data },
+          { maxBytes: ACTIVITY_FILE_BYTES },
+        );
+    }
+    if (remove.length) {
+      const files = await ctx.tx.file.findMany({
+        where: { id: { in: remove }, contextId: activityId },
+      });
+      for (const area of new Set(files.map((f) => f.area)))
+        await mctx.files.remove(
+          activityId,
+          area,
+          files.filter((f) => f.area === area).map((f) => f.id),
+        );
+    }
+    return null;
+  },
+});
 
 export const setActivityVisibility = defineOperation({
   name: 'activity.visibility',
