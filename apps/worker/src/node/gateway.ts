@@ -8,10 +8,10 @@ import type { AgentSettings } from './settings.ts';
 
 // The node's gateway: everything the people of its network ask goes through it (behind the
 // node's Caddy). While the node is connected, reading requests are answered by the node's
-// web server from its replica, and changes go to the cloud, signed by the node; the cloud's
-// answer to a change carries the WAL position after it, and a reading request with that
-// position waits until the replica has it (or goes to the cloud), so people see their own
-// changes. Without a connection everything is answered on the node.
+// web server from its replica, and changes go to the cloud, signed by the node; after a
+// change the gateway asks the cloud for its WAL position, and reads from the same address
+// wait until the replica has it (or go to the cloud), so people see their own changes.
+// Without a connection everything is answered on the node.
 
 const logger = log('node-gateway');
 
@@ -28,8 +28,6 @@ const EXTERNAL_PATHS = ['/api/node/', '/api/ai/'];
 export function externalPaths(externalModules: string[]): string[] {
   return [...EXTERNAL_PATHS, ...externalModules.map((k) => `/api/mod/${k}/`)];
 }
-
-export const LSN_COOKIE = 'hubium_lsn';
 
 export type Route = 'web' | 'cloud' | 'refuse-offline' | 'refuse-sync';
 
@@ -65,15 +63,6 @@ export function routeRequest(
       if (under(path, external)) return 'refuse-sync';
       return isRead(method) ? 'web' : 'refuse-sync';
   }
-}
-
-/** The WAL position in the request's cookie: the person's last change through the node. */
-export function lsnFromCookie(cookie: string | undefined): string | null {
-  const m = new RegExp(
-    `(?:^|;\\s*)${LSN_COOKIE}=([0-9A-F]+%2F[0-9A-F]+|[0-9A-F]+/[0-9A-F]+)`,
-    'i',
-  ).exec(cookie ?? '');
-  return m ? decodeURIComponent(m[1]!) : null;
 }
 
 const HOP_BY_HOP = new Set([
@@ -139,6 +128,69 @@ function remoteIp(req: IncomingMessage): string {
   );
 }
 
+/** How long a person's last change holds up their reads at most. */
+const CHANGE_MEMORY_MS = 60_000;
+/** A change still on its way holds up reads this long (not an upload, which takes longer). */
+const IN_FLIGHT_MS = 2000;
+
+interface Change {
+  /** The cloud's WAL position after it; null until known. */
+  lsn: string | null;
+  /** Settles once the position is known (or the change failed). */
+  done: Promise<void>;
+  /** When the change was sent, or answered: reads wait for it from then on. */
+  since: number;
+}
+
+/**
+ * The last change made from each address, for the reads that follow it: from the pages of
+ * the app, from the content origin (SCORM, H5P), and while the change is still on its way
+ * (a page sending its state as it unloads). The position is asked of the cloud once the
+ * answer has gone back, so a change takes no longer than without the node. An address in
+ * a school's network is one computer: waiting for another person's change behind it costs
+ * a moment.
+ */
+const changes = new Map<string, Change>();
+
+function changeStarted(ip: string): {
+  answered(lsn: Promise<string | null>): void;
+  failed(): void;
+} {
+  let settle!: () => void;
+  const c: Change = {
+    lsn: changes.get(ip)?.lsn ?? null,
+    done: new Promise<void>((ok) => (settle = ok)),
+    since: Date.now(),
+  };
+  if (changes.size > 10_000)
+    for (const [k, v] of changes) if (Date.now() - v.since > CHANGE_MEMORY_MS) changes.delete(k);
+  changes.set(ip, c);
+  let answered = false;
+  return {
+    answered(lsn) {
+      answered = true;
+      c.since = Date.now();
+      void lsn.then((v) => {
+        if (v) c.lsn = v;
+        settle();
+      });
+    },
+    // the change did not go through (or its answer did): nothing more to wait for
+    failed() {
+      if (!answered) settle();
+    },
+  };
+}
+
+/** The WAL position a read from this address must wait for, or null. */
+async function readAfter(req: IncomingMessage, waitMs: number): Promise<string | null> {
+  const c = changes.get(remoteIp(req));
+  if (!c || Date.now() - c.since > CHANGE_MEMORY_MS) return null;
+  const wait = Math.min(waitMs, c.since + IN_FLIGHT_MS - Date.now());
+  if (wait > 0) await Promise.race([c.done, new Promise((ok) => setTimeout(ok, wait))]);
+  return c.lsn;
+}
+
 async function handle(deps: GatewayDeps, req: IncomingMessage, res: ServerResponse) {
   const { s } = deps;
   const url = req.url ?? '/';
@@ -155,7 +207,7 @@ async function handle(deps: GatewayDeps, req: IncomingMessage, res: ServerRespon
   if (route === 'refuse-offline' || route === 'refuse-sync') return refuse(req, res, route);
   if (route === 'web' && mode === 'ONLINE') {
     // the person's last change, until the replica has it
-    const lsn = lsnFromCookie(req.headers.cookie);
+    const lsn = await readAfter(req, s.lsnWaitMs);
     if (lsn && !(await deps.waitForLsn(lsn, s.lsnWaitMs))) route = 'cloud';
   }
   if (route === 'web') return toWeb(deps, req, res);
@@ -317,6 +369,7 @@ function toCloud(deps: GatewayDeps, req: IncomingMessage, res: ServerResponse, i
     path: url,
     clientIp: ip,
   });
+  const changed = isChange ? changeStarted(ip) : null;
   return pipe(
     req,
     res,
@@ -326,21 +379,17 @@ function toCloud(deps: GatewayDeps, req: IncomingMessage, res: ServerResponse, i
       const out = copyHeaders(up.headers);
       if (typeof out.location === 'string') out.location = mapOrigin(s, out.location, false);
       // after a change, the position the replica must reach for the person to see it
-      if (isChange && (up.statusCode ?? 500) < 400) {
-        try {
-          const lsn = await deps.cloudLsn();
-          const cookies = ([] as string[]).concat((out['set-cookie'] as string[]) ?? []);
-          cookies.push(
-            `${LSN_COOKIE}=${encodeURIComponent(lsn)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=60`,
-          );
-          out['set-cookie'] = cookies;
-        } catch (err) {
-          logger.debug({ err }, 'no WAL position for the change');
-        }
-      }
+      if (isChange && (up.statusCode ?? 500) < 400)
+        changed?.answered(
+          deps.cloudLsn().catch((err) => {
+            logger.debug({ err }, 'no WAL position for the change');
+            return null;
+          }),
+        );
+      else changed?.failed();
       return out;
     },
     (err) => deps.cloudUnreachable(err),
     CLOUD_IDLE_MS,
-  );
+  ).finally(() => changed?.failed());
 }

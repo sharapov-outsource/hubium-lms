@@ -226,7 +226,7 @@ A local node is a server in the network of a branch or building whose line to th
   - **the agent** (the worker in the node role, `apps/worker/src/node`): the gateway the network reaches, the mode, heartbeats, the bus, the file mirror, the journal's sync and the certificates for the node's Caddy.
 - **Modes** (`apps/worker/src/node/modes.ts`), decided once a second from the heartbeats and the replicas:
   - `PASSTHROUGH`: A is not ready or the releases differ; everything goes to the cloud.
-  - `ONLINE`: reads are answered from A, changes go to the cloud. The cloud's answer to a change carries its WAL position (`hubium_lsn` cookie); the next read waits until A has it, so people see their own changes.
+  - `ONLINE`: reads are answered from A, changes go to the cloud. After a change the gateway asks the cloud for its WAL position, and the next reads from the same address wait until A has it, so people see their own changes (also those from the content origin).
   - `READONLY`: the cloud stopped answering; reads go on, changes wait (`NODE_OFFLINE_AFTER`, 2 minutes).
   - `OFFLINE`: B is promoted and the node works on its own, keeping a journal.
   - `SYNC`: the journal goes to the cloud (reads only); then the node reads A again and B is copied anew. The sync waits for quizzes with a time limit that are still being answered, and a node admin may put it off.
