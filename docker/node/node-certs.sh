@@ -23,7 +23,7 @@ while :; do
   for h in $hosts; do
     # shellcheck disable=SC2012 # names Caddy gives its files: no newlines
     crt=$(find /caddy/caddy/certificates -type f -name "$h.crt" -exec ls -t {} + 2>/dev/null | head -n 1)
-    [ -n "$crt" ] && [ -f "${crt%.crt}.key" ] || continue
+    if [ -z "$crt" ] || [ ! -f "${crt%.crt}.key" ]; then continue; fi
     copy "${crt%.crt}.key" "/out/$h.key"
     copy "$crt" "/out/$h.crt"
   done
