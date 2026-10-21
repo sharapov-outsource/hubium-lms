@@ -12,9 +12,11 @@ import { logEnrolments } from '../enrol/enrol.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { fileUrl, storeFile } from '../files/files.ts';
+import { ensureCourseGradebook } from '../grades/gradebook.ts';
 import { rankBetween } from '../lib/rank.ts';
 import { localeCode, optionalText } from '../lib/zod.ts';
 import { defineOperation } from '../operation.ts';
+import { ensureDefaultQuestionCategory } from '../questions/bank.ts';
 import { getAllSettings } from '../settings/settings.ts';
 import { checkCourseValues, courseFieldFilters } from './course-fields.ts';
 import { purgeCourseRecord } from './recyclebin.ts';
@@ -118,6 +120,9 @@ export const createCourse = defineOperation({
         { courseId: id, type: 'SELF', roleId: student.id, enabled: false, sortOrder: 1 },
       ],
     });
+    // the gradebook and the question bank are there from the start: pages only read them
+    await ensureCourseGradebook(ctx.tx, id);
+    await ensureDefaultQuestionCategory(ctx.tx, id);
     // The creator becomes the course teacher unless they already manage it from above.
     if (userId && !ctx.perm.isSiteAdmin) {
       // a setting naming a role deleted before it was kept from that: the default role

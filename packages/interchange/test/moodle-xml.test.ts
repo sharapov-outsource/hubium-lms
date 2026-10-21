@@ -238,7 +238,8 @@ describe('Moodle XML', () => {
         { name: 'h', items: [4, 40] },
       ]);
       const cats = await t.db.questionCategory.findMany({ where: { contextId: f.courseId } });
-      expect(cats.map((c) => c.name).sort()).toEqual(['Python', 'Основы']);
+      // beside the course's own default category
+      expect(cats.map((c) => c.name).sort()).toEqual(['', 'Python', 'Основы']);
       const xml = await exportMoodleXml(teacher, f.courseId);
       expect(xml).toContain('<question type="category">');
       expect(xml).toContain('$course$/top/Python/Основы');

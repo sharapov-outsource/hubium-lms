@@ -35,6 +35,23 @@ export async function ensureDefaultQuestionCategory(tx: Tx, courseId: string) {
   return existing ?? tx.questionCategory.create({ data: { contextId: courseId, name: '' } });
 }
 
+/**
+ * After a restore brought a course's question bank: the empty default category the course
+ * was made with goes when the restore brought top categories of its own, so the first of
+ * those is the default, as in the course restored.
+ */
+export async function dropEmptyDefaultCategory(tx: Tx, courseId: string): Promise<void> {
+  const tops = await tx.questionCategory.findMany({
+    where: { contextId: courseId, parentId: null },
+    orderBy: { createdAt: 'asc' },
+    include: { _count: { select: { questions: true, children: true, datasets: true } } },
+  });
+  const [first] = tops;
+  if (tops.length < 2 || !first || first.name !== '' || first.info !== '') return;
+  if (first._count.questions || first._count.children || first._count.datasets) return;
+  await tx.questionCategory.delete({ where: { id: first.id } });
+}
+
 async function categoryCourse(db: Tx, categoryId: string): Promise<string> {
   const c = await db.questionCategory.findUnique({
     where: { id: categoryId },

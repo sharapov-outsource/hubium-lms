@@ -16,6 +16,7 @@ import {
   describeError,
   disabledTypesIn,
   disabledTypesWarning,
+  dropEmptyDefaultCategory,
   ensureCourseGradebook,
   ForbiddenError,
   foreignCourseValues,
@@ -1080,6 +1081,7 @@ async function restoreInto(
         },
       });
     }
+    if (scope.fresh && withBank) await dropEmptyDefaultCategory(db, courseId);
     for (const d of withBank ? b.course.questionDatasets : []) {
       const categoryId = map.get(d.categoryId);
       if (!categoryId) continue;
