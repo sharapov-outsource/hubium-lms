@@ -475,9 +475,10 @@ describe('.hubium backup and restore', () => {
       }),
     );
     const blobs = await t.db.fileBlob.count();
-    let r: Awaited<ReturnType<typeof duplicateCourse>>;
+    let r: Awaited<ReturnType<typeof duplicateCourse.run>>;
     try {
-      r = await duplicateCourse(admin, f.courseId, {
+      r = await duplicateCourse.run(admin, {
+        courseId: f.courseId,
         fullName: 'Копия',
         shortName: 'BACKUP1-COPY',
       });
@@ -498,7 +499,11 @@ describe('.hubium backup and restore', () => {
     expect(copied!.id).not.toBe(original!.id);
     expect(copied!.blobId).toBe(original!.blobId);
     await expect(
-      duplicateCourse(admin, f.courseId, { fullName: 'Ещё', shortName: 'BACKUP1-COPY' }),
+      duplicateCourse.run(admin, {
+        courseId: f.courseId,
+        fullName: 'Ещё',
+        shortName: 'BACKUP1-COPY',
+      }),
     ).rejects.toThrow();
   });
 
@@ -581,14 +586,14 @@ describe('.hubium backup and restore', () => {
 
     const teacher = await ctxFor(t.db, target.users.teacher!);
     await expect(
-      importActivities(teacher, {
+      importActivities.run(teacher, {
         sourceCourseId: target.courseId,
         targetCourseId: target.courseId,
         activityIds: [essayId],
       }),
     ).rejects.toMatchObject({ fieldErrors: { sourceCourseId: ['Choose another course'] } });
 
-    const r = await importActivities(admin, {
+    const r = await importActivities.run(admin, {
       sourceCourseId: f.courseId,
       targetCourseId: target.courseId,
       activityIds: [essayId, quizId, pageId],
@@ -631,7 +636,7 @@ describe('.hubium backup and restore', () => {
     expect(await t.db.group.count({ where: { courseId: target.courseId } })).toBe(0);
 
     // a second import of the essay alone: its access rule names a page left behind
-    const again = await importActivities(admin, {
+    const again = await importActivities.run(admin, {
       sourceCourseId: f.courseId,
       targetCourseId: target.courseId,
       activityIds: [essayId],
@@ -657,7 +662,7 @@ describe('.hubium backup and restore', () => {
       roleId: target.roles.editingteacher!,
     });
     await expect(
-      importActivities(await ctxFor(t.db, other.id), {
+      importActivities.run(await ctxFor(t.db, other.id), {
         sourceCourseId: f.courseId,
         targetCourseId: target.courseId,
         activityIds: [essayId],
@@ -786,15 +791,14 @@ describe('.hubium backup and restore', () => {
       content: `<p><img src="${fileUrl(pic)}" alt="f"></p>`,
     });
     const { id: after } = await src.addActivity('page', 'Следом', { content: '<p>x</p>' });
-    const copyName = (n: string) => `${n} (копия)`;
 
-    const { id } = await duplicateActivity(teacher, book, copyName);
+    const { id } = await duplicateActivity.run(teacher, { activityId: book });
     const copy = await t.db.activity.findUniqueOrThrow({
       where: { id },
       include: { bookChapters: true },
     });
     expect(copy).toMatchObject({
-      name: 'Учебник (копия)',
+      name: 'Учебник (copy)',
       visibility: 'HIDDEN',
       idNumber: null,
       settings: expect.objectContaining({ numbering: 'bullets' }),
@@ -811,7 +815,7 @@ describe('.hubium backup and restore', () => {
     });
     expect(order.map((a) => a.id)).toEqual([book, id, after]);
     // a second copy makes no clash on the course's files
-    await duplicateActivity(teacher, book, copyName);
+    await duplicateActivity.run(teacher, { activityId: book });
 
     // an assignment's copy has its settings, its grade item, not the learners' work
     const { id: essay } = await src.addActivity('assign', 'Эссе', { gradeMax: 20 });
@@ -827,7 +831,7 @@ describe('.hubium backup and restore', () => {
       mimeType: 'text/plain',
       data: Buffer.from('чужая работа'),
     });
-    const { id: essayCopy } = await duplicateActivity(teacher, essay, copyName);
+    const { id: essayCopy } = await duplicateActivity.run(teacher, { activityId: essay });
     expect(await t.db.file.count({ where: { contextId: essayCopy } })).toBe(0);
     expect(await t.db.gradeItem.findFirst({ where: { activityId: essayCopy } })).toMatchObject({
       gradeMax: expect.anything(),
@@ -835,14 +839,14 @@ describe('.hubium backup and restore', () => {
     expect(await t.db.assignSubmission.count({ where: { activityId: essayCopy } })).toBe(0);
     // learners do not copy
     await expect(
-      duplicateActivity(await ctxFor(t.db, src.users.student1!), book, copyName),
+      duplicateActivity.run(await ctxFor(t.db, src.users.student1!), { activityId: book }),
     ).rejects.toThrow();
 
     // a quiz's copy uses the course's questions, not a second bank
     const questions = await t.db.question.count({
       where: { category: { contextId: f.courseId } },
     });
-    const { id: quizCopy } = await duplicateActivity(admin, quizId, copyName);
+    const { id: quizCopy } = await duplicateActivity.run(admin, { activityId: quizId });
     const slots = (id: string) =>
       t.db.quizSlot.findMany({ where: { activityId: id }, orderBy: { slot: 'asc' } });
     expect((await slots(quizCopy)).map((x) => x.questionId)).toEqual(
@@ -904,7 +908,7 @@ describe('.hubium backup and restore', () => {
 
     // an import into another course puts B in the section with the same number
     const target = await courseFixture(t.db, 'SUBBK2');
-    await importActivities(admin, {
+    await importActivities.run(admin, {
       sourceCourseId: src.courseId,
       targetCourseId: target.courseId,
       activityIds: [b.id],

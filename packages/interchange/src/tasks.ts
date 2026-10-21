@@ -2,6 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  defineOperation,
   describeError,
   ForbiddenError,
   getAllSettings,
@@ -16,6 +17,7 @@ import { consumeUpload } from '@hubium/core/files/uploads';
 import { enqueue } from '@hubium/core/jobs/jobs';
 import type { BackgroundTask, Db, Prisma } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
+import { z } from 'zod';
 import { openArchive } from './archive.ts';
 import { discardCourse, notHubium, restoreCourse, writeCourseArchive } from './hubium.ts';
 import { importMbz, readMbz } from './mbz.ts';
@@ -42,25 +44,36 @@ export const INTERRUPTED = msg('errors.tasks.interrupted');
 export const BACKUP_AREA = { component: 'backup', area: 'course' } as const;
 export const BACKUPS_KEPT = 3;
 
-export async function startImport(
-  db: Db,
-  userId: string,
-  input: { uploadId: string; categoryId: string; kind: 'hubium' | 'mbz' },
-): Promise<string> {
+/** Starts restoring a backup or importing a Moodle course from an upload, in the background. */
+export const startImport = defineOperation({
+  name: 'course.import.start',
+  input: z.object({
+    uploadId: z.string().uuid(),
+    categoryId: z.string().uuid(),
+    kind: z.enum(['hubium', 'mbz']),
+  }),
+  async authorize(ctx, input) {
+    if (ctx.actor.kind !== 'user') throw new ForbiddenError();
+    await ctx.perm.require('course:create', input.categoryId);
+    await ctx.perm.require(
+      input.kind === 'mbz' ? 'import:moodle' : 'restore:course',
+      input.categoryId,
+    );
+  },
   // the job is queued with the task, or neither is
-  return db.$transaction(async (tx) => {
-    const task = await tx.backgroundTask.create({
+  async handler(ctx, input): Promise<string> {
+    const task = await ctx.tx.backgroundTask.create({
       data: {
         type: input.kind === 'mbz' ? 'IMPORT_MBZ' : 'RESTORE',
-        createdById: userId,
+        createdById: ctx.perm.userId!,
         contextId: input.categoryId,
         input: input as unknown as Prisma.InputJsonValue,
       },
     });
-    await enqueue(IMPORT_JOB, { taskId: task.id }, { tx, ...LONG_JOB });
+    await enqueue(IMPORT_JOB, { taskId: task.id }, { tx: ctx.tx, ...LONG_JOB });
     return task.id;
-  });
-}
+  },
+});
 
 async function userCtx(db: Db, userId: string): Promise<RequestContext> {
   const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
@@ -167,28 +180,33 @@ export async function runImportTask(db: Db, taskId: string) {
 }
 
 /** Starts a backup of a course; one this user already has under way is that one. */
-export async function startBackup(ctx: RequestContext, courseId: string): Promise<string> {
-  if (ctx.actor.kind !== 'user') throw new ForbiddenError();
-  await ctx.perm.require('backup:create', courseId);
-  const userId = ctx.actor.userId;
-  const running = await ctx.db.backgroundTask.findFirst({
-    where: {
-      type: 'BACKUP',
-      contextId: courseId,
-      createdById: userId,
-      status: { in: ['QUEUED', 'RUNNING'] },
-    },
-    select: { id: true },
-  });
-  if (running) return running.id;
-  return ctx.db.$transaction(async (tx) => {
-    const task = await tx.backgroundTask.create({
+export const startBackup = defineOperation({
+  name: 'course.backup.start',
+  input: z.object({ courseId: z.string().uuid() }),
+  async authorize(ctx, { courseId }) {
+    if (ctx.actor.kind !== 'user') throw new ForbiddenError();
+    await ctx.perm.require('backup:create', courseId);
+  },
+  // the job is queued with the task, or neither is
+  async handler(ctx, { courseId }): Promise<string> {
+    const userId = ctx.perm.userId!;
+    const running = await ctx.tx.backgroundTask.findFirst({
+      where: {
+        type: 'BACKUP',
+        contextId: courseId,
+        createdById: userId,
+        status: { in: ['QUEUED', 'RUNNING'] },
+      },
+      select: { id: true },
+    });
+    if (running) return running.id;
+    const task = await ctx.tx.backgroundTask.create({
       data: { type: 'BACKUP', createdById: userId, contextId: courseId },
     });
-    await enqueue(BACKUP_JOB, { taskId: task.id }, { tx, ...LONG_JOB });
+    await enqueue(BACKUP_JOB, { taskId: task.id }, { tx: ctx.tx, ...LONG_JOB });
     return task.id;
-  });
-}
+  },
+});
 
 /** The name of a backup file: the course's short name and when it was made (UTC). */
 export function backupName(shortName: string, at: Date): string {
@@ -296,13 +314,20 @@ export async function courseBackups(
   }));
 }
 
-export async function deleteBackup(ctx: RequestContext, fileId: string): Promise<void> {
-  const file = await ctx.db.file.findUnique({ where: { id: fileId } });
-  if (file?.component !== BACKUP_AREA.component || file.area !== BACKUP_AREA.area)
-    throw new NotFoundError('File');
-  await ctx.perm.require('backup:create', file.contextId);
-  await ctx.db.file.delete({ where: { id: file.id } });
-}
+export const deleteBackup = defineOperation({
+  name: 'course.backup.delete',
+  input: z.object({ fileId: z.string().uuid() }),
+  async authorize(ctx, { fileId }) {
+    const file = await ctx.db.file.findUnique({ where: { id: fileId } });
+    if (file?.component !== BACKUP_AREA.component || file.area !== BACKUP_AREA.area)
+      throw new NotFoundError('File');
+    await ctx.perm.require('backup:create', file.contextId);
+  },
+  async handler(ctx, { fileId }) {
+    await ctx.tx.file.delete({ where: { id: fileId } });
+    return null;
+  },
+});
 
 /**
  * Cron: imports and backups whose job is gone (lost with a worker that stopped after its

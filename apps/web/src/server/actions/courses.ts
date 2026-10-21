@@ -37,7 +37,6 @@ import { duplicateActivity } from '@hubium/interchange';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
 import { safePath } from '@/lib/safe-path';
 import { formBool, formToObject, runAction } from '../action';
 import { courseFieldViews } from '../course-fields';
@@ -349,11 +348,9 @@ export async function activityCommandAction(
       case 'stealth':
         await setActivityVisibility.run(ctx, { id, visibility: 'STEALTH' });
         break;
-      case 'duplicate': {
-        const t = await getTranslations('course');
-        await duplicateActivity(ctx, id, (name) => t('copyName', { name }));
+      case 'duplicate':
+        await duplicateActivity.run(ctx, { activityId: id });
         break;
-      }
       case 'delete':
         await deleteActivity.run(ctx, { id });
         break;
