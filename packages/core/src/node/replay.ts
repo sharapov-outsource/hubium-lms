@@ -373,3 +373,15 @@ async function conflict(db: Db, node: Node, op: JournalOp, reason: object) {
       });
   });
 }
+
+/**
+ * Results of journal entries a node can no longer send again: those before its last
+ * finished sync, after which its own copy was made anew. They answered batches sent twice;
+ * removed by the daily housekeeping.
+ */
+export async function pruneReplayResults(db: Db): Promise<number> {
+  return db.$executeRaw`
+    DELETE FROM "NodeOpResult" r
+     WHERE r."createdAt" < (SELECT max(o."syncedAt") FROM "NodeOutage" o WHERE o."nodeId" = r."nodeId")
+                           - interval '1 day'`;
+}

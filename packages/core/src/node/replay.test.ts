@@ -8,7 +8,7 @@ import { unenrolUser } from '../enrol/enrol.ts';
 import { runModuleAction } from '../modules/actions.ts';
 import { seed } from '../seed/seed.ts';
 import { invalidateSettingsCache } from '../settings/settings.ts';
-import { replayBatch } from './replay.ts';
+import { pruneReplayResults, replayBatch } from './replay.ts';
 import { initialNodeState, setNodeState } from './runtime.ts';
 
 // The cloud's replay of a node's journal, on two databases: the cloud's, and the node's copy
@@ -189,5 +189,16 @@ describe('the replay of a node’s journal', () => {
     });
     if (r === 'busy') throw new Error('busy');
     expect(r.results).toMatchObject([{ status: 'CONFLICT', error: 'nodes.reason.time' }]);
+  });
+  it('forgets the results a node can no longer send again', async () => {
+    const before = await cloud.db.nodeOpResult.count({ where: { nodeId: node.id } });
+    expect(before).toBeGreaterThan(0);
+    // still syncing: the results answer a batch sent again
+    expect(await pruneReplayResults(cloud.db)).toBe(0);
+    await cloud.db.nodeOutage.updateMany({
+      where: { nodeId: node.id },
+      data: { syncedAt: new Date(Date.now() + 2 * 86_400_000) },
+    });
+    expect(await pruneReplayResults(cloud.db)).toBe(before);
   });
 });

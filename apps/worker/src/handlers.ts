@@ -37,6 +37,7 @@ import { garbageCollectBlobs, reconcileBlobObjects } from '@hubium/core/files/fi
 import { cleanupUploads } from '@hubium/core/files/uploads';
 import { GRADES_RECALC_JOB, recalcCourseTotals } from '@hubium/core/grades/gradebook';
 import { deliverMail } from '@hubium/core/mail/mail';
+import { pruneReplayResults } from '@hubium/core/node/replay';
 import {
   deliverNotifications,
   type NotifyInput,
@@ -205,7 +206,8 @@ export const coreHandlers: JobHandlerDef[] = [
     name: 'eventlog.prune',
     cron: CORE_SCHEDULE['eventlog.prune'],
     async handler(_data: never, { db }) {
-      return { deleted: await pruneEventLog(db) };
+      // with the journal results local nodes no longer need
+      return { deleted: await pruneEventLog(db), nodeResults: await pruneReplayResults(db) };
     },
   },
   {
