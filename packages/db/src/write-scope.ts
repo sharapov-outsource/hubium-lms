@@ -37,7 +37,10 @@ export interface WriteScope {
   random?: Random;
 }
 
-const scopes = new AsyncLocalStorage<WriteScope>();
+// One store in the process: a bundler may load this module more than once (Next.js does
+// for its server bundles), and the guard must see the scope whichever copy opened it.
+const shared = globalThis as unknown as { hubiumWriteScopes?: AsyncLocalStorage<WriteScope> };
+const scopes = (shared.hubiumWriteScopes ??= new AsyncLocalStorage<WriteScope>());
 
 /**
  * Runs `fn` with its writes belonging to `kind`. It awaits inside the scope: Prisma runs a

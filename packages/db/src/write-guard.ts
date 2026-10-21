@@ -52,8 +52,11 @@ function rawSql(args: unknown): string {
   return typeof sql === 'string' ? sql : '';
 }
 
-// Guarded clients and what they guard: inWriteScope puts its scope before the guard.
-const guarded = new WeakMap<object, { base: PrismaClient; mode: 'report' | 'strict' }>();
+// Guarded clients and what they guard: inWriteScope puts its scope before the guard. One
+// map in the process, as for the scopes (write-scope.ts).
+type Guarded = WeakMap<object, { base: PrismaClient; mode: 'report' | 'strict' }>;
+const shared = globalThis as unknown as { hubiumGuardedClients?: Guarded };
+const guarded = (shared.hubiumGuardedClients ??= new WeakMap());
 
 /** The client with the guard. A query extension leaves the client's API as it is. */
 export function withWriteGuard(client: PrismaClient, mode: 'report' | 'strict'): PrismaClient {
