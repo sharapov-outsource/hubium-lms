@@ -29,8 +29,12 @@ export function retryAfterSeconds(m: MaintenanceState, now = new Date()): number
   return Math.max(60, Math.ceil((m.until.getTime() - now.getTime()) / 1000));
 }
 
-/** Paths that stay open: signing in, health checks, assets. */
+/**
+ * Paths that stay open: signing in, health checks, assets, and the node API (local nodes
+ * keep hearing the cloud, and show the maintenance page themselves).
+ */
 const OPEN = [
+  '/api/node/',
   '/login',
   '/two-factor',
   '/api/auth',
