@@ -41,13 +41,16 @@ x-node-env: &node-env
   LOG_LEVEL: ${LOG_LEVEL:-info}
   # how long without the cloud before the node works on its own (seconds)
   NODE_OFFLINE_AFTER: ${NODE_OFFLINE_AFTER:-120}
+# A replica is healthy once it serves; the first copy of a large database takes hours, and
+# nothing waits for it: the agent passes everything on to the cloud until A is ready, and B
+# copies A as soon as A serves (replica.sh tries again).
 x-replica: &replica
   image: *pg-image
   entrypoint: ["/replica.sh"]
   healthcheck:
     test: ["CMD-SHELL", "pg_isready -U postgres -h 127.0.0.1"]
-    interval: 5s
-    retries: 720
+    interval: 10s
+    retries: 3
   stop_grace_period: 60s
   restart: unless-stopped
 
@@ -74,7 +77,7 @@ services:
       - db-b:/var/lib/postgresql
       - control-b:/control
     depends_on:
-      db-a: { condition: service_healthy }
+      db-a: { condition: service_started }
 
   web:
     image: *image
@@ -85,7 +88,7 @@ services:
       TRUSTED_PROXY_HOPS: 1
     volumes: [data:/data]
     depends_on:
-      db-a: { condition: service_healthy }
+      db-a: { condition: service_started }
     restart: unless-stopped
 
   agent:
@@ -114,12 +117,12 @@ services:
       # the agent gives it to Caddy's admin API with new certificates
       - ./Caddyfile:/etc/hubium/Caddyfile:ro
     depends_on:
-      db-a: { condition: service_healthy }
+      db-a: { condition: service_started }
     restart: unless-stopped
 
   caddy:
     image: caddy:2.11
-    ports: ["80:80", "443:443"]
+    ports: ["${NODE_HTTP_PORT:-80}:80", "${NODE_HTTPS_PORT:-443}:443"]
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy:/data
