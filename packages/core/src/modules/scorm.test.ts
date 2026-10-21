@@ -36,11 +36,12 @@ describe('mod-scorm', () => {
     grant: { userId: string; data: Record<string, string | number> },
     path: string[],
     init?: RequestInit,
+    query = '',
   ) =>
     getModule('scorm')!.content!(
       buildModuleCtx(await ctxFor(t.db, 'system')),
       { activityId: scormId, token: 'x', ...grant },
-      new Request(`http://content.test/c/x/${path.join('/')}`, init),
+      new Request(`http://content.test/c/x/${path.join('/')}${query}`, init),
       path,
     );
 
@@ -100,7 +101,7 @@ describe('mod-scorm', () => {
     const userId = f.users.student2!;
     const g = { userId, data: { attempt: '', sco: sco.id } };
     // the player of a first attempt takes commits, though there is no attempt yet
-    expect(await (await content(g, ['player'])).text()).toContain('"commit":"commit"');
+    expect(await (await content(g, ['player'])).text()).toContain('"commit":"commit?base=0"');
     expect(await t.db.scormAttempt.count({ where: { activityId: scormId, userId } })).toBe(0);
     const r = await content(g, ['commit'], {
       method: 'POST',
@@ -123,12 +124,19 @@ describe('mod-scorm', () => {
       where: { activityId: scormId, userId: f.users.student1 },
     });
     const g = { userId: f.users.student1!, data: { attempt: attempt.id, sco: sco.id } };
+    // each session's commits carry the time recorded before it, as its player gave it
+    let base = 0;
     const commit = (cmi: object) =>
-      content(g, ['commit'], {
-        method: 'POST',
-        body: JSON.stringify({ cmi }),
-        headers: { 'content-type': 'text/plain' },
-      });
+      content(
+        g,
+        ['commit'],
+        {
+          method: 'POST',
+          body: JSON.stringify({ cmi }),
+          headers: { 'content-type': 'text/plain' },
+        },
+        `?base=${base}`,
+      );
     const r1 = await commit({
       core: {
         // the runtime sends back what it was given, the learner's name with it
@@ -163,10 +171,12 @@ describe('mod-scorm', () => {
       completionStatus: 'incomplete',
     });
 
-    // relaunch resumes where the learner stopped
+    // relaunch resumes where the learner stopped; opening the player writes nothing
     const page = await (await content(g, ['player'])).text();
     expect(page).toContain('"entry":"resume"');
     expect(page).toContain('"lesson_location":"page-2"');
+    expect(page).toContain('"commit":"commit?base=90"');
+    base = 90;
     await commit({
       core: { lesson_status: 'passed', exit: '', session_time: '00:00:30', score: { raw: '85' } },
     });

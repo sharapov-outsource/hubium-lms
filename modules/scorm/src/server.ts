@@ -307,12 +307,17 @@ function storedCmi(body: unknown): Prisma.InputJsonValue {
 /** A commit the runtime may not make (stale link, closed attempt): refused, not a fault. */
 class RefusedCommit extends Error {}
 
-/** Applies a commit from the runtime to the learner's track. */
+/**
+ * Applies a commit from the runtime to the learner's track. `launchBase` is the time the
+ * track had when the player opened (it comes back with each commit of that session, so
+ * opening the player writes nothing); it cannot add time beyond what was recorded.
+ */
 export async function commitTrack(
   ctx: ModuleCtx,
   a: Scorm,
   grant: { userId: string; attemptId: string; scoId: string },
   body: unknown,
+  launchBase?: number,
 ) {
   // the player of a first attempt names none: the attempt starts with its first commit
   // (a commit sent alongside may have made it already)
@@ -333,7 +338,10 @@ export async function commitTrack(
   const prev = await ctx.db.scormTrack.findUnique({
     where: { attemptId_scoId: { attemptId: attempt.id, scoId: sco.id } },
   });
-  const base = prev?.sessionBaseSec ?? 0;
+  const base =
+    launchBase !== undefined && Number.isFinite(launchBase)
+      ? Math.min(Math.max(0, launchBase), prev?.totalTimeSec ?? 0)
+      : (prev?.sessionBaseSec ?? 0);
   const data = {
     cmi: storedCmi(body),
     location: f.location,
@@ -376,13 +384,15 @@ function playerHtml(o: {
   cmi: Record<string, unknown>;
   scoHref: string;
   review: boolean;
+  /** The time recorded before this session, sent back with its commits. */
+  base: number;
 }): string {
   const is12 = o.version === 'SCORM_12';
   const script = is12 ? 'runtime/scorm12.min.js' : 'runtime/scorm2004.min.js';
   const cfg = {
     cmi: o.cmi,
     sco: `pkg/${o.scoHref}`,
-    commit: o.review ? null : 'commit',
+    commit: o.review ? null : `commit?base=${Math.round(o.base)}`,
     is12,
   };
   return `<!doctype html>
@@ -669,7 +679,14 @@ export const scorm = defineModule<ScormSettingsT>({
         return ok({ result: false, errorCode: 101 });
       }
       try {
-        await commitTrack(ctx, a, { userId: grant.userId, attemptId, scoId }, body);
+        const base = new URL(req.url).searchParams.get('base');
+        await commitTrack(
+          ctx,
+          a,
+          { userId: grant.userId, attemptId, scoId },
+          body,
+          base === null ? undefined : Number(base),
+        );
         return ok({ result: true, errorCode: 0 });
       } catch (e) {
         if (e instanceof RefusedCommit)
@@ -697,13 +714,6 @@ export const scorm = defineModule<ScormSettingsT>({
             where: { attemptId_scoId: { attemptId: attempt.id, scoId } },
           })
         : null;
-      if (track && !review) {
-        // the new session's time is added on top of what was recorded so far
-        await ctx.db.scormTrack.update({
-          where: { id: track.id },
-          data: { sessionBaseSec: track.totalTimeSec },
-        });
-      }
       const user = await ctx.db.user.findUniqueOrThrow({
         where: { id: grant.userId },
         select: { name: true, lastName: true, firstName: true, locale: true },
@@ -725,6 +735,8 @@ export const scorm = defineModule<ScormSettingsT>({
           cmi,
           scoHref: sco.href,
           review,
+          // the new session's time is added on top of what was recorded so far
+          base: track?.totalTimeSec ?? 0,
         }),
         {
           headers: {
