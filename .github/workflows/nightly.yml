@@ -49,3 +49,62 @@ jobs:
         with: { runtime: node@24, cache: true, require-lockfile: true }
       - run: pnpm --filter @hubium/ai exec vitest run test/ollama.test.ts
         env: { OLLAMA_URL: 'http://127.0.0.1:11434/v1' }
+
+  # The whole e2e suite through a local node while it is connected: the cloud and one node
+  # on the runner (e2e/node/stack.ts), the browser at the node, the scenarios' own reads and
+  # writes on the cloud's database.
+  through-node:
+    name: e2e through a local node
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      APP_SECRET: nightly-secret-nightly-secret-nightly-secret-00
+      SMTP_URL: smtp://localhost:1025
+      NEXT_TELEMETRY_DISABLED: 1
+      AUTH_RATE_LIMIT: 'off'
+      SSRF_ALLOW_HOSTS: 127.0.0.1
+      AUTH_KEYCLOAK_ID: hubium-oauth
+      AUTH_KEYCLOAK_SECRET: hubium-oauth-secret
+      AUTH_KEYCLOAK_ISSUER: http://127.0.0.1:8080/realms/hubium
+      HUBIUM_WRITE_GUARD: strict
+      WORKER_QUEUES: default,media
+      NODES: 1
+    services:
+      mailpit:
+        image: axllent/mailpit:v1.31
+        ports: ["1025:1025", "8025:8025"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with: { runtime: node@24, cache: true, require-lockfile: true }
+      - name: Start OpenLDAP
+        run: |
+          docker run -d --name openldap -p 1389:389 \
+            -e LDAP_ORGANISATION=Hubium -e LDAP_DOMAIN=hubium.test -e LDAP_ADMIN_PASSWORD=ldap-admin \
+            -v "$PWD/e2e/ldap:/container/service/slapd/assets/config/bootstrap/ldif/custom" \
+            osixia/openldap:1.5.0 --copy-service
+      - name: Start Keycloak
+        run: |
+          docker run -d --name keycloak -p 8080:8080 \
+            -e KC_BOOTSTRAP_ADMIN_USERNAME=admin -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+            -v "$PWD/e2e/keycloak:/opt/keycloak/data/import:ro" \
+            keycloak/keycloak:26.4.2 start-dev --import-realm
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - run: pnpm --filter @hubium/web build && pnpm --filter @hubium/worker build && pnpm --filter @hubium/cli build
+      - run: pnpm --filter @hubium/e2e exec playwright install --with-deps chromium
+      - name: The cloud and a node
+        run: |
+          node e2e/node/stack.ts up
+          timeout 180 bash -c "until curl -fsS -o /dev/null http://127.0.0.1:8080/realms/hubium/.well-known/openid-configuration; do sleep 2; done"
+      - run: pnpm --filter @hubium/e2e e2e
+        env:
+          E2E_BASE_URL: http://localhost:3100
+          E2E_DATABASE_URL: postgresql://hubium:hubium@127.0.0.1:55432/hubium
+      - name: Stack logs
+        if: failure()
+        run: tail -n 200 e2e/node/.stack/*.log
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: through-node-report
+          path: e2e/test-results
