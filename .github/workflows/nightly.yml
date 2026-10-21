@@ -37,14 +37,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Start Ollama and pull bge-m3
+        env:
+          APP_SECRET: nightly-not-used-but-required-by-compose-1234
+          COMPOSE_PROFILES: ai-local
         run: |
           cat > docker/compose.ci-ollama.yml <<'YAML'
           services:
             ollama:
               ports: ["127.0.0.1:11434:11434"]
           YAML
-          APP_SECRET=nightly-not-used-but-required-by-compose-1234 COMPOSE_PROFILES=ai-local \
-            docker compose -f docker/compose.yml -f docker/compose.ci-ollama.yml up --wait ollama-pull ollama
+          docker compose -f docker/compose.yml -f docker/compose.ci-ollama.yml up --wait ollama-pull ollama
+          # --wait takes the pull for ready once it runs: the model is there when it exits
+          docker compose -f docker/compose.yml -f docker/compose.ci-ollama.yml wait ollama-pull
       - uses: pnpm/setup@v3
         with: { runtime: node@24, cache: true, require-lockfile: true }
       - run: pnpm --filter @hubium/ai exec vitest run test/ollama.test.ts
@@ -91,6 +95,9 @@ jobs:
             keycloak/keycloak:26.4.2 start-dev --import-realm
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - run: pnpm --filter @hubium/web build && pnpm --filter @hubium/worker build && pnpm --filter @hubium/cli build
+        # the build loads the app's modules, which want a database address; the stack gives
+        # each of its processes its own
+        env: { DATABASE_URL: 'postgresql://hubium:hubium@127.0.0.1:55432/hubium' }
       - run: pnpm --filter @hubium/e2e exec playwright install --with-deps chromium
       - name: The cloud and a node
         run: |
