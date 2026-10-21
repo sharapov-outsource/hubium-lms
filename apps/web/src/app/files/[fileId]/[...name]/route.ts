@@ -15,5 +15,5 @@ export async function GET(req: Request, { params }: { params: Promise<{ fileId: 
     return new Response('Forbidden', { status: ctx.actor.kind === 'anonymous' ? 401 : 403 });
   }
   const download = new URL(req.url).searchParams.has('download');
-  return serveFile(file, { download });
+  return serveFile(file, { download, range: req.headers.get('range') });
 }

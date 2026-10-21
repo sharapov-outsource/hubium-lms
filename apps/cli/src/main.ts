@@ -37,6 +37,19 @@ Commands:
   ai reindex [--course <id>] [--sync]
                             rebuild what the AI tutor searches (after changing the
                             embedding model): queued for the worker, or here with --sync
+  nodes [list] [--json]     local nodes of branches and buildings (in the cloud)
+  nodes add --name <name> [--categories id,id] [--json]
+                            add a node; prints the code install-hubium.sh --node takes
+  nodes code <id>           a new installation code (to install the node again)
+  nodes revoke <id>         the node gets nothing more from this server
+  node register --hub <url> --code <code> [--address <host[:port]>] [--json]
+                            on a local node: install it with the code from the cloud;
+                            prints the settings of its .env (--address: where the cloud
+                            is reached when the DNS here sends its name to the node)
+  node [status] [--json]    on a local node: its mode, journal, files and release
+  node offline|online       on a local node: work without the cloud now, or go back
+  node postpone --until <date-time>
+                            on a local node: put the sync off (the end of a lesson)
   version [--json]          version, commit and build time
 
 Exit codes: 0 ok, 1 error, 2 warnings only (doctor).`;
@@ -51,6 +64,8 @@ const commands: Record<string, () => Promise<Command>> = {
   secrets: async () => (await import('./secrets.ts')).secretsCommand,
   ai: async () => (await import('./ai.ts')).aiCommand,
   maintenance: async () => (await import('./maintenance.ts')).maintenanceCommand,
+  nodes: async () => (await import('./nodes.ts')).nodesCommand,
+  node: async () => (await import('./node.ts')).nodeCommand,
   version: async () => versionCommand,
 };
 

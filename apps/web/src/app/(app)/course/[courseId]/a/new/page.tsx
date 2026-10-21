@@ -84,6 +84,12 @@ export default async function NewActivityPage({
     name: x.name,
     items: x.items,
   }));
+  // local nodes, for rules that name them
+  const nodes = await db.node.findMany({
+    where: { revokedAt: null },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
   const Completion = ui.CompletionRulesFields;
   return (
     <>
@@ -94,7 +100,12 @@ export default async function NewActivityPage({
         courseId={courseId}
         values={{ completionMode: 'NONE' }}
         settingsFields={
-          <Settings settings={m.settings.defaults() as never} courseId={courseId} scales={scales} />
+          <Settings
+            settings={m.settings.defaults() as never}
+            courseId={courseId}
+            scales={scales}
+            nodes={nodes}
+          />
         }
         completionFields={Completion ? <Completion rules={{}} /> : null}
         supportsView={!!m.supports.viewCompletion}

@@ -104,6 +104,12 @@ export default async function EditActivityPage({
     name: x.name,
     items: x.items,
   }));
+  // local nodes, for rules that name them
+  const nodes = await db.node.findMany({
+    where: { revokedAt: null },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
   const Completion = ui.CompletionRulesFields;
   const returnTo = safePath(sp.returnTo, `/course/${courseId}/a/${a.id}`);
   return (
@@ -138,6 +144,7 @@ export default async function EditActivityPage({
         settingsFields={
           <Settings
             scales={scales}
+            nodes={nodes}
             settings={ref.settings as never}
             courseId={courseId}
             activityId={a.id}

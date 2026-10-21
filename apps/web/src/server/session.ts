@@ -14,6 +14,9 @@ import {
   type RequestContext,
   touch,
 } from '@hubium/core';
+import { CLIENT_IP_HEADER } from '@hubium/core/client-ip';
+import { NODE_ID_HEADER } from '@hubium/core/node/auth';
+import { isNode, nodeConfig } from '@hubium/core/node/config';
 import { log } from '@hubium/log';
 import { cookies, headers } from 'next/headers';
 import { forbidden, notFound, redirect } from 'next/navigation';
@@ -69,7 +72,10 @@ export async function requireUser(): Promise<CurrentUser> {
 export async function freshContext(): Promise<RequestContext> {
   const user = await getCurrentUser();
   const h = await headers();
-  const ip = clientIp(h.get('x-forwarded-for'));
+  // the address proxy.ts worked out (for a request a node passed on, the one it signed)
+  const ip = h.get(CLIENT_IP_HEADER) ?? clientIp(h.get('x-forwarded-for'));
+  // the node a request came through (its signature, see node-forward.ts), or this one
+  const nodeId = isNode() ? nodeConfig().id : h.get(NODE_ID_HEADER);
   const locale = await getLocale();
   if (!user) {
     return {
@@ -80,6 +86,7 @@ export async function freshContext(): Promise<RequestContext> {
       locale,
       ip,
       origin: 'WEB',
+      nodeId,
     };
   }
   const session = await getSession();
@@ -98,6 +105,7 @@ export async function freshContext(): Promise<RequestContext> {
     locale,
     ip,
     origin: 'WEB',
+    nodeId,
   };
 }
 

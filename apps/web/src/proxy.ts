@@ -4,6 +4,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { gateRedirect } from './server/gate';
 import { ltiOrigins } from './server/lti-origins';
 import { currentMaintenance, isSiteAdminRequest, maintenanceResponse } from './server/maintenance';
+import { withNodeForward } from './server/node-forward';
 import {
   buildCsp,
   isContentHostMisuse,
@@ -23,6 +24,7 @@ const PUBLIC = [
   '/unlock-account',
   '/not-me',
   '/offline',
+  '/unavailable',
   '/c/',
   '/api',
   '/_next',
@@ -40,8 +42,14 @@ export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (isContentHostMisuse({ pathname, headers: req.headers }))
     return new NextResponse('Not found', { status: 404 });
-  // the client's address, for Better Auth's rate limits and sessions
-  const headers = withClientIp(req.headers);
+  // the client's address, for Better Auth's rate limits and sessions; for a request a local
+  // node passed on, the address the node signed
+  const headers = await withNodeForward(req, withClientIp(req.headers));
+  if (headers === 'refused')
+    return NextResponse.json(
+      { ok: false, code: 'FORBIDDEN', message: 'The node signature does not check' },
+      { status: 403 },
+    );
   // Untrusted content origin: its route sets its own sandboxing headers.
   if (pathname.startsWith('/c/')) return NextResponse.next({ request: { headers } });
 

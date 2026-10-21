@@ -42,6 +42,7 @@ type Search = {
   who?: string;
   event?: string;
   activity?: string;
+  node?: string;
   from?: string;
   to?: string;
   before?: string;
@@ -102,6 +103,7 @@ export default async function ReportsPage({
     who: textParam(sp.who),
     name: sp.event && known.includes(sp.event) ? sp.event : undefined,
     activityId: uuidParam(sp.activity),
+    nodeId: sp.node === 'none' ? 'none' : uuidParam(sp.node),
     from: dateParam(sp.from),
     to: dateParam(sp.to),
   };
@@ -110,6 +112,7 @@ export default async function ReportsPage({
         who: filter.who,
         name: filter.name,
         activityId: filter.activityId,
+        nodeId: filter.nodeId,
         from: filter.from ? new Date(filter.from) : undefined,
         // the whole of the last day
         to: filter.to ? new Date(new Date(filter.to).getTime() + 86_400_000) : undefined,
@@ -117,6 +120,11 @@ export default async function ReportsPage({
       })
     : { items: [], next: null };
   const activityName = new Map(activities.map((a) => [a.id, a.name]));
+  // local nodes: where the events came through, when the site has any
+  const nodes = canLogs
+    ? await db.node.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } })
+    : [];
+  const nodeName = new Map(nodes.map((n) => [n.id, n.name]));
   const logHref = (more: Record<string, string | undefined>) => {
     const q = new URLSearchParams(
       Object.entries({
@@ -124,6 +132,7 @@ export default async function ReportsPage({
         who: filter.who,
         event: filter.name,
         activity: filter.activityId,
+        node: filter.nodeId,
         from: filter.from,
         to: filter.to,
         ...more,
@@ -231,6 +240,24 @@ export default async function ReportsPage({
                   ))}
                 </Select>
               </Field>
+              {nodes.length ? (
+                <Field label={t('node')} htmlFor="log-node">
+                  <Select
+                    id="log-node"
+                    name="node"
+                    defaultValue={filter.nodeId ?? ''}
+                    className="w-48"
+                  >
+                    <option value="">{t('anyNode')}</option>
+                    <option value="none">{t('noNode')}</option>
+                    {nodes.map((n) => (
+                      <option key={n.id} value={n.id}>
+                        {n.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              ) : null}
               <Field label={t('from')} htmlFor="log-from">
                 <Input
                   id="log-from"
@@ -263,6 +290,7 @@ export default async function ReportsPage({
                     <Th>{t('user')}</Th>
                     <Th>{t('event')}</Th>
                     <Th>{t('activity')}</Th>
+                    {nodes.length ? <Th>{t('node')}</Th> : null}
                   </Tr>
                 </THead>
                 <TBody>
@@ -281,6 +309,7 @@ export default async function ReportsPage({
                         )}
                       </Td>
                       <Td>{(l.contextId && activityName.get(l.contextId)) || '—'}</Td>
+                      {nodes.length ? <Td>{(l.nodeId && nodeName.get(l.nodeId)) || '—'}</Td> : null}
                     </Tr>
                   ))}
                 </TBody>
