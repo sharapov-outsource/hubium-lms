@@ -86,6 +86,8 @@ jobs:
       AUTH_KEYCLOAK_ID: hubium-oauth
       AUTH_KEYCLOAK_SECRET: hubium-oauth-secret
       AUTH_KEYCLOAK_ISSUER: http://127.0.0.1:8080/realms/hubium
+      # the app and the worker refuse database writes outside an operation or a write scope
+      HUBIUM_WRITE_GUARD: strict
     services:
       db:
         image: pgvector/pgvector:0.8.7-pg18-bookworm
