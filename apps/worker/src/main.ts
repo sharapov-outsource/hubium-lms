@@ -38,8 +38,11 @@ async function run(def: JobHandlerDef, job: { id: string; data: unknown }) {
     ms: Math.round(performance.now() - started),
   });
   try {
-    const out = await withWriteScope('job', def.name, () =>
-      def.handler(job.data as never, { db, jobId: job.id }),
+    const out = await withWriteScope(
+      'job',
+      def.name,
+      () => def.handler(job.data as never, { db, jobId: job.id }),
+      { now: new Date() },
     );
     jobs.debug(fields(), 'job done');
     return out;
