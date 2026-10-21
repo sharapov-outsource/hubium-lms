@@ -1509,6 +1509,7 @@ export const quiz = defineModule<QuizSettingsT>({
   actions: {
     // ── editing ──
     addQuestions: defineAction({
+      offline: 'replay',
       summary: 'Add questions from the course question bank as fixed slots',
       capability: 'course:manageactivities',
       input: z.object({ questionIds: z.array(z.string().uuid()).min(1).max(200) }),
@@ -1545,6 +1546,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     addRandom: defineAction({
+      offline: 'replay',
       summary: 'Add slots that draw random questions from a category',
       capability: 'course:manageactivities',
       input: z.object({
@@ -1584,6 +1586,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     editSlot: defineAction({
+      offline: 'guarded',
       summary: 'Remove or move a slot, change its mark, or add or remove the page break after it',
       capability: 'course:manageactivities',
       input: z.object({
@@ -1643,6 +1646,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     repaginate: defineAction({
+      offline: 'guarded',
       summary: 'Lay the questions out anew, a given number to a page (0: all on one page)',
       capability: 'course:manageactivities',
       input: z.object({ perPage: z.number().int().min(0).max(100) }),
@@ -1653,6 +1657,7 @@ export const quiz = defineModule<QuizSettingsT>({
     }),
     // ── attempts ──
     start: defineAction({
+      offline: 'replay',
       summary:
         'Start an attempt or resume the open one; `preview` for teachers. `password` when the quiz has one',
       input: z.object({
@@ -1710,6 +1715,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     save: defineAction({
+      offline: 'guarded',
       summary: 'Save answers and flags of your attempt without finishing it',
       input: z.object({
         attemptId: z.string().uuid(),
@@ -1732,6 +1738,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     page: defineAction({
+      offline: 'replay',
       summary:
         'Save the answers of this page and go to another page of your attempt (with sequential navigation only to the next one)',
       input: z.object({
@@ -1770,6 +1777,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     check: defineAction({
+      offline: 'replay',
       summary:
         'Immediate and interactive behaviours: save one answer and check it now. Returns the question with its feedback',
       input: z.object({
@@ -1798,6 +1806,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     tryAgain: defineAction({
+      offline: 'replay',
       summary:
         'Interactive behaviour: after a wrong answer, open the question for the next try (wrong parts cleared if its hint says so)',
       input: z.object({ attemptId: z.string().uuid(), slot: z.number().int().min(1) }),
@@ -1819,6 +1828,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     finish: defineAction({
+      offline: 'replay',
       summary: 'Save the last answers and finish your attempt',
       input: z.object({
         attemptId: z.string().uuid(),
@@ -1837,6 +1847,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     setOverride: defineAction({
+      offline: 'guarded',
       summary: 'Give one participant or a group their own dates, time limit, attempts or password',
       capability: 'mod.quiz:manageoverrides',
       input: z
@@ -1910,6 +1921,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     deleteOverride: defineAction({
+      offline: 'guarded',
       summary: 'Remove a participant or group setting',
       capability: 'mod.quiz:manageoverrides',
       input: z.object({ id: z.string().uuid() }),
@@ -1920,6 +1932,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     regrade: defineAction({
+      offline: 'online',
       summary:
         'Regrade finished attempts with the current questions; `dryRun` only reports changes',
       capability: 'mod.quiz:grade',
@@ -1929,6 +1942,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     gradeQuestion: defineAction({
+      offline: 'guarded',
       summary: 'Mark a manually graded answer (essay) and comment on it',
       capability: 'mod.quiz:grade',
       input: z.object({

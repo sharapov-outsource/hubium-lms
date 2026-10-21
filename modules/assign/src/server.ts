@@ -859,6 +859,7 @@ export const assign = defineModule<AssignSettingsT>({
   },
   actions: {
     saveSubmission: defineAction({
+      offline: 'replay',
       summary:
         'Save your submission (or your team’s): online text and files; `submit: true` sends it for grading, `statement: true` accepts the statement of authorship',
       capability: 'mod.assign:submit',
@@ -1003,6 +1004,7 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     revertToDraft: defineAction({
+      offline: 'guarded',
       summary:
         'Take your submission (or your team’s) back to a draft while it is ungraded and submissions are open',
       capability: 'mod.assign:submit',
@@ -1032,6 +1034,7 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     grade: defineAction({
+      offline: 'guarded',
       summary:
         "Grade a student's submission: points or a 1-based scale position, or the filled rubric (`rubric`) or marking guide (`guide`) the assignment grades with; feedback, feedback files; `applyToTeam` grades the whole team alike; `workflowState` and `allocatedMarkerId` with the marking workflow",
       capability: 'mod.assign:grade',
@@ -1197,6 +1200,7 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     setWorkflowState: defineAction({
+      offline: 'guarded',
       summary:
         'Move students to a marking stage (marking workflow): markers mark, reviewers review, released grades reach students and the gradebook',
       capability: 'mod.assign:grade',
@@ -1215,6 +1219,7 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     allocateMarker: defineAction({
+      offline: 'guarded',
       summary: 'Allocate students to a marker (null takes the marker away)',
       capability: 'mod.assign:manageallocations',
       input: z.object({ userIds: UserIds, markerId: z.string().uuid().nullable() }),
@@ -1227,6 +1232,7 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     revealIdentities: defineAction({
+      offline: 'guarded',
       summary:
         'Blind marking: reveal who is who. Cannot be undone; released grades then reach students and the gradebook',
       capability: 'mod.assign:revealidentities',
@@ -1248,6 +1254,7 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     saveGradingDefinition: defineAction({
+      offline: 'guarded',
       summary:
         'Define the rubric or marking guide the assignment grades with; once used, texts and points may change but criteria and levels cannot come or go',
       capability: 'grade:managegradingforms',
@@ -1293,6 +1300,7 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     deleteGradingDefinition: defineAction({
+      offline: 'guarded',
       summary: 'Delete the rubric or marking guide with the forms filled with it (the grades stay)',
       capability: 'grade:managegradingforms',
       input: z.object({ method: z.enum(['rubric', 'guide']) }),
@@ -1305,6 +1313,7 @@ export const assign = defineModule<AssignSettingsT>({
     }),
     // AI grading assistant: a suggestion only; the teacher copies it into the form.
     aiConsent: defineAction({
+      offline: 'online',
       summary: 'Accept the AI grading assistant terms for yourself',
       capability: 'mod.assign:grade',
       mutation: false,
@@ -1315,6 +1324,7 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     aiSuggest: defineAction({
+      offline: 'online',
       summary: 'Ask the AI grading assistant for a suggested grade and feedback',
       capability: 'mod.assign:grade',
       mutation: false,
@@ -1336,6 +1346,7 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     aiMark: defineAction({
+      offline: 'online',
       summary: 'Record whether an AI suggestion was applied or discarded',
       capability: 'mod.assign:grade',
       mutation: false,
@@ -1346,6 +1357,7 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     extend: defineAction({
+      offline: 'guarded',
       summary: 'Give a student a personal due date and cut-off (null due date removes it)',
       capability: 'mod.assign:grantextension',
       // the same dates and checks as setOverride
@@ -1391,6 +1403,7 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     setOverride: defineAction({
+      offline: 'guarded',
       summary:
         'Give one student or a group their own dates: opening, due date and cut-off (null keeps the assignment’s)',
       capability: 'mod.assign:manageoverrides',
@@ -1458,6 +1471,7 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     deleteOverride: defineAction({
+      offline: 'guarded',
       summary: 'Remove a student’s or a group’s dates',
       capability: 'mod.assign:manageoverrides',
       input: z.object({ id: z.string().uuid() }),
@@ -1471,6 +1485,7 @@ export const assign = defineModule<AssignSettingsT>({
       },
     }),
     moveOverride: defineAction({
+      offline: 'guarded',
       summary: 'Raise or lower a group’s dates: for a student in several groups the highest wins',
       capability: 'mod.assign:manageoverrides',
       input: z.object({ id: z.string().uuid(), direction: z.enum(['up', 'down']) }),

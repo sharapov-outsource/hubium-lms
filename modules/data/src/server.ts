@@ -756,6 +756,7 @@ export const data = defineModule<DataSettingsT>({
   actions: {
     // ── fields ──
     addField: defineAction({
+      offline: 'replay',
       summary: 'Add a field (menus, radio buttons and checkboxes take their choices, one per line)',
       capability: 'mod.data:managefields',
       input: FieldInput.extend({ type: z.enum(fieldTypes) }),
@@ -775,6 +776,7 @@ export const data = defineModule<DataSettingsT>({
       },
     }),
     updateField: defineAction({
+      offline: 'guarded',
       summary: 'Change a field (its kind stays; renaming does not change templates)',
       capability: 'mod.data:managefields',
       input: FieldInput.extend({ id: z.string().uuid() }),
@@ -793,6 +795,7 @@ export const data = defineModule<DataSettingsT>({
       },
     }),
     moveField: defineAction({
+      offline: 'guarded',
       summary: 'Move a field up or down',
       capability: 'mod.data:managefields',
       input: z.object({ id: z.string().uuid(), direction: z.enum(['up', 'down']) }),
@@ -810,6 +813,7 @@ export const data = defineModule<DataSettingsT>({
       },
     }),
     deleteField: defineAction({
+      offline: 'guarded',
       summary: 'Delete a field with its values in every entry',
       capability: 'mod.data:managefields',
       input: z.object({ id: z.string().uuid() }),
@@ -829,6 +833,7 @@ export const data = defineModule<DataSettingsT>({
     }),
     // ── entries ──
     saveEntry: defineAction({
+      offline: 'replay',
       summary:
         'Add an entry, or change one (`id`): `values` by field id (a list for checkboxes); files with `fileFields` naming each file’s field',
       capability: 'mod.data:writeentry',
@@ -920,6 +925,7 @@ export const data = defineModule<DataSettingsT>({
       },
     }),
     deleteEntry: defineAction({
+      offline: 'guarded',
       summary: 'Delete an entry (yours, or any for teachers)',
       capability: 'mod.data:writeentry',
       input: z.object({ id: z.string().uuid() }),
@@ -943,6 +949,7 @@ export const data = defineModule<DataSettingsT>({
       },
     }),
     approveEntry: defineAction({
+      offline: 'guarded',
       summary: 'Approve an entry, or take the approval back',
       capability: 'mod.data:manageentries',
       input: z.object({ id: z.string().uuid(), approved: z.boolean() }),
@@ -956,6 +963,7 @@ export const data = defineModule<DataSettingsT>({
       },
     }),
     rate: defineAction({
+      offline: 'replay',
       summary:
         'Rate an entry (null takes your rating back): points 0..max, or a 1-based position on the scale',
       capability: 'mod.data:rate',
@@ -991,6 +999,7 @@ export const data = defineModule<DataSettingsT>({
       },
     }),
     importCsv: defineAction({
+      offline: 'replay',
       summary:
         'Add entries from CSV text whose header row names the fields (files and pictures are left out); yours, approved',
       capability: 'mod.data:manageentries',

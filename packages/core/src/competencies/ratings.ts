@@ -212,6 +212,7 @@ const outcome = z.enum(OUTCOMES);
 
 export const addCourseCompetencies = defineOperation({
   name: 'competency.course.add',
+  offline: 'replay',
   input: z.object({
     courseId: z.string().uuid(),
     competencyIds: z.array(z.string().uuid()).min(1).max(200),
@@ -241,6 +242,7 @@ export const addCourseCompetencies = defineOperation({
 
 export const removeCourseCompetency = defineOperation({
   name: 'competency.course.remove',
+  offline: 'guarded',
   input: z.object({ courseId: z.string().uuid(), competencyId: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('competency:coursemanage', i.courseId),
   async handler(ctx, { courseId, competencyId }) {
@@ -253,6 +255,7 @@ export const removeCourseCompetency = defineOperation({
 
 export const setCourseCompetency = defineOperation({
   name: 'competency.course.set',
+  offline: 'guarded',
   input: z.object({
     courseId: z.string().uuid(),
     competencyId: z.string().uuid(),
@@ -286,6 +289,7 @@ export const setCourseCompetency = defineOperation({
 
 export const setCourseCompetencySettings = defineOperation({
   name: 'competency.course.settings',
+  offline: 'guarded',
   input: z.object({ courseId: z.string().uuid(), pushRatings: z.boolean() }),
   authorize: (ctx, i) => ctx.perm.require('competency:coursemanage', i.courseId),
   async handler(ctx, { courseId, pushRatings }) {
@@ -301,6 +305,7 @@ export const setCourseCompetencySettings = defineOperation({
 /** Links a course competency to an activity of the course, or changes or removes the link. */
 export const setActivityCompetency = defineOperation({
   name: 'competency.activity.set',
+  offline: 'guarded',
   input: z.object({
     activityId: z.string().uuid(),
     competencyId: z.string().uuid(),
@@ -338,6 +343,7 @@ export const setActivityCompetency = defineOperation({
 /** A teacher rates a learner on a competency of the course (null removes the rating). */
 export const rateInCourse = defineOperation({
   name: 'competency.rate',
+  offline: 'guarded',
   input: z.object({
     courseId: z.string().uuid(),
     userId: z.string().uuid(),
@@ -382,6 +388,7 @@ export const rateInCourse = defineOperation({
 /** A reviewer rates a person's competency itself (null removes the rating). */
 export const rateUserCompetency = defineOperation({
   name: 'competency.rateuser',
+  offline: 'guarded',
   input: z.object({
     userId: z.string().uuid(),
     competencyId: z.string().uuid(),
@@ -417,6 +424,7 @@ export const rateUserCompetency = defineOperation({
 /** Evidence a reviewer notes by hand (a link, an observation). */
 export const addManualEvidence = defineOperation({
   name: 'competency.evidence.add',
+  offline: 'replay',
   input: z.object({
     userId: z.string().uuid(),
     competencyId: z.string().uuid(),
@@ -444,6 +452,7 @@ export const addManualEvidence = defineOperation({
 /** A review: asked for by the learner (or withdrawn), started and finished by a reviewer. */
 export const reviewUserCompetency = defineOperation({
   name: 'competency.review',
+  offline: 'guarded',
   input: z.object({
     userId: z.string().uuid(),
     competencyId: z.string().uuid(),

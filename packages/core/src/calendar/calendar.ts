@@ -133,6 +133,7 @@ export const EventInput = z.object({
 
 export const createEvent = defineOperation({
   name: 'calendar.create',
+  offline: 'replay',
   input: EventInput,
   async authorize(ctx, i) {
     if (i.scope === 'USER') await ctx.perm.require('calendar:manageown');
@@ -167,6 +168,7 @@ export const createEvent = defineOperation({
 
 export const deleteEvent = defineOperation({
   name: 'calendar.delete',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   async authorize(ctx, { id }) {
     const e = await ctx.db.calendarEvent.findUnique({ where: { id } });
@@ -202,6 +204,7 @@ export async function resetFeedToken(db: Tx, userId: string): Promise<string> {
 /** A new address of the person's own calendar feed: the previous one stops working. */
 export const resetMyFeedToken = defineOperation({
   name: 'calendar.feedToken.reset',
+  offline: 'online',
   input: z.object({}),
   async handler(ctx) {
     if (ctx.actor.kind !== 'user') throw new ForbiddenError();

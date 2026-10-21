@@ -363,6 +363,7 @@ export async function erasePersonalData(
 
 export const savePolicy = defineOperation({
   name: 'policy.save',
+  offline: 'online',
   mutation: true,
   input: z.object({
     id: z.string().uuid().optional(),
@@ -383,6 +384,7 @@ export const savePolicy = defineOperation({
 
 export const publishPolicyVersion = defineOperation({
   name: 'policy.publish',
+  offline: 'online',
   mutation: true,
   input: z.object({
     policyId: z.string().uuid(),
@@ -453,6 +455,7 @@ export async function pendingPolicies(db: Db | Prisma.TransactionClient, userId:
 
 export const acceptPolicies = defineOperation({
   name: 'policy.accept',
+  offline: 'replay',
   input: z.object({ versionIds: z.array(z.string().uuid()).max(100) }),
   async handler(ctx, { versionIds }) {
     if (ctx.actor.kind !== 'user') throw new ForbiddenError();

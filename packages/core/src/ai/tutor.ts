@@ -272,6 +272,7 @@ export async function* askTutor(
 
 export const rateTutorMessage = defineOperation({
   name: 'ai.tutor.rate',
+  offline: 'replay',
   input: z.object({
     messageId: z.string().uuid(),
     rating: z.union([z.literal(-1), z.literal(1)]).nullable(),

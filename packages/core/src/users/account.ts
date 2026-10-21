@@ -17,6 +17,7 @@ function self(ctx: RequestContext): string {
 
 export const updateMyProfile = defineOperation({
   name: 'user.profile.updateOwn',
+  offline: 'guarded',
   input: z.object({
     firstName: z.string().trim().min(1).max(100),
     lastName: z.string().trim().min(1).max(100),
@@ -42,6 +43,7 @@ export const updateMyProfile = defineOperation({
 
 export const setMyPreferences = defineOperation({
   name: 'user.preferences.set',
+  offline: 'guarded',
   input: z.object({
     locale: z.string().max(16).optional(),
     theme: z.enum(['light', 'dark', 'system']).optional(),

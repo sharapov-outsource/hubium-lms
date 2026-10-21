@@ -179,6 +179,7 @@ export async function listUsers(ctx: RequestContext, raw: z.input<typeof UserLis
 
 export const createUser = defineOperation({
   name: 'user.create',
+  offline: 'online',
   input: UserCreateInput,
   authorize: (ctx) => ctx.perm.require('user:create'),
   async handler(ctx, input) {
@@ -233,6 +234,7 @@ export const UserUpdateInput = z.object({
 
 export const updateUser = defineOperation({
   name: 'user.update',
+  offline: 'online',
   input: UserUpdateInput,
   authorize: (ctx) => ctx.perm.require('user:update'),
   async handler(ctx, input) {
@@ -303,6 +305,7 @@ export async function setPassword(db: Tx, userId: string, password: string): Pro
 
 export const setUserSuspended = defineOperation({
   name: 'user.suspend',
+  offline: 'online',
   input: z.object({ id: z.string().uuid(), suspended: z.boolean() }),
   authorize: (ctx) => ctx.perm.require('user:update'),
   async handler(ctx, { id, suspended }) {
@@ -330,6 +333,7 @@ export const setUserSuspended = defineOperation({
 /** Lifts a lock after failed sign-ins (auth/lockout.ts). */
 export const unlockUser = defineOperation({
   name: 'user.unlock',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('user:update'),
   async handler(ctx, { id }) {
@@ -351,6 +355,7 @@ export const unlockUser = defineOperation({
 /** Soft delete with anonymisation: content stays, personal data goes. */
 export const deleteUser = defineOperation({
   name: 'user.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('user:delete'),
   async handler(ctx, { id }) {
@@ -435,6 +440,7 @@ async function setContextRole(
 
 export const assignSystemRole = defineOperation({
   name: 'user.assignSystemRole',
+  offline: 'online',
   input: z.object({ userId: z.string().uuid(), roleId: z.string().uuid(), assigned: z.boolean() }),
   authorize: (ctx) => ctx.perm.require('role:assign'),
   handler: (ctx, input) =>
@@ -447,6 +453,7 @@ export const assignSystemRole = defineOperation({
  */
 export const assignCategoryRole = defineOperation({
   name: 'user.assignCategoryRole',
+  offline: 'online',
   input: z.object({
     userId: z.string().uuid(),
     roleId: z.string().uuid(),
@@ -467,6 +474,7 @@ export const assignCategoryRole = defineOperation({
  */
 export const assignActivityRole = defineOperation({
   name: 'user.assignActivityRole',
+  offline: 'online',
   input: z.object({
     userId: z.string().uuid(),
     roleId: z.string().uuid(),
@@ -556,6 +564,7 @@ async function runIn<I extends z.ZodType, O>(
  */
 export const bulkUploadUsers = defineOperation({
   name: 'user.bulkUpload',
+  offline: 'online',
   input: z.union([
     z.object({ csv: z.string().min(1).max(5_000_000) }),
     z.object({

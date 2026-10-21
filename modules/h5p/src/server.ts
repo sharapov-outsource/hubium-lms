@@ -447,6 +447,7 @@ export const h5p = defineModule<H5pSettingsT>({
   ],
   actions: {
     attachUpload: defineAction({
+      offline: 'online',
       summary: 'Use a finished upload (POST /uploads) as the .h5p package and unpack it',
       input: z.object({ uploadId: z.string().uuid() }),
       async handler(ctx, a, input) {

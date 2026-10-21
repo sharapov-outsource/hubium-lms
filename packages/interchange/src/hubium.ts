@@ -854,6 +854,7 @@ export const ImportActivitiesInput = z.object({
  */
 export const duplicateActivity = defineOperation({
   name: 'activity.duplicate',
+  offline: 'online',
   input: z.object({ activityId: z.string().uuid() }),
   // the copy is restored by operations with transactions of their own
   mutation: false,
@@ -876,7 +877,8 @@ export const duplicateActivity = defineOperation({
 });
 
 export const importActivities = defineOperation({
-  name: 'activity.import',
+  name: 'course.importActivities',
+  offline: 'online',
   input: ImportActivitiesInput,
   // restored by operations with transactions of their own
   mutation: false,
@@ -1572,6 +1574,7 @@ export async function discardCourse(ctx: RequestContext, courseId: string) {
 /** Copies a course on this site: through the backup pipeline, without an archive. */
 export const duplicateCourse = defineOperation({
   name: 'course.duplicate',
+  offline: 'online',
   input: z.object({
     courseId: z.string().uuid(),
     categoryId: z.string().uuid().optional(),

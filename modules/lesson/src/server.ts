@@ -718,6 +718,7 @@ export const lesson = defineModule<LessonSettingsT>({
   actions: {
     // ── editing ──
     addPage: defineAction({
+      offline: 'replay',
       summary: 'Add a page after another one (or first)',
       capability: 'mod.lesson:edit',
       input: PageInput.extend({
@@ -750,6 +751,7 @@ export const lesson = defineModule<LessonSettingsT>({
       },
     }),
     updatePage: defineAction({
+      offline: 'guarded',
       summary: 'Change a page (its kind stays)',
       capability: 'mod.lesson:edit',
       input: PageInput.extend({ id: z.string().uuid() }),
@@ -772,6 +774,7 @@ export const lesson = defineModule<LessonSettingsT>({
       },
     }),
     movePage: defineAction({
+      offline: 'guarded',
       summary: 'Move a page up or down',
       capability: 'mod.lesson:edit',
       input: z.object({ id: z.string().uuid(), direction: z.enum(['up', 'down']) }),
@@ -787,6 +790,7 @@ export const lesson = defineModule<LessonSettingsT>({
       },
     }),
     deletePage: defineAction({
+      offline: 'guarded',
       summary: 'Delete a page (answers to it go with it; jumps to it lead on)',
       capability: 'mod.lesson:edit',
       input: z.object({ id: z.string().uuid() }),
@@ -815,6 +819,7 @@ export const lesson = defineModule<LessonSettingsT>({
     }),
     // ── taking the lesson ──
     start: defineAction({
+      offline: 'replay',
       summary:
         'Start the lesson or go on with the open attempt; `preview` for teachers; `password` when it has one',
       input: z.object({
@@ -875,6 +880,7 @@ export const lesson = defineModule<LessonSettingsT>({
       },
     }),
     choose: defineAction({
+      offline: 'replay',
       summary: 'Press a button of the content page you are on',
       input: z.object({ pageId: z.string().uuid(), answerId: z.string().max(64) }),
       async handler(ctx, ref, input) {
@@ -898,6 +904,7 @@ export const lesson = defineModule<LessonSettingsT>({
       },
     }),
     goTo: defineAction({
+      offline: 'replay',
       summary: 'Go to a content page from the lesson menu',
       input: z.object({ pageId: z.string().uuid() }),
       async handler(ctx, ref, input) {
@@ -914,6 +921,7 @@ export const lesson = defineModule<LessonSettingsT>({
       },
     }),
     answer: defineAction({
+      offline: 'replay',
       summary:
         'Answer the question you are on: `choice`, `choices`, `text` (short answers, numbers, essays) or `matches`',
       input: z.object({
@@ -989,6 +997,7 @@ export const lesson = defineModule<LessonSettingsT>({
       },
     }),
     skip: defineAction({
+      offline: 'replay',
       summary: 'Leave a question answered wrongly instead of trying again',
       input: z.object({ pageId: z.string().uuid() }),
       async handler(ctx, ref, input) {
@@ -1015,6 +1024,7 @@ export const lesson = defineModule<LessonSettingsT>({
     }),
     // ── teachers ──
     gradeEssay: defineAction({
+      offline: 'guarded',
       summary: 'Grade an essay answer: points (up to the answer’s, or 1) and a comment',
       capability: 'mod.lesson:grade',
       input: z.object({
@@ -1070,6 +1080,7 @@ export const lesson = defineModule<LessonSettingsT>({
       },
     }),
     deleteAttempt: defineAction({
+      offline: 'guarded',
       summary: 'Delete an attempt of a learner (their grade is reckoned again)',
       capability: 'mod.lesson:grade',
       input: z.object({ attemptId: z.string().uuid() }),

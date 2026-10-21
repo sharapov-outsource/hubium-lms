@@ -147,7 +147,8 @@ export async function unlockWithToken(db: Tx, token: string): Promise<boolean> {
 
 /** The unlock link of the lockout email. */
 export const unlockByToken = defineOperation({
-  name: 'user.unlock',
+  name: 'user.unlock.byToken',
+  offline: 'online',
   input: z.object({ token: z.string().max(200) }),
   handler: (ctx, { token }) => unlockWithToken(ctx.tx, token),
 });

@@ -76,6 +76,7 @@ export async function languageOverview(ctx: RequestContext): Promise<{
 
 export const saveLanguageSettings = defineOperation({
   name: 'site.languages',
+  offline: 'online',
   input: z.object({
     defaultLocale: localeCode,
     enabled: z.array(localeCode).min(1),
@@ -249,6 +250,7 @@ async function ftsConfigs(db: Db | Prisma.TransactionClient): Promise<Set<string
 
 export const installLanguagePack = defineOperation({
   name: 'site.languagePack.install',
+  offline: 'online',
   input: z.object({
     fileName: z.string().max(255),
     data: z.instanceof(Uint8Array),
@@ -293,6 +295,7 @@ export const installLanguagePack = defineOperation({
 
 export const removeLanguagePack = defineOperation({
   name: 'site.languagePack.remove',
+  offline: 'online',
   input: z.object({ code: z.string().max(20) }),
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, { code }) {

@@ -361,6 +361,7 @@ export const wiki = defineModule<WikiSettingsT>({
   },
   actions: {
     lock: defineAction({
+      offline: 'replay',
       summary:
         'Start or go on changing a page (the lock lasts two minutes unless renewed); `force` takes it over',
       capability: 'mod.wiki:edit',
@@ -387,6 +388,7 @@ export const wiki = defineModule<WikiSettingsT>({
       },
     }),
     unlock: defineAction({
+      offline: 'replay',
       summary: 'Stop changing a page without saving',
       input: z.object({ pageId: z.string().uuid() }),
       async handler(ctx, ref, input) {
@@ -400,6 +402,7 @@ export const wiki = defineModule<WikiSettingsT>({
       },
     }),
     save: defineAction({
+      offline: 'guarded',
       summary:
         'Save a page: a new page by `title`, or a new version of `pageId` (`baseVersion` is the version you changed)',
       capability: 'mod.wiki:edit',
@@ -450,6 +453,7 @@ export const wiki = defineModule<WikiSettingsT>({
       },
     }),
     restore: defineAction({
+      offline: 'guarded',
       summary: 'Make an old version of a page the latest one',
       capability: 'mod.wiki:edit',
       input: z.object({ pageId: z.string().uuid(), version: z.number().int().min(1) }),
@@ -468,6 +472,7 @@ export const wiki = defineModule<WikiSettingsT>({
       },
     }),
     deletePage: defineAction({
+      offline: 'guarded',
       summary: 'Delete a page with its history',
       capability: 'mod.wiki:manage',
       input: z.object({ pageId: z.string().uuid() }),

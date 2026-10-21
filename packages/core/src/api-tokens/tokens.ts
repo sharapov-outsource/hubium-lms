@@ -36,6 +36,7 @@ function requireUser(ctx: RequestContext): string {
 
 export const createApiToken = defineOperation({
   name: 'apiToken.create',
+  offline: 'online',
   input: CreateTokenInput,
   async authorize(ctx) {
     requireUser(ctx);
@@ -95,6 +96,7 @@ export async function listApiTokens(ctx: RequestContext) {
 
 export const revokeApiToken = defineOperation({
   name: 'apiToken.revoke',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   async handler(ctx, { id }) {
     const userId = requireUser(ctx);

@@ -180,6 +180,7 @@ const FileInput = {
  */
 export const previewGradeImport = defineOperation({
   name: 'grade.import.preview',
+  offline: 'online',
   input: z.object({ ...FileInput, mapping: GradeImportMapping.optional() }),
   authorize: (ctx, i) => ctx.perm.require('grade:import', i.courseId),
   async handler(ctx, { courseId, data, mapping }) {
@@ -208,6 +209,7 @@ export const previewGradeImport = defineOperation({
 /** The second step: the plan applied, rows and cells with problems left out. */
 export const applyGradeImport = defineOperation({
   name: 'grade.import.apply',
+  offline: 'guarded',
   input: z.object({ ...FileInput, mapping: GradeImportMapping }),
   authorize: (ctx, i) => ctx.perm.require('grade:import', i.courseId),
   async handler(ctx, { courseId, data, mapping }) {

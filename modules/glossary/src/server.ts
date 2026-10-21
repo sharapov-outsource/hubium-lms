@@ -492,6 +492,7 @@ export const glossary = defineModule<GlossarySettingsT>({
   },
   actions: {
     addEntry: defineAction({
+      offline: 'replay',
       summary: 'Add an entry (a learner’s may wait for approval)',
       capability: 'mod.glossary:write',
       input: EntryInput,
@@ -518,6 +519,7 @@ export const glossary = defineModule<GlossarySettingsT>({
       },
     }),
     updateEntry: defineAction({
+      offline: 'guarded',
       summary: 'Change an entry',
       capability: 'mod.glossary:write',
       input: EntryInput.extend({ id: z.string().uuid() }),
@@ -547,6 +549,7 @@ export const glossary = defineModule<GlossarySettingsT>({
       },
     }),
     deleteEntry: defineAction({
+      offline: 'guarded',
       summary: 'Delete an entry',
       capability: 'mod.glossary:write',
       input: z.object({ id: z.string().uuid() }),
@@ -562,6 +565,7 @@ export const glossary = defineModule<GlossarySettingsT>({
       },
     }),
     approveEntry: defineAction({
+      offline: 'guarded',
       summary: 'Approve an entry, or take the approval back',
       capability: 'mod.glossary:manageentries',
       input: z.object({ id: z.string().uuid(), approved: z.boolean() }),
@@ -578,6 +582,7 @@ export const glossary = defineModule<GlossarySettingsT>({
       },
     }),
     rate: defineAction({
+      offline: 'replay',
       summary:
         'Rate an entry (null takes your rating back): points 0..max, or a 1-based position on the scale',
       capability: 'mod.glossary:rate',

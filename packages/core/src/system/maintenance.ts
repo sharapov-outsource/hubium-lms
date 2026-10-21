@@ -74,6 +74,7 @@ export async function setMaintenance(
 /** Maintenance mode from the settings page. */
 export const setMaintenanceMode = defineOperation({
   name: 'site.maintenance.set',
+  offline: 'online',
   input: z.object({
     enabled: z.boolean(),
     message: z.string().max(10_000).optional(),

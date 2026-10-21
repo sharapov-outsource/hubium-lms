@@ -175,6 +175,7 @@ export async function taskLog(ctx: RequestContext, raw: z.input<typeof TaskLogQu
 /** Queues a scheduled task to run as soon as the worker gets to it. */
 export const runTaskNow = defineOperation({
   name: 'task.run',
+  offline: 'online',
   input: z.object({ name: z.string().max(200) }),
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, { name }) {
@@ -194,6 +195,7 @@ export const runTaskNow = defineOperation({
 /** Puts a failed job back in the queue; it runs again with the same data. */
 export const retryTaskRun = defineOperation({
   name: 'task.retry',
+  offline: 'online',
   input: z.object({ name: z.string().max(200), id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, input) {

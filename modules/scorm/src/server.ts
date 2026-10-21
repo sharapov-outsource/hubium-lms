@@ -554,6 +554,7 @@ export const scorm = defineModule<ScormSettingsT>({
   ],
   actions: {
     attachUpload: defineAction({
+      offline: 'online',
       summary: 'Use a finished upload (POST /uploads) as the SCORM package and unpack it',
       input: z.object({ uploadId: z.string().uuid() }),
       async handler(ctx, a, input) {
@@ -579,6 +580,7 @@ export const scorm = defineModule<ScormSettingsT>({
       },
     }),
     newAttempt: defineAction({
+      offline: 'replay',
       summary: 'Start a new attempt when the package allows more',
       capability: 'mod.scorm:launch',
       input: z.object({}),

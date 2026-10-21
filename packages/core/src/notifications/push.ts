@@ -38,6 +38,7 @@ const Subscription = z.object({
 
 export const savePushSubscription = defineOperation({
   name: 'push.subscribe',
+  offline: 'online',
   input: Subscription.extend({ userAgent: z.string().nullish() }),
   async authorize(ctx, s) {
     if (ctx.actor.kind !== 'user') throw new ForbiddenError();
@@ -67,6 +68,7 @@ export const savePushSubscription = defineOperation({
 
 export const removePushSubscription = defineOperation({
   name: 'push.unsubscribe',
+  offline: 'online',
   input: z.object({ endpoint: z.string().max(2000) }),
   async handler(ctx, { endpoint }) {
     if (ctx.actor.kind !== 'user') throw new ForbiddenError();

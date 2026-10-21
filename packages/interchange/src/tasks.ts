@@ -47,6 +47,7 @@ export const BACKUPS_KEPT = 3;
 /** Starts restoring a backup or importing a Moodle course from an upload, in the background. */
 export const startImport = defineOperation({
   name: 'course.import.start',
+  offline: 'online',
   input: z.object({
     uploadId: z.string().uuid(),
     categoryId: z.string().uuid(),
@@ -182,6 +183,7 @@ export async function runImportTask(db: Db, taskId: string) {
 /** Starts a backup of a course; one this user already has under way is that one. */
 export const startBackup = defineOperation({
   name: 'course.backup.start',
+  offline: 'online',
   input: z.object({ courseId: z.string().uuid() }),
   async authorize(ctx, { courseId }) {
     if (ctx.actor.kind !== 'user') throw new ForbiddenError();
@@ -316,6 +318,7 @@ export async function courseBackups(
 
 export const deleteBackup = defineOperation({
   name: 'course.backup.delete',
+  offline: 'online',
   input: z.object({ fileId: z.string().uuid() }),
   async authorize(ctx, { fileId }) {
     const file = await ctx.db.file.findUnique({ where: { id: fileId } });

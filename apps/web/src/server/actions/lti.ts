@@ -24,6 +24,7 @@ const siteLti = async (ctx: RequestContext) => {
 
 const saveLtiTool = defineOperation({
   name: 'lti.tool.save',
+  offline: 'online',
   input: z.record(z.string(), z.unknown()),
   authorize: siteLti,
   async handler(ctx, input) {
@@ -47,6 +48,7 @@ const saveLtiTool = defineOperation({
 
 const deleteLtiTool = defineOperation({
   name: 'lti.tool.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, { id }) {
@@ -64,6 +66,7 @@ const deleteLtiTool = defineOperation({
 
 const rotateLtiKey = defineOperation({
   name: 'lti.key.rotate',
+  offline: 'online',
   input: z.object({}),
   authorize: siteLti,
   // the old key retires only with the new one made

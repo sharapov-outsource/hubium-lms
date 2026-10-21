@@ -475,6 +475,7 @@ export function parseMoodleXml(xml: string, untitled = 'Question'): ParseResult 
 /** Imports Moodle XML into a course bank, creating categories from the paths. */
 export const importMoodleXml = defineOperation({
   name: 'question.importMoodleXml',
+  offline: 'online',
   input: z.object({ courseId: z.string().uuid(), xml: z.string().max(50_000_000) }),
   // the questions are written in a transaction of its own
   mutation: false,

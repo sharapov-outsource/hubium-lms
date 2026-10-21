@@ -79,6 +79,7 @@ const definitionOf = (r: CustomReport) => ({
 
 export const saveReport = defineOperation({
   name: 'report.save',
+  offline: 'online',
   input: z.object({
     id: z.string().uuid().optional(),
     name: z.string().trim().min(1).max(255),
@@ -158,6 +159,7 @@ export const saveReport = defineOperation({
 
 export const deleteReport = defineOperation({
   name: 'report.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('report:customise'),
   async handler(ctx, { id }) {
@@ -169,6 +171,7 @@ export const deleteReport = defineOperation({
 
 export const duplicateReport = defineOperation({
   name: 'report.duplicate',
+  offline: 'online',
   input: z.object({ id: z.string().uuid(), name: z.string().trim().min(1).max(255) }),
   authorize: (ctx) => ctx.perm.require('report:customise'),
   async handler(ctx, { id, name }) {
@@ -475,6 +478,7 @@ export const ScheduleInput = z.object({
 
 export const saveSchedule = defineOperation({
   name: 'report.schedule.save',
+  offline: 'online',
   input: ScheduleInput,
   authorize: (ctx) => ctx.perm.require('report:customise'),
   async handler(ctx, i) {
@@ -511,6 +515,7 @@ export const saveSchedule = defineOperation({
 
 export const deleteSchedule = defineOperation({
   name: 'report.schedule.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('report:customise'),
   async handler(ctx, { id }) {
@@ -615,6 +620,7 @@ export async function sendSchedule(
 /** Sends a schedule's report now, as the schedule would; the number of letters sent. */
 export const sendScheduleNow = defineOperation({
   name: 'report.schedule.send',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('report:customise'),
   // the letters go out one by one, each schedule claimed before them

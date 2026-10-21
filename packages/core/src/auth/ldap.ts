@@ -466,6 +466,7 @@ export function ldapSignIn(db: Db, appUrl: string) {
 
 export const saveLdapServer = defineOperation({
   name: 'auth.saveLdapServer',
+  offline: 'online',
   input: LdapInput,
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, input) {

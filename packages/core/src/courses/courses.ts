@@ -63,6 +63,7 @@ export const CourseInput = z.object({
 
 export const createCourse = defineOperation({
   name: 'course.create',
+  offline: 'online',
   input: CourseInput,
   authorize: (ctx, i) => ctx.perm.require('course:create', i.categoryId),
   async handler(ctx, input) {
@@ -164,6 +165,7 @@ export const createCourse = defineOperation({
 
 export const updateCourse = defineOperation({
   name: 'course.update',
+  offline: 'guarded',
   input: CourseInput.omit({ sections: true }).extend({ id: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('course:update', i.id),
   async handler(ctx, input) {
@@ -229,6 +231,7 @@ export const COURSE_IMAGE = {
 /** The course's cover, stored in its "image" area, or none. */
 export const setCourseImage = defineOperation({
   name: 'course.image.set',
+  offline: 'guarded',
   input: z.object({ courseId: z.string().uuid(), image: FileInput.nullable() }),
   authorize: (ctx, i) => ctx.perm.require('course:update', i.courseId),
   async handler(ctx, { courseId, image }) {
@@ -254,6 +257,7 @@ export const setCourseImage = defineOperation({
 /** A picture put in a text of the course with the editor, stored in its "editor" area. */
 export const storeEditorImage = defineOperation({
   name: 'course.editorImage.store',
+  offline: 'replay',
   input: FileInput.extend({ courseId: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('course:manageactivities', i.courseId),
   async handler(ctx, { courseId, ...image }) {
@@ -294,6 +298,7 @@ async function shortNameFree(tx: Prisma.TransactionClient, shortName: string, id
 /** Moves the course to the recycle bin (soft delete). */
 export const deleteCourse = defineOperation({
   name: 'course.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('course:delete', i.id),
   async handler(ctx, { id }) {
@@ -311,6 +316,7 @@ export const deleteCourse = defineOperation({
 /** Deletes a course in the recycle bin for good, with everything in it. */
 export const purgeCourse = defineOperation({
   name: 'course.purge',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('course:delete', i.id),
   async handler(ctx, { id }) {
@@ -335,6 +341,7 @@ export const purgeCourse = defineOperation({
 
 export const restoreCourse = defineOperation({
   name: 'course.restore',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('course:delete', i.id),
   async handler(ctx, { id }) {
@@ -453,6 +460,7 @@ async function parentSection(tx: Prisma.TransactionClient, courseId: string, par
  */
 export const addSection = defineOperation({
   name: 'section.add',
+  offline: 'replay',
   input: z.object({
     courseId: z.string().uuid(),
     afterSectionId: z.string().uuid().optional(),
@@ -491,6 +499,7 @@ export const addSection = defineOperation({
 
 export const updateSection = defineOperation({
   name: 'section.update',
+  offline: 'guarded',
   input: z.object({
     id: z.string().uuid(),
     title: z.string().trim().max(255),
@@ -535,6 +544,7 @@ export const updateSection = defineOperation({
 
 export const setSectionVisible = defineOperation({
   name: 'section.visibility',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid(), visible: z.boolean() }),
   async authorize(ctx, i) {
     const s = await ctx.db.courseSection.findUniqueOrThrow({ where: { id: i.id } });
@@ -549,6 +559,7 @@ export const setSectionVisible = defineOperation({
 /** Moves a section one place among the course's sections, a subsection among its section's items. */
 export const moveSection = defineOperation({
   name: 'section.move',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid(), direction: z.enum(['up', 'down']) }),
   async authorize(ctx, i) {
     const s = await ctx.db.courseSection.findUniqueOrThrow({ where: { id: i.id } });
@@ -584,6 +595,7 @@ export const moveSection = defineOperation({
 /** Moves a subsection, with its activities, to the end of another section. */
 export const moveSubsection = defineOperation({
   name: 'section.moveTo',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid(), parentId: z.string().uuid() }),
   async authorize(ctx, i) {
     const s = await ctx.db.courseSection.findUniqueOrThrow({ where: { id: i.id } });
@@ -604,6 +616,7 @@ export const moveSubsection = defineOperation({
 
 export const deleteSection = defineOperation({
   name: 'section.delete',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   async authorize(ctx, i) {
     const s = await ctx.db.courseSection.findUniqueOrThrow({ where: { id: i.id } });

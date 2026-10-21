@@ -20,6 +20,7 @@ const LocalisedName = localizedText(100);
 
 export const createRole = defineOperation({
   name: 'role.create',
+  offline: 'online',
   input: z.object({
     shortName: z
       .string()
@@ -81,6 +82,7 @@ export const createRole = defineOperation({
 
 export const updateRole = defineOperation({
   name: 'role.update',
+  offline: 'online',
   input: z.object({
     id: z.string().uuid(),
     name: LocalisedName,
@@ -116,6 +118,7 @@ export const updateRole = defineOperation({
 
 export const deleteRole = defineOperation({
   name: 'role.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('role:manage'),
   async handler(ctx, { id }) {
@@ -146,6 +149,7 @@ export const deleteRole = defineOperation({
 
 export const setRoleCapability = defineOperation({
   name: 'role.setCapability',
+  offline: 'online',
   input: z.object({
     roleId: z.string().uuid(),
     capability: z.string().refine(isCapability, 'errors.access.unknownCapability'),
@@ -209,6 +213,7 @@ export async function overrideScope(db: Prisma.TransactionClient, contextId: str
 /** Overrides set directly in one context (for the "Permissions" pages). */
 export const listRoleOverrides = defineOperation({
   name: 'role.listOverrides',
+  offline: 'online',
   input: z.object({ contextId: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('role:review', i.contextId),
   mutation: false,
@@ -228,6 +233,7 @@ export const listRoleOverrides = defineOperation({
 
 export const setRoleOverride = defineOperation({
   name: 'role.setOverride',
+  offline: 'online',
   input: z.object({
     contextId: z.string().uuid(),
     roleId: z.string().uuid(),

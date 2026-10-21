@@ -93,6 +93,7 @@ async function requirePlan(
 
 export const saveTemplate = defineOperation({
   name: 'competency.template.save',
+  offline: 'online',
   input: z.object({
     id: z.string().uuid().optional(),
     name: z.string().trim().min(1).max(255),
@@ -128,6 +129,7 @@ export const saveTemplate = defineOperation({
 /** Deletes a template; its plans are deleted with it or kept with its competencies. */
 export const deleteTemplate = defineOperation({
   name: 'competency.template.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid(), deletePlans: z.boolean().default(false) }),
   authorize: (ctx) => ctx.perm.require('competency:templatemanage'),
   async handler(ctx, { id, deletePlans }) {
@@ -142,6 +144,7 @@ export const deleteTemplate = defineOperation({
 
 export const setTemplateCompetency = defineOperation({
   name: 'competency.template.competency',
+  offline: 'online',
   input: z.object({
     templateId: z.string().uuid(),
     competencyId: z.string().uuid(),
@@ -178,6 +181,7 @@ export const setTemplateCompetency = defineOperation({
 
 export const setTemplateCohort = defineOperation({
   name: 'competency.template.cohort',
+  offline: 'online',
   input: z.object({
     templateId: z.string().uuid(),
     cohortId: z.string().uuid(),
@@ -257,6 +261,7 @@ async function createPlans(
 
 export const createPlansFromTemplate = defineOperation({
   name: 'competency.template.plans',
+  offline: 'online',
   input: z.object({
     templateId: z.string().uuid(),
     userIds: z.array(z.string().uuid()).min(1).max(1000),
@@ -300,6 +305,7 @@ export async function syncTemplateCohorts(db: Db, now = new Date()): Promise<num
 
 export const savePlan = defineOperation({
   name: 'competency.plan.save',
+  offline: 'online',
   input: z.object({
     id: z.string().uuid().optional(),
     userId: z.string().uuid().optional(),
@@ -337,6 +343,7 @@ export const savePlan = defineOperation({
 
 export const deletePlan = defineOperation({
   name: 'competency.plan.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: async (ctx, i) => void (await requirePlan(ctx, i.id, 'remove')),
   async handler(ctx, { id }) {
@@ -347,6 +354,7 @@ export const deletePlan = defineOperation({
 
 export const setPlanCompetency = defineOperation({
   name: 'competency.plan.competency',
+  offline: 'online',
   input: z.object({
     planId: z.string().uuid(),
     competencyId: z.string().uuid(),
@@ -402,6 +410,7 @@ async function unlink(tx: Tx, p: LearningPlan) {
 
 export const unlinkPlan = defineOperation({
   name: 'competency.plan.unlink',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: async (ctx, i) => void (await requirePlan(ctx, i.id, 'unlink')),
   async handler(ctx, { id }) {
@@ -448,6 +457,7 @@ const STEPS = [
 /** Moves a plan along: reviews, approval, completion (which keeps its ratings), reopening. */
 export const planStep = defineOperation({
   name: 'competency.plan.step',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid(), step: z.enum(STEPS) }),
   authorize: async (ctx, i) => void (await requirePlan(ctx, i.id, i.step)),
   async handler(ctx, { id, step }) {
@@ -525,6 +535,7 @@ export const planStep = defineOperation({
 
 export const addCompetencyComment = defineOperation({
   name: 'competency.comment',
+  offline: 'replay',
   input: z.object({
     planId: z.string().uuid().optional(),
     userId: z.string().uuid().optional(),
@@ -576,6 +587,7 @@ export const addCompetencyComment = defineOperation({
 
 export const deleteCompetencyComment = defineOperation({
   name: 'competency.comment.delete',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   async authorize(ctx, i) {
     const c = await ctx.db.competencyComment.findUnique({ where: { id: i.id } });
@@ -597,6 +609,7 @@ async function requireOwnEvidence(ctx: RequestContext, userId: string) {
 
 export const saveUserEvidence = defineOperation({
   name: 'competency.userevidence.save',
+  offline: 'guarded',
   input: z.object({
     id: z.string().uuid().optional(),
     userId: z.string().uuid().optional(),
@@ -650,6 +663,7 @@ export const saveUserEvidence = defineOperation({
 
 export const deleteUserEvidence = defineOperation({
   name: 'competency.userevidence.delete',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   async authorize(ctx, i) {
     const e = await ctx.db.userEvidence.findUnique({ where: { id: i.id } });
@@ -671,6 +685,7 @@ export const deleteUserEvidence = defineOperation({
 /** Ties evidence to a competency (logged on it), or unties it. */
 export const linkUserEvidence = defineOperation({
   name: 'competency.userevidence.link',
+  offline: 'guarded',
   input: z.object({
     id: z.string().uuid(),
     competencyId: z.string().uuid(),

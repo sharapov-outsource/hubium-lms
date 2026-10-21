@@ -53,6 +53,7 @@ const difficultyText = {
 
 export const startQuizGeneration = defineOperation({
   name: 'ai.quizgen.start',
+  offline: 'online',
   input: QuizGenInput,
   async authorize(ctx, input) {
     // The generation runs in the worker, which records its own usage.
@@ -248,6 +249,7 @@ export async function getQuizGeneration(ctx: RequestContext, id: string) {
 /** Accept (→ READY) or reject (→ deleted) generated drafts in bulk. */
 export const reviewGeneratedQuestions = defineOperation({
   name: 'ai.quizgen.review',
+  offline: 'guarded',
   input: z.object({
     generationId: z.string().uuid(),
     accept: z.array(z.string().uuid()).max(1000).default([]),

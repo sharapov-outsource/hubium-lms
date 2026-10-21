@@ -280,9 +280,19 @@ export interface TodoItem {
   count?: number;
 }
 
+/**
+ * What a local node does with an operation or a module action while it cannot reach the
+ * cloud (docs/PLAN.md): `replay` runs it, and the cloud replays it as it is (what people
+ * add: attempts, submissions, posts); `guarded` runs it, and the cloud replays it only when
+ * what it changed is unchanged there (edits of what exists); `online` refuses it
+ * (administration, and what needs the internet).
+ */
+export type OfflinePolicy = 'replay' | 'guarded' | 'online';
+
 export interface ModuleAction<I extends z.ZodType = z.ZodType, O = unknown> {
   /** One line for the REST API reference (POST /api/v1/activities/{id}/actions/{name}). */
   summary?: string;
+  offline: OfflinePolicy;
   input: I;
   /** Capability required at the activity context. */
   capability?: string;

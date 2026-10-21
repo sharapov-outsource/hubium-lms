@@ -233,6 +233,7 @@ export const book = defineModule<BookSettingsT>({
   },
   actions: {
     addChapter: defineAction({
+      offline: 'replay',
       summary: 'Add a chapter, after another one or at the end',
       capability: 'mod.book:edit',
       input: ChapterInput.extend({ afterId: z.string().uuid().nullable().default(null) }),
@@ -264,6 +265,7 @@ export const book = defineModule<BookSettingsT>({
       },
     }),
     updateChapter: defineAction({
+      offline: 'guarded',
       summary: 'Change a chapter',
       capability: 'mod.book:edit',
       input: ChapterInput.extend({ id: z.string().uuid() }),
@@ -283,6 +285,7 @@ export const book = defineModule<BookSettingsT>({
       },
     }),
     deleteChapter: defineAction({
+      offline: 'guarded',
       summary: 'Delete a chapter (a chapter goes with its subchapters)',
       capability: 'mod.book:edit',
       input: z.object({ id: z.string().uuid() }),
@@ -300,6 +303,7 @@ export const book = defineModule<BookSettingsT>({
       },
     }),
     moveChapter: defineAction({
+      offline: 'guarded',
       summary: 'Move a chapter one step up or down',
       capability: 'mod.book:edit',
       input: z.object({ id: z.string().uuid(), direction: z.enum(['up', 'down']) }),
@@ -310,6 +314,7 @@ export const book = defineModule<BookSettingsT>({
       },
     }),
     setChapterHidden: defineAction({
+      offline: 'guarded',
       summary: 'Hide or show a chapter (with its subchapters)',
       capability: 'mod.book:edit',
       input: z.object({ id: z.string().uuid(), hidden: z.boolean() }),

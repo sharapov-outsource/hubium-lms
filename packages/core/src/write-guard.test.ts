@@ -34,6 +34,7 @@ const ctx = (): RequestContext => ({
 
 const setFlag = defineOperation({
   name: 'test.flag.set',
+  offline: 'replay',
   input: z.object({ value: z.boolean() }),
   handler: async (c, i) => {
     await c.tx.siteSetting.upsert({

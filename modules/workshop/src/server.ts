@@ -645,6 +645,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
   actions: {
     // ── the teacher ──
     switchPhase: defineAction({
+      offline: 'guarded',
       summary: 'Move the workshop to a phase (closing it puts the grades into the gradebook)',
       capability: 'mod.workshop:manage',
       input: z.object({ phase: z.enum(phases) }),
@@ -674,6 +675,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
       },
     }),
     saveForm: defineAction({
+      offline: 'guarded',
       summary: 'Write the assessment form of the grading strategy (before anyone assesses)',
       capability: 'mod.workshop:manage',
       input: z.object({
@@ -700,6 +702,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
       },
     }),
     allocate: defineAction({
+      offline: 'guarded',
       summary: 'Have a learner assess a submission',
       capability: 'mod.workshop:manage',
       input: z.object({ submissionId: z.string().uuid(), reviewerId: z.string().uuid() }),
@@ -729,6 +732,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
       },
     }),
     deallocate: defineAction({
+      offline: 'guarded',
       summary: 'Take an allocation back (its assessment goes with it)',
       capability: 'mod.workshop:manage',
       input: z.object({ assessmentId: z.string().uuid() }),
@@ -744,6 +748,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
       },
     }),
     randomAllocate: defineAction({
+      offline: 'guarded',
       summary:
         'Allocate at random: `count` reviews per submission or per reviewer, apart from groupmates if asked',
       capability: 'mod.workshop:manage',
@@ -821,6 +826,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
       },
     }),
     calculateGrades: defineAction({
+      offline: 'guarded',
       summary:
         'Grades for the work from its assessments, and for assessing by comparison with the best',
       capability: 'mod.workshop:manage',
@@ -839,6 +845,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
       },
     }),
     gradeSubmission: defineAction({
+      offline: 'guarded',
       summary:
         'The teacher’s grade for a submission (0..100 % of the grade, null to use the calculated one), feedback and publishing',
       capability: 'mod.workshop:manage',
@@ -864,6 +871,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
       },
     }),
     gradeAssessment: defineAction({
+      offline: 'guarded',
       summary:
         'Weigh an assessment (0..16), give its grade for assessing (0..100 %, null for the calculated one) and a comment to the reviewer',
       capability: 'mod.workshop:manage',
@@ -890,6 +898,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
     }),
     // ── learners ──
     submit: defineAction({
+      offline: 'replay',
       summary: 'Hand in your work, or change it while submissions are open',
       capability: 'mod.workshop:submit',
       input: z.object({
@@ -963,6 +972,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
       },
     }),
     assess: defineAction({
+      offline: 'guarded',
       summary:
         'Fill in the assessment form for a submission you were allocated (teachers may assess any submission by its id)',
       input: z.object({

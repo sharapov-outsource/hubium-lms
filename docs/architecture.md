@@ -98,6 +98,7 @@ Each app lists the modules it runs: `apps/web/src/modules/server.ts` and `apps/w
 // packages/core/src/operation.ts
 export const updateCourse = defineOperation({
   name: 'course.update',
+  offline: 'guarded',                   // what a local node does with it offline (below)
   input: CourseUpdateInput,             // zod
   output: CourseDTO,                    // zod (drives OpenAPI)
   mutation: true,                       // run inside db.$transaction
@@ -118,6 +119,7 @@ export const updateCourse = defineOperation({
   - pg-boss `send(..., { db: txAdapter })` enqueues jobs inside the Prisma transaction (outbox for free).
   - `pg_notify` inside the transaction delivers only on commit.
   - Non-transactional effects (S3 deletes) go through `afterCommit`.
+- **Registry and offline policy.** `defineOperation` registers the operation by name (`getOperation`, `listOperations`); a test fails on a name defined twice, and module action names (`<module>.<action>`) never match an operation's. Each operation and module action declares `offline`, what a local node does with it while it cannot reach the cloud: `replay` (run, and replayed in the cloud as it is), `guarded` (run, and replayed only when what it changed is unchanged in the cloud) or `online` (refused).
 - **Write scopes.** Every write to the database belongs to a scope (`withWriteScope` in `packages/db`):
   - operations and module actions open `operation`, the worker's jobs `job`, the CLI and the seed `system`, and Better Auth's adapter writes in `auth`;
   - side records of page views belong to `touch`, data that can be computed again to `derived`;

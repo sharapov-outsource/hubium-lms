@@ -111,6 +111,7 @@ async function requireCategoryIn(db: Tx, categoryId: string, courseId: string) {
 
 export const saveQuestionCategory = defineOperation({
   name: 'question.category.save',
+  offline: 'guarded',
   input: z.object({
     courseId: z.string().uuid(),
     id: z.string().uuid().optional(),
@@ -144,6 +145,7 @@ export const saveQuestionCategory = defineOperation({
 
 export const deleteQuestionCategory = defineOperation({
   name: 'question.category.delete',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   async authorize(ctx, i) {
     await ctx.perm.require('question:manage', await categoryCourse(ctx.db, i.id));
@@ -197,6 +199,7 @@ function validateData(type: QuestionType, data: unknown) {
 
 export const saveQuestion = defineOperation({
   name: 'question.save',
+  offline: 'guarded',
   input: QuestionInput.extend({ id: z.string().uuid().optional() }),
   async authorize(ctx, i) {
     const courseId = await categoryCourse(ctx.db, i.categoryId);
@@ -288,6 +291,7 @@ export const saveQuestion = defineOperation({
 
 export const deleteQuestion = defineOperation({
   name: 'question.delete',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   async authorize(ctx, i) {
     const q = await ctx.db.question.findUnique({
@@ -389,6 +393,7 @@ export async function questionsForExport(
 
 export const importGift = defineOperation({
   name: 'question.importGift',
+  offline: 'replay',
   input: z.object({
     courseId: z.string().uuid(),
     categoryId: z.string().uuid().optional(),

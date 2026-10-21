@@ -216,6 +216,7 @@ provideModuleServices({
 /** Learner ticks "mark as done" on a manually completed activity. */
 export const toggleManualCompletion = defineOperation({
   name: 'completion.manual',
+  offline: 'replay',
   input: z.object({ activityId: z.string().uuid(), done: z.boolean() }),
   // a mark on an activity the learner cannot open would unlock what depends on it and count
   // towards the course
@@ -268,6 +269,7 @@ export const toggleManualCompletion = defineOperation({
 /** Teacher overrides a learner's completion state (or clears the override). */
 export const overrideCompletion = defineOperation({
   name: 'completion.override',
+  offline: 'guarded',
   input: z.object({
     activityId: z.string().uuid(),
     userId: z.string().uuid(),

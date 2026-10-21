@@ -117,6 +117,7 @@ async function manualMethod(tx: Tx, courseId: string) {
 
 export const enrolUsers = defineOperation({
   name: 'enrol.manual',
+  offline: 'online',
   input: z.object({
     courseId: z.string().uuid(),
     userIds: z.array(z.string().uuid()).min(1).max(1000),
@@ -223,6 +224,7 @@ export async function removeCourseMembership(
 
 export const unenrolUser = defineOperation({
   name: 'enrol.unenrol',
+  offline: 'online',
   input: z.object({ courseId: z.string().uuid(), userId: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('enrol:manage', i.courseId),
   async handler(ctx, { courseId, userId }) {
@@ -248,6 +250,7 @@ export const unenrolUser = defineOperation({
 
 export const setEnrolmentStatus = defineOperation({
   name: 'enrol.status',
+  offline: 'online',
   input: z.object({
     courseId: z.string().uuid(),
     userId: z.string().uuid(),
@@ -275,6 +278,7 @@ export const setEnrolmentStatus = defineOperation({
  */
 export const setCourseRoles = defineOperation({
   name: 'enrol.roles',
+  offline: 'online',
   input: z.object({
     courseId: z.string().uuid(),
     userId: z.string().uuid(),
@@ -355,6 +359,7 @@ export const SelfMethodSettings = z.object({
 
 export const updateSelfEnrolment = defineOperation({
   name: 'enrol.self.configure',
+  offline: 'online',
   input: SelfMethodSettings.extend({ courseId: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('enrol:manage', i.courseId),
   async handler(ctx, input) {
@@ -383,6 +388,7 @@ export const updateSelfEnrolment = defineOperation({
 
 export const selfEnrol = defineOperation({
   name: 'enrol.self',
+  offline: 'online',
   input: z.object({ courseId: z.string().uuid(), key: z.string().max(100).optional() }),
   async authorize(ctx, i) {
     if (ctx.actor.kind !== 'user') throw new ForbiddenError(msg('errors.enrol.signInToEnrol'));
@@ -478,6 +484,7 @@ export const selfEnrol = defineOperation({
 
 export const unenrolSelf = defineOperation({
   name: 'enrol.self.leave',
+  offline: 'online',
   input: z.object({ courseId: z.string().uuid() }),
   async handler(ctx, { courseId }) {
     const userId = ctx.perm.userId;

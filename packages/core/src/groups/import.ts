@@ -83,6 +83,7 @@ function readRows(csv: string, names: Record<string, string[]>, required: string
 
 export const importCourseGroups = defineOperation({
   name: 'group.import',
+  offline: 'online',
   input: z.object({
     courseId: z.string().uuid(),
     csv: z.string().min(1).max(MAX_CSV),
@@ -199,6 +200,7 @@ export const importCourseGroups = defineOperation({
 
 export const importCohorts = defineOperation({
   name: 'cohort.import',
+  offline: 'online',
   input: z.object({ csv: z.string().min(1).max(MAX_CSV), apply: z.boolean().default(false) }),
   mutation: false,
   authorize: (ctx) => ctx.perm.require('cohort:manage'),
@@ -305,6 +307,7 @@ export function groupName(pattern: string, i: number): string {
 
 export const autoCreateGroups = defineOperation({
   name: 'group.autocreate',
+  offline: 'online',
   input: z
     .object({
       courseId: z.string().uuid(),

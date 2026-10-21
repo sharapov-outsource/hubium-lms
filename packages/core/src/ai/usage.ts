@@ -185,6 +185,7 @@ export async function consentStatus(
 
 export const acceptConsent = defineOperation({
   name: 'ai.consent.accept',
+  offline: 'online',
   input: z.object({ feature: z.enum(AI_FEATURES) }),
   async handler(ctx, { feature }) {
     if (ctx.actor.kind !== 'user') throw new ForbiddenError();

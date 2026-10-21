@@ -139,6 +139,7 @@ async function frameworkScale(
 
 export const saveFramework = defineOperation({
   name: 'competency.framework.save',
+  offline: 'online',
   input: FrameworkInput,
   authorize: (ctx) => ctx.perm.require('competency:manage'),
   async handler(ctx, input) {
@@ -189,6 +190,7 @@ export const saveFramework = defineOperation({
 
 export const deleteFramework = defineOperation({
   name: 'competency.framework.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('competency:manage'),
   async handler(ctx, { id }) {
@@ -208,6 +210,7 @@ export const deleteFramework = defineOperation({
 /** A copy of a framework with all its competencies, rules and cross-references. */
 export const duplicateFramework = defineOperation({
   name: 'competency.framework.duplicate',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('competency:manage'),
   async handler(ctx, { id }) {
@@ -319,6 +322,7 @@ export const CompetencyInput = z.object({
 
 export const saveCompetency = defineOperation({
   name: 'competency.save',
+  offline: 'guarded',
   input: CompetencyInput,
   authorize: (ctx) => ctx.perm.require('competency:manage'),
   async handler(ctx, input) {
@@ -372,6 +376,7 @@ export const saveCompetency = defineOperation({
 /** Moves a competency (with what is below it) under another parent, or to the top. */
 export const moveCompetency = defineOperation({
   name: 'competency.move',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid(), parentId: z.string().uuid().nullable() }),
   authorize: (ctx) => ctx.perm.require('competency:manage'),
   async handler(ctx, { id, parentId }) {
@@ -408,6 +413,7 @@ export const moveCompetency = defineOperation({
 /** Moves a competency one place among its siblings. */
 export const reorderCompetency = defineOperation({
   name: 'competency.reorder',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid(), direction: z.enum(['up', 'down']) }),
   authorize: (ctx) => ctx.perm.require('competency:manage'),
   async handler(ctx, { id, direction }) {
@@ -445,6 +451,7 @@ async function dropFromRule(tx: Tx, parentId: string, ids: string[]) {
 
 export const deleteCompetency = defineOperation({
   name: 'competency.delete',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('competency:manage'),
   async handler(ctx, { id }) {
@@ -469,6 +476,7 @@ export const RuleInput = z.object({
 /** How a competency follows its children: a rule and what it does when met. */
 export const setCompetencyRule = defineOperation({
   name: 'competency.rule',
+  offline: 'guarded',
   input: RuleInput,
   authorize: (ctx) => ctx.perm.require('competency:manage'),
   async handler(ctx, input) {
@@ -500,6 +508,7 @@ export const setCompetencyRule = defineOperation({
 /** Cross-references a competency with another of its framework, or removes the reference. */
 export const setRelatedCompetency = defineOperation({
   name: 'competency.related',
+  offline: 'guarded',
   input: z.object({
     id: z.string().uuid(),
     relatedId: z.string().uuid(),
@@ -638,6 +647,7 @@ async function scaleFor(tx: Tx, items: string[], name: string) {
 /** Creates a framework from a Moodle competency framework CSV. */
 export const importFrameworkCsv = defineOperation({
   name: 'competency.framework.import',
+  offline: 'online',
   input: z.object({ csv: z.string().min(1).max(10_000_000) }),
   authorize: (ctx) => ctx.perm.require('competency:manage'),
   async handler(ctx, { csv }) {

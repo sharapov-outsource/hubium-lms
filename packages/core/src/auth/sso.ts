@@ -358,6 +358,7 @@ export async function loadCustomOAuth(db: Db): Promise<CustomOAuthProvider[]> {
 
 export const saveSsoProvider = defineOperation({
   name: 'auth.saveSsoProvider',
+  offline: 'online',
   input: SsoProviderInput,
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, input) {
@@ -408,6 +409,7 @@ export const saveSsoProvider = defineOperation({
 
 export const deleteSsoProvider = defineOperation({
   name: 'auth.deleteSsoProvider',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, { id }) {

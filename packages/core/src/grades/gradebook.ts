@@ -525,6 +525,7 @@ provideModuleServices({
 
 export const overrideGrade = defineOperation({
   name: 'grade.override',
+  offline: 'guarded',
   input: z.object({
     itemId: z.string().uuid(),
     userId: z.string().uuid(),
@@ -698,6 +699,7 @@ async function requireGradeCategory(tx: Tx, courseId: string, categoryId: string
 
 export const createManualItem = defineOperation({
   name: 'grade.item.create',
+  offline: 'replay',
   input: ManualItemInput,
   authorize: (ctx, i) => ctx.perm.require('grade:manage', i.courseId),
   async handler(ctx, input) {
@@ -732,6 +734,7 @@ export const createManualItem = defineOperation({
 
 export const updateGradeItem = defineOperation({
   name: 'grade.item.update',
+  offline: 'guarded',
   input: z.object({
     id: z.string().uuid(),
     name: z.string().trim().min(1).max(255).optional(),
@@ -796,6 +799,7 @@ export const updateGradeItem = defineOperation({
 
 export const deleteManualItem = defineOperation({
   name: 'grade.item.delete',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   async authorize(ctx, i) {
     const item = await ctx.db.gradeItem.findUnique({ where: { id: i.id } });
@@ -848,6 +852,7 @@ function requireOrder(
  */
 export const setGradeCalculation = defineOperation({
   name: 'grade.item.calculation',
+  offline: 'guarded',
   input: z.object({
     id: z.string().uuid(),
     calculation: z.string().trim().max(2000).nullable(),
@@ -938,6 +943,7 @@ async function subtreeIds(tx: Tx, courseId: string, rootId: string): Promise<Set
 
 export const saveGradeCategory = defineOperation({
   name: 'grade.category.save',
+  offline: 'guarded',
   input: z.object({
     courseId: z.string().uuid(),
     id: z.string().uuid().optional(),
@@ -1017,6 +1023,7 @@ export const saveGradeCategory = defineOperation({
 /** Deletes a category; its items and subcategories move up to its parent. */
 export const deleteGradeCategory = defineOperation({
   name: 'grade.category.delete',
+  offline: 'guarded',
   input: z.object({ courseId: z.string().uuid(), id: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('grade:manage', i.courseId),
   async handler(ctx, { courseId, id }) {
@@ -1056,6 +1063,7 @@ export const deleteGradeCategory = defineOperation({
 /** Moves a category or an item one place up or down among its siblings. */
 export const moveGradebookEntry = defineOperation({
   name: 'grade.move',
+  offline: 'guarded',
   input: z.object({
     courseId: z.string().uuid(),
     kind: z.enum(['category', 'item']),

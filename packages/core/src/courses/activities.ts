@@ -206,6 +206,8 @@ async function scheduleAiIndex(ctx: RequestContext, activityId: string) {
 const activityCreate = (name: string, restoring: boolean) =>
   defineOperation({
     name,
+    // a teacher adds activities offline; restores and imports need the cloud
+    offline: restoring ? 'online' : 'replay',
     input: ActivityInput,
     async authorize(ctx, i) {
       await ctx.perm.require('course:manageactivities', i.courseId);
@@ -275,6 +277,7 @@ export const importActivity = activityCreate('activity.import', true);
 
 export const updateActivity = defineOperation({
   name: 'activity.update',
+  offline: 'guarded',
   input: ActivityInput.omit({ courseId: true, sectionId: true, moduleKey: true }).extend({
     id: z.string().uuid(),
   }),
@@ -366,6 +369,7 @@ const FileArea = z.string().min(1).max(100);
  */
 export const saveActivityFiles = defineOperation({
   name: 'activity.files.save',
+  offline: 'guarded',
   input: z.object({
     activityId: z.string().uuid(),
     add: z
@@ -412,6 +416,7 @@ export const saveActivityFiles = defineOperation({
 
 export const setActivityVisibility = defineOperation({
   name: 'activity.visibility',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid(), visibility: z.enum(['SHOWN', 'HIDDEN', 'STEALTH']) }),
   authorize: (ctx, i) => authorizeActivity(ctx, i.id),
   async handler(ctx, { id, visibility }) {
@@ -427,6 +432,7 @@ export const setActivityVisibility = defineOperation({
 /** Moves an activity to a section, before another activity or subsection (or to the end). */
 export const moveActivity = defineOperation({
   name: 'activity.move',
+  offline: 'guarded',
   input: z.object({
     id: z.string().uuid(),
     sectionId: z.string().uuid(),
@@ -456,6 +462,7 @@ export const moveActivity = defineOperation({
 
 export const moveActivityStep = defineOperation({
   name: 'activity.moveStep',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid(), direction: z.enum(['up', 'down']) }),
   authorize: (ctx, i) => authorizeActivity(ctx, i.id),
   async handler(ctx, { id, direction }) {
@@ -478,6 +485,7 @@ async function syncGrades(ctx: RequestContext & { tx: Prisma.TransactionClient }
 
 export const deleteActivity = defineOperation({
   name: 'activity.delete',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx, i) => authorizeActivity(ctx, i.id),
   async handler(ctx, { id }) {
@@ -500,6 +508,7 @@ export const deleteActivity = defineOperation({
 
 export const restoreActivity = defineOperation({
   name: 'activity.restore',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx, i) => authorizeActivity(ctx, i.id),
   async handler(ctx, { id }) {
@@ -515,6 +524,7 @@ export const restoreActivity = defineOperation({
 /** Permanently removes an activity from the recycle bin. */
 export const purgeActivity = defineOperation({
   name: 'activity.purge',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx, i) => authorizeActivity(ctx, i.id),
   async handler(ctx, { id }) {

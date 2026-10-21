@@ -1,6 +1,6 @@
 import { withWriteScope } from '@hubium/db';
 import { log } from '@hubium/log';
-import { msg, renderMsg } from '@hubium/module-sdk';
+import { msg, type OfflinePolicy, renderMsg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { MutationContext, RequestContext } from './context.ts';
 import { AppError, type MsgOrText, ValidationError } from './errors.ts';
@@ -13,6 +13,8 @@ const logger = log('operations');
 
 export interface OperationDef<I extends z.ZodType, O> {
   name: string;
+  /** What a local node does with it without a connection (OfflinePolicy). */
+  offline: OfflinePolicy;
   input: I;
   authorize?: (ctx: RequestContext, input: z.output<I>) => Promise<void> | void;
   handler: (ctx: MutationContext, input: z.output<I>) => Promise<O>;
@@ -40,13 +42,35 @@ export function parseInput<I extends z.ZodType>(schema: I, raw: unknown): z.outp
   return r.data;
 }
 
+// Every operation by name: a local node records them by name and the cloud replays them.
+const registry = new Map<string, Operation<z.ZodType, unknown>>();
+/** How many times each name was defined: once, or two operations share it. */
+const definitions = new Map<string, number>();
+
 export function defineOperation<I extends z.ZodType, O>(def: OperationDef<I, O>): Operation<I, O> {
-  return {
+  const op: Operation<I, O> = {
     ...def,
     run(ctx, raw) {
       return withActorScope(ctx.actor, () => runOperation(def, ctx, raw));
     },
   };
+  registry.set(def.name, op as Operation<z.ZodType, unknown>);
+  definitions.set(def.name, (definitions.get(def.name) ?? 0) + 1);
+  return op;
+}
+
+/** The operation of a name, among those of the modules loaded so far. */
+export function getOperation(name: string): Operation<z.ZodType, unknown> | undefined {
+  return registry.get(name);
+}
+
+export function listOperations(): Operation<z.ZodType, unknown>[] {
+  return [...registry.values()];
+}
+
+/** Names defined more than once (a reload in development defines them again). */
+export function duplicateOperationNames(): string[] {
+  return [...definitions].filter(([, n]) => n > 1).map(([name]) => name);
 }
 
 async function runOperation<I extends z.ZodType, O>(

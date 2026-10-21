@@ -223,6 +223,7 @@ export async function listNotifications(
 
 export const markNotificationsRead = defineOperation({
   name: 'notification.read',
+  offline: 'replay',
   mutation: true,
   input: z.object({
     ids: z.array(z.string().uuid()).max(500).optional(),
@@ -264,6 +265,7 @@ export async function getNotificationPreferences(db: Db, userId: string, moduleK
 
 export const updateNotificationPreferences = defineOperation({
   name: 'notification.preferences.update',
+  offline: 'guarded',
   mutation: true,
   input: z.object({
     digestHour: z.coerce.number().int().min(0).max(23),
@@ -353,6 +355,7 @@ export async function applyUnsubscribe(
 /** The unsubscribe link of an email: its page and the one-click endpoint (RFC 8058). */
 export const unsubscribeByToken = defineOperation({
   name: 'notification.unsubscribe',
+  offline: 'online',
   input: z.object({ token: z.string().max(1000) }),
   handler: (ctx, { token }) =>
     applyUnsubscribe(

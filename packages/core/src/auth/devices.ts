@@ -170,6 +170,7 @@ export async function reportNotMe(
 /** The "it wasn't me" link of a new sign-in notice. */
 export const reportNotMeByToken = defineOperation({
   name: 'user.notMe',
+  offline: 'online',
   input: z.object({ token: z.string().max(1000) }),
   handler: (ctx, { token }) => reportNotMe(ctx.tx, token),
 });
