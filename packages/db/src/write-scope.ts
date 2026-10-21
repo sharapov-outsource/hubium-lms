@@ -6,7 +6,8 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 // - touch: a side record of a page view (last access, viewed);
 // - derived: data that can be computed again (caches, totals);
 // - files: the registry of stored blobs and the sessions of uploads;
-// - external: the state of protocols other systems call (LTI, webinar callbacks);
+// - external: the records of exchanges with systems outside Hubium (an AI provider, an LTI
+//   tool, a webinar server), which only the cloud makes;
 // - job: a job or a scheduled task of the worker;
 // - auth: Better Auth's own tables;
 // - system: start-up, the seed and the other commands of the CLI.

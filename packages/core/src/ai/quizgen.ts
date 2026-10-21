@@ -9,6 +9,7 @@ import type { RequestContext } from '../context.ts';
 import { describeError, NotFoundError, ValidationError } from '../errors.ts';
 import { enqueue } from '../jobs/jobs.ts';
 import { localeCode } from '../lib/zod.ts';
+import { defineOperation } from '../operation.ts';
 import { ensureDefaultQuestionCategory, saveQuestion } from '../questions/bank.ts';
 import { resolveFeature } from './config.ts';
 import { indexActivity } from './indexing.ts';
@@ -50,31 +51,37 @@ const difficultyText = {
   hard: 'hard: analysis, comparing ideas or applying them to a new example',
 };
 
-export async function startQuizGeneration(ctx: RequestContext, raw: unknown) {
-  const input = QuizGenInput.parse(raw);
-  // The generation runs in the worker, which records its own usage.
-  await aiGate(ctx, { feature: 'QUIZGEN', courseId: input.courseId, reserve: false });
-  await ctx.perm.require('question:manage', input.courseId);
-  const cat = await ctx.db.questionCategory.findUnique({ where: { id: input.categoryId } });
-  if (cat?.contextId !== input.courseId)
-    throw new ValidationError({ categoryId: [msg('errors.common.unknownCategory')] });
-  const n = await ctx.db.activity.count({
-    where: { id: { in: input.activityIds }, courseId: input.courseId, deletedAt: null },
-  });
-  if (n !== input.activityIds.length)
-    throw new ValidationError({ activityIds: [msg('errors.courses.unknownActivity')] });
-  if (ctx.actor.kind !== 'user') throw new ValidationError({ _: [msg('errors.ai.usersOnly')] });
-  const gen = await ctx.db.aiGeneration.create({
-    data: {
-      feature: 'QUIZGEN',
-      courseId: input.courseId,
-      requestedById: ctx.actor.userId,
-      input: input as unknown as Prisma.InputJsonValue,
-    },
-  });
-  await enqueue(QUIZGEN_JOB, { generationId: gen.id }, { retryLimit: 0 });
-  return { id: gen.id };
-}
+export const startQuizGeneration = defineOperation({
+  name: 'ai.quizgen.start',
+  input: QuizGenInput,
+  async authorize(ctx, input) {
+    // The generation runs in the worker, which records its own usage.
+    await aiGate(ctx, { feature: 'QUIZGEN', courseId: input.courseId, reserve: false });
+    await ctx.perm.require('question:manage', input.courseId);
+  },
+  async handler(ctx, input) {
+    const cat = await ctx.tx.questionCategory.findUnique({ where: { id: input.categoryId } });
+    if (cat?.contextId !== input.courseId)
+      throw new ValidationError({ categoryId: [msg('errors.common.unknownCategory')] });
+    const n = await ctx.tx.activity.count({
+      where: { id: { in: input.activityIds }, courseId: input.courseId, deletedAt: null },
+    });
+    if (n !== input.activityIds.length)
+      throw new ValidationError({ activityIds: [msg('errors.courses.unknownActivity')] });
+    if (ctx.actor.kind !== 'user') throw new ValidationError({ _: [msg('errors.ai.usersOnly')] });
+    const gen = await ctx.tx.aiGeneration.create({
+      data: {
+        feature: 'QUIZGEN',
+        courseId: input.courseId,
+        requestedById: ctx.actor.userId,
+        input: input as unknown as Prisma.InputJsonValue,
+      },
+    });
+    // queued with the generation, or neither is
+    await enqueue(QUIZGEN_JOB, { generationId: gen.id }, { retryLimit: 0, tx: ctx.tx });
+    return { id: gen.id };
+  },
+});
 
 async function sourcesFor(db: Db, activityIds: string[]) {
   const acts = await db.activity.findMany({
@@ -239,22 +246,24 @@ export async function getQuizGeneration(ctx: RequestContext, id: string) {
 }
 
 /** Accept (→ READY) or reject (→ deleted) generated drafts in bulk. */
-export async function reviewGeneratedQuestions(
-  ctx: RequestContext,
-  generationId: string,
-  decision: { accept: string[]; reject: string[] },
-) {
-  const gen = await getQuizGeneration(ctx, generationId);
-  const own = new Set(gen.questions.filter((q) => q.status === 'DRAFT').map((q) => q.id));
-  const accept = decision.accept.filter((id) => own.has(id));
-  const reject = decision.reject.filter((id) => own.has(id) && !accept.includes(id));
-  await ctx.db.$transaction([
-    ctx.db.question.updateMany({ where: { id: { in: accept } }, data: { status: 'READY' } }),
-    ctx.db.question.deleteMany({ where: { id: { in: reject } } }),
-    ctx.db.aiGeneration.update({
+export const reviewGeneratedQuestions = defineOperation({
+  name: 'ai.quizgen.review',
+  input: z.object({
+    generationId: z.string().uuid(),
+    accept: z.array(z.string().uuid()).max(1000).default([]),
+    reject: z.array(z.string().uuid()).max(1000).default([]),
+  }),
+  async handler(ctx, { generationId, ...decision }) {
+    const gen = await getQuizGeneration(ctx, generationId);
+    const own = new Set(gen.questions.filter((q) => q.status === 'DRAFT').map((q) => q.id));
+    const accept = decision.accept.filter((id) => own.has(id));
+    const reject = decision.reject.filter((id) => own.has(id) && !accept.includes(id));
+    await ctx.tx.question.updateMany({ where: { id: { in: accept } }, data: { status: 'READY' } });
+    await ctx.tx.question.deleteMany({ where: { id: { in: reject } } });
+    await ctx.tx.aiGeneration.update({
       where: { id: generationId },
       data: { acceptedCount: { increment: accept.length } },
-    }),
-  ]);
-  return { accepted: accept.length, rejected: reject.length };
-}
+    });
+    return { accepted: accept.length, rejected: reject.length };
+  },
+});

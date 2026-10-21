@@ -123,13 +123,13 @@ export async function setCourseAiFeatureAction(
 }
 
 export async function acceptAiConsentAction(feature: Feature) {
-  return runAction(async () => acceptConsent(await getContext(), feature));
+  return runAction(async () => acceptConsent.run(await getContext(), { feature }));
 }
 
 export async function startQuizGenAction(fd: FormData) {
   return runAction(async () => {
     const v = formToObject(fd);
-    return startQuizGeneration(await getContext(), {
+    return startQuizGeneration.run(await getContext(), {
       courseId: v.courseId,
       categoryId: v.categoryId,
       activityIds: fd.getAll('activityIds').map(String),
@@ -163,12 +163,12 @@ export async function reviewQuizGenAction(id: string, accept: string[], reject: 
   return runAction(async () => {
     const ctx = await getContext();
     const g = await getQuizGeneration(ctx, id);
-    const r = await reviewGeneratedQuestions(ctx, id, { accept, reject });
+    const r = await reviewGeneratedQuestions.run(ctx, { generationId: id, accept, reject });
     revalidatePath(`/course/${g.courseId}/question-bank`);
     return r;
   });
 }
 
 export async function rateTutorAction(messageId: string, rating: -1 | 1 | null) {
-  return runAction(async () => rateTutorMessage(await getContext(), messageId, rating));
+  return runAction(async () => rateTutorMessage.run(await getContext(), { messageId, rating }));
 }

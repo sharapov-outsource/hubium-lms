@@ -1,11 +1,14 @@
 import { AiProviderError, AiRefusalError, htmlToText, type Msg, type Usage } from '@hubium/ai';
+import { withWriteScope } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
+import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { getCourseOutline } from '../courses/activities.ts';
 import { getCourseAccess } from '../courses/courses.ts';
 import { AppError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { buildModuleCtx, toActivityRef } from '../modules/module-ctx.ts';
 import { getModule } from '../modules/registry.ts';
+import { defineOperation } from '../operation.ts';
 import { featureEnabledForCourse } from './config.ts';
 import { retrieveChunks } from './indexing.ts';
 import { aiGate, consentStatus, recordUsage, takeReservation } from './usage.ts';
@@ -112,7 +115,10 @@ export async function* askTutor(
     throw new AppError('FORBIDDEN', msg('errors.ai.tutorDuringQuiz'), {
       details: { tutorBlocked: scope.blockedBy },
     });
-  const f = await aiGate(ctx, { feature: 'TUTOR', courseId: input.courseId });
+  // The exchange with the AI provider and its records happen in the cloud only: they are
+  // written in the external scope, as the answer streams.
+  const external = <T>(fn: () => Promise<T>) => withWriteScope('external', 'ai.tutor', fn);
+  const f = await external(() => aiGate(ctx, { feature: 'TUTOR', courseId: input.courseId }));
   const reservationId = takeReservation(f);
   const started = Date.now();
   let model = f.model();
@@ -127,16 +133,18 @@ export async function* askTutor(
     >,
   ) => {
     recorded = true;
-    return recordUsage(ctx.db, {
-      feature: 'TUTOR',
-      userId,
-      courseId: input.courseId,
-      providerId: f.provider.id,
-      model,
-      durationMs: Date.now() - started,
-      reservationId,
-      ...r,
-    });
+    return external(() =>
+      recordUsage(ctx.db, {
+        feature: 'TUTOR',
+        userId,
+        courseId: input.courseId,
+        providerId: f.provider.id,
+        model,
+        durationMs: Date.now() - started,
+        reservationId,
+        ...r,
+      }),
+    );
   };
   try {
     yield* answerTutor();
@@ -161,18 +169,21 @@ export async function* askTutor(
     if (conv && conv.courseId !== input.courseId) throw new NotFoundError('Conversation');
     if (!conv)
       conv = {
-        ...(await ctx.db.tutorConversation.create({
-          data: { userId, courseId: input.courseId, title: text.slice(0, 80) },
-        })),
+        ...(await external(() =>
+          ctx.db.tutorConversation.create({
+            data: { userId, courseId: input.courseId, title: text.slice(0, 80) },
+          }),
+        )),
         messages: [],
       };
     const history: Msg[] = conv.messages.slice(-10).map((m) => ({
       role: m.role === 'USER' ? 'user' : 'assistant',
       content: m.content,
     }));
-    await ctx.db.tutorMessage.create({
-      data: { conversationId: conv.id, role: 'USER', content: text },
-    });
+    const convId = conv.id;
+    await external(() =>
+      ctx.db.tutorMessage.create({ data: { conversationId: convId, role: 'USER', content: text } }),
+    );
     yield { type: 'start', conversationId: conv.id };
 
     const course = await ctx.db.course.findUniqueOrThrow({ where: { id: input.courseId } });
@@ -239,36 +250,42 @@ export async function* askTutor(
     }
     const row = await record({ usage, status: 'OK' });
     const cited = citations.filter((c) => answer.includes(`[${c.index}]`));
-    const answerRow = await ctx.db.tutorMessage.create({
-      data: {
-        conversationId: conv.id,
-        role: 'ASSISTANT',
-        content: answer,
-        citations: cited as never,
-        usageId: row.id,
-      },
-    });
-    await ctx.db.tutorConversation.update({
-      where: { id: conv.id },
-      data: { updatedAt: new Date() },
+    const answerRow = await external(async () => {
+      const m = await ctx.db.tutorMessage.create({
+        data: {
+          conversationId: convId,
+          role: 'ASSISTANT',
+          content: answer,
+          citations: cited as never,
+          usageId: row.id,
+        },
+      });
+      await ctx.db.tutorConversation.update({
+        where: { id: convId },
+        data: { updatedAt: new Date() },
+      });
+      return m;
     });
     yield { type: 'done', messageId: answerRow.id, citations: cited };
   }
 }
 
-export async function rateTutorMessage(
-  ctx: RequestContext,
-  messageId: string,
-  rating: -1 | 1 | null,
-) {
-  const m = await ctx.db.tutorMessage.findUnique({
-    where: { id: messageId },
-    include: { conversation: true },
-  });
-  if (!m || ctx.actor.kind !== 'user' || m.conversation.userId !== ctx.actor.userId)
-    throw new NotFoundError('Message');
-  if (m.role !== 'ASSISTANT')
-    throw new ValidationError({ rating: [msg('errors.ai.onlyAnswersRated')] });
-  await ctx.db.tutorMessage.update({ where: { id: messageId }, data: { rating } });
-  return { id: messageId, rating };
-}
+export const rateTutorMessage = defineOperation({
+  name: 'ai.tutor.rate',
+  input: z.object({
+    messageId: z.string().uuid(),
+    rating: z.union([z.literal(-1), z.literal(1)]).nullable(),
+  }),
+  async handler(ctx, { messageId, rating }) {
+    const m = await ctx.tx.tutorMessage.findUnique({
+      where: { id: messageId },
+      include: { conversation: true },
+    });
+    if (!m || ctx.actor.kind !== 'user' || m.conversation.userId !== ctx.actor.userId)
+      throw new NotFoundError('Message');
+    if (m.role !== 'ASSISTANT')
+      throw new ValidationError({ rating: [msg('errors.ai.onlyAnswersRated')] });
+    await ctx.tx.tutorMessage.update({ where: { id: messageId }, data: { rating } });
+    return { id: messageId, rating };
+  },
+});

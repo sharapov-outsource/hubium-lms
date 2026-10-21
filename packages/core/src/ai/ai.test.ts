@@ -205,7 +205,7 @@ describe('AI features', () => {
     await expect(
       collect(askTutor(s1, { courseId: f.courseId, message: 'Как добавить элемент в список?' })),
     ).rejects.toBeInstanceOf(AiConsentRequiredError);
-    await acceptConsent(s1, 'TUTOR');
+    await acceptConsent.run(s1, { feature: 'TUTOR' });
     const ev = await collect(
       askTutor(s1, { courseId: f.courseId, message: 'Как добавить элемент в список?' }),
     );
@@ -236,7 +236,7 @@ describe('AI features', () => {
 
   it('switches the tutor off while a quiz attempt is open', async () => {
     const s2 = await ctxFor(t.db, f.users.student2!);
-    await acceptConsent(s2, 'TUTOR');
+    await acceptConsent.run(s2, { feature: 'TUTOR' });
     await t.db.quizAttempt.create({
       data: { activityId: quizId, userId: f.users.student2!, attemptNumber: 1, seed: 1 },
     });
@@ -254,7 +254,7 @@ describe('AI features', () => {
 
   it('enforces quotas, logs LIMITED and honours the course switch', async () => {
     const s3 = await ctxFor(t.db, f.users.student3!);
-    await acceptConsent(s3, 'TUTOR');
+    await acceptConsent.run(s3, { feature: 'TUTOR' });
     await allFeatures({ perMinute: 1 });
     await collect(askTutor(s3, { courseId: f.courseId, message: 'Что делает pop?' }));
     const err = await collect(askTutor(s3, { courseId: f.courseId, message: 'А append?' })).catch(
@@ -314,7 +314,7 @@ describe('AI features', () => {
       roleId: f.roles.student!,
     });
     const fresh = await ctxFor(t.db, f.users.assistant!);
-    await acceptConsent(fresh, 'TUTOR');
+    await acceptConsent.run(fresh, { feature: 'TUTOR' });
     await allFeatures({ perMinute: 1 });
     try {
       const results = await Promise.allSettled(
@@ -333,14 +333,18 @@ describe('AI features', () => {
 
   it('generates draft questions that the teacher reviews', async () => {
     const teacher = await ctxFor(t.db, f.users.teacher!);
-    await acceptConsent(teacher, 'QUIZGEN');
+    await acceptConsent.run(teacher, { feature: 'QUIZGEN' });
     await ensureDefaultQuestionCategory(t.db, f.courseId);
     const cat = await t.db.questionCategory.findFirstOrThrow({ where: { contextId: f.courseId } });
     const s1 = await ctxFor(t.db, f.users.student1!);
     await expect(
-      startQuizGeneration(s1, { courseId: f.courseId, categoryId: cat.id, activityIds: [pageId] }),
+      startQuizGeneration.run(s1, {
+        courseId: f.courseId,
+        categoryId: cat.id,
+        activityIds: [pageId],
+      }),
     ).rejects.toThrow();
-    const { id } = await startQuizGeneration(teacher, {
+    const { id } = await startQuizGeneration.run(teacher, {
       courseId: f.courseId,
       categoryId: cat.id,
       activityIds: [pageId],
@@ -360,12 +364,16 @@ describe('AI features', () => {
     ]);
     expect(gen.questions[0]!.tags).toEqual(['ai', 'Коллекции']);
     const [a, b, ...rest] = gen.questions.map((q) => q.id);
-    expect(await reviewGeneratedQuestions(teacher, id, { accept: [a!, b!], reject: rest })).toEqual(
-      {
-        accepted: 2,
-        rejected: 2,
-      },
-    );
+    expect(
+      await reviewGeneratedQuestions.run(teacher, {
+        generationId: id,
+        accept: [a!, b!],
+        reject: rest,
+      }),
+    ).toEqual({
+      accepted: 2,
+      rejected: 2,
+    });
     const after = await getQuizGeneration(teacher, id);
     expect(after.questions.map((q) => q.status)).toEqual(['READY', 'READY']);
     expect(after.acceptedCount).toBe(2);
@@ -375,7 +383,7 @@ describe('AI features', () => {
 
   it('holds queued question generation to the limits', async () => {
     const teacher = await ctxFor(t.db, f.users.teacher!);
-    await acceptConsent(teacher, 'QUIZGEN');
+    await acceptConsent.run(teacher, { feature: 'QUIZGEN' });
     await ensureDefaultQuestionCategory(t.db, f.courseId);
     const cat = await t.db.questionCategory.findFirstOrThrow({ where: { contextId: f.courseId } });
     // a fresh minute: earlier tests generated questions too
@@ -384,8 +392,8 @@ describe('AI features', () => {
     try {
       // both pass when queued: the worker spends the tokens, so the worker checks
       const input = { courseId: f.courseId, categoryId: cat.id, activityIds: [pageId], count: 2 };
-      const first = await startQuizGeneration(teacher, input);
-      const second = await startQuizGeneration(teacher, input);
+      const first = await startQuizGeneration.run(teacher, input);
+      const second = await startQuizGeneration.run(teacher, input);
       expect((await runQuizGeneration(t.db, first.id))?.questionIds).toHaveLength(2);
       expect(await runQuizGeneration(t.db, second.id)).toBeNull();
       const gen = await t.db.aiGeneration.findUniqueOrThrow({ where: { id: second.id } });
@@ -397,7 +405,7 @@ describe('AI features', () => {
 
   it('suggests a grade from pseudonymised input', async () => {
     const teacher = await ctxFor(t.db, f.users.teacher!);
-    await acceptConsent(teacher, 'GRADING_ASSIST');
+    await acceptConsent.run(teacher, { feature: 'GRADING_ASSIST' });
     const student = await t.db.user.findUniqueOrThrow({ where: { id: f.users.student1 } });
     const sub = await t.db.assignSubmission.create({
       data: {
