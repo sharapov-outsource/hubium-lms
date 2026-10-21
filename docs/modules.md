@@ -64,7 +64,7 @@ Actions run in a transaction by default (`mutation: false` opts out, e.g. for sl
 | `completion` | custom completion rules (`evaluate(ctx, a, userId, rules)`) |
 | `grading.items(a)` | grade items in the gradebook; write grades with `ctx.grades.setGrades` |
 | `calendar.events(a)` | open/due dates shown in calendars |
-| `lifecycle` | `onCreate`, `onUpdate`, `onDelete`, `onUserUnenrolled` |
+| `lifecycle` | `onCreate`, `onUpdate`, `onDelete`, `onUserEnrolled`, `onUserUnenrolled` |
 | `actions` | typed, capability-checked operations |
 | `queries` | typed reads for API clients (`GET /api/v1/activities/{id}/queries/{name}`); share the read functions with the module's pages; throw `ModuleError('NOT_FOUND', …)` for what the user may not see |
 | `http(ctx, req, path)` | endpoints under `/api/mod/<key>/…` (streaming, callbacks) |

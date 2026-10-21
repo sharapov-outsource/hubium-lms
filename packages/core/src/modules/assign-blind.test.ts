@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { courseFixture } from '../../test/course-fixture.ts';
 import { ctxFor, useTestDb } from '../../test/helpers.ts';
 import { updateActivity } from '../courses/activities.ts';
+import { enrolUsers } from '../enrol/enrol.ts';
 import { runModuleAction, runModuleQuery } from './actions.ts';
 import { buildModuleCtx, toActivityRef } from './module-ctx.ts';
 
@@ -82,11 +83,33 @@ describe('assignment: blind marking', () => {
     expect(await hidesNames(buildModuleCtx(teacher), revealed as never)).toBe(false);
   });
 
-  it('gives every student a different number', async () => {
+  it('gives the numbers in operations, every student a different one', async () => {
     const f = await courseFixture(t.db, 'ABL2');
-    const { id } = await f.addActivity('assign', 'Эссе', { blindMarking: true });
+    const sys = await ctxFor(t.db, 'system');
     const ids = [f.users.student1!, f.users.student2!, f.users.student3!];
+    // marked blind from the start: everyone in the course has a number
+    const { id } = await f.addActivity('assign', 'Эссе', { blindMarking: true });
     const numbers = await participantNumbers(t.db, id, ids);
     expect(new Set(ids.map((u) => numbers.get(u))).size).toBe(3);
+    // as has whoever is enrolled later
+    await enrolUsers.run(sys, {
+      courseId: f.courseId,
+      userIds: [f.users.parent!],
+      roleId: f.roles.student!,
+    });
+    const later = (await participantNumbers(t.db, id, [f.users.parent!])).get(f.users.parent!);
+    expect(later).toBeGreaterThanOrEqual(100_000);
+    expect([...numbers.values()]).not.toContain(later);
+
+    // marked blind later: the numbers come then
+    const { id: other } = await f.addActivity('assign', 'Реферат', {});
+    expect((await participantNumbers(t.db, other, ids)).size).toBe(0);
+    const act = await t.db.activity.findUniqueOrThrow({ where: { id: other } });
+    await updateActivity.run(sys, {
+      id: other,
+      name: act.name,
+      settings: { ...(act.settings as object), blindMarking: true },
+    });
+    expect((await participantNumbers(t.db, other, ids)).size).toBe(3);
   });
 });

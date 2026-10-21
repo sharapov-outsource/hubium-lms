@@ -147,6 +147,7 @@ export interface ActivityModule<S extends z.ZodObject = z.ZodObject> {
     onUpdate?(ctx: ModuleCtx, a: ActivityRef<S>, prev: z.output<S>): Promise<void>;
     onDelete?(ctx: ModuleCtx, a: ActivityRef<S>): Promise<void>;     // on recycle-bin purge
     onCourseReset?(ctx: ModuleCtx, courseId: string, o: ResetOptions): Promise<void>;
+    onUserEnrolled?(ctx: ModuleCtx, courseId: string, userId: string): Promise<void>;
     onUserUnenrolled?(ctx: ModuleCtx, courseId: string, userId: string): Promise<void>;
   };
   grading?: {

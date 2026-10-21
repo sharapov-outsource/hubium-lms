@@ -364,6 +364,8 @@ export interface ActivityModule<S = Record<string, unknown>> {
     onCreate?(ctx: ModuleCtx, a: ActivityRef<S>): Promise<void>;
     onUpdate?(ctx: ModuleCtx, a: ActivityRef<S>, prev: S): Promise<void>;
     onDelete?(ctx: ModuleCtx, a: ActivityRef<S>): Promise<void>;
+    /** The user was enrolled in the course, or enrolled again by a method they had left. */
+    onUserEnrolled?(ctx: ModuleCtx, courseId: string, userId: string): Promise<void>;
     onUserUnenrolled?(ctx: ModuleCtx, courseId: string, userId: string): Promise<void>;
   };
   todo?(ctx: ModuleCtx, userId: string, courseIds: string[]): Promise<TodoItem[]>;

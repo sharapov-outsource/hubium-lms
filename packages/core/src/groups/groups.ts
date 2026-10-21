@@ -360,13 +360,13 @@ export const setCohortMembers = defineOperation({
     });
     for (const m of methods) {
       for (const userId of add) {
-        await enrolUserRecord(ctx.tx, {
+        await enrolUserRecord(ctx, ctx.tx, {
           courseId: m.courseId,
           methodId: m.id,
           userId,
           roleId: m.roleId,
           component: 'COHORT',
-          log: { ctx, method: 'cohort' },
+          log: { method: 'cohort' },
         });
       }
       if (remove.length) {
@@ -419,13 +419,13 @@ export const addCohortSync = defineOperation({
       data: { courseId, type: 'COHORT', cohortId, roleId, name: cohort.name, sortOrder: 5 },
     });
     for (const m of cohort.members) {
-      await enrolUserRecord(ctx.tx, {
+      await enrolUserRecord(ctx, ctx.tx, {
         courseId,
         methodId: method.id,
         userId: m.userId,
         roleId,
         component: 'COHORT',
-        log: { ctx, method: 'cohort' },
+        log: { method: 'cohort' },
       });
     }
     return { methodId: method.id, enrolled: cohort.members.length };

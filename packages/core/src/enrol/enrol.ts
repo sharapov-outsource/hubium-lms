@@ -21,9 +21,13 @@ function keysEqual(a: string, b: string): boolean {
   return timingSafeEqual(ha, hb);
 }
 
-/** Creates the enrolment and its role assignment. Idempotent per (method, user). */
+/**
+ * Creates the enrolment and its role assignment, and tells the modules of a new or
+ * reactivated one. Idempotent per (method, user).
+ */
 export async function enrolUserRecord(
-  tx: Tx,
+  ctx: RequestContext,
+  tx: Prisma.TransactionClient,
   opts: {
     courseId: string;
     methodId: string;
@@ -34,7 +38,7 @@ export async function enrolUserRecord(
     endsAt?: Date | null;
     component?: 'ENROL' | 'COHORT';
     /** Log user.enrolled when this enrols them (paths that do not log it themselves). */
-    log?: { ctx: Pick<RequestContext, 'perm' | 'origin'>; method: string };
+    log?: { method: string };
   },
 ) {
   const existing = await tx.enrolment.findUnique({
@@ -62,7 +66,7 @@ export async function enrolUserRecord(
   const ra = await tx.roleAssignment.findFirst({ where: { enrolmentId: enrolment.id } });
   // a new enrolment, or one active again
   if (opts.log && existing?.status !== 'ACTIVE')
-    await logEnrolments(tx, opts.log.ctx, 'enrolled', opts.courseId, [opts.userId], {
+    await logEnrolments(tx, ctx, 'enrolled', opts.courseId, [opts.userId], {
       method: opts.log.method,
     });
   if (!ra) {
@@ -75,6 +79,11 @@ export async function enrolUserRecord(
         enrolmentId: enrolment.id,
       },
     });
+  }
+  if (existing?.status !== 'ACTIVE') {
+    const mctx = buildModuleCtx(ctx, tx);
+    for (const m of listModules())
+      await m.lifecycle?.onUserEnrolled?.(mctx, opts.courseId, opts.userId);
   }
   return enrolment;
 }
@@ -141,7 +150,7 @@ export const enrolUsers = defineOperation({
       ).map((e) => e.userId),
     );
     for (const userId of input.userIds) {
-      await enrolUserRecord(ctx.tx, {
+      await enrolUserRecord(ctx, ctx.tx, {
         courseId: input.courseId,
         methodId: method.id,
         userId,
@@ -441,7 +450,7 @@ export const selfEnrol = defineOperation({
     const endsAt = method.durationDays
       ? new Date(ctx.now.getTime() + method.durationDays * 86_400_000)
       : null;
-    await enrolUserRecord(ctx.tx, {
+    await enrolUserRecord(ctx, ctx.tx, {
       courseId,
       methodId: method.id,
       userId,

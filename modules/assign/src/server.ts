@@ -37,6 +37,8 @@ import {
   isBlind,
   markedBy,
   methodKey,
+  numberEnrolled,
+  numberParticipants,
   participantNumbers,
   revealedAt,
   setFlags,
@@ -475,6 +477,8 @@ export const assign = defineModule<AssignSettingsT>({
       await ctx.db.assignUserFlags.deleteMany({ where });
       await ctx.db.assignParticipant.deleteMany({ where });
       await ctx.db.assignState.deleteMany({ where });
+      // blind again: those still in the course get new numbers
+      await numberEnrolled(ctx, a as Assign);
     },
   },
   privacy: {
@@ -547,6 +551,9 @@ export const assign = defineModule<AssignSettingsT>({
     },
   },
   lifecycle: {
+    async onCreate(ctx, act) {
+      await numberEnrolled(ctx, act as Assign);
+    },
     async onUpdate(ctx, act, prev) {
       const a = act as Assign;
       const s = a.settings;
@@ -559,6 +566,7 @@ export const assign = defineModule<AssignSettingsT>({
           ctx.db.assignGrade.count({ where: { activityId: a.id } }),
         ]);
         if (subs || grades) throw new ModuleError('CONFLICT', msg('mod.assign.errors.blindLocked'));
+        await numberEnrolled(ctx, a);
       }
       // grades given before the workflow was on had reached the students: they stay released
       if (s.markingWorkflow && !prev.markingWorkflow) {
@@ -585,6 +593,22 @@ export const assign = defineModule<AssignSettingsT>({
         'scaleId',
       ] as const;
       if (keys.some((k) => s[k] !== prev[k])) await pushAll(ctx, a);
+    },
+    async onUserEnrolled(ctx, courseId, userId) {
+      const acts = await ctx.db.activity.findMany({
+        where: {
+          courseId,
+          moduleKey: 'assign',
+          deletedAt: null,
+          settings: { path: ['blindMarking'], equals: true },
+        },
+      });
+      for (const act of acts) {
+        const settings = AssignSettings.safeParse(act.settings);
+        if (!settings.success) continue;
+        const a = { ...(act as unknown as Assign), settings: settings.data };
+        await numberParticipants(ctx, a, [userId]);
+      }
     },
   },
   backup: {
@@ -958,6 +982,7 @@ export const assign = defineModule<AssignSettingsT>({
           },
         });
         await ctx.log('assign.submission.saved', { activityId: a.id, status: sub.status });
+        await numberParticipants(ctx, a, [uid]);
         if (complete) {
           for (const o of await ownersOf(ctx, a, uid, team))
             await ctx.completion.recompute(a.id, o);
@@ -1060,6 +1085,7 @@ export const assign = defineModule<AssignSettingsT>({
         const s = a.settings;
         const scale = await assignScale(ctx.db, a);
         await requireMarker(ctx, a, [input.userId]);
+        await numberParticipants(ctx, a, [input.userId]);
         // with a rubric or marking guide the grade is the form's
         const form = await gradingForm(ctx.db, a);
         const filling = form?.method === 'rubric' ? input.rubric : input.guide;
