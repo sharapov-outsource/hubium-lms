@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # main, and the working branches before they become pull requests
+    branches: [main, 'claude/**']
   pull_request:
   # the release workflow runs every check before it publishes
   workflow_call:
