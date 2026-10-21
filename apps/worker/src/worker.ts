@@ -1,4 +1,3 @@
-import './service.ts';
 import { createServer } from 'node:http';
 import {
   ensureSystemContext,
