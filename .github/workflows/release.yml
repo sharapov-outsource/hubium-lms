@@ -162,6 +162,7 @@ jobs:
         run: |
           mkdir -p release
           cp build/release/*.tar.gz docker/compose.yml docker/Caddyfile release/
+          sh scripts/node-files.sh "$PWD/release"
           (cd release && sha256sum -- * > SHA256SUMS)
           sudo bash install-hubium.sh --yes --mode ${{ matrix.mode }} --from-dir release \
             --version "$VERSION" --no-pull --domain lms.localhost --content-domain content.localhost \
@@ -249,6 +250,7 @@ jobs:
           cp build/release/hubium-*.tar.gz assets/
           sed "s/__HUBIUM_VERSION__/$VERSION/" install-hubium.sh > assets/install-hubium.sh
           cp docker/compose.yml docker/Caddyfile assets/
+          sh scripts/node-files.sh "$PWD/assets"
           cp .env.production.example assets/env.production.example
           (cd assets && sha256sum -- * > SHA256SUMS && cat SHA256SUMS)
       # artifact attestations need a public repository (or GitHub Enterprise Cloud)

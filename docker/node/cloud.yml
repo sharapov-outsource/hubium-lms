@@ -1,0 +1,47 @@
+# The cloud ready for local nodes, over docker/compose.yml (install-hubium.sh enable-nodes
+# sets it up):
+#   docker compose -f docker/compose.yml -f docker/node/cloud.yml --env-file .env up -d
+#
+# The bundled database (the db profile) takes replication connections of the nodes over TLS
+# on NODE_REPLICATION_PORT (cloud-db.sh, cloud-hba.conf; node/tls holds its certificate),
+# the web server tells registering nodes where it is and which certificate to expect, and
+# node-certs copies the certificates of APP_URL and CONTENT_HOST from Caddy, as it renews
+# them, for nodes that answer under the cloud's names (GET /api/node/cert).
+services:
+  db:
+    entrypoint: ["sh", "/cloud-db.sh"]
+    environment:
+      # WAL kept for nodes that do not answer; a node away longer copies the database anew
+      NODE_WAL_KEEP: ${NODE_WAL_KEEP:-20GB}
+    volumes:
+      - ./node/cloud-db.sh:/cloud-db.sh:ro
+      - ./node/cloud-hba.conf:/cloud-hba.conf:ro
+      - ./node/tls:/src:ro
+    ports: ["${NODE_REPLICATION_BIND:-0.0.0.0}:${NODE_REPLICATION_PORT:-5432}:5432"]
+
+  web:
+    environment:
+      # where nodes reach the database, and its certificate
+      NODE_REPLICATION_HOST: ${NODE_REPLICATION_HOST:-}
+      NODE_REPLICATION_PORT: ${NODE_REPLICATION_PORT:-5432}
+      NODE_REPLICATION_CA_FILE: /node-db/server.crt
+      NODE_TLS_DIR: /node-certs
+    volumes:
+      - ./node/tls/server.crt:/node-db/server.crt:ro
+      - node-certs:/node-certs:ro
+
+  node-certs:
+    profiles: [caddy]
+    image: caddy:2.11
+    entrypoint: ["sh", "/node-certs.sh"]
+    environment:
+      APP_URL: ${APP_URL:-https://lms.localhost}
+      CONTENT_HOST: ${CONTENT_HOST:-https://content.localhost}
+    volumes:
+      - ./node/node-certs.sh:/node-certs.sh:ro
+      - caddy:/caddy:ro
+      - node-certs:/out
+    restart: unless-stopped
+
+volumes:
+  node-certs:

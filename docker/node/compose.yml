@@ -1,0 +1,145 @@
+# A local node of a branch or building: the LMS for the people of its network, with the
+# cloud's data, working on its own while the line to the cloud is down (docs/operations.md,
+# "Local nodes"). install-hubium.sh --node writes its .env (`hubium node register` prints
+# the settings) and starts it:
+#   docker compose -f docker/node/compose.yml --env-file .env up -d
+#
+#   db-a    a physical replica of the cloud's database (replica.sh), over TLS
+#   db-b    a replica of db-a, which the agent promotes while the node works alone
+#   web     the web server in the node role: reads db-a, or db-b without a connection
+#   agent   the gateway the network reaches (it passes changes on to the cloud), the node's
+#           mode, its journal and its sync, the file mirror
+#   caddy   HTTPS for APP_URL and CONTENT_HOST: with the cloud's names (the network's DNS
+#           sends them here) the certificate the cloud hands its nodes, otherwise the
+#           node's own (see Caddyfile)
+#
+# The node runs the cloud's release: HUBIUM_VERSION follows it (`hubium node register`
+# writes it; the agent passes everything on while they differ).
+name: hubium-node
+x-image: &image ${HUBIUM_IMAGE:-ghcr.io/sharapov-outsource/hubium-lms}:${HUBIUM_VERSION:-latest}
+# the cloud's major release (`hubium node register` writes it), with the C library of the
+# cloud's Docker installation (Debian bookworm): the collations must match
+x-pg-image: &pg-image pgvector/pgvector:0.8.7-pg${NODE_PG_MAJOR:-18}-${NODE_PG_DEBIAN:-bookworm}
+x-node-env: &node-env
+  HUBIUM_ROLE: node
+  NODE_ID: ${NODE_ID:?NODE_ID is required (hubium node register)}
+  NODE_TOKEN: ${NODE_TOKEN:?NODE_TOKEN is required}
+  NODE_HUB_URL: ${NODE_HUB_URL:?NODE_HUB_URL is required}
+  NODE_HUB_CONTENT_HOST: ${NODE_HUB_CONTENT_HOST:-}
+  NODE_HUB_ADDRESS: ${NODE_HUB_ADDRESS:-}
+  NODE_AGENT_URL: http://agent:3002
+  DATABASE_URL: postgresql://${NODE_DB_ROLE}:${NODE_DB_PASSWORD}@db-a:5432/${NODE_DB_NAME:-hubium}
+  NODE_DATABASE_B_URL: postgresql://${NODE_DB_ROLE}:${NODE_DB_PASSWORD}@db-b:5432/${NODE_DB_NAME:-hubium}
+  APP_URL: ${APP_URL:-${NODE_HUB_URL}}
+  CONTENT_HOST: ${CONTENT_HOST:-${NODE_HUB_CONTENT_HOST:-}}
+  APP_SECRET: ${APP_SECRET:?APP_SECRET is required}
+  # the cloud's files the node has: fetched as they are needed and preloaded for the
+  # categories of the node (Administration → Nodes)
+  STORAGE_DRIVER: mirror
+  SMTP_URL: ${SMTP_URL:-}
+  MAIL_FROM: ${MAIL_FROM:-Hubium LMS <no-reply@hubium.local>}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  # how long without the cloud before the node works on its own (seconds)
+  NODE_OFFLINE_AFTER: ${NODE_OFFLINE_AFTER:-120}
+x-replica: &replica
+  image: *pg-image
+  entrypoint: ["/replica.sh"]
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U postgres -h 127.0.0.1"]
+    interval: 5s
+    retries: 720
+  stop_grace_period: 60s
+  restart: unless-stopped
+
+services:
+  db-a:
+    <<: *replica
+    environment:
+      REPLICA_UPSTREAM: host=${NODE_DB_HOST} port=${NODE_DB_PORT:-5432} user=${NODE_DB_ROLE} password=${NODE_DB_PASSWORD} sslmode=verify-ca sslrootcert=/var/lib/postgresql/upstream-ca.crt
+      REPLICA_SLOT: ${NODE_DB_SLOT}
+      REPLICA_CA: ${NODE_DB_CA:-}
+    volumes:
+      - ./replica.sh:/replica.sh:ro
+      - db-a:/var/lib/postgresql
+      - control-a:/control
+
+  db-b:
+    <<: *replica
+    environment:
+      REPLICA_UPSTREAM: host=db-a port=5432 user=${NODE_DB_ROLE} password=${NODE_DB_PASSWORD}
+      REPLICA_SLOT: hubium_b
+      REPLICA_CREATE_SLOT: "yes"
+    volumes:
+      - ./replica.sh:/replica.sh:ro
+      - db-b:/var/lib/postgresql
+      - control-b:/control
+    depends_on:
+      db-a: { condition: service_healthy }
+
+  web:
+    image: *image
+    environment:
+      <<: *node-env
+      HUBIUM_SERVICE: web
+      # the agent's gateway in front (Caddy is in front of it)
+      TRUSTED_PROXY_HOPS: 1
+    volumes: [data:/data]
+    depends_on:
+      db-a: { condition: service_healthy }
+    restart: unless-stopped
+
+  agent:
+    image: *image
+    command: ["worker"]
+    environment:
+      <<: *node-env
+      HUBIUM_SERVICE: node-agent
+      NODE_GATEWAY_PORT: 3000
+      NODE_CONTROL_PORT: 3002
+      NODE_WEB_URL: http://web:3000
+      NODE_REPLICA_A_CONTROL: /control/a
+      NODE_REPLICA_B_CONTROL: /control/b
+      # Caddy in front of the gateway
+      NODE_TRUSTED_PROXY_HOPS: 1
+      # the image's healthcheck reads the control API
+      WORKER_HEALTH_PORT: 3002
+      # the cloud's certificate for its names, for Caddy (see Caddyfile)
+      NODE_TLS: ${NODE_TLS:-cloud}
+      NODE_TLS_DIR: /certs
+    volumes:
+      - data:/data
+      - control-a:/control/a
+      - control-b:/control/b
+      - certs:/certs
+      # the agent gives it to Caddy's admin API with new certificates
+      - ./Caddyfile:/etc/hubium/Caddyfile:ro
+    depends_on:
+      db-a: { condition: service_healthy }
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2.11
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy:/data
+      - certs:/certs:ro
+    environment:
+      APP_URL: ${APP_URL:-${NODE_HUB_URL}}
+      CONTENT_HOST: ${CONTENT_HOST:-${NODE_HUB_CONTENT_HOST:-https://content.localhost}}
+      # "cloud": the certificate the agent fetches from the cloud (the cloud's names);
+      # anything else: Caddy's own (ACME, or "internal" on a network without the internet)
+      NODE_TLS: ${NODE_TLS:-cloud}
+    depends_on:
+      agent: { condition: service_started }
+    restart: unless-stopped
+
+volumes:
+  db-a:
+  db-b:
+  control-a:
+  control-b:
+  # the mirror of the cloud's files, and unfinished uploads
+  data:
+  certs:
+  caddy:

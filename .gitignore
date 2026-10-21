@@ -30,3 +30,5 @@ apps/web/.next-build/
 # Claude Code: only the shared project settings are tracked
 .claude/*
 !.claude/settings.json
+e2e/node/.stack/
+docker/node/tls/
