@@ -7,7 +7,7 @@ import {
   resolveLogins,
   saveReport,
   saveSchedule,
-  sendSchedule,
+  sendScheduleNow,
   ValidationError,
 } from '@hubium/core';
 import { msg } from '@hubium/module-sdk';
@@ -127,9 +127,7 @@ export async function deleteScheduleAction(reportId: string, id: string) {
 /** Sends a schedule's report now, as the schedule would. */
 export async function sendScheduleAction(reportId: string, id: string) {
   return runAction(async () => {
-    const ctx = await getContext();
-    await ctx.perm.require('report:customise');
-    const sent = await sendSchedule(db, id);
+    const sent = await sendScheduleNow.run(await getContext(), { id });
     revalidatePath(`/reports/${reportId}/edit`);
     return { sent };
   });

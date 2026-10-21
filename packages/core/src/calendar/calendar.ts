@@ -199,6 +199,16 @@ export async function resetFeedToken(db: Tx, userId: string): Promise<string> {
   return token;
 }
 
+/** A new address of the person's own calendar feed: the previous one stops working. */
+export const resetMyFeedToken = defineOperation({
+  name: 'calendar.feedToken.reset',
+  input: z.object({}),
+  async handler(ctx) {
+    if (ctx.actor.kind !== 'user') throw new ForbiddenError();
+    return { token: await resetFeedToken(ctx.tx, ctx.actor.userId) };
+  },
+});
+
 /** Whose feed a token opens: an active account's only. */
 export async function userForFeedToken(db: Tx, token: string): Promise<string | null> {
   const row = await db.calendarFeedToken.findUnique({

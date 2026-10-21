@@ -55,15 +55,19 @@ describe('Administration → Tasks', () => {
     );
 
     // a failed run goes back to the queue; a scheduled task can be queued now
-    await retryTaskRun(admin, { name: 'files.gc', id: failedId });
+    await retryTaskRun.run(admin, { name: 'files.gc', id: failedId });
     expect((await boss.getJobById('files.gc', failedId))?.state).toBe('retry');
-    await expect(retryTaskRun(admin, { name: 'files.gc', id: failedId })).rejects.toMatchObject({
+    await expect(retryTaskRun.run(admin, { name: 'files.gc', id: failedId })).rejects.toMatchObject(
+      {
+        code: 'NOT_FOUND',
+      },
+    );
+    capturedJobs.length = 0;
+    await runTaskNow.run(admin, { name: 'files.gc' });
+    expect(capturedJobs.map((j) => j.name)).toEqual(['files.gc']);
+    await expect(runTaskNow.run(admin, { name: 'email.send' })).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
-    capturedJobs.length = 0;
-    await runTaskNow(admin, 'files.gc');
-    expect(capturedJobs.map((j) => j.name)).toEqual(['files.gc']);
-    await expect(runTaskNow(admin, 'email.send')).rejects.toMatchObject({ code: 'NOT_FOUND' });
 
     const { id: teacherId } = await t.db.user.findUniqueOrThrow({ where: { username: 'teacher' } });
     const teacher = await ctxFor(t.db, teacherId);

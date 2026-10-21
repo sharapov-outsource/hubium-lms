@@ -612,6 +612,16 @@ export async function sendSchedule(
   return sent;
 }
 
+/** Sends a schedule's report now, as the schedule would; the number of letters sent. */
+export const sendScheduleNow = defineOperation({
+  name: 'report.schedule.send',
+  input: z.object({ id: z.string().uuid() }),
+  authorize: (ctx) => ctx.perm.require('report:customise'),
+  // the letters go out one by one, each schedule claimed before them
+  mutation: false,
+  handler: (ctx, { id }) => sendSchedule(ctx.db, id, ctx.now),
+});
+
 /** Cron (every 15 minutes): the schedules that are due. */
 export async function runDueSchedules(db: Db, now = new Date()): Promise<number> {
   const due = await db.reportSchedule.findMany({

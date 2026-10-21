@@ -1,5 +1,7 @@
-import type { Db } from '@hubium/db';
+import type { Db, Prisma } from '@hubium/db';
+import { z } from 'zod';
 import { logEvent } from '../events/log.ts';
+import { defineOperation } from '../operation.ts';
 import { type AllSettings, setSettings } from '../settings/settings.ts';
 
 // Maintenance mode, as in Moodle: while it is on only site administrators use the site.
@@ -49,7 +51,7 @@ export function openDuringMaintenance(pathname: string): boolean {
 
 /** Turns maintenance mode on or off (the settings page, `hubium maintenance`). */
 export async function setMaintenance(
-  db: Db,
+  db: Db | Prisma.TransactionClient,
   input: { enabled: boolean; message?: string; until?: string | null },
   actorId?: string | null,
 ) {
@@ -68,3 +70,18 @@ export async function setMaintenance(
     origin: actorId ? 'WEB' : 'CLI',
   });
 }
+
+/** Maintenance mode from the settings page. */
+export const setMaintenanceMode = defineOperation({
+  name: 'site.maintenance.set',
+  input: z.object({
+    enabled: z.boolean(),
+    message: z.string().max(10_000).optional(),
+    until: z.string().max(64).nullish(),
+  }),
+  authorize: (ctx) => ctx.perm.require('site:config'),
+  async handler(ctx, input) {
+    await setMaintenance(ctx.tx, input, ctx.perm.userId);
+    return null;
+  },
+});

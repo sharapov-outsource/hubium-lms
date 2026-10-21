@@ -20,7 +20,7 @@ import {
   saveModuleSettings,
   saveSiteSettings,
   sendTestEmail,
-  setMaintenance,
+  setMaintenanceMode,
   setRoleCapability,
   setRoleOverride,
   setUserSuspended,
@@ -32,7 +32,7 @@ import {
   validateProfileValues,
 } from '@hubium/core';
 import { readSheet } from '@hubium/core/lib/sheets';
-import { SYSTEM_CONTEXT_ID } from '@hubium/db';
+import { SYSTEM_CONTEXT_ID, withWriteScope } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
 import { generateAccentPalette } from '@hubium/ui/palette';
 import { revalidatePath } from 'next/cache';
@@ -354,16 +354,11 @@ export async function saveSettingsAction(fd: FormData) {
           break;
         case 'maintenance':
           // logged, and the same as `hubium maintenance on|off`
-          await ctx.perm.require('site:config');
-          await setMaintenance(
-            db,
-            {
-              enabled: formBool(fd.get('maintenanceEnabled')),
-              message: v.maintenanceMessage ?? '',
-              until: v.maintenanceUntil || null,
-            },
-            ctx.perm.userId,
-          );
+          await setMaintenanceMode.run(ctx, {
+            enabled: formBool(fd.get('maintenanceEnabled')),
+            message: v.maintenanceMessage ?? '',
+            until: v.maintenanceUntil || null,
+          });
           revalidatePath('/', 'layout');
           return null;
         default:
@@ -475,15 +470,18 @@ export async function stopLoginAsAction() {
     const { actor } = await getContext();
     if (actor.kind !== 'user' || !actor.realUserId) throw new ForbiddenError();
     await auth.api.stopImpersonating({ headers: await headers() });
-    await logEvent(db, {
-      name: 'user.loggedinas.stopped',
-      actorId: actor.realUserId,
-      realActorId: null,
-      contextId: SYSTEM_CONTEXT_ID,
-      objectType: 'user',
-      objectId: actor.userId,
-      relatedUserId: actor.userId,
-    });
+    // the record of the change Better Auth just made
+    await withWriteScope('auth', 'user.loginAs.stop', () =>
+      logEvent(db, {
+        name: 'user.loggedinas.stopped',
+        actorId: actor.realUserId,
+        realActorId: null,
+        contextId: SYSTEM_CONTEXT_ID,
+        objectType: 'user',
+        objectId: actor.userId,
+        relatedUserId: actor.userId,
+      }),
+    );
     return { userId: actor.userId };
   });
 }

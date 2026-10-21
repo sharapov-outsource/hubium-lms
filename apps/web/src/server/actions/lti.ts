@@ -26,11 +26,10 @@ const saveLtiTool = defineOperation({
   name: 'lti.tool.save',
   input: z.record(z.string(), z.unknown()),
   authorize: siteLti,
-  mutation: false,
   async handler(ctx, input) {
     try {
-      const tool = await saveTool(ctx.db, input);
-      await logEvent(ctx.db, {
+      const tool = await saveTool(ctx.tx, input);
+      await logEvent(ctx.tx, {
         name: input.id ? 'lti.tool.updated' : 'lti.tool.created',
         actorId: ctx.perm.userId,
         objectType: 'LtiTool',
@@ -67,10 +66,10 @@ const rotateLtiKey = defineOperation({
   name: 'lti.key.rotate',
   input: z.object({}),
   authorize: siteLti,
-  mutation: false,
+  // the old key retires only with the new one made
   async handler(ctx) {
-    const kid = await rotateKey(ctx.db);
-    await logEvent(ctx.db, { name: 'lti.key.rotated', actorId: ctx.perm.userId, data: { kid } });
+    const kid = await rotateKey(ctx.tx);
+    await logEvent(ctx.tx, { name: 'lti.key.rotated', actorId: ctx.perm.userId, data: { kid } });
     return null;
   },
 });
