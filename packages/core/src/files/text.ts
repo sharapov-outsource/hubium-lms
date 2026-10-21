@@ -1,6 +1,6 @@
 import { buffer } from 'node:stream/consumers';
 import { documentKind, extractDocumentText } from '@hubium/ai/extract';
-import type { Db, Prisma } from '@hubium/db';
+import { type Db, type Prisma, withWriteScope } from '@hubium/db';
 import { getStorage } from './storage.ts';
 
 // Text of uploaded documents for the AI tutor, quiz generation and search. Extraction runs
@@ -46,10 +46,13 @@ export async function fileText(
     error = (e instanceof Error ? e.message : String(e)).slice(0, 500) || 'Unreadable document';
   }
   const row = { version: FILE_TEXT_VERSION, text, truncated, error };
-  await db.fileBlobText.upsert({
-    where: { blobId: f.blobId },
-    create: { blobId: f.blobId, ...row },
-    update: { ...row, createdAt: new Date() },
-  });
+  // a cache: any copy of the site extracts the same text again
+  await withWriteScope('derived', 'file.text', () =>
+    db.fileBlobText.upsert({
+      where: { blobId: f.blobId },
+      create: { blobId: f.blobId, ...row },
+      update: { ...row, createdAt: new Date() },
+    }),
+  );
   return error ? null : text;
 }

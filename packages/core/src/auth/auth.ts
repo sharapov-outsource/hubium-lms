@@ -204,12 +204,15 @@ const PASSWORD_FIELDS: Record<string, string> = {
 };
 
 export function createAuth({
-  db,
+  db: site,
   baseURL,
   secret,
   extraPlugins = [],
   customOAuth = [],
 }: CreateAuthOptions) {
+  // Better Auth's writes and those of its hooks and plugins (sign-in records, lockouts,
+  // password history, LDAP and SSO accounts) belong to the auth write scope
+  const db = inWriteScope(site, 'auth', 'better-auth');
   const { social, generic } = oauthProviders();
   generic.push(...customOAuth.map(customOAuthConfig));
   const custom = new Map(customOAuth.map((p) => [p.providerId, p]));
@@ -223,9 +226,8 @@ export function createAuth({
     baseURL,
     secret,
     // Transactions are required by the SSO plugin's user resolution. SSO rows come with
-    // their client secret unsealed (see sso.ts). Better Auth's own writes (sessions,
-    // accounts, verifications, rate limits) belong to the auth write scope.
-    database: prismaAdapter(withSsoSecrets(inWriteScope(db, 'auth', 'better-auth')), {
+    // their client secret unsealed (see sso.ts).
+    database: prismaAdapter(withSsoSecrets(db), {
       provider: 'postgresql',
       transaction: true,
     }),
