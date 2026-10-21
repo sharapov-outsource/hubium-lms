@@ -1673,7 +1673,11 @@ export const quiz = defineModule<QuizSettingsT>({
         const open = await ctx.db.quizAttempt.findFirst({
           where: { activityId: a.id, userId, preview, state: 'IN_PROGRESS' },
         });
-        if (open) return { attemptId: open.id };
+        // an attempt whose time ran out closes here as the sweep would close it, so a start
+        // after it means a new attempt whether the sweep has come by or not
+        if (open?.dueAt && open.dueAt.getTime() + GRACE_MS < ctx.now.getTime())
+          await finishAttempt(ctx, quizA, open.id);
+        else if (open) return { attemptId: open.id };
         const e = await effectiveQuiz(ctx.db, quizA, userId);
         const finished = await ctx.db.quizAttempt.findMany({
           where: { activityId: a.id, userId, preview: false, state: 'FINISHED' },
