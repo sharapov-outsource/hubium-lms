@@ -23,7 +23,7 @@ export async function OverridesPanel({
   const ctx = await getContext();
   if (!(await ctx.perm.can('role:review', contextId))) forbidden();
   const [data, canEdit, roles, t, locale] = await Promise.all([
-    listRoleOverrides.run(ctx, { contextId }),
+    listRoleOverrides(ctx, contextId),
     ctx.perm.can('role:override', contextId),
     db.role.findMany({ orderBy: { sortOrder: 'asc' }, include: { capabilities: true } }),
     getTranslations('permissions'),

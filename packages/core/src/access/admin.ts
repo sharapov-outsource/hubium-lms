@@ -1,6 +1,7 @@
-import type { Prisma } from '@hubium/db';
+import type { Db, Prisma } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
+import type { RequestContext } from '../context.ts';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { localizedText } from '../lib/localized.ts';
@@ -197,7 +198,7 @@ export function overridableCapabilities(level: Level, moduleKey?: string | null)
 }
 
 /** Level of a context and, for an activity, its module. */
-export async function overrideScope(db: Prisma.TransactionClient, contextId: string) {
+export async function overrideScope(db: Db | Prisma.TransactionClient, contextId: string) {
   const c = await db.context.findUnique({
     where: { id: contextId },
     select: { level: true, activity: { select: { moduleKey: true, courseId: true } } },
@@ -210,26 +211,23 @@ export async function overrideScope(db: Prisma.TransactionClient, contextId: str
   };
 }
 
-/** Overrides set directly in one context (for the "Permissions" pages). */
-export const listRoleOverrides = defineOperation({
-  name: 'role.listOverrides',
-  offline: 'online',
-  input: z.object({ contextId: z.string().uuid() }),
-  authorize: (ctx, i) => ctx.perm.require('role:review', i.contextId),
-  mutation: false,
-  async handler(ctx, { contextId }) {
-    const scope = await overrideScope(ctx.tx, contextId);
-    const overrides = await ctx.tx.roleOverride.findMany({
-      where: { contextId },
-      select: { roleId: true, capability: true, permission: true },
-    });
-    return {
-      ...scope,
-      capabilities: overridableCapabilities(scope.level, scope.moduleKey),
-      overrides,
-    };
-  },
-});
+/**
+ * Overrides set directly in one context (for the "Permissions" pages). A read: a plain
+ * query, which a local node answers from its replica too.
+ */
+export async function listRoleOverrides(ctx: RequestContext, contextId: string) {
+  await ctx.perm.require('role:review', contextId);
+  const scope = await overrideScope(ctx.db, contextId);
+  const overrides = await ctx.db.roleOverride.findMany({
+    where: { contextId },
+    select: { roleId: true, capability: true, permission: true },
+  });
+  return {
+    ...scope,
+    capabilities: overridableCapabilities(scope.level, scope.moduleKey),
+    overrides,
+  };
+}
 
 export const setRoleOverride = defineOperation({
   name: 'role.setOverride',
