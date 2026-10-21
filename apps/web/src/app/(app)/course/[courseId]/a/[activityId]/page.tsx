@@ -1,12 +1,4 @@
-import {
-  buildModuleCtx,
-  getActivityAccess,
-  getModule,
-  logEvent,
-  markActivityViewed,
-  recordCourseAccess,
-  toActivityRef,
-} from '@hubium/core';
+import { buildModuleCtx, getActivityAccess, getModule, toActivityRef, touch } from '@hubium/core';
 import { RichText } from '@hubium/editor/client';
 import { Alert, Badge, Button } from '@hubium/ui';
 import { ArrowLeft, Lock, Settings } from 'lucide-react';
@@ -81,18 +73,13 @@ export default async function ActivityPage({
   }
   const userId = ctx.perm.userId!;
   const mctx = buildModuleCtx(ctx);
-  if (access.isEnrolled) {
-    await db.$transaction((tx) => markActivityViewed(ctx, tx, a.id, userId));
-    await recordCourseAccess(db, userId, courseId, a.id);
-  }
-  await logEvent(db, {
-    name: 'activity.viewed',
-    actorId: userId,
+  await touch(db, {
+    kind: 'activity.view',
+    userId,
     courseId,
-    contextId: a.id,
-    objectType: a.moduleKey,
-    objectId: a.id,
-    origin: 'WEB',
+    activityId: a.id,
+    moduleKey: a.moduleKey,
+    enrolled: access.isEnrolled,
   });
   const completion =
     a.completionMode !== 'NONE' && access.isEnrolled && !access.canManageActivities

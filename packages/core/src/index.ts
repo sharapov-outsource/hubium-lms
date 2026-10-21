@@ -81,6 +81,7 @@ export * from './settings/site-admin.ts';
 export * from './system/health.ts';
 export * from './system/maintenance.ts';
 export * from './system/tasks.ts';
+export * from './touch/touch.ts';
 export * from './users/bulk.ts';
 export * from './users/last-access.ts';
 export * from './users/logins.ts';

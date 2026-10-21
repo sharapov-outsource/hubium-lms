@@ -5,9 +5,9 @@ import {
   getCourseOutline,
   getModule,
   parseAvailability,
-  recordCourseAccess,
   referencedActivities,
   toActivityRef,
+  touch,
 } from '@hubium/core';
 import { RichText } from '@hubium/editor/client';
 import { Badge, Button, Card, EmptyState, Progress } from '@hubium/ui';
@@ -42,7 +42,7 @@ export default async function CoursePage({
   const access = await getCourseAccess(ctx, courseId);
   if (!access.canView) return <CourseLanding courseId={courseId} />;
   const userId = ctx.perm.userId!;
-  await recordCourseAccess(db, userId, courseId);
+  await touch(db, { kind: 'course.access', userId, courseId });
   const [t, tm, format] = await Promise.all([
     getTranslations('course'),
     getTranslations('mod'),

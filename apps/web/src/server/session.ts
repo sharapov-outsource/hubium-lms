@@ -10,9 +10,9 @@ import {
   isSwitchableRole,
   loadUserAccess,
   NotFoundError,
-  noteUserAccess,
   Permissions,
   type RequestContext,
+  touch,
 } from '@hubium/core';
 import { log } from '@hubium/log';
 import { cookies, headers } from 'next/headers';
@@ -35,9 +35,11 @@ export const getCurrentUser = cache(async () => {
   if (user?.status !== 'ACTIVE') return null;
   // an administrator logged in as the user is not the user's visit
   if (!session.session.impersonatedBy)
-    await noteUserAccess(db, user).catch((err) =>
-      logger.warn({ err, userId: user.id }, 'Could not record the last visit'),
-    );
+    await touch(db, {
+      kind: 'user.access',
+      userId: user.id,
+      lastAccessAt: user.lastAccessAt,
+    }).catch((err) => logger.warn({ err, userId: user.id }, 'Could not record the last visit'));
   return user;
 });
 

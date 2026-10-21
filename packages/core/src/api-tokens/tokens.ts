@@ -9,7 +9,7 @@ import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { enabledLocales, getAllSettings, siteLocale } from '../settings/settings.ts';
-import { noteUserAccess } from '../users/last-access.ts';
+import { touch } from '../touch/touch.ts';
 
 // Personal access tokens for the REST API. The secret is shown once; only its SHA-256 is
 // stored. A token acts as its user, narrowed by scopes:
@@ -119,16 +119,15 @@ export async function authenticateApiToken(
   if (!t || t.revokedAt || (t.expiresAt && t.expiresAt <= now)) return null;
   const u = t.user;
   if (u.deletedAt || u.status !== 'ACTIVE') return null;
-  // Throttle the "last used" write to once a minute per token.
-  if (!t.lastUsedAt || now.getTime() - t.lastUsedAt.getTime() > 60_000)
-    await db.apiToken.update({
-      where: { id: t.id },
-      data: { lastUsedAt: now, lastUsedIp: meta.ip ?? null },
-    });
+  await touch(
+    db,
+    { kind: 'token.use', tokenId: t.id, lastUsedAt: t.lastUsedAt, ip: meta.ip ?? null },
+    now,
+  );
   const perm = new Permissions(db, await loadUserAccess(db, u));
   // Losing API access (e.g. a PROHIBIT on the role) disables existing tokens too.
   if (!(await perm.can('webservice:createtoken'))) return null;
-  await noteUserAccess(db, u, now);
+  await touch(db, { kind: 'user.access', userId: u.id, lastAccessAt: u.lastAccessAt }, now);
   const settings = await getAllSettings(db);
   const enabled = enabledLocales(settings);
   const locale = [meta.locale, u.locale].find((l): l is Locale => !!l && enabled.includes(l));

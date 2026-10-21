@@ -8,6 +8,7 @@ import { type Localized, localizedText } from '../lib/localized.ts';
 import { buildModuleCtx } from '../modules/module-ctx.ts';
 import { listModules } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
+import { touch } from '../touch/touch.ts';
 import { listProfileFields, profileFieldLabel, profileValueText } from '../users/profile-fields.ts';
 
 // Personal data: export ("download my data") and erasure on account deletion, plus
@@ -175,11 +176,14 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
   const mctx = buildModuleCtx(ctx);
   for (const m of listModules())
     if (m.privacy?.export) modules[m.key] = await m.privacy.export(mctx, userId);
-  await logEvent(db, {
-    name: 'privacy.exported',
-    actorId: ctx.actor.kind === 'user' ? ctx.actor.userId : null,
-    relatedUserId: userId,
-    origin: ctx.origin,
+  await touch(db, {
+    kind: 'event',
+    event: {
+      name: 'privacy.exported',
+      actorId: ctx.actor.kind === 'user' ? ctx.actor.userId : null,
+      relatedUserId: userId,
+      origin: ctx.origin,
+    },
   });
   // custom profile fields under their names, as the person saw them on the profile
   const stored = (user.customFields ?? {}) as Record<string, string | boolean>;
