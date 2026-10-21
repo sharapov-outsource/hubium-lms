@@ -155,6 +155,9 @@ async function cloudDb() {
     'POSTGRES_PASSWORD=hubium',
     '-e',
     'POSTGRES_DB=hubium',
+    // little WAL kept for silent nodes: the scenario of a long outage outlasts it
+    '-e',
+    'NODE_WAL_KEEP=256MB',
     '-v',
     `${dir}:/src:ro`,
     '-v',
@@ -190,7 +193,7 @@ async function cloudApps() {
   );
   start('cloud-worker', 'node', ['apps/worker/dist/main.mjs'], {
     ...env,
-    WORKER_QUEUES: 'default',
+    WORKER_QUEUES: process.env.WORKER_QUEUES ?? 'default',
   });
   await until('cloud web', async () => (await fetch(`${CLOUD.url}/api/health`)).ok, 180_000);
 }
