@@ -170,15 +170,16 @@ loop(() => files.preload(), 60_000);
 loop(async () => {
   if (machine.state.mode === 'OFFLINE') await runOfflineTasks();
 }, 60_000);
-// the cloud's certificates: as soon as the cloud answers (Caddy cannot serve without them
-// on a node just installed), then every ten minutes; a failure is tried again in a minute
+// the cloud's certificates: within a second of the cloud's first answer (Caddy cannot serve
+// without them on a node just installed, and the line may go soon after), then every ten
+// minutes; a failure is tried again in a minute
 let certificatesNext = 0;
 loop(async () => {
   if (!observed.cloudOk || Date.now() < certificatesNext) return;
   certificatesNext = Date.now() + 60_000;
   await refreshCertificates(s);
   certificatesNext = Date.now() + 600_000;
-}, 10_000);
+}, 1000);
 
 logger.info(
   { nodeId: s.node.id, gateway: s.gatewayPort, control: s.controlPort, release: s.release },

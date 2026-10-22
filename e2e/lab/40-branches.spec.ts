@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test';
 import { demoCourse } from '../node/helpers';
 import { sql } from '../tests/db';
 import { DEMO_PASSWORD, login } from '../tests/helpers';
-import { contextAt, expectMode } from './helpers';
-import { cloudCompose, installNode, link, startBranch } from './lab';
+import { certificateAt, contextAt, expectMode } from './helpers';
+import { branchIp, CLOUD_IP, cloudCompose, installNode, link, startBranch } from './lab';
 
 // A second branch, its node installed with a code from the cloud's command line. Both lose
 // their lines at once and the same student takes a quiz of one attempt in each; both lines
@@ -20,6 +20,14 @@ test('two branches without a connection at once, back together', async () => {
   await startBranch(2);
   installNode(2, code);
   await expectMode(2, 'ONLINE', 900_000);
+  // it serves the branch once it has the cloud's certificate
+  const cloudCert = await certificateAt(CLOUD_IP);
+  await expect
+    .poll(() => certificateAt(branchIp(2)).catch(() => null), {
+      timeout: 120_000,
+      intervals: [1000],
+    })
+    .toEqual(cloudCert);
 
   const ids = await demoCourse();
   const [quiz] = await sql<{ settings: object }>(`SELECT settings FROM "Activity" WHERE id = $1`, [
