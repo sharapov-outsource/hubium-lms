@@ -43,10 +43,11 @@ RUN export BUILD_COMMIT="$BUILD_COMMIT" \
 FROM node:${NODE_VERSION} AS hubium
 # Local files live in /data, owned by the app user: unfinished uploads, and with
 # STORAGE_DRIVER=fs the files themselves. compose.yml shares one volume there between web
-# and the workers.
+# and the workers. On a local node the agent writes the cloud's certificates for its Caddy
+# to /certs (docker/node/compose.yml): a volume takes the owner of the directory.
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 \
     STORAGE_FS_ROOT=/data HUBIUM_HOME=/opt/hubium PATH=/opt/hubium/bin:$PATH
-RUN useradd --system --uid 1001 hubium && mkdir -p /data && chown hubium /data
+RUN useradd --system --uid 1001 hubium && mkdir -p /data /certs && chown hubium /data /certs
 COPY --from=build /opt/hubium /opt/hubium
 LABEL org.opencontainers.image.title="Hubium LMS" \
       org.opencontainers.image.description="Open-source learning management system: web server, worker and the hubium command" \
