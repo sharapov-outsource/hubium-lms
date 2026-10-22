@@ -114,7 +114,7 @@ export async function replayBatch(
     for (const op of ops) results.push(await replayOne(db, node, op));
     const fresh = results.filter((r) => !r.repeated);
     const applied = fresh.filter((r) => r.status === 'APPLIED').length;
-    const conflicts = fresh.length - applied;
+    const conflicts = fresh.filter((r) => r.status === 'CONFLICT').length;
     const outage = await db.nodeOutage.findFirst({
       where: { nodeId: node.id, syncedAt: null },
       orderBy: { startedAt: 'desc' },
@@ -336,9 +336,26 @@ async function replayOne(db: Db, node: Node, op: JournalOp): Promise<ReplayResul
           : { key: 'nodes.reason.failed', message: e instanceof Error ? e.message : String(e) };
     if (!(e instanceof Refused) && !(e instanceof AppError))
       logger.error({ err: e, opId: op.id, name: op.name }, 'journal entry failed in the cloud');
+    if (sideEntry(op)) {
+      // what the person saw (posts read): dropped, not kept as a conflict
+      await db.nodeOpResult.createMany({
+        data: [{ opId: op.id, nodeId: node.id, status: 'REJECTED', error: reason.key }],
+        skipDuplicates: true,
+      });
+      logger.debug({ opId: op.id, name: op.name, reason: reason.key }, 'side entry dropped');
+      return { id: op.id, status: 'REJECTED', error: reason.key };
+    }
     await conflict(db, node, op, reason);
     return { id: op.id, status: 'CONFLICT', error: reason.key };
   }
+}
+
+/** An entry whose policy is `side`: a record of what a person saw, dropped when refused. */
+function sideEntry(op: JournalOp): boolean {
+  if (op.kind === 'operation') return getOperation(op.name)?.offline === 'side';
+  if (op.kind !== 'action') return false;
+  const dot = op.name.indexOf('.');
+  return getModule(op.name.slice(0, dot))?.actions?.[op.name.slice(dot + 1)]?.offline === 'side';
 }
 
 /** Keeps a refused entry as a conflict and tells its author (and the site admins). */

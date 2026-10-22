@@ -7,7 +7,7 @@ import '../src/index.ts';
 // with what the node may do with each without a connection: names are unique, and every
 // one says what that is.
 
-const POLICIES = ['replay', 'guarded', 'online'];
+const POLICIES = ['replay', 'guarded', 'side', 'online'];
 
 describe('the operations', () => {
   it('have names of their own', () => {

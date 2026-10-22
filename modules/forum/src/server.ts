@@ -1274,7 +1274,8 @@ export const forum = defineModule<ForumSettingsT>({
       },
     }),
     markRead: defineAction({
-      offline: 'replay',
+      // a record of what the person saw: not worth a conflict when the cloud refuses it
+      offline: 'side',
       summary: 'Mark every post of a discussion read',
       input: z.object({ discussionId: z.string().uuid() }),
       async handler(ctx, ref, input) {

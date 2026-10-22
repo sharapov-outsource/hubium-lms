@@ -162,18 +162,24 @@ describe('the replay of a node’s journal', () => {
     });
     await offline(async () => {
       const s3 = await ctxFor(copy.db, f.users.student3!);
+      await runModuleAction(s3, forumId, 'markRead', { discussionId: post.discussionId });
       await runModuleAction(s3, forumId, 'reply', { postId: post.id, message: '<p>Я тут</p>' });
     });
     const admin = await ctxFor(cloud.db, 'admin@test.local');
     await unenrolUser.run(admin, { courseId: f.courseId, userId: f.users.student3! });
     invalidatePermissionCaches();
+    const before = await cloud.db.nodeOutage.findFirstOrThrow({ where: { nodeId: node.id } });
     const { results } = await sync();
-    expect(results).toMatchObject([{ status: 'CONFLICT' }]);
+    // the post is kept as a conflict; that the student read the discussion is dropped
+    expect(results).toMatchObject([{ status: 'REJECTED' }, { status: 'CONFLICT' }]);
     expect(
       await cloud.db.forumPost.count({
         where: { authorId: f.users.student3, discussion: { activityId: forumId } },
       }),
     ).toBe(0);
+    expect(await cloud.db.nodeConflict.count({ where: { actorId: f.users.student3 } })).toBe(1);
+    const after = await cloud.db.nodeOutage.findFirstOrThrow({ where: { id: before.id } });
+    expect(after.conflicts - before.conflicts).toBe(1);
   });
 
   it('refuses an entry from outside the node’s outages', async () => {
