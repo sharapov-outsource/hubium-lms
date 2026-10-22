@@ -11,6 +11,7 @@ A release is built and published by CI from a git tag; nothing is uploaded by ha
 | `hubium-<version>-linux-x64.tar.gz`, `…-linux-arm64.tar.gz` | the whole system in one archive, Node.js included (plain JavaScript, nothing obfuscated) |
 | `install-hubium.sh` | the installer, with the release's version written in |
 | `compose.yml`, `Caddyfile`, `env.production.example` | the Docker installation without the script |
+| `nginx.conf` | the site for nginx in front of an installation without Caddy (`--https none` fills it in) |
 | `SHA256SUMS` | checksums of every file above |
 
 Images and archives come from one Dockerfile and one layout script (`scripts/bundle.sh`), so `/opt/hubium` in an image and an unpacked archive hold the same files. The archive layout:
@@ -21,7 +22,7 @@ node/               Node.js from the official image, with its licence
 web/                Next.js standalone server, static files, public/
 worker/             the bundled worker
 cli/                the bundled hubium command and migrations/*.sql
-deploy/             systemd units, Caddyfile, compose.yml, settings examples
+deploy/             systemd units, Caddyfile, nginx.conf, compose.yml, settings examples
 LICENSE, VERSION, README.txt
 ```
 
@@ -77,6 +78,6 @@ docker buildx imagetools inspect ghcr.io/sharapov-outsource/hubium-lms:1.2.0 --f
 - `shellcheck install-hubium.sh deploy/bin/hubium scripts/bundle.sh` runs in CI.
 - `--from-dir DIR` installs files from a directory instead of a release:
   - for native mode, the archive from `docker buildx build -f docker/Dockerfile --target bundle --output type=local,dest=DIR .`;
-  - for Docker mode, `compose.yml` and `Caddyfile`, with `--image`/`--no-pull` for locally built images.
+  - for Docker mode, `compose.yml` and `Caddyfile` (and `nginx.conf` with `--https none`), with `--image`/`--no-pull` for locally built images.
 
   CI's `docker` and `native` jobs install this way on every push.

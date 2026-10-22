@@ -6,7 +6,8 @@
 # on NODE_REPLICATION_PORT (cloud-db.sh, cloud-hba.conf; node/tls holds its certificate),
 # the web server tells registering nodes where it is and which certificate to expect, and
 # node-certs copies the certificates of APP_URL and CONTENT_HOST from Caddy, as it renews
-# them, for nodes that answer under the cloud's names (GET /api/node/cert).
+# them, for nodes that answer under the cloud's names (GET /api/node/cert). Without Caddy,
+# NODE_CERTS_DIR names the directory that holds them.
 services:
   db:
     entrypoint: ["sh", "/cloud-db.sh"]
@@ -28,7 +29,8 @@ services:
       NODE_TLS_DIR: /node-certs
     volumes:
       - ./node/tls/server.crt:/node-db/server.crt:ro
-      - node-certs:/node-certs:ro
+      # behind your own proxy, a directory you keep them in (install-hubium.sh enable-nodes)
+      - ${NODE_CERTS_DIR:-node-certs}:/node-certs:ro
 
   node-certs:
     profiles: [caddy]

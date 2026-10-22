@@ -119,6 +119,82 @@ jobs:
   # The lab of a cloud and branch servers installed as in production (e2e/lab, docs/PLAN.md):
   # each server a container with Docker inside, Hubium installed on it with install-hubium.sh
   # from the production image; outages, power cuts, a second branch, the cloud's upgrade.
+  # A native installation behind nginx (install-hubium.sh --https none and the site it
+  # writes): Ubuntu's nginx with a certificate where certbot keeps one, the checks of e2e/stack
+  # through it, then what a proxy must get right.
+  nginx:
+    name: Behind nginx
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Build the release archive
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: bundle
+          build-args: BUILD_COMMIT=${{ github.sha }}
+          outputs: type=local,dest=release
+          cache-from: type=gha,scope=bundle-amd64
+      - name: Install with install-hubium.sh, nginx in front
+        run: |
+          (cd release && sha256sum -- *.tar.gz > SHA256SUMS)
+          sudo bash install-hubium.sh --yes --mode native --from-dir release \
+            --domain lms.localhost --content-domain content.localhost --https none --db bundled \
+            --storage fs --modules all --demo yes \
+            --admin-email admin@hubium.local --admin-password 'Admin12345!'
+          sudo apt-get install -y --no-install-recommends nginx
+          live=/etc/letsencrypt/live/lms.localhost
+          sudo mkdir -p "$live"
+          sudo openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj /CN=lms.localhost \
+            -addext 'subjectAltName=DNS:lms.localhost,DNS:content.localhost' \
+            -keyout "$live/privkey.pem" -out "$live/fullchain.pem"
+          sudo cp /etc/hubium/nginx.conf /etc/nginx/conf.d/hubium.conf
+          sudo nginx -t
+          sudo systemctl restart nginx
+      - uses: pnpm/setup@v3
+        with: { runtime: node@24, cache: true, require-lockfile: true }
+      - run: pnpm --filter @hubium/e2e stack
+      - name: Redirects, the client's address, live updates and a log without tokens
+        run: |
+          site=https://lms.localhost
+          r=(-sSk --resolve lms.localhost:443:127.0.0.1 --resolve content.localhost:443:127.0.0.1)
+          curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' \
+            --resolve lms.localhost:80:127.0.0.1 http://lms.localhost/login | tee /dev/stderr |
+            grep -q '^301 https://lms.localhost/login$'
+          # a forged X-Forwarded-For: the session has the address nginx saw
+          curl "${r[@]}" -c jar -H 'Content-Type: application/json' -H "Origin: $site" \
+            -H 'X-Forwarded-For: 203.0.113.9' \
+            -d '{"email":"admin@hubium.local","password":"Admin12345!"}' \
+            "$site/api/auth/sign-in/email" | jq -e '.user.email == "admin@hubium.local"'
+          ip=$(cd / && sudo -u postgres psql -d hubium -Atc \
+            'SELECT "ipAddress" FROM "Session" ORDER BY "createdAt" DESC LIMIT 1')
+          [ "$ip" = 127.0.0.1 ] || { echo "the session's address: $ip"; exit 1; }
+          # live updates arrive at once, not when a buffer fills
+          (curl "${r[@]}" -b jar -N --max-time 5 "$site/api/realtime" || true) | grep -q ': connected'
+          # tokens in URLs stay out of the access log
+          curl "${r[@]}" -o /dev/null https://content.localhost/c/nightly-secret-1/index.html || true
+          curl "${r[@]}" -o /dev/null "$site/login?token=nightly-secret-2" || true
+          sudo grep -q 'redacted' /var/log/nginx/hubium.access.log
+          if sudo grep 'nightly-secret' /var/log/nginx/hubium.access.log; then exit 1; fi
+      - name: Logs
+        if: failure()
+        run: |
+          sudo journalctl -u 'hubium-*' -u nginx --no-pager | tee services.log > /dev/null || true
+          sudo cp /var/log/nginx/error.log nginx-error.log && sudo chmod a+r nginx-error.log || true
+          sudo cp /var/log/hubium-install.log . && sudo chmod a+r hubium-install.log || true
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: nginx-report
+          path: |
+            services.log
+            nginx-error.log
+            hubium-install.log
+            e2e/test-results
+
   lab:
     name: Lab of a cloud and branch servers
     runs-on: ubuntu-latest

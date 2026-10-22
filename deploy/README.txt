@@ -23,6 +23,8 @@ administrator. To do the same by hand:
   6. Point a reverse proxy with HTTPS at 127.0.0.1:3000 for both APP_URL and CONTENT_HOST.
      For Caddy, deploy/Caddyfile works once APP_URL, CONTENT_HOST and
      HUBIUM_WEB=127.0.0.1:3000 are in its environment (or written into the file).
+     For nginx, deploy/nginx.conf with your names in it; it says how to get the
+     certificate.
 
 deploy/compose.yml and .env.production.example run the same release in Docker.
 

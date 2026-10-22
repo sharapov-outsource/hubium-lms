@@ -184,7 +184,7 @@ The script checks the server and then asks:
 
 1. Docker or native installation.
 2. The site address and the content host.
-3. HTTPS: Caddy with automatic certificates, or your own proxy.
+3. HTTPS: Caddy with automatic certificates, or your own proxy (the installer writes a site for nginx).
 4. Which activity modules to install. Assignments, quizzes, forums, video, live sessions, SCORM, H5P and LTI can each be left out; the other activities are always there.
 5. The database: installed on the server, or an existing PostgreSQL. An existing one is checked first, and the script prints the SQL a DBA needs to run if rights or extensions are missing.
 6. Where files are kept: on the server, or in S3.

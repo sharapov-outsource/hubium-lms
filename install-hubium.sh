@@ -62,6 +62,7 @@ Site
   --content-domain HOST        separate host for untrusted SCORM and H5P content
                                (default: content.<domain>)
   --https caddy|none           Caddy with automatic certificates, or your own proxy
+                               (none writes a site for nginx to include)
   --web-port PORT              where the web server listens on 127.0.0.1 (3000)
 
 Modules (content pages, links, labels and files are always installed)
@@ -574,7 +575,7 @@ ask_everything() {
   [[ $CONTENT_DOMAIN != "$DOMAIN" ]] || die "The content host must differ from the main address."
   choose HTTPS "HTTPS" caddy \
     caddy "Caddy gets and renews certificates (ports 80 and 443)" \
-    none "my own reverse proxy forwards to 127.0.0.1"
+    none "my own reverse proxy (nginx or another) forwards to 127.0.0.1"
   ask WEB_PORT "Port of the web server on 127.0.0.1" 3000
   [[ $WEB_PORT =~ ^[0-9]+$ ]] || die "--web-port: not a port number."
 
@@ -641,6 +642,8 @@ ask_everything() {
       ask_secret S3_SECRET_KEY "Secret key"
       [[ -n $S3_SECRET_KEY ]] || die "The S3 secret key is required (--s3-secret-key)."
     else
+      [[ $HTTPS == caddy ]] ||
+        die "The S3 storage installed here is reached through Caddy: with your own proxy, keep files on this server (--storage fs) or give your S3 (--s3-endpoint)."
       ask FILES_DOMAIN "Host browsers download files from" "files.$base"
       FILES_DOMAIN=$(lower "${FILES_DOMAIN#https://}")
       valid_host "$FILES_DOMAIN" || die "Not a host name: $FILES_DOMAIN"
@@ -857,6 +860,10 @@ install_docker_mode() {
   run install -d -m 0750 "$PREFIX"
   get_asset compose.yml "$PREFIX"
   get_asset Caddyfile "$PREFIX"
+  if [[ $HTTPS == none ]]; then
+    get_asset nginx.conf "$PREFIX"
+    nginx_site "$PREFIX/nginx.conf" "$PREFIX/nginx.conf"
+  fi
   docker_env | write_file "$PREFIX/.env" 0600
   ok "compose.yml, Caddyfile and .env in $PREFIX"
 
@@ -1115,6 +1122,18 @@ caddy_config() {
   }
 }
 
+# With your own proxy: an nginx site for this installation's names and port, to include in
+# nginx's configuration (or to read for another proxy).
+nginx_site() {
+  local source=$1 file=$2
+  if [[ $DRY_RUN == yes ]]; then
+    printf '  %swrite %s for %s and %s%s\n' "$DIM" "$file" "$DOMAIN" "$CONTENT_DOMAIN" "$RESET"
+    return 0
+  fi
+  sed -e "s#lms\.example\.org#$DOMAIN#g" -e "s#content\.example\.org#$CONTENT_DOMAIN#g" \
+    -e "s#127\.0\.0\.1:3000#127.0.0.1:$WEB_PORT#g" "$source" | write_file "$file" 0644
+}
+
 setup_caddy() {
   [[ $HTTPS == caddy ]] || return 0
   step "Configuring Caddy"
@@ -1183,6 +1202,7 @@ install_native_mode() {
   run systemctl enable --now "${SERVICES[@]}"
   wait_healthy
   setup_caddy
+  if [[ $HTTPS == none ]]; then nginx_site "$RELEASE_DIR/deploy/nginx.conf" "$CONFIG_DIR/nginx.conf"; fi
 }
 
 save_install_conf() {
@@ -1217,7 +1237,8 @@ finish() {
   printf '\n'
   if [[ $HTTPS == none ]]; then
     note "Forward https://$DOMAIN and https://$CONTENT_DOMAIN to http://127.0.0.1:$WEB_PORT"
-    note "with the Host header kept and X-Forwarded-Proto set."
+    note "with the Host header kept and X-Forwarded-Proto set. An nginx site for them, with"
+    note "the steps for its certificate: $([[ $MODE == docker ]] && echo "$PREFIX" || echo "$CONFIG_DIR")/nginx.conf"
   fi
   if [[ $MODE == docker ]]; then
     note "Settings:  $PREFIX/.env    Logs: docker compose --project-directory $PREFIX logs -f"
@@ -1558,6 +1579,7 @@ enable_nodes() {
       echo "NODE_REPLICATION_PORT=$(quote "$port")"
     } >>"$PREFIX/.env"
   fi
+  if [[ $HTTPS == none ]]; then node_certs_own_proxy; fi
   step "Restarting with replication on"
   run_shown dc up -d --wait --wait-timeout 600
   save_install_conf
@@ -1565,6 +1587,38 @@ enable_nodes() {
   note "Nodes replicate over TLS on port $port of $host: open it to the nodes' addresses only."
   note "Add a node in Administration → Nodes; its code installs it on the node's server:"
   note "  sudo bash install-hubium.sh --node --hub https://$DOMAIN --code <code>"
+}
+
+# Nodes answer under the cloud's names with its certificates. Behind Caddy the node-certs
+# service copies them from it; behind your own proxy they are kept in /etc/hubium/node-certs,
+# where certbot's are copied as it renews them (a deploy hook), and anyone else's by hand.
+node_certs_own_proxy() {
+  local dir=/etc/hubium/node-certs hooks=/etc/letsencrypt/renewal-hooks/deploy
+  local lineage=/etc/letsencrypt/live/$DOMAIN
+  step "The certificates of $DOMAIN and $CONTENT_DOMAIN for the nodes"
+  run install -d -m 0700 -o 1001 -g 0 "$dir"
+  if [[ $DRY_RUN == no ]]; then
+    sed -i '/^NODE_CERTS_DIR=/d' "$PREFIX/.env"
+    echo "NODE_CERTS_DIR=$(quote "$dir")" >>"$PREFIX/.env"
+  fi
+  if [[ -d $hooks ]]; then
+    {
+      echo "#!/bin/sh"
+      echo "# Hubium LMS — written by install-hubium.sh enable-nodes: the certificate of the"
+      echo "# LMS's names, for its local nodes, copied as certbot renews it"
+      echo "[ \"\$RENEWED_LINEAGE\" = $lineage ] || exit 0"
+      echo "for host in $DOMAIN $CONTENT_DOMAIN; do"
+      echo "  install -m 0600 -o 1001 \"\$RENEWED_LINEAGE/fullchain.pem\" \"$dir/\$host.crt\""
+      echo "  install -m 0600 -o 1001 \"\$RENEWED_LINEAGE/privkey.pem\" \"$dir/\$host.key\""
+      echo "done"
+    } | write_file "$hooks/hubium-node-certs" 0755
+  fi
+  if [[ -d $hooks && -d $lineage ]]; then
+    run env RENEWED_LINEAGE="$lineage" sh "$hooks/hubium-node-certs"
+    ok "certbot's certificate of $DOMAIN is in $dir, now and as certbot renews it"
+  else
+    warn "Put the certificates of $DOMAIN and $CONTENT_DOMAIN into $dir as $DOMAIN.crt, $DOMAIN.key, $CONTENT_DOMAIN.crt and $CONTENT_DOMAIN.key (owner 1001), and again as they renew; with certbot, run enable-nodes again once it has them."
+  fi
 }
 
 # ── main ────────────────────────────────────────────────────────────────────────
