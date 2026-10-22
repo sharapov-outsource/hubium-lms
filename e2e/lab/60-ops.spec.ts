@@ -10,15 +10,16 @@ import {
   DOMAIN,
   installNode,
   LMS,
+  link,
   nodeCommand,
   nodeCompose,
   onServer,
 } from './lab';
 
 // Running a branch's node: its administrator (named in the cloud) takes it off the line
-// before an exam on the node's page and puts the sync off from the command line; the cloud
-// measures its nodes; a node is installed anew with a new code; a revoked node gets nothing
-// more from the cloud.
+// before an exam on the node's page and brings it back, and puts the sync off from the
+// command line when the line goes during a lesson; the cloud measures its nodes; a node is
+// installed anew with a new code; a revoked node gets nothing more from the cloud.
 
 async function nodeId(name = 'Филиал 1') {
   const [n] = await sql<{ id: string; dbRole: string }>(
@@ -41,6 +42,14 @@ async function post(page: Page, text: string) {
   await page.getByRole('button', { name: 'Отправить' }).click();
   await expect(page.locator('[id^="msg-"]')).toHaveCount(0);
   await expect(page.getByText(text)).toBeVisible();
+}
+
+async function inCloud(mark: string) {
+  const [r] = await sql<{ n: number }>(
+    `SELECT count(*)::int AS n FROM "ForumPost" WHERE "contentHtml" LIKE $1`,
+    [`%${mark}%`],
+  );
+  return r?.n ?? 0;
 }
 
 async function cloudAdmin() {
@@ -73,31 +82,40 @@ test.describe
         .toBe(1);
       await cloud.context.close();
 
+      // before an exam on a poor line: the node works alone, with the line up, as its admin
+      // asked, until they bring it back
       await login(page, 'teacher', DEMO_PASSWORD);
       await page.goto('/node');
       await expect(page.getByRole('heading', { name: 'Этот узел' })).toBeVisible();
       await page.getByRole('button', { name: 'Работать без основного сервера сейчас' }).click();
       await page.getByRole('dialog').getByRole('button', { name: 'Подтвердить' }).click();
-      // with the line up the node works alone, as its admin asked
       await expectMode(1, 'OFFLINE', 120_000);
-      const mark = `Перед экзаменом ${Date.now().toString(36)}`;
-      await post(page, mark);
-
-      // the sync waits until the lesson ends, then goes
-      nodeCommand(1, ['postpone', '--until', new Date(Date.now() + 90_000).toISOString()]);
+      const exam = `Перед экзаменом ${Date.now().toString(36)}`;
+      await post(page, exam);
       await page.goto('/node');
       await page.getByRole('button', { name: 'Вернуться к основному серверу' }).click();
       await page.getByRole('dialog').getByRole('button', { name: 'Подтвердить' }).click();
-      await page.goto('/node');
-      await expect(page.getByText(/Синхронизация ждёт до/)).toBeVisible();
-      await new Promise((ok) => setTimeout(ok, 30_000));
-      expect(agentState(1).mode).toBe('OFFLINE');
       await expectMode(1, 'ONLINE', 600_000);
-      const [n] = await sql<{ n: number }>(
-        `SELECT count(*)::int AS n FROM "ForumPost" WHERE "contentHtml" LIKE $1`,
-        [`%${mark}%`],
-      );
-      expect(n?.n).toBe(1);
+      expect(await inCloud(exam)).toBe(1);
+
+      // the line goes during a lesson: the sync waits until the lesson ends, then goes
+      try {
+        link(1, 'down');
+        await expectMode(1, 'OFFLINE', 300_000);
+        const lesson = `На занятии ${Date.now().toString(36)}`;
+        await post(page, lesson);
+        nodeCommand(1, ['postpone', '--until', new Date(Date.now() + 90_000).toISOString()]);
+        await page.goto('/node');
+        await expect(page.getByText(/Синхронизация ждёт до/)).toBeVisible();
+        link(1, 'up');
+        await new Promise((ok) => setTimeout(ok, 30_000));
+        expect(agentState(1).mode).toBe('OFFLINE');
+        expect(await inCloud(lesson)).toBe(0);
+        await expectMode(1, 'ONLINE', 600_000);
+        expect(await inCloud(lesson)).toBe(1);
+      } finally {
+        link(1, 'up');
+      }
     });
 
     test('the cloud measures its nodes', async () => {
