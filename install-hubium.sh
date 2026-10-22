@@ -1536,11 +1536,18 @@ node_update() {
   . /etc/hubium/install.conf
   [[ $MODE == node ]] || die "node-update is for local nodes."
   NODE_DIR=$PREFIX/node
-  local state cloud current
+  local state mode cloud current
   state=$(dcn exec -T agent hubium node status --json 2>/dev/null) || die "The node's agent does not answer."
+  mode=$(sed -n 's/.*"mode":"\([A-Z]*\)".*/\1/p' <<<"$state")
   cloud=$(sed -n 's/.*"cloudRelease":"\([^"+]*\).*/\1/p' <<<"$state")
   current=$(env_value "$NODE_DIR/.env" HUBIUM_VERSION)
   [[ -n $cloud && $cloud != "$current" ]] || return 0
+  # working alone, the node runs its release on its own database: it follows the cloud's
+  # once its journal is in the cloud (the timer tries again)
+  if [[ $mode != ONLINE && $mode != PASSTHROUGH ]]; then
+    note "The cloud runs $cloud; the node ($mode) follows once it is back on the line."
+    return 0
+  fi
   step "The cloud runs $cloud: upgrading the node from $current"
   VERSION=$cloud
   node_files

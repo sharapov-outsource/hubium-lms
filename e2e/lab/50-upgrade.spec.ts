@@ -9,15 +9,17 @@ import {
   installer,
   link,
   loadImages,
+  nodeCommand,
   nodeStatus,
   UPGRADE_IMAGE,
   UPGRADE_VERSION,
 } from './lab';
 
-// The cloud is upgraded to its next release while branch 1 works alone. Branch 2, on the
-// line, passes everything to the cloud until it runs the same release, then follows it with
-// install-hubium.sh node-update (the timer runs it on a server with systemd). Branch 1 comes
-// back with its journal of the old release: the cloud takes it, and the node follows too.
+// The cloud is upgraded to its next release while branch 1, its line down, and branch 2,
+// taken off the line by its admin, work alone. install-hubium.sh node-update (the timer runs
+// it on a server with systemd) leaves branch 2 as it is until the admin brings it back; then
+// it passes everything to the cloud until it runs the same release, and follows it. Branch 1
+// comes back with its journal of the old release: the cloud takes it, and the node follows.
 
 async function reply(page: Page, text: string) {
   const ids = await demoCourse();
@@ -42,21 +44,32 @@ test('the cloud upgraded while a branch works alone', async ({ page }) => {
   await expectMode(2, 'ONLINE', 300_000);
   await login(page, 'student1', DEMO_PASSWORD);
   link(1, 'down');
+  // branch 2's admin has it work alone for an exam, its line up
+  nodeCommand(2, ['offline']);
   await expectMode(1, 'OFFLINE', 300_000);
+  await expectMode(2, 'OFFLINE', 120_000);
   const mark = `До обновления облака ${Date.now().toString(36)}`;
   await reply(page, mark);
+  const release = nodeStatus(2).release;
 
   installer(cloudServer, ['upgrade', '--version', UPGRADE_VERSION, '--backup', 'no']);
 
-  // branch 2 passes everything on until it runs the cloud's release; its people work on
-  await expectMode(2, 'PASSTHROUGH', 300_000);
+  // branch 2 hears of the cloud's release, and keeps its own while it works alone
+  const upgraded = new RegExp(`^${UPGRADE_VERSION}\\+`);
+  await expect.poll(() => nodeStatus(2).cloudRelease, { timeout: 120_000 }).toMatch(upgraded);
+  installer(branchServer(2), ['node-update']);
+  expect(nodeStatus(2)).toMatchObject({ mode: 'OFFLINE', release });
+  // back on the line, it passes everything on until it runs the cloud's release, then
+  // follows it; its people work on
+  nodeCommand(2, ['online']);
+  await expectMode(2, 'PASSTHROUGH', 600_000);
   const branch2 = await contextAt(2);
   const p2 = await branch2.newPage();
   await login(p2, 'student2', DEMO_PASSWORD);
   await expect(p2.getByRole('link', { name: /Python для начинающих/ }).first()).toBeVisible();
   installer(branchServer(2), ['node-update']);
   await expectMode(2, 'ONLINE', 600_000);
-  expect(nodeStatus(2).release).toMatch(new RegExp(`^${UPGRADE_VERSION}\\+`));
+  expect(nodeStatus(2).release).toMatch(upgraded);
   await branch2.close();
 
   // branch 1 comes back: its journal goes to the upgraded cloud, then it follows
@@ -75,7 +88,7 @@ test('the cloud upgraded while a branch works alone', async ({ page }) => {
     .toBe(1);
   installer(branchServer(1), ['node-update']);
   await expectMode(1, 'ONLINE', 600_000);
-  expect(nodeStatus(1).release).toMatch(new RegExp(`^${UPGRADE_VERSION}\\+`));
+  expect(nodeStatus(1).release).toMatch(upgraded);
   await page.goto('/dashboard');
   await expect(page.getByRole('link', { name: /Python для начинающих/ }).first()).toBeVisible();
 });
