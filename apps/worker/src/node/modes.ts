@@ -136,6 +136,9 @@ export class ModeMachine {
       case 'PASSTHROUGH':
       case 'ONLINE':
       case 'READONLY': {
+        // B took over before the agent last stopped (with the power, or for an update): the
+        // node goes on with it, and the sync takes its journal, then B is copied anew
+        if (this.state.replicaB === 'promoted' && !this.syncing) return this.resume();
         if (this.manualOffline || (this.cutOff && this.offlineLongEnough())) {
           if (this.state.replicaB === 'ready') return this.goOffline();
         }
@@ -183,6 +186,11 @@ export class ModeMachine {
       logger.error({ err }, 'the node database could not take over');
       this.state = { ...this.state, error: 'The node database could not take over' };
     }
+  }
+
+  private resume() {
+    this.state.offlineSince ??= new Date(this.now()).toISOString();
+    this.enter('OFFLINE', 'the node database is in use');
   }
 
   private async runSync() {

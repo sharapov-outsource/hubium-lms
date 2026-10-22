@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { access, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import pg from 'pg';
 import { lsnValue } from './replication.ts';
@@ -47,6 +47,13 @@ export class NodeReplicas {
     }
   }
 
+  private async copyRequested(dir: string): Promise<boolean> {
+    return access(path.join(dir, 'rebuild')).then(
+      () => true,
+      () => false,
+    );
+  }
+
   async replicaA(): Promise<ReplicaAState> {
     const copying = (await this.containerState(this.controlA)) === 'copying';
     try {
@@ -84,8 +91,9 @@ export class NodeReplicas {
 
   async replicaB(): Promise<ReplicaBState> {
     if (!this.b) return 'missing';
+    // a copy asked for counts from the request: the container takes it within seconds
     const container = await this.containerState(this.controlB);
-    if (container === 'copying') return 'copying';
+    if (container === 'copying' || (await this.copyRequested(this.controlB))) return 'copying';
     try {
       const { rows } = await this.b.query<{ recovery: boolean }>(
         'SELECT pg_is_in_recovery() AS recovery',
