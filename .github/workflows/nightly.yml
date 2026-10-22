@@ -211,6 +211,8 @@ jobs:
         with: { runtime: node@24, cache: true, require-lockfile: true }
       - run: pnpm --filter @hubium/e2e exec playwright install --with-deps chromium
       - run: pnpm --filter @hubium/e2e lab
+        # the servers stay for the logs below; the runner goes with them
+        env: { LAB_KEEP: '1' }
       - name: Lab logs
         if: failure()
         run: |
