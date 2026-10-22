@@ -2,9 +2,11 @@ import { expect, type Page, test } from '@playwright/test';
 import { demoCourse } from '../node/helpers';
 import { sql } from '../tests/db';
 import { ADMIN, DEMO_PASSWORD, login } from '../tests/helpers';
-import { contextAt, expectMode } from './helpers';
+import { certificateAt, contextAt, expectMode } from './helpers';
 import {
   agentState,
+  branchIp,
+  CLOUD_IP,
   cloudCompose,
   cloudServer,
   DOMAIN,
@@ -169,6 +171,11 @@ test.describe
       nodeCompose(1, ['down', '-v']);
       onServer('lab-branch1', ['rm', '-rf', '/opt/hubium/node']);
       installNode(1, code);
+      // the installation is over once the node answers with the cloud's certificate
+      const cloudCert = await certificateAt(CLOUD_IP);
+      await expect
+        .poll(() => certificateAt(branchIp(1)).catch(() => null), { timeout: 30_000 })
+        .toEqual(cloudCert);
       await expectMode(1, 'ONLINE', 900_000);
       const [now] = await sql<{ tokenHash: string; n: number }>(
         `SELECT "tokenHash", (SELECT count(*)::int FROM "Node" WHERE name = 'Филиал 1') AS n

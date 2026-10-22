@@ -1500,6 +1500,7 @@ install_node() {
   fi
   step "Starting the node: it copies the cloud's database first"
   run_shown dcn up -d
+  if [[ $NODE_TLS == cloud ]]; then node_certificates; fi
   install_node_update
   save_install_conf
   step "Done"
@@ -1511,6 +1512,24 @@ install_node() {
     note "DNS:       in this network, point the cloud's main and content hosts at this server."
   fi
   note "Updates:   the node follows the cloud's release (hubium-node-update.timer)."
+}
+
+# The node answers under the cloud's names with the cloud's certificates, which its agent
+# fetches within seconds of starting; Caddy, which cannot start without them, is started
+# again once they are there rather than at the end of its restart delay.
+node_certificates() {
+  [[ $DRY_RUN == yes ]] && return 0
+  step "Fetching the cloud's certificates"
+  local i
+  for ((i = 0; i < 60; i++)); do
+    if dcn exec -T agent test -s /certs/app.crt 2>/dev/null; then
+      run_shown dcn restart caddy
+      ok "the node answers with the cloud's certificate"
+      return 0
+    fi
+    sleep 2
+  done
+  warn "No certificate from the cloud yet: the node answers once its agent gets one (docker compose --project-directory $NODE_DIR logs agent)."
 }
 
 # Follows the cloud's release: hubium-node-update.timer runs node-update every ten minutes.
