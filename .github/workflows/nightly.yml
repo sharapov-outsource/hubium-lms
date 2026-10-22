@@ -115,3 +115,36 @@ jobs:
         with:
           name: through-node-report
           path: e2e/test-results
+
+  # The lab of a cloud and branch servers installed as in production (e2e/lab, docs/PLAN.md):
+  # each server a container with Docker inside, Hubium installed on it with install-hubium.sh
+  # from the production image; outages, power cuts, a second branch, the cloud's upgrade.
+  lab:
+    name: Lab of a cloud and branch servers
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+      # three servers hold the images: room for them, and tc netem for the slow line
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo modprobe sch_netem || true
+          df -h /
+      - uses: pnpm/setup@v3
+        with: { runtime: node@24, cache: true, require-lockfile: true }
+      - run: pnpm --filter @hubium/e2e exec playwright install --with-deps chromium
+      - run: pnpm --filter @hubium/e2e lab
+      - name: Lab logs
+        if: failure()
+        run: |
+          tail -n 100 e2e/lab/.lab/*.log || true
+          for s in lab-cloud lab-branch1 lab-branch2; do
+            echo "== $s"
+            docker exec "$s" sh -c 'docker ps -a; for c in $(docker ps -aq); do docker logs --tail 60 "$c" 2>&1; done' || true
+          done
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: lab-report
+          path: e2e/test-results
