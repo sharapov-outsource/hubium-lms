@@ -126,6 +126,25 @@ test.describe
       for (let n = 1; n <= 4; n++) expect(await inCloud(`${mark} №${n}`)).toBe(1);
     });
 
+    test('the line goes again right after the sync: the work of both outages arrives', async ({
+      browser,
+    }) => {
+      await expectMode(1, 'ONLINE');
+      const page = await student(browser);
+      await goOffline();
+      const mark = `Два обрыва подряд ${Date.now().toString(36)}`;
+      await reply(page, `${mark} №1`);
+      link(1, 'up');
+      // gone again before the cloud hears the node back on the line
+      await whenMode(1, 'ONLINE');
+      link(1, 'down');
+      await expectMode(1, 'OFFLINE', 600_000);
+      await reply(page, `${mark} №2`);
+      link(1, 'up');
+      await expectMode(1, 'ONLINE', 600_000);
+      for (let n = 1; n <= 2; n++) expect(await inCloud(`${mark} №${n}`)).toBe(1);
+    });
+
     test('the branch server loses power while it works alone', async ({ browser }) => {
       await expectMode(1, 'ONLINE');
       const page = await student(browser);

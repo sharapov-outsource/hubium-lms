@@ -143,7 +143,8 @@ export const HeartbeatInput = z.object({
 /**
  * A node's heartbeat. A silence longer than OUTAGE_GAP_MS since the last one, or a node
  * working on its own (OFFLINE) while the cloud still hears it (the administrator turned
- * the mode on), opens an outage; the node back ONLINE after its sync closes it.
+ * the mode on), opens an outage, also when the last one's sync is not over: the line may
+ * go again before it is. The node back ONLINE after its sync closes them.
  */
 export async function heartbeat(db: Db, node: Node, raw: unknown) {
   const input = HeartbeatInput.parse(raw);
@@ -154,7 +155,7 @@ export async function heartbeat(db: Db, node: Node, raw: unknown) {
       orderBy: { startedAt: 'desc' },
     });
     const silent = node.lastSeenAt && now.getTime() - node.lastSeenAt.getTime() > OUTAGE_GAP_MS;
-    if (!open && (silent || input.mode === 'OFFLINE')) {
+    if ((!open || open.endedAt) && (silent || input.mode === 'OFFLINE')) {
       await db.nodeOutage.create({
         data: {
           nodeId: node.id,
@@ -166,8 +167,11 @@ export async function heartbeat(db: Db, node: Node, raw: unknown) {
       // heard again: the gap is over, its sync is to come
       await db.nodeOutage.update({ where: { id: open.id }, data: { endedAt: now } });
     }
-    if (open && input.mode === 'ONLINE' && open.endedAt)
-      await db.nodeOutage.update({ where: { id: open.id }, data: { syncedAt: now } });
+    if (input.mode === 'ONLINE')
+      await db.nodeOutage.updateMany({
+        where: { nodeId: node.id, syncedAt: null, endedAt: { not: null } },
+        data: { syncedAt: now },
+      });
     const slot = await slotState(db, node.dbRole);
     const status: NodeStatus = { ...(input.status as NodeStatus), slot: slot.walStatus };
     await db.node.update({
