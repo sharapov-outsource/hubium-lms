@@ -17,7 +17,7 @@ Thanks for helping! A few rules keep the codebase healthy.
      COMPOSE_PROFILES=db,caddy,media,mailpit docker compose -f docker/compose.yml up -d --build --wait
    pnpm --filter @hubium/e2e stack
    ```
-   Shell scripts are checked with `shellcheck install-hubium.sh deploy/bin/hubium scripts/bundle.sh`.
+   Shell scripts are checked with `shellcheck install-hubium.sh deploy/bin/hubium scripts/bundle.sh`. The site for nginx in front of an installation without Caddy (`docker/nginx.conf`) is checked every night: the nightly CI installs the archive with `--https none` behind Ubuntu's nginx and runs the same checks through it.
 6. For changes to local nodes, run their scenarios: `pnpm --filter @hubium/e2e nodes` starts the cloud and two nodes from the built apps (`pnpm build` first) with links the scenarios cut. Changes to how a node is installed, started or updated also go through the lab of a cloud and branch servers installed as in production, which the nightly CI runs: `pnpm --filter @hubium/e2e lab` builds the images, installs the cloud and the nodes with `install-hubium.sh` on servers that are containers with Docker inside, and runs `e2e/lab`. It needs Docker that runs privileged containers, about 25 GB of disk and an hour and a half. `LAB=running` reuses a lab that is up (`node e2e/lab/lab.ts build && node e2e/lab/lab.ts up`), `LAB_KEEP=1` leaves it up, `LAB_REBUILD=1` builds the app's images again; behind a proxy with its own certificate authority, `LAB_BUILD_CA` names its certificate.
 7. Releases are cut by pushing a `vX.Y.Z` tag that matches `package.json`; see [docs/releasing.md](docs/releasing.md).
 
