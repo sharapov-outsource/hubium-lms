@@ -1459,8 +1459,9 @@ install_node() {
   if [[ $DRY_RUN == yes ]]; then
     reg="HUBIUM_VERSION='$VERSION'"
   else
+    # --code=: a code may begin with a dash, which would read as an option
     reg=$(docker run --rm ${hub_ca:+-e NODE_HUB_CA="$hub_ca"} "$image" node register \
-      --hub "$HUB" --code "$NODE_CODE" ${HUB_ADDRESS:+--address "$HUB_ADDRESS"}) ||
+      --hub="$HUB" --code="$NODE_CODE" ${HUB_ADDRESS:+--address="$HUB_ADDRESS"}) ||
       die "The cloud did not register this node (see above)."
   fi
   ok "registered"
