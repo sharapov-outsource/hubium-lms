@@ -169,8 +169,8 @@ jobs:
             -H 'X-Forwarded-For: 203.0.113.9' \
             -d '{"email":"admin@hubium.local","password":"Admin12345!"}' \
             "$site/api/auth/sign-in/email" | jq -e '.user.email == "admin@hubium.local"'
-          ip=$(cd / && sudo -u postgres psql -d hubium -Atc \
-            'SELECT "ipAddress" FROM "Session" ORDER BY "createdAt" DESC LIMIT 1')
+          db=$(sudo sed -n "s/^DATABASE_URL='\(.*\)'$/\1/p" /etc/hubium/hubium.env)
+          ip=$(psql "$db" -Atc 'SELECT "ipAddress" FROM "Session" ORDER BY "createdAt" DESC LIMIT 1')
           [ "$ip" = 127.0.0.1 ] || { echo "the session's address: $ip"; exit 1; }
           # live updates arrive at once, not when a buffer fills
           (curl "${r[@]}" -b jar -N --max-time 5 "$site/api/realtime" || true) | grep -q ': connected'
