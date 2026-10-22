@@ -27,6 +27,8 @@ x-node-env: &node-env
   NODE_HUB_URL: ${NODE_HUB_URL:?NODE_HUB_URL is required}
   NODE_HUB_CONTENT_HOST: ${NODE_HUB_CONTENT_HOST:-}
   NODE_HUB_ADDRESS: ${NODE_HUB_ADDRESS:-}
+  # the authority of the cloud's certificate when it is not a public one (--hub-ca), base64
+  NODE_HUB_CA: ${NODE_HUB_CA:-}
   NODE_AGENT_URL: http://agent:3002
   DATABASE_URL: postgresql://${NODE_DB_ROLE}:${NODE_DB_PASSWORD}@db-a:5432/${NODE_DB_NAME:-hubium}
   NODE_DATABASE_B_URL: postgresql://${NODE_DB_ROLE}:${NODE_DB_PASSWORD}@db-b:5432/${NODE_DB_NAME:-hubium}

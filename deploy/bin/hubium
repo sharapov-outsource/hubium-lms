@@ -14,6 +14,24 @@ else
 fi
 ENV_FILE=${HUBIUM_ENV_FILE:-/etc/hubium/hubium.env}
 
+# A local node of a cloud whose certificate a company's own authority signed
+# (install-hubium.sh --hub-ca): Node.js trusts it besides the public ones, and besides
+# those NODE_EXTRA_CA_CERTS names already.
+if [ -n "${NODE_HUB_CA:-}" ]; then
+  ca=${TMPDIR:-/tmp}/hubium-hub-ca.pem
+  if printf '%s' "$NODE_HUB_CA" | base64 -d >"$ca.$$" 2>/dev/null; then
+    if [ -n "${NODE_EXTRA_CA_CERTS:-}" ] && [ -r "$NODE_EXTRA_CA_CERTS" ] &&
+      [ "$NODE_EXTRA_CA_CERTS" != "$ca" ]; then
+      cat "$NODE_EXTRA_CA_CERTS" >>"$ca.$$"
+    fi
+    mv -f "$ca.$$" "$ca"
+    export NODE_EXTRA_CA_CERTS="$ca"
+  else
+    rm -f "$ca.$$"
+    echo "hubium: NODE_HUB_CA is not a base64 certificate; ignored" >&2
+  fi
+fi
+
 run() {
   if [ ! -e "$ENV_FILE" ]; then
     exec "$NODE" "$@"

@@ -40,7 +40,7 @@ DB="" DATABASE_URL="" STORAGE="" S3_ENDPOINT="" S3_PUBLIC_URL="" S3_REGION="" S3
 S3_ACCESS_KEY="" S3_SECRET_KEY="" SMTP_URL="" MAIL_FROM="" ADMIN_EMAIL="" ADMIN_PASSWORD=""
 DEMO="" ANTIVIRUS="" AI_LOCAL="" EMBEDDINGS_URL="" EMBEDDINGS_MODEL="" PREFIX=/opt/hubium DATA_DIR=/var/lib/hubium CONFIG_DIR=/etc/hubium FROM_DIR=""
 IMAGE="" PULL=yes SKIP_PACKAGES=no ASSUME_YES=no DRY_RUN=no BACKUP=""
-NODE=no HUB="" NODE_CODE="" HUB_ADDRESS="" NODE_TLS="" REPLICATION_HOST="" REPLICATION_PORT=""
+NODE=no HUB="" NODE_CODE="" HUB_ADDRESS="" HUB_CA="" NODE_TLS="" REPLICATION_HOST="" REPLICATION_PORT=""
 
 usage() {
   cat <<'EOF'
@@ -114,6 +114,8 @@ Local nodes (servers in the networks of branches that keep working without a con
   --code CODE                  the installation code from Administration → Nodes
   --hub-address HOST[:PORT]    where the cloud is reached when this network's DNS sends its
                                name to the node
+  --hub-ca FILE                the certificate (PEM) of the authority that signed the
+                               cloud's, when it is not a public one (a company's own CA)
   --node-tls cloud|acme|internal
                                the cloud's names with its certificate (cloud), or the node's
                                own names (--domain, --content-domain) with Let's Encrypt or
@@ -140,6 +142,7 @@ while (($#)); do
     --hub) HUB=${2-}; shift ;;
     --code) NODE_CODE=${2-}; shift ;;
     --hub-address) HUB_ADDRESS=${2-}; shift ;;
+    --hub-ca) HUB_CA=${2-}; shift ;;
     --node-tls) NODE_TLS=${2-}; shift ;;
     --replication-host) REPLICATION_HOST=${2-}; shift ;;
     --replication-port) REPLICATION_PORT=${2-}; shift ;;
@@ -1414,6 +1417,16 @@ install_node() {
       ;;
     *) die "--node-tls: cloud, acme or internal." ;;
   esac
+  # the node's processes trust this authority besides the public ones (the hubium launcher
+  # gives it to Node.js)
+  local hub_ca=""
+  if [[ -n $HUB_CA ]]; then
+    [[ -r $HUB_CA ]] || die "--hub-ca $HUB_CA: no such file."
+    if have openssl; then
+      openssl x509 -noout -in "$HUB_CA" 2>/dev/null || die "--hub-ca $HUB_CA: not a PEM certificate."
+    fi
+    hub_ca=$(base64 -w0 <"$HUB_CA")
+  fi
   MODE=node
   resolve_version
   check_docker
@@ -1425,8 +1438,9 @@ install_node() {
   if [[ $DRY_RUN == yes ]]; then
     reg="HUBIUM_VERSION='$VERSION'"
   else
-    reg=$(docker run --rm "$image" node register --hub "$HUB" --code "$NODE_CODE" \
-      ${HUB_ADDRESS:+--address "$HUB_ADDRESS"}) || die "The cloud did not register this node (see above)."
+    reg=$(docker run --rm ${hub_ca:+-e NODE_HUB_CA="$hub_ca"} "$image" node register \
+      --hub "$HUB" --code "$NODE_CODE" ${HUB_ADDRESS:+--address "$HUB_ADDRESS"}) ||
+      die "The cloud did not register this node (see above)."
   fi
   ok "registered"
   file=$(mktemp)
@@ -1449,6 +1463,7 @@ install_node() {
     echo "NODE_PG_DEBIAN=$(quote "$debian")"
     echo "NODE_TLS=$(quote "$NODE_TLS")"
     if [[ -n $IMAGE ]]; then echo "HUBIUM_IMAGE=$(quote "$IMAGE")"; fi
+    if [[ -n $hub_ca ]]; then echo "NODE_HUB_CA=$(quote "$hub_ca")"; fi
     if [[ $NODE_TLS != cloud ]]; then
       echo "APP_URL=$(quote "https://$DOMAIN")"
       echo "CONTENT_HOST=$(quote "https://$CONTENT_DOMAIN")"
