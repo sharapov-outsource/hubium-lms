@@ -129,16 +129,21 @@ test.describe
         `sed -i '/^METRICS_TOKEN=/d' ${env} && echo METRICS_TOKEN=lab-metrics >> ${env}`,
       ]);
       cloudCompose(['up', '-d', '--wait', 'web']);
-      const metrics = onServer(cloudServer, [
-        'curl',
-        '-fsk',
-        '--resolve',
-        `${DOMAIN}:443:127.0.0.1`,
-        '-H',
-        'authorization: Bearer lab-metrics',
-        `${LMS}/api/metrics`,
-      ]);
-      expect(metrics).toMatch(/hubium_node_mode\{[^}]*Филиал 1[^}]*mode="ONLINE"\} 1/);
+      const scrape = () =>
+        onServer(cloudServer, [
+          'curl',
+          '-fsk',
+          '--resolve',
+          `${DOMAIN}:443:127.0.0.1`,
+          '-H',
+          'authorization: Bearer lab-metrics',
+          `${LMS}/api/metrics`,
+        ]);
+      // the nodes lost the cloud while its web server restarted: on the line again shortly
+      await expect
+        .poll(scrape, { timeout: 120_000, intervals: [3000] })
+        .toMatch(/hubium_node_mode\{[^}]*Филиал 1[^}]*mode="ONLINE"\} 1/);
+      const metrics = scrape();
       expect(metrics).toMatch(/hubium_node_heartbeat_age_seconds\{[^}]*Филиал 1[^}]*\} \d+/);
       expect(metrics).toMatch(/hubium_node_replica_lag_bytes\{[^}]*Филиал 1/);
     });
