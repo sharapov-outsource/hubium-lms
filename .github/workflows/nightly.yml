@@ -129,7 +129,7 @@ jobs:
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-          sudo modprobe sch_netem || true
+          sudo modprobe -a sch_netem sch_htb cls_u32 || true
           df -h /
       - uses: pnpm/setup@v3
         with: { runtime: node@24, cache: true, require-lockfile: true }

@@ -3,7 +3,16 @@ import { demoCourse } from '../node/helpers';
 import { sql } from '../tests/db';
 import { DEMO_PASSWORD, login } from '../tests/helpers';
 import { expectMode } from './helpers';
-import { agentState, cloudCompose, cloudServer, link, onServer, power, whenMode } from './lab';
+import {
+  agentState,
+  cloudCompose,
+  cloudServer,
+  link,
+  netemAvailable,
+  onServer,
+  power,
+  whenMode,
+} from './lab';
 
 // What a branch's line and power do in real life: drops of a few seconds, a slow line that
 // loses packets, the line cut again while the node syncs, the server switched off while it
@@ -87,6 +96,7 @@ test.describe
     });
 
     test('a slow line that loses packets still serves the branch', async ({ browser }) => {
+      test.skip(!netemAvailable(), 'the kernel of this machine has no netem (tc) for a slow line');
       await expectMode(1, 'ONLINE');
       const page = await student(browser);
       link(1, 'slow');

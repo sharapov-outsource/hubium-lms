@@ -526,12 +526,22 @@ export function link(i: number, state: LinkState) {
     );
   if (state === 'slow')
     script.push(
-      'tc qdisc add dev eth0 root handle 1: prio',
-      'tc qdisc add dev eth0 parent 1:3 handle 30: netem delay 400ms 150ms loss 5%',
-      `tc filter add dev eth0 protocol ip parent 1:0 prio 3 u32 match ip dst ${CLOUD_IP}/32 flowid 1:3`,
+      // the cloud's traffic through a class of its own with delay and loss; the rest as is
+      'tc qdisc add dev eth0 root handle 1: htb default 10',
+      'tc class add dev eth0 parent 1: classid 1:10 htb rate 10gbit',
+      'tc class add dev eth0 parent 1: classid 1:20 htb rate 10gbit',
+      'tc qdisc add dev eth0 parent 1:20 handle 20: netem delay 400ms 150ms loss 5%',
+      `tc filter add dev eth0 protocol ip parent 1: prio 1 u32 match ip dst ${CLOUD_IP}/32 flowid 1:20`,
     );
   onServer(server, ['sh', '-ec', script.join('\n')]);
   links.set(i, state);
+}
+
+/** Whether the kernel of this machine has netem, which a slow line needs ('slow'). */
+export function netemAvailable(): boolean {
+  const run = ['run', '--rm', '--privileged', '--entrypoint', 'tc', SERVER_IMAGE];
+  const probe = 'qdisc add dev eth0 root netem delay 1ms'.split(' ');
+  return spawnSync('docker', [...run, ...probe], { stdio: 'ignore' }).status === 0;
 }
 
 /** Branch i's server loses power ('off', every process killed) or comes back ('on'). */
