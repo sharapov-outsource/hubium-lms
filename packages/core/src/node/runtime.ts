@@ -114,6 +114,11 @@ export function startNodeRuntime(): void {
   setInterval(tick, 1000).unref();
 }
 
+/** In the node's web server: the state the agent answered a command with, ahead of the poll. */
+export function noteNodeState(state: NodeState): void {
+  if (!rt.agent) rt.state = state;
+}
+
 /**
  * The mode a request came with from the gateway: newer than the last answer to the poll
  * when the agent has just changed it, so the request reads the database of the new mode.

@@ -13,6 +13,7 @@ import {
   setNodeAdmin,
   updateNode,
 } from '@hubium/core/node/nodes';
+import { type NodeState, noteNodeState } from '@hubium/core/node/runtime';
 import { msg } from '@hubium/module-sdk';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -115,6 +116,8 @@ export async function nodeCommandAction(action: 'offline' | 'online' | 'postpone
       signal: AbortSignal.timeout(90_000),
     });
     if (!res.ok) throw new AppError('UNAVAILABLE', msg('errors.node.agent'));
+    // the page shows what the command left, not the agent's state at the last poll
+    noteNodeState((await res.json()) as NodeState);
     revalidatePath('/node');
     return { ok: true };
   });

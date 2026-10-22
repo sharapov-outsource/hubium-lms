@@ -1,7 +1,7 @@
 'use client';
 
 import { Input, Label } from '@hubium/ui';
-import { useTranslations } from 'next-intl';
+import { useFormatter, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { CommandButton } from '@/components/confirm-button';
 import { nodeCommandAction } from '@/server/actions/nodes';
@@ -9,6 +9,7 @@ import { nodeCommandAction } from '@/server/actions/nodes';
 /** The node admin's commands: work alone now, go back to the cloud, put the sync off. */
 export function NodeCommands({ mode, postponed }: { mode: string; postponed: string | null }) {
   const t = useTranslations('nodes');
+  const format = useFormatter();
   const [until, setUntil] = useState('');
   return (
     <div className="grid gap-4">
@@ -54,7 +55,12 @@ export function NodeCommands({ mode, postponed }: { mode: string; postponed: str
           </div>
           {postponed ? (
             <p className="text-sm text-muted-foreground">
-              {t('postponedTill', { at: new Date(postponed).toLocaleString() })}
+              {t('postponedTill', {
+                at: format.dateTime(new Date(postponed), {
+                  dateStyle: 'medium',
+                  timeStyle: 'medium',
+                }),
+              })}
             </p>
           ) : null}
         </div>
