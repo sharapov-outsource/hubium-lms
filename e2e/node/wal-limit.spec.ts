@@ -42,6 +42,7 @@ test('a node away longer than the cloud keeps WAL for copies the database anew',
     await page.locator('[id^="msg-"]').first().click();
     await page.keyboard.type(mark);
     await page.getByRole('button', { name: 'Отправить' }).click();
+    await expect(page.locator('[id^="msg-"]')).toHaveCount(0);
     await expect(page.getByText(mark)).toBeVisible();
 
     // the cloud writes more WAL than it keeps for a silent node

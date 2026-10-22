@@ -33,12 +33,14 @@ async function offlineAndBack(
   discussionId: string,
 ) {
   const mark = `Ответ ${Date.now().toString(36)}`;
+  await page.goto(`/course/${ids.courseId}/a/${ids.forumId}?d=${discussionId}`);
   for (let n = 1; n <= 3; n++) {
-    await page.goto(`/course/${ids.courseId}/a/${ids.forumId}?d=${discussionId}`);
     await page.getByRole('button', { name: 'Ответить' }).first().click();
     await page.locator('[id^="msg-"]').first().click();
     await page.keyboard.type(`${mark} №${n}`);
     await page.getByRole('button', { name: 'Отправить' }).click();
+    // taken: the form closes (until then the text is the editor's own) and the post shows
+    await expect(page.locator('[id^="msg-"]')).toHaveCount(0);
     await expect(page.getByText(`${mark} №${n}`)).toBeVisible();
   }
 

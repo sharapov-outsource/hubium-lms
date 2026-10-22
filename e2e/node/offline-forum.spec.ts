@@ -41,6 +41,7 @@ test('signing in and forum posts without a connection reach the cloud', async ({
   await replier.locator('[id^="msg-"]').first().click();
   await replier.keyboard.type('Зато узел работает');
   await replier.getByRole('button', { name: 'Отправить' }).click();
+  await expect(replier.locator('[id^="msg-"]')).toHaveCount(0);
   await expect(replier.getByText('Зато узел работает')).toBeVisible();
 
   // the cloud has none of it yet
