@@ -86,6 +86,8 @@ test('the cloud upgraded while a branch works alone', async ({ page }) => {
       { timeout: 600_000, intervals: [5000] },
     )
     .toBe(1);
+  // once its sync is over (node-update leaves a node that syncs alone)
+  await expectMode(1, 'PASSTHROUGH', 600_000);
   installer(branchServer(1), ['node-update']);
   await expectMode(1, 'ONLINE', 600_000);
   expect(nodeStatus(1).release).toMatch(upgraded);
