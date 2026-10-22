@@ -31,4 +31,5 @@ apps/web/.next-build/
 .claude/*
 !.claude/settings.json
 e2e/node/.stack/
+e2e/lab/.lab/
 docker/node/tls/
