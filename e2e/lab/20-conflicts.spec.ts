@@ -1,8 +1,7 @@
-import { type Browser, expect, type Page, test } from '@playwright/test';
+import { type Browser, expect, test } from '@playwright/test';
 import { demoCourse } from '../node/helpers';
 import { sql } from '../tests/db';
-import { DEMO_PASSWORD, login } from '../tests/helpers';
-import { expectMode } from './helpers';
+import { closeOpened, expectMode, signedIn } from './helpers';
 import { link } from './lab';
 
 // Work done in the branch without a connection that the cloud does not take, three ways:
@@ -11,11 +10,8 @@ import { link } from './lab';
 // Each becomes a conflict its author is told of; the teacher, through the node, accepts the
 // first two (they are done as their authors did them) and dismisses the third.
 
-async function as(browser: Browser, user: string): Promise<Page> {
-  const page = await (await browser.newContext()).newPage();
-  await login(page, user, DEMO_PASSWORD);
-  return page;
-}
+const as = (browser: Browser, user: string) => signedIn(browser, user);
+test.afterEach(closeOpened);
 
 test('work the cloud did not take becomes conflicts the teacher decides', async ({ browser }) => {
   test.setTimeout(1_800_000);

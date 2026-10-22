@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import tls from 'node:tls';
-import { type BrowserContext, chromium, expect, type Page } from '@playwright/test';
+import { type Browser, type BrowserContext, chromium, expect, type Page } from '@playwright/test';
+import { DEMO_PASSWORD, login } from '../tests/helpers';
 import {
   branchIp,
   CLOUD_IP,
@@ -38,6 +39,25 @@ export async function contextAt(where: 'cloud' | number): Promise<BrowserContext
   });
   context.on('close', () => void browser.close());
   return context;
+}
+
+const opened: BrowserContext[] = [];
+
+/**
+ * A page of its own (a context of the test's browser, in branch 1's network) for a person
+ * signed in to the LMS; closeOpened() closes it after the test.
+ */
+export async function signedIn(browser: Browser, user: string, password = DEMO_PASSWORD) {
+  const context = await browser.newContext();
+  opened.push(context);
+  const page = await context.newPage();
+  await login(page, user, password);
+  return page;
+}
+
+/** Closes the pages signedIn() opened, so that none outlives its test. */
+export async function closeOpened() {
+  await Promise.all(opened.splice(0).map((c) => c.close()));
 }
 
 /** Waits until branch i's node is in a mode, polling its agent (`hubium node status`). */

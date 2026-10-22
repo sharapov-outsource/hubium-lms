@@ -1,8 +1,8 @@
-import { type Browser, expect, type Page, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import { ATTEMPT_RESULT, demoCourse } from '../node/helpers';
 import { sql } from '../tests/db';
-import { ADMIN, DEMO_PASSWORD, login } from '../tests/helpers';
-import { branchSql, expectMode } from './helpers';
+import { ADMIN } from '../tests/helpers';
+import { branchSql, closeOpened, expectMode, signedIn } from './helpers';
 import { link } from './lab';
 
 // A lesson in the branch while its line to the cloud is cut, the packets dropped as on a
@@ -11,11 +11,8 @@ import { link } from './lab';
 // and the teacher grades; site administration waits for the line. Once the line is back
 // everything is in the cloud, once, and the cloud's quiz attempt is the node's.
 
-async function as(browser: Browser, user: string, password = DEMO_PASSWORD): Promise<Page> {
-  const page = await (await browser.newContext()).newPage();
-  await login(page, user, password);
-  return page;
-}
+const as = signedIn;
+test.afterEach(closeOpened);
 
 const bannerText = (page: Page) => page.locator('[data-node-mode]').first();
 

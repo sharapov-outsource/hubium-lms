@@ -1,8 +1,7 @@
 import { type Browser, expect, type Page, test } from '@playwright/test';
 import { demoCourse } from '../node/helpers';
 import { sql } from '../tests/db';
-import { DEMO_PASSWORD, login } from '../tests/helpers';
-import { expectMode } from './helpers';
+import { closeOpened, expectMode, signedIn } from './helpers';
 import {
   agentState,
   cloudCompose,
@@ -31,11 +30,7 @@ test.beforeAll(async () => {
   discussionId = d!.id;
 });
 
-async function student(browser: Browser): Promise<Page> {
-  const page = await (await browser.newContext()).newPage();
-  await login(page, 'student1', DEMO_PASSWORD);
-  return page;
-}
+const student = (browser: Browser) => signedIn(browser, 'student1');
 
 async function reply(page: Page, text: string) {
   await page.goto(`/course/${ids.courseId}/a/${ids.forumId}?d=${discussionId}`);
@@ -65,7 +60,10 @@ test.describe
   .serial('the line and the power of a branch', () => {
     test.setTimeout(1_800_000);
 
-    test.afterEach(() => link(1, 'up'));
+    test.afterEach(async () => {
+      link(1, 'up');
+      await closeOpened();
+    });
 
     test('short drops of the line do not make the node work alone', async ({ browser }) => {
       await expectMode(1, 'ONLINE');

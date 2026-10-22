@@ -105,8 +105,11 @@ test.describe
         const lesson = `На занятии ${Date.now().toString(36)}`;
         await post(page, lesson);
         nodeCommand(1, ['postpone', '--until', new Date(Date.now() + 90_000).toISOString()]);
-        await page.goto('/node');
-        await expect(page.getByText(/Синхронизация ждёт до/)).toBeVisible();
+        // the node's web server asks its agent for the state every second
+        await expect(async () => {
+          await page.goto('/node');
+          await expect(page.getByText(/Синхронизация ждёт до/)).toBeVisible({ timeout: 2000 });
+        }).toPass({ timeout: 30_000 });
         link(1, 'up');
         await new Promise((ok) => setTimeout(ok, 30_000));
         expect(agentState(1).mode).toBe('OFFLINE');
