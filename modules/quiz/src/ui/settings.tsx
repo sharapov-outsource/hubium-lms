@@ -82,7 +82,7 @@ function PasswordField({ value }: { value: string }) {
   );
 }
 
-export function QuizSettingsFields({ settings }: SettingsFieldsProps<QuizSettingsT>) {
+export function QuizSettingsFields({ settings, nodes }: SettingsFieldsProps<QuizSettingsT>) {
   const t = useTranslations('mod.quiz');
   const closeError = useFieldErrors('settings.closeAt');
   const subnetError = useFieldErrors('settings.subnet');
@@ -187,6 +187,29 @@ export function QuizSettingsFields({ settings }: SettingsFieldsProps<QuizSetting
             aria-invalid={!!subnetError}
           />
         </Field>
+        {nodes?.length ? (
+          <fieldset className="grid gap-2">
+            <legend className="text-sm font-medium">{t('access.nodes')}</legend>
+            <p className="text-sm text-muted-foreground">{t('access.nodesHint')}</p>
+            {/* none checked: the field still comes, and clears the list */}
+            <input type="hidden" name="settings.nodeIds" value="" />
+            {nodes.map((n) => (
+              <label
+                key={n.id}
+                htmlFor={`qs-node-${n.id}`}
+                className="flex items-center gap-2 text-sm"
+              >
+                <Checkbox
+                  id={`qs-node-${n.id}`}
+                  name="settings.nodeIds"
+                  value={n.id}
+                  defaultChecked={settings.nodeIds.includes(n.id)}
+                />
+                {n.name}
+              </label>
+            ))}
+          </fieldset>
+        ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
           <Num name="delay1Min" label={t('access.delay1')} value={settings.delay1Min} />
           <Num name="delay2Min" label={t('access.delay2')} value={settings.delay2Min} />

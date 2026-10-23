@@ -12,9 +12,11 @@ import {
   checkCriteria,
   compareRank,
   createCourse,
+  defineOperation,
   describeError,
   disabledTypesIn,
   disabledTypesWarning,
+  dropEmptyDefaultCategory,
   ensureCourseGradebook,
   ForbiddenError,
   foreignCourseValues,
@@ -22,7 +24,6 @@ import {
   importActivity,
   listCourseFields,
   NotFoundError,
-  parseInput,
   type RequestContext,
   rankBetween,
   syncGradeItemsFor,
@@ -39,6 +40,7 @@ import { getStorage } from '@hubium/core/files/storage';
 import { type Db, type Prisma, uuidv7 } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { isLocale } from '@hubium/i18n';
+import { createTranslator } from '@hubium/i18n/packs';
 import { type Msg, type MsgInput, msg, parseSettings } from '@hubium/module-sdk';
 import {
   Dataset,
@@ -850,41 +852,50 @@ export const ImportActivitiesInput = z.object({
  * learners' work, its grade items and calendar events. The copy comes right after it,
  * hidden, with no ID number.
  */
-export async function duplicateActivity(
-  ctx: RequestContext,
-  activityId: string,
-  name: (original: string) => string,
-): Promise<{ id: string }> {
-  const a = await ctx.db.activity.findUnique({ where: { id: activityId } });
-  if (!a || a.deletedAt) throw new NotFoundError('Activity');
-  await ctx.perm.require('course:manageactivities', a.courseId);
-  await assertModuleEnabled(ctx.db, a.moduleKey);
-  const b = await localBackup(ctx, a.courseId, { activityIds: [a.id] });
-  const r = await restoreInto(ctx, b, a.courseId, {
-    fresh: false,
-    duplicate: { name: name(a.name), after: { sectionId: a.sectionId, rank: a.rank } },
-  });
-  const id = r.activityIds[0];
-  if (!id)
-    throw new ValidationError({ id: [r.warnings[0] ?? msg('errors.interchange.copyFailed')] });
-  return { id };
-}
+export const duplicateActivity = defineOperation({
+  name: 'activity.duplicate',
+  offline: 'online',
+  input: z.object({ activityId: z.string().uuid() }),
+  // the copy is restored by operations with transactions of their own
+  mutation: false,
+  async handler(ctx, { activityId }): Promise<{ id: string }> {
+    const a = await ctx.db.activity.findUnique({ where: { id: activityId } });
+    if (!a || a.deletedAt) throw new NotFoundError('Activity');
+    await ctx.perm.require('course:manageactivities', a.courseId);
+    await assertModuleEnabled(ctx.db, a.moduleKey);
+    const b = await localBackup(ctx, a.courseId, { activityIds: [a.id] });
+    const name = createTranslator(ctx.locale)('course.copyName', { name: a.name });
+    const r = await restoreInto(ctx, b, a.courseId, {
+      fresh: false,
+      duplicate: { name, after: { sectionId: a.sectionId, rank: a.rank } },
+    });
+    const id = r.activityIds[0];
+    if (!id)
+      throw new ValidationError({ id: [r.warnings[0] ?? msg('errors.interchange.copyFailed')] });
+    return { id };
+  },
+});
 
-export async function importActivities(
-  ctx: RequestContext,
-  raw: z.input<typeof ImportActivitiesInput>,
-): Promise<RestoreReport> {
-  const input = parseInput(ImportActivitiesInput, raw);
-  if (input.sourceCourseId === input.targetCourseId)
-    throw new ValidationError({ sourceCourseId: [msg('errors.interchange.chooseAnotherCourse')] });
-  if (!input.activityIds.length)
-    throw new ValidationError({ activityIds: [msg('errors.interchange.chooseActivity')] });
-  await ctx.perm.require('restore:course', input.targetCourseId);
-  await ctx.perm.require('backup:create', input.sourceCourseId);
-  const b = await localBackup(ctx, input.sourceCourseId, { activityIds: input.activityIds });
-  if (!b.course.activities.length) throw new NotFoundError('Activity');
-  return restoreInto(ctx, b, input.targetCourseId, { fresh: false });
-}
+export const importActivities = defineOperation({
+  name: 'course.importActivities',
+  offline: 'online',
+  input: ImportActivitiesInput,
+  // restored by operations with transactions of their own
+  mutation: false,
+  async handler(ctx, input): Promise<RestoreReport> {
+    if (input.sourceCourseId === input.targetCourseId)
+      throw new ValidationError({
+        sourceCourseId: [msg('errors.interchange.chooseAnotherCourse')],
+      });
+    if (!input.activityIds.length)
+      throw new ValidationError({ activityIds: [msg('errors.interchange.chooseActivity')] });
+    await ctx.perm.require('restore:course', input.targetCourseId);
+    await ctx.perm.require('backup:create', input.sourceCourseId);
+    const b = await localBackup(ctx, input.sourceCourseId, { activityIds: input.activityIds });
+    if (!b.course.activities.length) throw new NotFoundError('Activity');
+    return restoreInto(ctx, b, input.targetCourseId, { fresh: false });
+  },
+});
 
 interface RestoreScope {
   /** A course made for this restore: its settings, groups and gradebook come along. */
@@ -1072,6 +1083,7 @@ async function restoreInto(
         },
       });
     }
+    if (scope.fresh && withBank) await dropEmptyDefaultCategory(db, courseId);
     for (const d of withBank ? b.course.questionDatasets : []) {
       const categoryId = map.get(d.categoryId);
       if (!categoryId) continue;
@@ -1560,22 +1572,30 @@ export async function discardCourse(ctx: RequestContext, courseId: string) {
 }
 
 /** Copies a course on this site: through the backup pipeline, without an archive. */
-export async function duplicateCourse(
-  ctx: RequestContext,
-  courseId: string,
-  target: { categoryId?: string; fullName: string; shortName: string },
-): Promise<RestoreReport> {
-  await ctx.perm.require('backup:create', courseId);
-  const src = await ctx.db.course.findUniqueOrThrow({
-    where: { id: courseId },
-    select: { categoryId: true },
-  });
-  return restoreBackup(ctx, await localBackup(ctx, courseId, {}), {
-    categoryId: target.categoryId ?? src.categoryId,
-    fullName: target.fullName,
-    shortName: target.shortName,
-  });
-}
+export const duplicateCourse = defineOperation({
+  name: 'course.duplicate',
+  offline: 'online',
+  input: z.object({
+    courseId: z.string().uuid(),
+    categoryId: z.string().uuid().optional(),
+    fullName: z.string().trim().min(1).max(255),
+    shortName: z.string().trim().min(1).max(100),
+  }),
+  // restored by operations with transactions of their own
+  mutation: false,
+  async handler(ctx, { courseId, ...target }): Promise<RestoreReport> {
+    await ctx.perm.require('backup:create', courseId);
+    const src = await ctx.db.course.findUniqueOrThrow({
+      where: { id: courseId },
+      select: { categoryId: true },
+    });
+    return restoreBackup(ctx, await localBackup(ctx, courseId, {}), {
+      categoryId: target.categoryId ?? src.categoryId,
+      fullName: target.fullName,
+      shortName: target.shortName,
+    });
+  },
+});
 
 // ── competencies ─────────────────────────────────────────────────────────────
 

@@ -69,6 +69,7 @@ const CategoryInput = z.object({
 
 export const createCategory = defineOperation({
   name: 'category.create',
+  offline: 'online',
   input: CategoryInput,
   authorize: (ctx, i) => ctx.perm.require('category:manage', i.parentId ?? SYSTEM_CONTEXT_ID),
   async handler(ctx, input) {
@@ -108,6 +109,7 @@ export const createCategory = defineOperation({
 
 export const updateCategory = defineOperation({
   name: 'category.update',
+  offline: 'online',
   input: CategoryInput.extend({ id: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('category:manage', i.id),
   async handler(ctx, input) {
@@ -147,6 +149,7 @@ export const updateCategory = defineOperation({
 
 export const deleteCategory = defineOperation({
   name: 'category.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('category:manage', i.id),
   async handler(ctx, { id }) {
@@ -169,6 +172,7 @@ export const deleteCategory = defineOperation({
 
 export const moveCategoryOrder = defineOperation({
   name: 'category.reorder',
+  offline: 'online',
   input: z.object({ id: z.string().uuid(), direction: z.enum(['up', 'down']) }),
   authorize: (ctx, i) => ctx.perm.require('category:manage', i.id),
   async handler(ctx, { id, direction }) {

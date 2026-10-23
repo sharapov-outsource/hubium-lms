@@ -231,14 +231,15 @@ describe('Moodle XML', () => {
     it('round-trips through a course bank', async () => {
       const f = await courseFixture(t.db, 'MXML1');
       const teacher = await ctxFor(t.db, f.users.teacher!);
-      const r = await importMoodleXml(teacher, f.courseId, SAMPLE);
+      const r = await importMoodleXml.run(teacher, { courseId: f.courseId, xml: SAMPLE });
       expect(r.created).toBe(12);
       // the shared dataset now belongs to the category of the question
       expect(await t.db.questionDataset.findMany({ select: { name: true, items: true } })).toEqual([
         { name: 'h', items: [4, 40] },
       ]);
       const cats = await t.db.questionCategory.findMany({ where: { contextId: f.courseId } });
-      expect(cats.map((c) => c.name).sort()).toEqual(['Python', 'Основы']);
+      // beside the course's own default category
+      expect(cats.map((c) => c.name).sort()).toEqual(['', 'Python', 'Основы']);
       const xml = await exportMoodleXml(teacher, f.courseId);
       expect(xml).toContain('<question type="category">');
       expect(xml).toContain('$course$/top/Python/Основы');
@@ -253,7 +254,9 @@ describe('Moodle XML', () => {
       expect(again.questions[0]!.hints).toEqual(HINTS);
       expect(again.questions[1]!.hints).toEqual([]);
       const s1 = await ctxFor(t.db, f.users.student1!);
-      await expect(importMoodleXml(s1, f.courseId, SAMPLE)).rejects.toThrow();
+      await expect(
+        importMoodleXml.run(s1, { courseId: f.courseId, xml: SAMPLE }),
+      ).rejects.toThrow();
     });
   });
 });

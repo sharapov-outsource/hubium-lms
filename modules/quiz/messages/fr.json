@@ -159,6 +159,8 @@
       "enterPassword": "Mot de passe du test",
       "subnet": "Adresses réseau",
       "subnetHint": "Tentatives uniquement depuis ces adresses : par ex. 192.168.1.0/24, 10.1 ou 172.16.5.10-20. Vide : depuis n’importe où.",
+      "nodes": "Uniquement via des nœuds locaux",
+      "nodesHint": "Tentatives uniquement dans les réseaux des nœuds choisis, par exemple les salles d’une agence. Aucun choisi : partout.",
       "delay1": "Attente après la première tentative, min",
       "delay2": "Attente après les tentatives suivantes, min",
       "navMethod": "Navigation",
@@ -168,6 +170,7 @@
         "sequential": "Séquentielle"
       },
       "networkBlocked": "Ce test ne peut être passé que depuis certaines adresses réseau, et la vôtre n’en fait pas partie.",
+      "nodeBlocked": "Ce test se passe uniquement dans les salles de certaines agences.",
       "waitUntil": "La prochaine tentative pourra commencer le {date}.",
       "sequentialNotice": "Les pages se suivent : impossible de revenir à une page quittée.",
       "wrongPassword": "Le mot de passe du test est incorrect"
@@ -243,6 +246,7 @@
     },
     "errors": {
       "networkOnly": "Ce test ne peut être passé que depuis certaines adresses réseau",
+      "nodeOnly": "Ce test ne peut être passé que via les nœuds locaux de certaines agences",
       "noQuestions": "Le test n’a pas encore de questions",
       "notEnoughRandom": "Pas assez de questions dans la catégorie aléatoire",
       "questionMissing": "Question manquante",

@@ -14,7 +14,8 @@ const EnvSchema = z.object({
   /** Separate origin for untrusted content (SCORM); defaults to APP_URL in development. */
   CONTENT_HOST: z.string().url().optional(),
   APP_SECRET: z.string().min(32, 'APP_SECRET must be at least 32 characters'),
-  STORAGE_DRIVER: z.enum(['fs', 's3']).default('fs'),
+  /** mirror: a local node's disk, filled from the cloud */
+  STORAGE_DRIVER: z.enum(['fs', 's3', 'mirror']).default('fs'),
   STORAGE_FS_ROOT: z.string().default('.storage'),
   S3_ENDPOINT: z.string().url().optional(),
   S3_PUBLIC_URL: z.string().url().optional(),

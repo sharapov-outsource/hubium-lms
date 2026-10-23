@@ -1,7 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import type { Db, Prisma } from '@hubium/db';
+import { z } from 'zod';
 import { logEvent } from '../events/log.ts';
 import { sendAuthEmail } from '../mail/mail.ts';
+import { defineOperation } from '../operation.ts';
 import { type AllSettings, getAllSettings, userLocale } from '../settings/settings.ts';
 
 // Account lockout, as in Moodle: so many failed sign-ins within a window lock the account
@@ -126,7 +128,7 @@ export async function unlockAccount(db: Tx, userId: string): Promise<void> {
 }
 
 /** Unlocks the account of an emailed link. False when the link is unknown or expired. */
-export async function unlockWithToken(db: Db, token: string): Promise<boolean> {
+export async function unlockWithToken(db: Tx, token: string): Promise<boolean> {
   const v = await db.verification.findFirst({
     where: { identifier: `${UNLOCK_PREFIX}${token}`, expiresAt: { gt: new Date() } },
   });
@@ -142,3 +144,11 @@ export async function unlockWithToken(db: Db, token: string): Promise<boolean> {
   });
   return true;
 }
+
+/** The unlock link of the lockout email. */
+export const unlockByToken = defineOperation({
+  name: 'user.unlock.byToken',
+  offline: 'online',
+  input: z.object({ token: z.string().max(200) }),
+  handler: (ctx, { token }) => unlockWithToken(ctx.tx, token),
+});

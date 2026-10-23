@@ -27,6 +27,7 @@ const GroupInput = z.object({
 
 export const createGroup = defineOperation({
   name: 'group.create',
+  offline: 'replay',
   input: GroupInput,
   authorize: (ctx, i) => ctx.perm.require('group:manage', i.courseId),
   async handler(ctx, input) {
@@ -49,6 +50,7 @@ export const createGroup = defineOperation({
 
 export const updateGroup = defineOperation({
   name: 'group.update',
+  offline: 'guarded',
   input: GroupInput.omit({ courseId: true }).extend({ id: z.string().uuid() }),
   async authorize(ctx, i) {
     const g = await ctx.db.group.findUnique({ where: { id: i.id } });
@@ -76,6 +78,7 @@ export const updateGroup = defineOperation({
 
 export const deleteGroup = defineOperation({
   name: 'group.delete',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   async authorize(ctx, i) {
     const g = await ctx.db.group.findUnique({ where: { id: i.id } });
@@ -92,6 +95,7 @@ export const deleteGroup = defineOperation({
 
 export const setGroupMembers = defineOperation({
   name: 'group.members',
+  offline: 'guarded',
   input: z.object({
     groupId: z.string().uuid(),
     add: z.array(z.string().uuid()).default([]),
@@ -161,6 +165,7 @@ async function requireGroupingManager(ctx: RequestContext, id: string) {
 
 export const createGrouping = defineOperation({
   name: 'grouping.create',
+  offline: 'replay',
   input: GroupingInput,
   authorize: (ctx, i) => ctx.perm.require('group:manage', i.courseId),
   async handler(ctx, input) {
@@ -181,6 +186,7 @@ export const createGrouping = defineOperation({
 
 export const updateGrouping = defineOperation({
   name: 'grouping.update',
+  offline: 'guarded',
   input: GroupingInput.omit({ courseId: true }).extend({ id: z.string().uuid() }),
   authorize: (ctx, i) => requireGroupingManager(ctx, i.id),
   async handler(ctx, input) {
@@ -199,6 +205,7 @@ export const updateGrouping = defineOperation({
 
 export const deleteGrouping = defineOperation({
   name: 'grouping.delete',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx, i) => requireGroupingManager(ctx, i.id),
   async handler(ctx, { id }) {
@@ -212,6 +219,7 @@ export const deleteGrouping = defineOperation({
 /** Sets exactly which groups of the course belong to the grouping. */
 export const setGroupingGroups = defineOperation({
   name: 'grouping.groups',
+  offline: 'guarded',
   input: z.object({
     groupingId: z.string().uuid(),
     groupIds: z.array(z.string().uuid()).max(1000),
@@ -252,6 +260,7 @@ const CohortInput = z.object({
 
 export const createCohort = defineOperation({
   name: 'cohort.create',
+  offline: 'online',
   input: CohortInput,
   authorize: (ctx) => ctx.perm.require('cohort:manage'),
   async handler(ctx, input) {
@@ -270,6 +279,7 @@ export const createCohort = defineOperation({
 
 export const deleteCohort = defineOperation({
   name: 'cohort.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('cohort:manage'),
   async handler(ctx, { id }) {
@@ -330,6 +340,7 @@ async function leaveCourseIfUnenrolled(
 /** Adds/removes cohort members and keeps cohort-synced course enrolments in step. */
 export const setCohortMembers = defineOperation({
   name: 'cohort.members',
+  offline: 'online',
   input: z.object({
     cohortId: z.string().uuid(),
     add: z.array(z.string().uuid()).default([]),
@@ -349,13 +360,13 @@ export const setCohortMembers = defineOperation({
     });
     for (const m of methods) {
       for (const userId of add) {
-        await enrolUserRecord(ctx.tx, {
+        await enrolUserRecord(ctx, ctx.tx, {
           courseId: m.courseId,
           methodId: m.id,
           userId,
           roleId: m.roleId,
           component: 'COHORT',
-          log: { ctx, method: 'cohort' },
+          log: { method: 'cohort' },
         });
       }
       if (remove.length) {
@@ -388,6 +399,7 @@ export const setCohortMembers = defineOperation({
 /** Links a cohort to a course: every member is enrolled and stays in sync. */
 export const addCohortSync = defineOperation({
   name: 'enrol.cohort.add',
+  offline: 'online',
   input: z.object({
     courseId: z.string().uuid(),
     cohortId: z.string().uuid(),
@@ -407,13 +419,13 @@ export const addCohortSync = defineOperation({
       data: { courseId, type: 'COHORT', cohortId, roleId, name: cohort.name, sortOrder: 5 },
     });
     for (const m of cohort.members) {
-      await enrolUserRecord(ctx.tx, {
+      await enrolUserRecord(ctx, ctx.tx, {
         courseId,
         methodId: method.id,
         userId: m.userId,
         roleId,
         component: 'COHORT',
-        log: { ctx, method: 'cohort' },
+        log: { method: 'cohort' },
       });
     }
     return { methodId: method.id, enrolled: cohort.members.length };
@@ -422,6 +434,7 @@ export const addCohortSync = defineOperation({
 
 export const removeEnrolmentMethod = defineOperation({
   name: 'enrol.method.remove',
+  offline: 'online',
   input: z.object({ methodId: z.string().uuid() }),
   async authorize(ctx, i) {
     const m = await ctx.db.enrolmentMethod.findUnique({ where: { id: i.methodId } });

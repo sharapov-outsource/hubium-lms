@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { opNow } from '@hubium/db';
 import { log } from '@hubium/log';
 import {
   type ActivityRef,
@@ -162,6 +163,7 @@ export async function pollMeetings(ctx: ModuleCtx, intervalSec = 60): Promise<nu
 
 export const livesession = defineModule<LiveSettingsT>({
   key: 'livesession',
+  httpExternal: true,
   archetype: 'activity',
   icon: 'Presentation',
   supports: { viewCompletion: true },
@@ -185,7 +187,7 @@ export const livesession = defineModule<LiveSettingsT>({
   settings: {
     schema: LiveSettings as unknown as z.ZodType<LiveSettingsT>,
     defaults: () => ({
-      ...LiveSettings.parse({ startsAt: new Date(Date.now() + 86_400_000).toISOString() }),
+      ...LiveSettings.parse({ startsAt: new Date(opNow().getTime() + 86_400_000).toISOString() }),
     }),
   },
   calendar: {
@@ -270,6 +272,7 @@ export const livesession = defineModule<LiveSettingsT>({
     // Actions that call the meeting server run outside a transaction: a slow BBB must not
     // hold database locks or run past the transaction timeout.
     join: defineAction({
+      offline: 'online',
       summary: 'Get a personal link to join the session',
       capability: 'mod.livesession:join',
       mutation: false,
@@ -327,6 +330,7 @@ export const livesession = defineModule<LiveSettingsT>({
       },
     }),
     end: defineAction({
+      offline: 'online',
       summary: 'End the session for everyone',
       capability: 'mod.livesession:moderate',
       mutation: false,
@@ -341,6 +345,7 @@ export const livesession = defineModule<LiveSettingsT>({
       },
     }),
     syncRecordings: defineAction({
+      offline: 'online',
       summary: 'Fetch the list of recordings from the conferencing server',
       capability: 'mod.livesession:moderate',
       mutation: false,
@@ -350,6 +355,7 @@ export const livesession = defineModule<LiveSettingsT>({
       },
     }),
     publishRecording: defineAction({
+      offline: 'online',
       summary:
         'Show a recording to participants or hide it (it stays on the server and comes back with a sync hidden)',
       capability: 'mod.livesession:moderate',
@@ -363,6 +369,7 @@ export const livesession = defineModule<LiveSettingsT>({
       },
     }),
     deleteRecording: defineAction({
+      offline: 'online',
       summary: 'Hide a recording from participants (as publishRecording with published: false)',
       capability: 'mod.livesession:moderate',
       input: z.object({ id: z.string().uuid() }),

@@ -192,6 +192,7 @@ const requireAdmin = async (ctx: RequestContext) => {
 
 export const saveAiProvider = defineOperation({
   name: 'ai.provider.save',
+  offline: 'online',
   mutation: true,
   input: z.object({
     id: z.string().uuid().optional(),
@@ -246,6 +247,7 @@ export const saveAiProvider = defineOperation({
 
 export const deleteAiProvider = defineOperation({
   name: 'ai.provider.delete',
+  offline: 'online',
   mutation: true,
   input: z.object({ id: z.string().uuid() }),
   authorize: requireAdmin,
@@ -257,6 +259,7 @@ export const deleteAiProvider = defineOperation({
 
 export const saveAiFeature = defineOperation({
   name: 'ai.feature.save',
+  offline: 'online',
   mutation: true,
   input: z.object({
     feature: z.enum(AI_FEATURES),
@@ -290,6 +293,7 @@ export const saveAiFeature = defineOperation({
 
 export const setCourseAiFeature = defineOperation({
   name: 'ai.course.feature',
+  offline: 'online',
   mutation: true,
   input: z.object({
     courseId: z.string().uuid(),
@@ -311,6 +315,7 @@ export const setCourseAiFeature = defineOperation({
 
 export const saveEmbeddingConfig = defineOperation({
   name: 'ai.embeddings.save',
+  offline: 'online',
   mutation: true,
   input: z.object({
     kind: z.enum(['OPENAI_COMPAT', 'MOCK']).nullable(),

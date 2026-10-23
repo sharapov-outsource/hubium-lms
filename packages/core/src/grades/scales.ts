@@ -39,6 +39,7 @@ const authorizeScope = (ctx: RequestContext, courseId: string | null | undefined
 
 export const saveScale = defineOperation({
   name: 'grade.scale.save',
+  offline: 'guarded',
   input: z.object({
     id: z.string().uuid().optional(),
     courseId: z.string().uuid().nullable().optional(),
@@ -89,6 +90,7 @@ export const saveScale = defineOperation({
 
 export const deleteScale = defineOperation({
   name: 'grade.scale.delete',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   async authorize(ctx, i) {
     const s = await ctx.db.scale.findUnique({ where: { id: i.id } });
@@ -154,6 +156,7 @@ export async function hasOwnLetters(db: Tx, contextId: string): Promise<boolean>
 
 export const saveLetters = defineOperation({
   name: 'grade.letters.save',
+  offline: 'guarded',
   input: z.object({
     /** A course id, or the system context for the site. */
     contextId: z.string().uuid(),

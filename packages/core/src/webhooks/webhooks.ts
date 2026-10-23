@@ -113,6 +113,7 @@ async function changed(
 
 export const createWebhook = defineOperation({
   name: 'webhook.create',
+  offline: 'online',
   input: WebhookInput,
   authorize: requireAdmin,
   async handler(ctx, input) {
@@ -128,6 +129,7 @@ export const createWebhook = defineOperation({
 
 export const updateWebhook = defineOperation({
   name: 'webhook.update',
+  offline: 'online',
   input: WebhookInput.partial().extend({ id: z.string().uuid() }),
   authorize: requireAdmin,
   async handler(ctx, { id, ...input }) {
@@ -149,6 +151,7 @@ export const updateWebhook = defineOperation({
 
 export const deleteWebhook = defineOperation({
   name: 'webhook.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: requireAdmin,
   async handler(ctx, { id }) {
@@ -161,6 +164,7 @@ export const deleteWebhook = defineOperation({
 
 export const rotateWebhookSecret = defineOperation({
   name: 'webhook.rotateSecret',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: requireAdmin,
   async handler(ctx, { id }) {
@@ -175,6 +179,7 @@ export const rotateWebhookSecret = defineOperation({
 /** Sends a "ping" event now, whatever the webhook subscribes to. */
 export const pingWebhook = defineOperation({
   name: 'webhook.ping',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: requireAdmin,
   async handler(ctx, { id }) {
@@ -196,6 +201,7 @@ export const pingWebhook = defineOperation({
 /** Sends a past delivery's event again, as a new delivery. */
 export const redeliverWebhook = defineOperation({
   name: 'webhook.redeliver',
+  offline: 'online',
   input: z.object({ deliveryId: z.string().uuid() }),
   authorize: requireAdmin,
   async handler(ctx, { deliveryId }) {

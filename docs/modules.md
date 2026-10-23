@@ -40,6 +40,7 @@ export const glossary = defineModule({
   },
   actions: {
     addEntry: defineAction({
+      offline: 'replay',
       capability: 'mod.glossary:write',
       input: z.object({ term: z.string().min(1), definition: z.string() }),
       async handler(ctx, a, input) {
@@ -53,7 +54,7 @@ export const glossary = defineModule({
 export const glossaryModules = [glossary];
 ```
 
-Actions run in a transaction by default (`mutation: false` opts out, e.g. for slow AI calls). The UI calls them with `callModuleAction(activityId, 'addEntry', input)` from `@hubium/module-sdk/form`; the REST API exposes the same actions at `POST /api/v1/activities/{id}/actions/{name}`.
+Actions run in a transaction by default (`mutation: false` opts out, e.g. for slow AI calls). `offline` says what a local node does with the action while it cannot reach the cloud: `replay` runs it and the cloud replays it as it is (what people add: entries, attempts, posts), `guarded` runs it and the cloud replays it only when what it changed is unchanged there (edits), `online` refuses it (what needs the internet, and the settings of the activity's site-wide parts). The UI calls them with `callModuleAction(activityId, 'addEntry', input)` from `@hubium/module-sdk/form`; the REST API exposes the same actions at `POST /api/v1/activities/{id}/actions/{name}`.
 
 ## Hooks
 
@@ -63,7 +64,7 @@ Actions run in a transaction by default (`mutation: false` opts out, e.g. for sl
 | `completion` | custom completion rules (`evaluate(ctx, a, userId, rules)`) |
 | `grading.items(a)` | grade items in the gradebook; write grades with `ctx.grades.setGrades` |
 | `calendar.events(a)` | open/due dates shown in calendars |
-| `lifecycle` | `onCreate`, `onUpdate`, `onDelete`, `onUserUnenrolled` |
+| `lifecycle` | `onCreate`, `onUpdate`, `onDelete`, `onUserEnrolled`, `onUserUnenrolled` |
 | `actions` | typed, capability-checked operations |
 | `queries` | typed reads for API clients (`GET /api/v1/activities/{id}/queries/{name}`); share the read functions with the module's pages; throw `ModuleError('NOT_FOUND', …)` for what the user may not see |
 | `http(ctx, req, path)` | endpoints under `/api/mod/<key>/…` (streaming, callbacks) |

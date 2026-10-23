@@ -252,6 +252,28 @@ describe('mod-quiz', () => {
     expect(await notices()).toBe(1);
   });
 
+  it('time limit: starting again closes an overdue attempt as the sweep would', async () => {
+    const { id } = await f.addActivity('quiz', 'На время 3', { attempts: 0, timeLimitMin: 1 });
+    const q = await t.db.question.findFirstOrThrow({
+      where: { category: { contextId: f.courseId }, type: 'TRUEFALSE' },
+    });
+    await runModuleAction(await ctxFor(t.db, 'teacher@hubium.local'), id, 'addQuestions', {
+      questionIds: [q.id],
+    });
+    const s1 = await ctxFor(t.db, 'student1@hubium.local');
+    const first = (await runModuleAction(s1, id, 'start', {})) as { attemptId: string };
+    // the same attempt while its time lasts
+    expect(await runModuleAction(s1, id, 'start', {})).toEqual(first);
+    const dueAt = new Date(Date.now() - 5 * 60_000);
+    await t.db.quizAttempt.update({ where: { id: first.attemptId }, data: { dueAt } });
+    // the sweep has not come by: the start ends it and begins the next one
+    const next = (await runModuleAction(s1, id, 'start', {})) as { attemptId: string };
+    expect(next.attemptId).not.toBe(first.attemptId);
+    const closed = await t.db.quizAttempt.findUniqueOrThrow({ where: { id: first.attemptId } });
+    expect(closed.state).toBe('FINISHED');
+    expect(closed.finishedAt?.getTime()).toBe(dueAt.getTime() + 60_000);
+  });
+
   it('time limit: a late save submits the attempt instead of failing', async () => {
     const { id } = await f.addActivity('quiz', 'На время 2', { attempts: 0, timeLimitMin: 1 });
     const q = await t.db.question.findFirstOrThrow({

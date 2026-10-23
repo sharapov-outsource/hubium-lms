@@ -1,4 +1,5 @@
 import type { Activity, Prisma } from '@hubium/db';
+import { opRandom } from '@hubium/db';
 import type { ActivityRef, ModuleCtx, ModuleFile } from '@hubium/module-sdk';
 import { parseSettings } from '@hubium/module-sdk';
 import type { Capability } from '../access/capabilities.ts';
@@ -11,6 +12,7 @@ import { getStorage } from '../files/storage.ts';
 import { fileText } from '../files/text.ts';
 import { consumeUpload } from '../files/uploads.ts';
 import { enqueue } from '../jobs/jobs.ts';
+import { nodeWorkWaitingSince } from '../node/waiting.ts';
 import { publishRealtime } from '../realtime.ts';
 import { requireModule } from './registry.ts';
 
@@ -117,8 +119,17 @@ export function buildModuleCtx(
     db: tx,
     actor: ctx.actor,
     now: ctx.now,
+    // the operation's numbers, drawn when asked for
+    random: {
+      next: () => opRandom().next(),
+      int: (min, max) => opRandom().int(min, max),
+      uuid: () => opRandom().uuid(),
+    },
     locale: ctx.locale,
     ip: ctx.ip ?? null,
+    nodeId: ctx.nodeId ?? null,
+    override: ctx.override ?? false,
+    nodes: { waitingSince: () => nodeWorkWaitingSince(tx) },
     perm: {
       can: (cap, contextId) => ctx.perm.can(cap as Capability, contextId),
       require: (cap, contextId) => ctx.perm.require(cap as Capability, contextId),

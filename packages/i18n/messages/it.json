@@ -534,7 +534,8 @@
       "security": "Sicurezza",
       "email": "Email",
       "maintenance": "Manutenzione"
-    }
+    },
+    "nodes": "Nodi"
   },
   "email": {
     "footer": "Questa email è stata inviata perché l’indirizzo è associato a un account su questo sito.",
@@ -1109,6 +1110,15 @@
       "tooManyColumns": "Al massimo {n} colonne",
       "tooLarge": "Il file supera {n} MB",
       "notSheet": "Non è un foglio di calcolo: usa CSV, XLSX o ODS"
+    },
+    "node": {
+      "onlineOnly": "Serve la connessione al server principale: ora non è disponibile.",
+      "readonly": "Nessuna connessione al server principale: per ora si può solo consultare.",
+      "syncing": "Il lavoro svolto senza connessione viene trasmesso al server principale: riprova tra un minuto.",
+      "cannotDecide": "Decidono solo i docenti del corso e gli amministratori.",
+      "notANode": "Questo server non è un nodo locale.",
+      "agent": "L'agente del nodo non ha risposto.",
+      "badCode": "Il codice di installazione è errato o scaduto."
     }
   },
   "editor": {
@@ -1198,6 +1208,7 @@
       "groups": "Gruppi",
       "grades": "Valutazioni",
       "completion": "Completamento",
+      "nodeConflicts": "Conflitti dei nodi",
       "reports": "Report",
       "settings": "Impostazioni",
       "enrolment": "Iscrizioni",
@@ -1613,6 +1624,9 @@
     "who": "Chi (nome o email)",
     "anyEvent": "Qualsiasi evento",
     "anyActivity": "Qualsiasi attività",
+    "node": "Nodo",
+    "anyNode": "Qualsiasi nodo",
+    "noNode": "Senza nodo",
     "from": "Dal",
     "to": "Al",
     "noLogs": "Nessun evento trovato",
@@ -2126,7 +2140,8 @@
       "badge_awarded": "Badge ottenuti",
       "certificate_issued": "Certificati rilasciati",
       "competency_plan": "Piani di formazione",
-      "competency_comment": "Commenti su piani e competenze"
+      "competency_comment": "Commenti su piani e competenze",
+      "node_conflict": "Lavoro svolto senza connessione"
     },
     "text": {
       "enrolled": "Iscrizione al corso «{course}» effettuata",
@@ -2138,7 +2153,9 @@
       "planCreated": "È stato creato per te il piano di formazione «{name}»",
       "planApproved": "Piano di formazione «{name}» approvato",
       "planCompleted": "Piano di formazione «{name}» completato",
-      "competencyComment": "Un nuovo commento sul tuo piano o sulla tua competenza"
+      "competencyComment": "Un nuovo commento sul tuo piano o sulla tua competenza",
+      "nodeConflict": "Un lavoro svolto senza connessione ({node}) non è stato accettato",
+      "nodeConflictAccepted": "Un lavoro svolto senza connessione ({node}) è stato accettato"
     },
     "email": {
       "open": "Apri",
@@ -3592,6 +3609,147 @@
       "intro": "Il report «{name}» è allegato: {rows, plural, one {# riga} other {# righe}}.",
       "open": "Apri il report",
       "footer": "Invio «{schedule}»."
+    }
+  },
+  "nodes": {
+    "title": "Nodi locali",
+    "description": "Server nelle reti di sedi ed edifici: lì si lavora attraverso di essi, rapidamente, e si continua quando la linea verso questo server è interrotta. Ciò che si fa senza arriva qui al ritorno della linea.",
+    "name": "Nome",
+    "nameHint": "La sede o l'edificio, come la conoscono le persone.",
+    "state": "Stato",
+    "lastSeen": "Ultimo segnale",
+    "lag": "Ritardo",
+    "files": "File copiati",
+    "conflicts": "Conflitti",
+    "allConflicts": "Tutti i conflitti",
+    "new": "Aggiungi un nodo",
+    "newHint": "Riceverai un codice che installa il nodo su un server di quella rete (valido un giorno).",
+    "add": "Aggiungi nodo",
+    "categories": "Solo i file di queste categorie",
+    "categoriesHint": "Nessuna: tutti i file vengono copiati sul nodo. Con le categorie, i file dei loro corsi sono copiati in anticipo, gli altri all'apertura (con la connessione).",
+    "codeTitle": "Installa il nodo con questo comando",
+    "codeHint": "Eseguilo sul server del nodo; il codice si mostra una volta e vale un giorno.",
+    "copy": "Copia",
+    "copied": "Copiato",
+    "mode": {
+      "revoked": "Revocato",
+      "notInstalled": "Non installato",
+      "silent": "Nessun segnale",
+      "NEW": "Nuovo",
+      "ONLINE": "Connesso",
+      "READONLY": "Senza connessione: sola lettura",
+      "OFFLINE": "Lavora da solo",
+      "SYNC": "Sincronizzazione",
+      "PASSTHROUGH": "Inoltra tutto"
+    },
+    "modeHint": {
+      "ONLINE": "Pagine e file arrivano dal nodo; le modifiche vanno al server principale.",
+      "READONLY": "Il server principale non è raggiungibile: si può consultare, le modifiche aspettano. Presto il nodo lavorerà da solo.",
+      "OFFLINE": "Il nodo lavora sul proprio database e tiene un registro; lo trasmetterà al ritorno del server principale.",
+      "SYNC": "Il registro va al server principale; le modifiche attendono un minuto o due.",
+      "PASSTHROUGH": "La copia del database del nodo non è pronta (o è un'altra versione): tutto va al server principale."
+    },
+    "nodeDescription": "Il suo stato come segnalato, l'installazione, i responsabili e le interruzioni.",
+    "release": "Versione",
+    "replicaB": "Database proprio",
+    "replicaState": {
+      "ready": "pronto",
+      "copying": "in copia",
+      "promoted": "in uso",
+      "missing": "assente"
+    },
+    "pendingOps": "Voci del registro in attesa",
+    "offlineSince": "Senza connessione da",
+    "slot": "Slot di replica",
+    "slotState": {
+      "reserved": "conservato",
+      "extended": "conservato oltre il solito",
+      "unreserved": "sta per perdersi",
+      "lost": "perso: il nodo ricopia il database"
+    },
+    "openConflicts": "{n, plural, one {# conflitto aperto} other {# conflitti aperti}}",
+    "installation": "Installazione",
+    "installedHint": "Il nodo è installato. Un nuovo codice lo reinstalla (altro server, nuovo disco); la vecchia installazione si ferma quando la nuova si registra.",
+    "codeExpires": "Non ancora installato. Il codice vale fino al {at}.",
+    "reinstall": "Nuovo codice per reinstallare",
+    "newCode": "Nuovo codice di installazione",
+    "settings": "Impostazioni",
+    "admins": "Amministratori del nodo",
+    "adminsHint": "Vedono lo stato del nodo sul nodo (/node), attivano la modalità autonoma e rinviano la sincronizzazione, senza amministrare il sito.",
+    "outages": "Interruzioni",
+    "outagesHint": "Periodi in cui questo server non ha sentito il nodo, e cosa ne è stato del lavoro svolto.",
+    "outageFrom": "Da",
+    "outageTo": "A",
+    "applied": "Accettato",
+    "synced": "Sincronizzato",
+    "ongoing": "in corso",
+    "noOutages": "Nessuna finora.",
+    "revokeTitle": "Revoca il nodo",
+    "revokeHint": "Il suo token, il ruolo nel database e lo slot di replica vengono rimossi: non riceve più nulla da questo server. Ciò che contiene resta sul disco; cancella quel server.",
+    "revoke": "Revoca",
+    "revokeConfirm": "Revocare questo nodo? Smette subito di servire la sua rete.",
+    "revoked": "Nodo revocato",
+    "deleteTitle": "Rimuovi il nodo",
+    "deleteHint": "Rimuove dall'elenco il nodo revocato, con interruzioni e conflitti.",
+    "delete": "Rimuovi",
+    "deleteConfirm": "Rimuovere questo nodo, le sue interruzioni e i conflitti?",
+    "conflictsTitle": "Conflitti del lavoro svolto senza connessione",
+    "conflictsDescription": "Lavoro svolto sui nodi senza connessione che questo server non ha accettato: qui qualcosa è cambiato nel frattempo, o una regola ora lo rifiuta. Gli autori sono stati avvisati.",
+    "courseConflictsDescription": "Lavoro svolto in questo corso sui nodi senza connessione e non accettato. Puoi accettare comunque il lavoro di uno studente (tentativo oltre il limite, consegna dopo la scadenza).",
+    "noConflicts": "Nessun conflitto.",
+    "when": "Quando",
+    "node": "Nodo",
+    "author": "Autore",
+    "why": "Perché",
+    "status": "Stato",
+    "conflictStatus": {
+      "OPEN": "Aperto",
+      "ACCEPTED": "Accettato",
+      "DISMISSED": "Respinto"
+    },
+    "conflictTitle": "Lavoro non accettato",
+    "conflictDescription": "Svolto su un nodo locale senza connessione; questo server non l'ha accettato. Nulla è perso: ecco il contenuto.",
+    "doneAt": "Svolto il",
+    "activity": "Attività",
+    "what": "Azione",
+    "content": "Contenuto",
+    "decideHint": "Accettare lo riesegue come l'ha fatto l'autore, senza le regole di tempo e numero, con il lavoro della stessa persona in questa attività che teneva in sospeso.",
+    "accept": "Accetta",
+    "acceptConfirm": "Accettare questo lavoro nonostante la regola?",
+    "accepted": "Accettato",
+    "dismiss": "Respingi",
+    "dismissConfirm": "Respingerlo? Resta qui da leggere.",
+    "dismissed": "Respinto",
+    "thisNode": "Questo nodo",
+    "thisNodeDescription": "Il nodo locale della tua rete: la connessione al server principale e cosa fa senza.",
+    "since": "In questo stato da",
+    "lastHeartbeat": "Server principale raggiunto l'ultima volta",
+    "goOffline": "Lavora ora senza il server principale",
+    "goOfflineConfirm": "Il nodo smette di inviare modifiche al server principale e lavora da solo finché non lo disattivi (un esame con linea scarsa). Continuare?",
+    "goOnline": "Torna al server principale",
+    "goOnlineConfirm": "Il nodo trasmette ciò che ha fatto da solo e torna al server principale, finiti i quiz a tempo in corso. Continuare?",
+    "commandDone": "Fatto",
+    "postponeUntil": "Rinvia la sincronizzazione fino al",
+    "postpone": "Rinvia",
+    "postponedTill": "La sincronizzazione attende fino al {at}.",
+    "banner": {
+      "readonly": "Nessuna connessione al server principale. Per ora puoi consultare i materiali; a breve potrai di nuovo apportare modifiche.",
+      "offline": "Nessuna connessione al server principale. Il tuo lavoro è salvato sul server dell'organizzazione e sarà trasmesso automaticamente.",
+      "sync": "Il lavoro svolto senza connessione viene trasmesso al server principale: le modifiche sono sospese per un minuto o due."
+    },
+    "unavailable": {
+      "title": "Non disponibile al momento",
+      "offline": "Nessuna connessione al server principale: ora non si può fare. La consultazione funziona; riprova più tardi.",
+      "sync": "Il lavoro svolto senza connessione viene trasmesso al server principale. Riprova tra un minuto.",
+      "back": "Torna alla bacheca"
+    },
+    "reason": {
+      "time": "L'ora dell'azione è fuori dall'interruzione del nodo (orologio sbagliato?)",
+      "actorGone": "L'account dell'autore non è più attivo",
+      "changed": "Modificato nel frattempo sul server principale",
+      "unknown": "Questo server non conosce l'azione {name}",
+      "refused": "Rifiutato dal server principale",
+      "failed": "Il server principale non è riuscito a farlo"
     }
   }
 }

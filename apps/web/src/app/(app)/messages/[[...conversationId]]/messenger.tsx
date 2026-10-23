@@ -380,7 +380,9 @@ function Thread({
   const [messages, setMessages] = useState(initial.items);
   const [hasMore, setHasMore] = useState(initial.hasMore);
   const [typing, setTyping] = useState<{ name: string; until: number } | null>(null);
-  const [sending, start] = useTransition();
+  // the message on its way, not every pending transition of the page (React batches them:
+  // the list and counts catching up after events would hold the composer too)
+  const [sending, setSending] = useState(false);
   const inFlight = useRef(false);
   const [files, setFiles] = useState<File[]>([]);
   const scroller = useRef<HTMLDivElement>(null);
@@ -481,7 +483,8 @@ function Thread({
       return void toast.error(t('attachmentsTooLarge'));
     stickToBottom.current = true;
     inFlight.current = true;
-    start(async () => {
+    setSending(true);
+    void (async () => {
       try {
         const r = await sendMessageAction(fd).catch(() => null);
         if (!r) return void toast.error(tc('error'));
@@ -489,12 +492,13 @@ function Thread({
         form.reset();
         setFiles([]);
         lastTyping.current = 0;
-        await fetchNew();
-        onActivity();
+        // the next message may go while the thread and the list catch up
+        void fetchNew().then(onActivity);
       } finally {
         inFlight.current = false;
+        setSending(false);
       }
-    });
+    })();
   };
 
   const pingTyping = () => {

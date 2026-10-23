@@ -365,6 +365,7 @@ export const feedback = defineModule<FeedbackSettingsT>({
   },
   actions: {
     addItem: defineAction({
+      offline: 'replay',
       summary: 'Add a question, an info text or a page break',
       capability: 'mod.feedback:edititems',
       input: ItemInput.and(z.object({ afterId: z.string().uuid().nullable().default(null) })),
@@ -381,6 +382,7 @@ export const feedback = defineModule<FeedbackSettingsT>({
       },
     }),
     updateItem: defineAction({
+      offline: 'guarded',
       summary: 'Change a question',
       capability: 'mod.feedback:edititems',
       input: ItemInput.and(z.object({ id: z.string().uuid() })),
@@ -391,6 +393,7 @@ export const feedback = defineModule<FeedbackSettingsT>({
       },
     }),
     deleteItem: defineAction({
+      offline: 'guarded',
       summary: 'Delete a question (its answers stay out of the summary)',
       capability: 'mod.feedback:edititems',
       input: z.object({ id: z.string().uuid() }),
@@ -405,6 +408,7 @@ export const feedback = defineModule<FeedbackSettingsT>({
       },
     }),
     moveItem: defineAction({
+      offline: 'guarded',
       summary: 'Move a question one step up or down',
       capability: 'mod.feedback:edititems',
       input: z.object({ id: z.string().uuid(), direction: z.enum(['up', 'down']) }),
@@ -421,6 +425,7 @@ export const feedback = defineModule<FeedbackSettingsT>({
       },
     }),
     submit: defineAction({
+      offline: 'replay',
       summary: 'Send the answers',
       capability: 'mod.feedback:complete',
       input: z.object({ answers: z.record(z.string(), z.unknown()) }),
@@ -469,6 +474,7 @@ export const feedback = defineModule<FeedbackSettingsT>({
       },
     }),
     deleteResponse: defineAction({
+      offline: 'guarded',
       summary: 'Delete a response',
       capability: 'mod.feedback:deleteresponses',
       input: z.object({ id: z.string().uuid() }),

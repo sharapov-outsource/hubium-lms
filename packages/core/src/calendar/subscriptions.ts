@@ -1,4 +1,4 @@
-import type { CalendarSubscription, Db, Prisma } from '@hubium/db';
+import { type CalendarSubscription, type Db, type Prisma, withWriteScope } from '@hubium/db';
 import { log } from '@hubium/log';
 import { type Msg, msg } from '@hubium/module-sdk';
 import { checkUrlShape, safeFetch, UnsafeUrlError } from '@hubium/module-sdk/net';
@@ -82,6 +82,7 @@ function owner(ctx: RequestContext, t: TargetT) {
 /** Subscribes to a feed; the caller fetches it with syncSubscription (outside the transaction). */
 export const subscribeCalendar = defineOperation({
   name: 'calendar.subscribe',
+  offline: 'online',
   input: SubscriptionBase.extend({
     url: z.string().max(2000),
     pollSeconds: z.coerce
@@ -109,6 +110,7 @@ export const subscribeCalendar = defineOperation({
 /** Imports the events of an .ics file once. */
 export const importCalendarFile = defineOperation({
   name: 'calendar.import',
+  offline: 'replay',
   input: SubscriptionBase.extend({ content: z.string().max(CALENDAR_FEED_LIMITS.maxBytes) }),
   authorize: authorizeTarget,
   async handler(ctx, input) {
@@ -126,6 +128,7 @@ export const importCalendarFile = defineOperation({
 
 export const unsubscribeCalendar = defineOperation({
   name: 'calendar.unsubscribe',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: async (ctx, i) => void (await requireSubscription(ctx, i.id)),
   async handler(ctx, { id }) {
@@ -273,7 +276,12 @@ async function readLimited(res: Response, max: number): Promise<string> {
  * Fetches a subscribed feed and updates its events. Records the time and any error on
  * the subscription, then rethrows the error.
  */
-export async function syncSubscription(db: Db, id: string, now = new Date()) {
+export function syncSubscription(db: Db, id: string, now = new Date()) {
+  // a copy of another server's calendar, fetched again on every sync
+  return withWriteScope('external', 'calendar.subscription.sync', () => sync(db, id, now));
+}
+
+async function sync(db: Db, id: string, now: Date) {
   const sub = await db.calendarSubscription.findUniqueOrThrow({ where: { id } });
   if (!sub.url) return { events: await db.calendarEvent.count({ where: { subscriptionId: id } }) };
   try {

@@ -4,9 +4,9 @@ import { msg } from '@hubium/module-sdk';
 import { assertPublicUrl, publicHttpsAgent } from '@hubium/module-sdk/net';
 import webpush from 'web-push';
 import { z } from 'zod';
-import type { RequestContext } from '../context.ts';
 import { getEnv } from '../env.ts';
 import { ForbiddenError, ValidationError } from '../errors.ts';
+import { defineOperation } from '../operation.ts';
 
 const logger = log('push');
 
@@ -36,37 +36,46 @@ const Subscription = z.object({
   keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(8).max(100) }),
 });
 
-export async function savePushSubscription(
-  ctx: RequestContext,
-  raw: unknown,
-  userAgent?: string | null,
-) {
-  if (ctx.actor.kind !== 'user') throw new ForbiddenError();
-  const s = Subscription.parse(raw);
-  await assertPublicUrl(s.endpoint).catch(() => {
-    throw new ValidationError({ endpoint: [msg('errors.notifications.invalidEndpoint')] });
-  });
-  const userId = ctx.actor.userId;
-  await ctx.db.pushSubscription.upsert({
-    where: { endpoint: s.endpoint },
-    create: {
-      userId,
-      endpoint: s.endpoint,
-      p256dh: s.keys.p256dh,
-      auth: s.keys.auth,
-      userAgent: userAgent?.slice(0, 300) ?? null,
-    },
-    // the same browser re-subscribing (or another user signing in on it) takes it over
-    update: { userId, p256dh: s.keys.p256dh, auth: s.keys.auth },
-  });
-  return { ok: true };
-}
+export const savePushSubscription = defineOperation({
+  name: 'push.subscribe',
+  offline: 'online',
+  input: Subscription.extend({ userAgent: z.string().nullish() }),
+  async authorize(ctx, s) {
+    if (ctx.actor.kind !== 'user') throw new ForbiddenError();
+    // a lookup of the push service's address: before the transaction
+    await assertPublicUrl(s.endpoint).catch(() => {
+      throw new ValidationError({ endpoint: [msg('errors.notifications.invalidEndpoint')] });
+    });
+  },
+  async handler(ctx, s) {
+    if (ctx.actor.kind !== 'user') throw new ForbiddenError();
+    const userId = ctx.actor.userId;
+    await ctx.tx.pushSubscription.upsert({
+      where: { endpoint: s.endpoint },
+      create: {
+        userId,
+        endpoint: s.endpoint,
+        p256dh: s.keys.p256dh,
+        auth: s.keys.auth,
+        userAgent: s.userAgent?.slice(0, 300) ?? null,
+      },
+      // the same browser re-subscribing (or another user signing in on it) takes it over
+      update: { userId, p256dh: s.keys.p256dh, auth: s.keys.auth },
+    });
+    return { ok: true };
+  },
+});
 
-export async function removePushSubscription(ctx: RequestContext, endpoint: string) {
-  if (ctx.actor.kind !== 'user') throw new ForbiddenError();
-  await ctx.db.pushSubscription.deleteMany({ where: { endpoint, userId: ctx.actor.userId } });
-  return { ok: true };
-}
+export const removePushSubscription = defineOperation({
+  name: 'push.unsubscribe',
+  offline: 'online',
+  input: z.object({ endpoint: z.string().max(2000) }),
+  async handler(ctx, { endpoint }) {
+    if (ctx.actor.kind !== 'user') throw new ForbiddenError();
+    await ctx.tx.pushSubscription.deleteMany({ where: { endpoint, userId: ctx.actor.userId } });
+    return { ok: true };
+  },
+});
 
 /** Worker job: pushes the given notifications to their users' devices. */
 export async function sendPushNotifications(

@@ -1,4 +1,4 @@
-import type { CalendarEvent, Db, Prisma } from '@hubium/db';
+import { type CalendarEvent, type Db, opNow, type Prisma } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import { userContext } from '../ai/user-ctx.ts';
@@ -133,6 +133,7 @@ export const EventInput = z.object({
 
 export const createEvent = defineOperation({
   name: 'calendar.create',
+  offline: 'replay',
   input: EventInput,
   async authorize(ctx, i) {
     if (i.scope === 'USER') await ctx.perm.require('calendar:manageown');
@@ -167,6 +168,7 @@ export const createEvent = defineOperation({
 
 export const deleteEvent = defineOperation({
   name: 'calendar.delete',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   async authorize(ctx, { id }) {
     const e = await ctx.db.calendarEvent.findUnique({ where: { id } });
@@ -194,10 +196,21 @@ export async function resetFeedToken(db: Tx, userId: string): Promise<string> {
     where: { userId },
     create: { userId, tokenHash: sha256Hex(token) },
     // createdAt: when the link in use was issued
-    update: { tokenHash: sha256Hex(token), createdAt: new Date() },
+    update: { tokenHash: sha256Hex(token), createdAt: opNow() },
   });
   return token;
 }
+
+/** A new address of the person's own calendar feed: the previous one stops working. */
+export const resetMyFeedToken = defineOperation({
+  name: 'calendar.feedToken.reset',
+  offline: 'online',
+  input: z.object({}),
+  async handler(ctx) {
+    if (ctx.actor.kind !== 'user') throw new ForbiddenError();
+    return { token: await resetFeedToken(ctx.tx, ctx.actor.userId) };
+  },
+});
 
 /** Whose feed a token opens: an active account's only. */
 export async function userForFeedToken(db: Tx, token: string): Promise<string | null> {

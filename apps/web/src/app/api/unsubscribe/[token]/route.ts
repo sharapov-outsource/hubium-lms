@@ -1,17 +1,12 @@
-import { applyUnsubscribe } from '@hubium/core';
-import { serverModules } from '@/modules/server';
-import { db } from '@/server/db';
+import { unsubscribeByToken } from '@hubium/core';
+import { getContext } from '@/server/session';
 
 export const dynamic = 'force-dynamic';
 
 /** RFC 8058 one-click unsubscribe (List-Unsubscribe-Post), no sign-in needed. */
 export async function POST(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const r = await applyUnsubscribe(
-    db,
-    token,
-    serverModules.map((m) => m.key),
-  );
+  const r = await unsubscribeByToken.run(await getContext(), { token });
   return new Response(null, { status: r ? 200 : 400 });
 }
 

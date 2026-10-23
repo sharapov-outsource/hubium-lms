@@ -63,6 +63,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     { key: 'modules', href: '/admin/modules', label: t('modules'), show: config },
     { key: 'lti', href: '/admin/lti', label: t('lti'), show: config && lti },
     { key: 'webhooks', href: '/admin/webhooks', label: t('webhooks'), show: config },
+    { key: 'nodes', href: '/admin/nodes', label: t('nodes'), show: config },
     { key: 'ai', href: '/admin/ai', label: t('ai'), show: config },
     { key: 'policies', href: '/admin/policies', label: t('policies'), show: config },
     { key: 'announcements', href: '/admin/announcements', label: t('announcements'), show: config },

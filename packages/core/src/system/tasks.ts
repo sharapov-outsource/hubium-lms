@@ -5,6 +5,7 @@ import { NotFoundError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { enqueue, getBoss } from '../jobs/jobs.ts';
 import { listModules } from '../modules/registry.ts';
+import { defineOperation } from '../operation.ts';
 
 // Administration → Tasks, like Moodle's scheduled task list and task log: what the worker
 // runs on a schedule, how each run went (pg-boss keeps the jobs), and "run now" / "retry".
@@ -172,33 +173,43 @@ export async function taskLog(ctx: RequestContext, raw: z.input<typeof TaskLogQu
 }
 
 /** Queues a scheduled task to run as soon as the worker gets to it. */
-export async function runTaskNow(ctx: RequestContext, name: string) {
-  await ctx.perm.require('site:config');
-  if (!scheduledTasks().some((t) => t.name === name)) throw new NotFoundError('Task');
-  const id = await enqueue(name, {}, { retryLimit: 0 });
-  await logEvent(ctx.db, {
-    name: 'task.run',
-    actorId: ctx.perm.userId,
-    objectType: 'task',
-    data: { task: name },
-    origin: ctx.origin,
-  });
-  return { id };
-}
+export const runTaskNow = defineOperation({
+  name: 'task.run',
+  offline: 'online',
+  input: z.object({ name: z.string().max(200) }),
+  authorize: (ctx) => ctx.perm.require('site:config'),
+  async handler(ctx, { name }) {
+    if (!scheduledTasks().some((t) => t.name === name)) throw new NotFoundError('Task');
+    const id = await enqueue(name, {}, { retryLimit: 0, tx: ctx.tx });
+    await logEvent(ctx.tx, {
+      name: 'task.run',
+      actorId: ctx.perm.userId,
+      objectType: 'task',
+      data: { task: name },
+      origin: ctx.origin,
+    });
+    return { id };
+  },
+});
 
 /** Puts a failed job back in the queue; it runs again with the same data. */
-export async function retryTaskRun(ctx: RequestContext, input: { name: string; id: string }) {
-  await ctx.perm.require('site:config');
-  const boss = await getBoss();
-  // pg-boss types the answer as an empty interface; it carries the count
-  const r = (await boss.retry(input.name, input.id)) as { affected?: number };
-  if (!r.affected) throw new NotFoundError('Failed job');
-  await logEvent(ctx.db, {
-    name: 'task.retried',
-    actorId: ctx.perm.userId,
-    objectType: 'task',
-    data: { task: input.name, jobId: input.id },
-    origin: ctx.origin,
-  });
-  return { ok: true };
-}
+export const retryTaskRun = defineOperation({
+  name: 'task.retry',
+  offline: 'online',
+  input: z.object({ name: z.string().max(200), id: z.string().uuid() }),
+  authorize: (ctx) => ctx.perm.require('site:config'),
+  async handler(ctx, input) {
+    const boss = await getBoss();
+    // pg-boss types the answer as an empty interface; it carries the count
+    const r = (await boss.retry(input.name, input.id)) as { affected?: number };
+    if (!r.affected) throw new NotFoundError('Failed job');
+    await logEvent(ctx.tx, {
+      name: 'task.retried',
+      actorId: ctx.perm.userId,
+      objectType: 'task',
+      data: { task: input.name, jobId: input.id },
+      origin: ctx.origin,
+    });
+    return { ok: true };
+  },
+});

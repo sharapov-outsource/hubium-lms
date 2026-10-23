@@ -24,8 +24,8 @@ cp -R "$root/packages/db/prisma/migrations" "$dest/cli/migrations"
 cp "$root/deploy/bin/hubium" "$dest/bin/hubium"
 chmod 755 "$dest/bin/hubium"
 cp -R "$root/deploy/systemd" "$dest/deploy/systemd"
-cp "$root/deploy/hubium.env.example" "$root/docker/Caddyfile" "$root/docker/compose.yml" \
-  "$root/.env.production.example" "$dest/deploy/"
+cp "$root/deploy/hubium.env.example" "$root/docker/Caddyfile" "$root/docker/nginx.conf" \
+  "$root/docker/compose.yml" "$root/.env.production.example" "$dest/deploy/"
 cp "$root/deploy/README.txt" "$dest/README.txt"
 cp "$root/LICENSE" "$dest/LICENSE"
 node -p "require('$root/package.json').version" > "$dest/VERSION"

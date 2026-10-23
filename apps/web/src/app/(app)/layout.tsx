@@ -8,6 +8,7 @@ import type { ReactNode } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
 import { LoginAsBanner } from '@/components/shell/login-as-banner';
 import type { NavItem } from '@/components/shell/nav-items';
+import { NodeBanner } from '@/components/shell/node-banner';
 import { db } from '@/server/db';
 import { getContext, requireUser } from '@/server/session';
 
@@ -62,6 +63,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const t = await getTranslations('admin');
   return (
     <AppShell user={user} items={items}>
+      <NodeBanner />
       {loggedInAs ? <LoginAsBanner name={user.name} /> : null}
       {user.isSiteAdmin && (await getSetting(db, 'maintenance.enabled')) ? (
         <Alert variant="warning" className="mb-4 flex flex-wrap items-center justify-between gap-2">

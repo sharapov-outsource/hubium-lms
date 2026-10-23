@@ -6,7 +6,7 @@ import {
   deleteEvent,
   importCalendarFile,
   requireSubscription,
-  resetFeedToken,
+  resetMyFeedToken,
   subscribeCalendar,
   syncSubscription,
   unsubscribeCalendar,
@@ -53,8 +53,8 @@ export async function deleteEventAction(id: string) {
 
 export async function resetFeedTokenAction() {
   return runAction(async () => {
-    const user = await requireUser();
-    return { token: await resetFeedToken(db, user.id) };
+    await requireUser();
+    return resetMyFeedToken.run(await getContext(), {});
   });
 }
 

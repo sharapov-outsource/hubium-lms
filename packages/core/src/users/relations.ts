@@ -75,6 +75,7 @@ async function activeUser(db: Db, id: string, field: string) {
 
 export const addUserRelation = defineOperation({
   name: 'user.relation.add',
+  offline: 'online',
   input: z.object({
     mentorId: z.string().uuid(),
     menteeId: z.string().uuid(),
@@ -105,6 +106,7 @@ export const addUserRelation = defineOperation({
 
 export const removeUserRelation = defineOperation({
   name: 'user.relation.remove',
+  offline: 'online',
   input: z.object({ mentorId: z.string().uuid(), menteeId: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('user:update'),
   async handler(ctx, { mentorId, menteeId }) {
@@ -134,6 +136,7 @@ export interface RelationUploadResult {
  */
 export const bulkUploadUserRelations = defineOperation({
   name: 'user.relation.bulkUpload',
+  offline: 'online',
   input: z.object({ csv: z.string().min(1).max(5_000_000) }),
   authorize: (ctx) => ctx.perm.require('user:update'),
   mutation: false,

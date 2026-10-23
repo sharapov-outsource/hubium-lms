@@ -1,4 +1,4 @@
-import { type Db, uuidv7 } from '@hubium/db';
+import { type Db, inWriteScope, newOpRecord, uuidv7 } from '@hubium/db';
 import { type BetterAuthOptions, type BetterAuthPlugin, betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
@@ -13,6 +13,8 @@ import { CLIENT_IP_HEADER, clientIp } from '../client-ip.ts';
 import { ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
 import { sendAuthEmail } from '../mail/mail.ts';
+import { isNode } from '../node/config.ts';
+import { journaling, writeJournal } from '../node/journal.ts';
 import { getAllSettings, requestLocale, userLocale } from '../settings/settings.ts';
 import { noteSignIn } from './devices.ts';
 import { ldapSignIn } from './ldap.ts';
@@ -195,6 +197,18 @@ const CREDENTIAL_PATHS = new Set([
   '/two-factor/generate-backup-codes',
 ]);
 
+/** What a node without a connection does of Better Auth: signing in and out. */
+const OFFLINE_PATHS = new Set([
+  '/sign-in/email',
+  '/sign-in/username',
+  '/sign-in/ldap',
+  '/sign-out',
+  '/get-session',
+  '/two-factor/verify-totp',
+  '/two-factor/verify-backup-code',
+  '/two-factor/verify-passphrase',
+]);
+
 /** Endpoints that set a password, and the body field that carries it. */
 const PASSWORD_FIELDS: Record<string, string> = {
   '/sign-up/email': 'password',
@@ -204,12 +218,15 @@ const PASSWORD_FIELDS: Record<string, string> = {
 };
 
 export function createAuth({
-  db,
+  db: site,
   baseURL,
   secret,
   extraPlugins = [],
   customOAuth = [],
 }: CreateAuthOptions) {
+  // Better Auth's writes and those of its hooks and plugins (sign-in records, lockouts,
+  // password history, LDAP and SSO accounts) belong to the auth write scope
+  const db = inWriteScope(site, 'auth', 'better-auth');
   const { social, generic } = oauthProviders();
   generic.push(...customOAuth.map(customOAuthConfig));
   const custom = new Map(customOAuth.map((p) => [p.providerId, p]));
@@ -224,7 +241,10 @@ export function createAuth({
     secret,
     // Transactions are required by the SSO plugin's user resolution. SSO rows come with
     // their client secret unsealed (see sso.ts).
-    database: prismaAdapter(withSsoSecrets(db), { provider: 'postgresql', transaction: true }),
+    database: prismaAdapter(withSsoSecrets(db), {
+      provider: 'postgresql',
+      transaction: true,
+    }),
     // identity providers on internal hosts that SSRF_ALLOW_HOSTS allows
     trustedOrigins: () => ssoTrustedOrigins(db),
     advanced: {
@@ -244,6 +264,9 @@ export function createAuth({
       expiresIn: 60 * 60 * 24 * 30,
       updateAge: 60 * 60 * 24,
       cookieCache: { enabled: true, maxAge: 60 },
+      // A local node reads a replica: the cloud, through which every write goes, extends
+      // sessions and removes expired ones.
+      ...(isNode() ? { disableSessionRefresh: true, deferSessionRefresh: true } : {}),
     },
     user: {
       additionalFields: {
@@ -304,6 +327,13 @@ export function createAuth({
     },
     hooks: {
       before: createAuthMiddleware(async (c) => {
+        // A node working without a connection signs people in and out (the cloud takes the
+        // sessions with its journal); what else changes accounts waits for the connection.
+        if (journaling() && !OFFLINE_PATHS.has(c.path))
+          throw new APIError('SERVICE_UNAVAILABLE', {
+            message: 'Not available without the connection to the main server',
+            code: 'NODE_OFFLINE',
+          });
         // Profile fields change only through Hubium's own forms, which check them. Better
         // Auth's endpoint would let anyone set a username (LDAP sign-in links accounts by
         // it), any name, an avatar URL that everyone who sees the person loads, or a time
@@ -535,6 +565,23 @@ export function createAuth({
         },
       },
       session: {
+        delete: {
+          async after(session) {
+            if (journaling())
+              await writeJournal(
+                db,
+                {
+                  kind: 'auth',
+                  name: 'session.delete',
+                  actor: { kind: 'user', userId: session.userId },
+                  input: { token: session.token },
+                  at: new Date(),
+                  seed: '',
+                },
+                newOpRecord(false),
+              );
+          },
+        },
         create: {
           async before(session) {
             const u = await db.user.findUnique({
@@ -547,6 +594,21 @@ export function createAuth({
             return { data: session };
           },
           async after(session) {
+            // a node working alone: the cloud takes the session, with its token, from the
+            // journal, so the person stays signed in once the node reads the cloud again
+            if (journaling())
+              await writeJournal(
+                db,
+                {
+                  kind: 'auth',
+                  name: 'session.create',
+                  actor: { kind: 'user', userId: session.userId },
+                  input: session,
+                  at: new Date(),
+                  seed: '',
+                },
+                newOpRecord(false),
+              );
             // logging in as someone is not that person's login
             if (impersonatedBy(session)) return;
             await clearFailedSignIns(db, session.userId);

@@ -158,6 +158,7 @@ export const CourseFieldInput = z
 
 export const saveCourseField = defineOperation({
   name: 'courseField.save',
+  offline: 'online',
   input: CourseFieldInput,
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, input) {
@@ -211,6 +212,7 @@ export const saveCourseField = defineOperation({
 
 export const deleteCourseField = defineOperation({
   name: 'courseField.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, { id }) {
@@ -234,6 +236,7 @@ export const deleteCourseField = defineOperation({
 
 export const moveCourseField = defineOperation({
   name: 'courseField.move',
+  offline: 'online',
   input: z.object({ id: z.string().uuid(), direction: z.enum(['up', 'down']) }),
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, { id, direction }) {

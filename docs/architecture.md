@@ -98,6 +98,7 @@ Each app lists the modules it runs: `apps/web/src/modules/server.ts` and `apps/w
 // packages/core/src/operation.ts
 export const updateCourse = defineOperation({
   name: 'course.update',
+  offline: 'guarded',                   // what a local node does with it offline (below)
   input: CourseUpdateInput,             // zod
   output: CourseDTO,                    // zod (drives OpenAPI)
   mutation: true,                       // run inside db.$transaction
@@ -118,6 +119,13 @@ export const updateCourse = defineOperation({
   - pg-boss `send(..., { db: txAdapter })` enqueues jobs inside the Prisma transaction (outbox for free).
   - `pg_notify` inside the transaction delivers only on commit.
   - Non-transactional effects (S3 deletes) go through `afterCommit`.
+- **Registry and offline policy.** `defineOperation` registers the operation by name (`getOperation`, `listOperations`); a test fails on a name defined twice, and module action names (`<module>.<action>`) never match an operation's. Each operation and module action declares `offline`, what a local node does with it while it cannot reach the cloud: `replay` (run, and replayed in the cloud as it is), `guarded` (run, and replayed only when what it changed is unchanged in the cloud), `side` (run, and replayed, but dropped rather than kept as a conflict when the cloud refuses it: records of what a person saw, such as posts read) or `online` (refused).
+- **Write scopes.** Every write to the database belongs to a scope (`withWriteScope` in `packages/db`):
+  - operations and module actions open `operation`, the worker's jobs `job`, the CLI and the seed `system`, and Better Auth's adapter writes in `auth`;
+  - side records of page views belong to `touch`, data that can be computed again to `derived`;
+  - the registry of stored blobs and the sessions of uploads belong to `files`, and the records of exchanges with systems outside Hubium (an AI provider, an LTI tool, a webinar server) to `external`.
+
+  A local node records the operations it runs to replay them in the cloud, so a write outside any scope would be lost there. `HUBIUM_WRITE_GUARD=report` logs each kind of write found outside a scope once, and `strict` refuses it.
 - **Module actions and queries.** `ActivityModule.actions` are exposed through one web endpoint (`/api/mod/action`) and one REST route, `POST /api/v1/activities/{id}/actions/{name}`; both take JSON or multipart with files. `ActivityModule.queries` are the reads behind them, `GET /api/v1/activities/{id}/queries/{name}`: the module's pages and the queries call the same functions, so the visibility rules live in one place. The OpenAPI spec documents every action from its zod input and every query from its input and output, with their `summary`. Mobile gets module features without per-module endpoints.
 
 ### 1.5 `ActivityModule` contract
@@ -139,6 +147,7 @@ export interface ActivityModule<S extends z.ZodObject = z.ZodObject> {
     onUpdate?(ctx: ModuleCtx, a: ActivityRef<S>, prev: z.output<S>): Promise<void>;
     onDelete?(ctx: ModuleCtx, a: ActivityRef<S>): Promise<void>;     // on recycle-bin purge
     onCourseReset?(ctx: ModuleCtx, courseId: string, o: ResetOptions): Promise<void>;
+    onUserEnrolled?(ctx: ModuleCtx, courseId: string, userId: string): Promise<void>;
     onUserUnenrolled?(ctx: ModuleCtx, courseId: string, userId: string): Promise<void>;
   };
   grading?: {
@@ -205,6 +214,33 @@ files/[fileId]/[...name]           # ACL-checked downloads
 c/[token]/[...path]                # untrusted content (SCORM, raw HTML) — only answered on CONTENT_HOST
 proxy.ts                           # (Next 16 replacement for middleware) host split + optimistic session redirect only
 ```
+
+### 1.7 Local nodes
+
+A local node is a server in the network of a branch or building whose line to the cloud is poor. People there use the LMS through it: fast while the line is up, and without interruption while it is down. The cloud stays the primary copy of everything; a node never decides anything the cloud has not decided again.
+
+- **One release, two roles.** A node runs the cloud's release with `HUBIUM_ROLE=node` (docker/node/compose.yml):
+  - **A**, a physical replica of the cloud's database over TLS, with a slot of its own in the cloud (`hubium_node_<id>`, a member of `hubium_nodes`; `max_slot_wal_keep_size` bounds what a silent node holds);
+  - **B**, a cascading replica of A, which the node promotes when it works alone and copies anew after each sync (docker/node/replica.sh);
+  - **web** in the node role, reading A or B by the mode (`routedClient` in `packages/db/src/node-router.ts`);
+  - **the agent** (the worker in the node role, `apps/worker/src/node`): the gateway the network reaches, the mode, heartbeats, the bus, the file mirror, the journal's sync and the certificates for the node's Caddy.
+- **Modes** (`apps/worker/src/node/modes.ts`), decided once a second from the heartbeats and the replicas:
+  - `PASSTHROUGH`: A is not ready or the releases differ; everything goes to the cloud.
+  - `ONLINE`: reads are answered from A, changes go to the cloud. After a change the gateway asks the cloud for its WAL position, and the next reads from the same address wait until A has it, so people see their own changes (also those from the content origin).
+  - `READONLY`: the cloud stopped answering; reads go on, changes wait (`NODE_OFFLINE_AFTER`, 2 minutes).
+  - `OFFLINE`: B is promoted and the node works on its own, keeping a journal. An agent that starts and finds B promoted (after a power cut, or an update right after a sync) goes on in this mode: the sync follows, with what the journal holds, and B is copied anew.
+  - `SYNC`: the journal goes to the cloud (reads only); then the node reads A again and B is copied anew. The sync waits for quizzes with a time limit that are still being answered, and a node admin may put it off.
+- **Signed forwarding.** What the gateway passes on to the cloud carries `x-hubium-node: v1;<node>;<ts>;<client ip>;<hmac>` keyed by the hash of the node's token. The cloud's proxy checks it, takes the client's address from it (network rules of quizzes keep working) and records the node on the request (`EventLog.nodeId`). Host, Origin and redirects map between the node's names and the cloud's when the node has its own.
+- **The journal** (`NodeOp`, `packages/core/src/node/journal.ts`). Offline, every operation, module action, POST to the content origin, side record of a page view and sign-in is written to the journal in the transaction of the change itself, with what it takes to happen the same way in the cloud:
+  - its input (dates tagged, files stored and named by key), who did it and when (`ctx.now`), the seed of its random numbers (`ctx.random`);
+  - the ids it made, by model (`uuidv7(now, model)` records them, the Prisma extension in `packages/db/src/op-context.ts` fills `@default(uuid(7))`, `now()` and `@updatedAt` from the operation);
+  - for `guarded` ones, hashes of the rows it changed as they were.
+
+  Policies: `replay` operations run offline and replay as they are, `guarded` ones replay only when the rows they changed are unchanged in the cloud, `online` ones are refused offline. The write guard reports any write outside a scope, which the journal would miss.
+- **Replay** (`packages/core/src/node/replay.ts`). The cloud takes one node's journal at a time (`Node.replayingAt` with an advisory lock), in order, each entry once: `NodeOpResult` is written in the entry's own transaction, so a batch sent again after a lost answer is answered from it. An entry runs as its author, at its time (inside an outage of the node the cloud knows of), with the node's ids and seed. The cloud's rules decide again; what they or changed data refuse becomes a `NodeConflict`, its author is notified, and a teacher (or an administrator) may accept it: it runs again with `ctx.override`, the rules of time and attempts giving way, together with the later entries of the same person in the same activity it held up. Overdue sweeps in the cloud wait for nodes that may still bring work (`nodeWorkWaitingSince`, at most `NODE_MAX_WAIT_HOURS`).
+- **Files.** `STORAGE_DRIVER=mirror` serves the node's copy and fetches what it lacks from the cloud while connected (`/api/node/files/*`); the agent preloads the files of the node's categories, within `NODE_FILES_MBIT` of the cloud. Files stored offline go to the cloud before the journal entries that use them. Downloads answer `Range`.
+- **Certificates.** A node answering under the cloud's names fetches the cloud's certificates (`GET /api/node/cert`, from `NODE_TLS_DIR`, which docker/node/cloud.yml fills from the cloud's Caddy) and loads them into its Caddy through the admin API.
+- **Node API** (`/api/node/*`, `packages/core/src/node/api.ts`): `register` (with the installation code from Administration → Nodes), `heartbeat`, `lsn`, `stream` (the cloud's bus with WAL positions), `touch`, `slot`, `files/*`, `replay`, `cert`.
 
 ---
 

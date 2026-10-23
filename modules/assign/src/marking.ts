@@ -1,4 +1,3 @@
-import { randomInt } from 'node:crypto';
 import type { Prisma } from '@hubium/db';
 import type { ActivityRef, ModuleCtx } from '@hubium/module-sdk';
 import { type GradeRange, type GradingMethod, Guide, Rubric } from '@hubium/module-sdk/grading';
@@ -113,27 +112,56 @@ export function gradeReleased(a: Assign, state: WorkflowState, blind: boolean) {
 }
 
 /**
- * The students' participant numbers, given out once per assignment as Moodle does: six
- * random digits, so the order of the list tells nothing either.
+ * Gives the students participant numbers while marking is blind, once per assignment as
+ * Moodle does: six random digits, so the order of the list tells nothing either. Operations
+ * give them (blind marking turned on, an enrolment, a submission, a grade, a reset), from
+ * the operation's random numbers, so that the cloud replaying one gets the same numbers;
+ * pages only read them.
  */
-export async function participantNumbers(db: Db, activityId: string, userIds: string[]) {
-  const out = new Map<string, number>();
+export async function numberParticipants(
+  ctx: Pick<ModuleCtx, 'db' | 'random'>,
+  a: Assign,
+  userIds: string[],
+) {
+  if (!userIds.length || !(await isBlind(ctx.db, a))) return;
   for (let round = 0; round < 10; round++) {
-    const rows = await db.assignParticipant.findMany({ where: { activityId } });
-    for (const r of rows) if (userIds.includes(r.userId)) out.set(r.userId, r.number);
-    const missing = userIds.filter((id) => !out.has(id));
-    if (!missing.length) break;
+    const rows = await ctx.db.assignParticipant.findMany({ where: { activityId: a.id } });
+    const given = new Set(rows.map((r) => r.userId));
+    const missing = [...new Set(userIds)].filter((id) => !given.has(id));
+    if (!missing.length) return;
     const taken = new Set(rows.map((r) => r.number));
     const data = missing.map((userId) => {
-      let number = randomInt(100_000, 1_000_000);
-      while (taken.has(number)) number = randomInt(100_000, 1_000_000);
+      let number = ctx.random.int(100_000, 1_000_000);
+      while (taken.has(number)) number = ctx.random.int(100_000, 1_000_000);
       taken.add(number);
-      return { activityId, userId, number };
+      return { activityId: a.id, userId, number };
     });
     // a number taken meanwhile skips the row, and the next round tries again
-    await db.assignParticipant.createMany({ data, skipDuplicates: true });
+    await ctx.db.assignParticipant.createMany({ data, skipDuplicates: true });
   }
-  return out;
+}
+
+/** Gives everyone enrolled in the course a participant number while marking is blind. */
+export async function numberEnrolled(ctx: Pick<ModuleCtx, 'db' | 'random'>, a: Assign) {
+  const enrolled = await ctx.db.enrolment.findMany({
+    where: { courseId: a.courseId },
+    distinct: ['userId'],
+    select: { userId: true },
+  });
+  await numberParticipants(
+    ctx,
+    a,
+    enrolled.map((e) => e.userId),
+  );
+}
+
+/** The participant numbers the students were given. */
+export async function participantNumbers(db: Db, activityId: string, userIds: string[]) {
+  const rows = await db.assignParticipant.findMany({
+    where: { activityId, userId: { in: userIds } },
+    select: { userId: true, number: true },
+  });
+  return new Map(rows.map((r) => [r.userId, r.number]));
 }
 
 /** The one way markers see a student: the name, or the participant number while blind. */

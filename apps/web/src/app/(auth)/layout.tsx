@@ -1,6 +1,7 @@
 import { enabledLanguages, getAllSettings } from '@hubium/core';
 import type { ReactNode } from 'react';
 import { LocaleThemeSwitcher } from '@/components/locale-theme-switcher';
+import { NodeBanner } from '@/components/shell/node-banner';
 import { SiteLogo } from '@/components/site-logo';
 import { db } from '@/server/db';
 
@@ -13,7 +14,10 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
         <LocaleThemeSwitcher languages={languages} />
       </header>
       <main id="main" className="flex flex-1 items-start justify-center px-4 pb-16 pt-6 sm:pt-16">
-        <div className="w-full max-w-sm">{children}</div>
+        <div className="w-full max-w-sm">
+          <NodeBanner />
+          {children}
+        </div>
       </main>
     </div>
   );

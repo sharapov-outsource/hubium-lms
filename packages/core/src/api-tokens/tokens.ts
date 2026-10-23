@@ -8,8 +8,9 @@ import { type AccountGate, accountGate } from '../auth/gate.ts';
 import type { RequestContext } from '../context.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { defineOperation } from '../operation.ts';
 import { enabledLocales, getAllSettings, siteLocale } from '../settings/settings.ts';
-import { noteUserAccess } from '../users/last-access.ts';
+import { touch } from '../touch/touch.ts';
 
 // Personal access tokens for the REST API. The secret is shown once; only its SHA-256 is
 // stored. A token acts as its user, narrowed by scopes:
@@ -33,40 +34,47 @@ function requireUser(ctx: RequestContext): string {
   return ctx.actor.userId;
 }
 
-export async function createApiToken(ctx: RequestContext, raw: unknown) {
-  const userId = requireUser(ctx);
-  if (ctx.actor.kind === 'user' && ctx.actor.realUserId)
-    throw new ForbiddenError(msg('errors.common.notWhileLoggedInAs'));
-  // A token can never do more than a browser session; API access itself is a capability.
-  await ctx.perm.require('webservice:createtoken');
-  const input = CreateTokenInput.parse(raw);
-  const active = await ctx.db.apiToken.count({ where: { userId, revokedAt: null } });
-  if (active >= 20) throw new ValidationError({ name: [msg('errors.apiTokens.tooMany')] });
-  const secret = randomBytes(24).toString('base64url');
-  const prefix = secret.slice(0, 8);
-  const token = `${PREFIX}${secret}`;
-  const row = await ctx.db.apiToken.create({
-    data: {
-      userId,
-      name: input.name,
-      prefix,
-      tokenHash: hashToken(token),
-      scopes: input.scopes,
-      expiresAt: input.expiresInDays
-        ? new Date(ctx.now.getTime() + input.expiresInDays * 86_400_000)
-        : null,
-    },
-  });
-  await logEvent(ctx.db, {
-    name: 'apitoken.created',
-    actorId: userId,
-    objectType: 'apiToken',
-    objectId: row.id,
-    origin: ctx.origin,
-    ip: ctx.ip,
-  });
-  return { id: row.id, token, prefix, scopes: row.scopes, expiresAt: row.expiresAt };
-}
+export const createApiToken = defineOperation({
+  name: 'apiToken.create',
+  offline: 'online',
+  input: CreateTokenInput,
+  async authorize(ctx) {
+    requireUser(ctx);
+    if (ctx.actor.kind === 'user' && ctx.actor.realUserId)
+      throw new ForbiddenError(msg('errors.common.notWhileLoggedInAs'));
+    // A token can never do more than a browser session; API access itself is a capability.
+    await ctx.perm.require('webservice:createtoken');
+  },
+  async handler(ctx, input) {
+    const userId = requireUser(ctx);
+    const active = await ctx.tx.apiToken.count({ where: { userId, revokedAt: null } });
+    if (active >= 20) throw new ValidationError({ name: [msg('errors.apiTokens.tooMany')] });
+    const secret = randomBytes(24).toString('base64url');
+    const prefix = secret.slice(0, 8);
+    const token = `${PREFIX}${secret}`;
+    const row = await ctx.tx.apiToken.create({
+      data: {
+        userId,
+        name: input.name,
+        prefix,
+        tokenHash: hashToken(token),
+        scopes: input.scopes,
+        expiresAt: input.expiresInDays
+          ? new Date(ctx.now.getTime() + input.expiresInDays * 86_400_000)
+          : null,
+      },
+    });
+    await logEvent(ctx.tx, {
+      name: 'apitoken.created',
+      actorId: userId,
+      objectType: 'apiToken',
+      objectId: row.id,
+      origin: ctx.origin,
+      ip: ctx.ip,
+    });
+    return { id: row.id, token, prefix, scopes: row.scopes, expiresAt: row.expiresAt };
+  },
+});
 
 export async function listApiTokens(ctx: RequestContext) {
   const userId = requireUser(ctx);
@@ -86,14 +94,19 @@ export async function listApiTokens(ctx: RequestContext) {
   });
 }
 
-export async function revokeApiToken(ctx: RequestContext, id: string) {
-  const userId = requireUser(ctx);
-  const t = await ctx.db.apiToken.findUnique({ where: { id } });
-  if (!t || (t.userId !== userId && !(await ctx.perm.can('site:config'))))
-    throw new NotFoundError('Token');
-  await ctx.db.apiToken.update({ where: { id }, data: { revokedAt: ctx.now } });
-  return { id };
-}
+export const revokeApiToken = defineOperation({
+  name: 'apiToken.revoke',
+  offline: 'online',
+  input: z.object({ id: z.string().uuid() }),
+  async handler(ctx, { id }) {
+    const userId = requireUser(ctx);
+    const t = await ctx.tx.apiToken.findUnique({ where: { id } });
+    if (!t || (t.userId !== userId && !(await ctx.perm.can('site:config'))))
+      throw new NotFoundError('Token');
+    await ctx.tx.apiToken.update({ where: { id }, data: { revokedAt: ctx.now } });
+    return { id };
+  },
+});
 
 /**
  * Resolves `Authorization: Bearer hub_...` to a request context, or null when the token
@@ -119,16 +132,15 @@ export async function authenticateApiToken(
   if (!t || t.revokedAt || (t.expiresAt && t.expiresAt <= now)) return null;
   const u = t.user;
   if (u.deletedAt || u.status !== 'ACTIVE') return null;
-  // Throttle the "last used" write to once a minute per token.
-  if (!t.lastUsedAt || now.getTime() - t.lastUsedAt.getTime() > 60_000)
-    await db.apiToken.update({
-      where: { id: t.id },
-      data: { lastUsedAt: now, lastUsedIp: meta.ip ?? null },
-    });
+  await touch(
+    db,
+    { kind: 'token.use', tokenId: t.id, lastUsedAt: t.lastUsedAt, ip: meta.ip ?? null },
+    now,
+  );
   const perm = new Permissions(db, await loadUserAccess(db, u));
   // Losing API access (e.g. a PROHIBIT on the role) disables existing tokens too.
   if (!(await perm.can('webservice:createtoken'))) return null;
-  await noteUserAccess(db, u, now);
+  await touch(db, { kind: 'user.access', userId: u.id, lastAccessAt: u.lastAccessAt }, now);
   const settings = await getAllSettings(db);
   const enabled = enabledLocales(settings);
   const locale = [meta.locale, u.locale].find((l): l is Locale => !!l && enabled.includes(l));

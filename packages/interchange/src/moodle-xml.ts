@@ -1,4 +1,10 @@
-import { isAppError, issueMsg, type RequestContext, ValidationError } from '@hubium/core';
+import {
+  defineOperation,
+  isAppError,
+  issueMsg,
+  type RequestContext,
+  ValidationError,
+} from '@hubium/core';
 import type { Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { createTranslator } from '@hubium/i18n/packs';
@@ -15,6 +21,7 @@ import {
   questionDataSchemas,
 } from '@hubium/questions';
 import { XMLBuilder, XMLParser } from 'fast-xml-parser';
+import { z } from 'zod';
 import {
   answerFormat,
   datasetFromOptions,
@@ -466,7 +473,16 @@ export function parseMoodleXml(xml: string, untitled = 'Question'): ParseResult 
 }
 
 /** Imports Moodle XML into a course bank, creating categories from the paths. */
-export async function importMoodleXml(ctx: RequestContext, courseId: string, xml: string) {
+export const importMoodleXml = defineOperation({
+  name: 'question.importMoodleXml',
+  offline: 'online',
+  input: z.object({ courseId: z.string().uuid(), xml: z.string().max(50_000_000) }),
+  // the questions are written in a transaction of its own
+  mutation: false,
+  handler: (ctx, { courseId, xml }) => importXml(ctx, courseId, xml),
+});
+
+async function importXml(ctx: RequestContext, courseId: string, xml: string) {
   await ctx.perm.require('question:manage', courseId);
   const t = createTranslator(ctx.locale);
   const parsed = parseMoodleXml(xml, t('qbank.untitledQuestion'));

@@ -108,6 +108,7 @@ export async function resetOverview(ctx: RequestContext, courseId: string) {
 
 export const resetCourse = defineOperation({
   name: 'course.reset',
+  offline: 'online',
   input: ResetInput,
   authorize: (ctx, i) => ctx.perm.require('course:reset', i.courseId),
   async handler(ctx, input): Promise<ResetReport> {

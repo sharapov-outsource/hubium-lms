@@ -159,6 +159,8 @@
       "enterPassword": "Test-Kennwort",
       "subnet": "Netzwerkadressen",
       "subnetHint": "Versuche nur von diesen Adressen: z. B. 192.168.1.0/24, 10.1 oder 172.16.5.10-20. Leer: von überall.",
+      "nodes": "Nur über lokale Knoten",
+      "nodesHint": "Versuche nur in den Netzen der gewählten Knoten, etwa in den Räumen einer Filiale. Nichts gewählt: überall.",
       "delay1": "Wartezeit nach dem ersten Versuch, min",
       "delay2": "Wartezeit nach weiteren Versuchen, min",
       "navMethod": "Navigation",
@@ -168,6 +170,7 @@
         "sequential": "Sequenziell"
       },
       "networkBlocked": "Dieser Test kann nur von bestimmten Netzwerkadressen aus bearbeitet werden, und Ihre gehört nicht dazu.",
+      "nodeBlocked": "Dieser Test wird nur in den Räumen bestimmter Filialen abgelegt.",
       "waitUntil": "Der nächste Versuch kann am {date} beginnen.",
       "sequentialNotice": "Die Seiten folgen der Reihe nach: Zu einer verlassenen Seite können Sie nicht zurück.",
       "wrongPassword": "Das Test-Kennwort ist falsch"
@@ -243,6 +246,7 @@
     },
     "errors": {
       "networkOnly": "Dieser Test kann nur von bestimmten Netzwerkadressen aus bearbeitet werden",
+      "nodeOnly": "Dieser Test kann nur über die lokalen Knoten bestimmter Filialen abgelegt werden",
       "noQuestions": "Der Test hat noch keine Fragen",
       "notEnoughRandom": "Nicht genügend Fragen in der Kategorie für Zufallsfragen",
       "questionMissing": "Frage fehlt",

@@ -194,14 +194,41 @@ export interface NotificationTypeDef {
   inApp?: boolean;
 }
 
+/**
+ * Random numbers of an action (an order of questions, a random allocation): the cloud
+ * replaying an action a local node ran draws the same ones. Not for secrets.
+ */
+export interface ModuleRandom {
+  /** A number in [0, 1). */
+  next(): number;
+  /** An integer in [min, max). */
+  int(min: number, max: number): number;
+  /** A UUID with the version 4 layout. */
+  uuid(): string;
+}
+
+/** The local nodes of the site (docs/architecture.md §1.7). */
+export interface ModuleNodes {
+  /**
+   * Since when work done on a node without a connection may still come (its journal not
+   * yet replayed); null when nothing waits. What closes by time (overdue attempts) waits
+   * for times before this, so that the work comes first.
+   */
+  waitingSince(): Promise<Date | null>;
+}
+
 export interface ModuleCtx {
   db: Prisma.TransactionClient;
   actor: ModuleActor;
+  /** When the action runs: dates it writes are this one, not the clock's. */
   now: Date;
+  random: ModuleRandom;
   /** Language of the request: a code of an installed language pack. */
   locale: string;
   /** The client's address (see TRUSTED_PROXY_HOPS), or null outside a request. */
   ip: string | null;
+  /** The local node the request came through or ran on; null in the cloud itself. */
+  nodeId: string | null;
   perm: ModulePermissions;
   files: ModuleFiles;
   grades: ModuleGrades;
@@ -213,6 +240,13 @@ export interface ModuleCtx {
   activities: ModuleActivities;
   ai: ModuleAi;
   content: ModuleContent;
+  /**
+   * A teacher accepts work a student did on a local node without a connection that a rule
+   * refuses now (a quiz attempt over the limit, work after the deadline): the action is run
+   * again with this set, and the rules of time and number give way.
+   */
+  override: boolean;
+  nodes: ModuleNodes;
   /**
    * Writes an event to the course log; `data` names the activity (`activityId`) and the
    * person concerned (`userId`). With `anonymous` the event says nothing of who did it (an
@@ -280,9 +314,21 @@ export interface TodoItem {
   count?: number;
 }
 
+/**
+ * What a local node does with an operation or a module action while it cannot reach the
+ * cloud (docs/PLAN.md): `replay` runs it, and the cloud replays it as it is (what people
+ * add: attempts, submissions, posts); `guarded` runs it, and the cloud replays it only when
+ * what it changed is unchanged there (edits of what exists); `side` runs it, and the cloud
+ * replays it but drops it, rather than keep a conflict, when it does not take it (records of
+ * what a person saw, such as posts read); `online` refuses it (administration, and what
+ * needs the internet).
+ */
+export type OfflinePolicy = 'replay' | 'guarded' | 'side' | 'online';
+
 export interface ModuleAction<I extends z.ZodType = z.ZodType, O = unknown> {
   /** One line for the REST API reference (POST /api/v1/activities/{id}/actions/{name}). */
   summary?: string;
+  offline: OfflinePolicy;
   input: I;
   /** Capability required at the activity context. */
   capability?: string;
@@ -339,6 +385,8 @@ export interface ActivityModule<S = Record<string, unknown>> {
     onCreate?(ctx: ModuleCtx, a: ActivityRef<S>): Promise<void>;
     onUpdate?(ctx: ModuleCtx, a: ActivityRef<S>, prev: S): Promise<void>;
     onDelete?(ctx: ModuleCtx, a: ActivityRef<S>): Promise<void>;
+    /** The user was enrolled in the course, or enrolled again by a method they had left. */
+    onUserEnrolled?(ctx: ModuleCtx, courseId: string, userId: string): Promise<void>;
     onUserUnenrolled?(ctx: ModuleCtx, courseId: string, userId: string): Promise<void>;
   };
   todo?(ctx: ModuleCtx, userId: string, courseIds: string[]): Promise<TodoItem[]>;
@@ -364,12 +412,22 @@ export interface ActivityModule<S = Record<string, unknown>> {
   }[];
   /**
    * HTTP endpoints under /api/mod/<key>/<...path> (streaming media, provider callbacks).
-   * The ModuleCtx carries the caller's session; anonymous callers are allowed.
+   * The ModuleCtx carries the caller's session; anonymous callers are allowed. What they
+   * write records an exchange with a system outside Hubium (an LTI tool, a webinar
+   * server), which only the cloud makes: a person's own change is an action instead.
    */
   http?(ctx: ModuleCtx, req: Request, path: string[]): Promise<Response>;
   /**
+   * The HTTP endpoints talk to systems outside Hubium (an LTI tool, a webinar server): a
+   * local node passes them on to the cloud, and without a connection they are not there.
+   * Otherwise a node answers their reads itself (video, exports).
+   */
+  httpExternal?: boolean;
+  /**
    * Untrusted content served from CONTENT_HOST at /c/<token>/<...path>. The signed token
-   * identifies the activity, the user and module data; there is no session.
+   * identifies the activity, the user and module data; there is no session. A POST is the
+   * user's own change (a SCORM commit, an H5P result) and runs as an operation; a GET
+   * writes at most side records of the view.
    */
   content?(
     ctx: ModuleCtx,

@@ -21,9 +21,13 @@ function keysEqual(a: string, b: string): boolean {
   return timingSafeEqual(ha, hb);
 }
 
-/** Creates the enrolment and its role assignment. Idempotent per (method, user). */
+/**
+ * Creates the enrolment and its role assignment, and tells the modules of a new or
+ * reactivated one. Idempotent per (method, user).
+ */
 export async function enrolUserRecord(
-  tx: Tx,
+  ctx: RequestContext,
+  tx: Prisma.TransactionClient,
   opts: {
     courseId: string;
     methodId: string;
@@ -34,7 +38,7 @@ export async function enrolUserRecord(
     endsAt?: Date | null;
     component?: 'ENROL' | 'COHORT';
     /** Log user.enrolled when this enrols them (paths that do not log it themselves). */
-    log?: { ctx: Pick<RequestContext, 'perm' | 'origin'>; method: string };
+    log?: { method: string };
   },
 ) {
   const existing = await tx.enrolment.findUnique({
@@ -62,7 +66,7 @@ export async function enrolUserRecord(
   const ra = await tx.roleAssignment.findFirst({ where: { enrolmentId: enrolment.id } });
   // a new enrolment, or one active again
   if (opts.log && existing?.status !== 'ACTIVE')
-    await logEnrolments(tx, opts.log.ctx, 'enrolled', opts.courseId, [opts.userId], {
+    await logEnrolments(tx, ctx, 'enrolled', opts.courseId, [opts.userId], {
       method: opts.log.method,
     });
   if (!ra) {
@@ -75,6 +79,11 @@ export async function enrolUserRecord(
         enrolmentId: enrolment.id,
       },
     });
+  }
+  if (existing?.status !== 'ACTIVE') {
+    const mctx = buildModuleCtx(ctx, tx);
+    for (const m of listModules())
+      await m.lifecycle?.onUserEnrolled?.(mctx, opts.courseId, opts.userId);
   }
   return enrolment;
 }
@@ -117,6 +126,7 @@ async function manualMethod(tx: Tx, courseId: string) {
 
 export const enrolUsers = defineOperation({
   name: 'enrol.manual',
+  offline: 'online',
   input: z.object({
     courseId: z.string().uuid(),
     userIds: z.array(z.string().uuid()).min(1).max(1000),
@@ -140,7 +150,7 @@ export const enrolUsers = defineOperation({
       ).map((e) => e.userId),
     );
     for (const userId of input.userIds) {
-      await enrolUserRecord(ctx.tx, {
+      await enrolUserRecord(ctx, ctx.tx, {
         courseId: input.courseId,
         methodId: method.id,
         userId,
@@ -223,6 +233,7 @@ export async function removeCourseMembership(
 
 export const unenrolUser = defineOperation({
   name: 'enrol.unenrol',
+  offline: 'online',
   input: z.object({ courseId: z.string().uuid(), userId: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('enrol:manage', i.courseId),
   async handler(ctx, { courseId, userId }) {
@@ -248,6 +259,7 @@ export const unenrolUser = defineOperation({
 
 export const setEnrolmentStatus = defineOperation({
   name: 'enrol.status',
+  offline: 'online',
   input: z.object({
     courseId: z.string().uuid(),
     userId: z.string().uuid(),
@@ -275,6 +287,7 @@ export const setEnrolmentStatus = defineOperation({
  */
 export const setCourseRoles = defineOperation({
   name: 'enrol.roles',
+  offline: 'online',
   input: z.object({
     courseId: z.string().uuid(),
     userId: z.string().uuid(),
@@ -355,6 +368,7 @@ export const SelfMethodSettings = z.object({
 
 export const updateSelfEnrolment = defineOperation({
   name: 'enrol.self.configure',
+  offline: 'online',
   input: SelfMethodSettings.extend({ courseId: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('enrol:manage', i.courseId),
   async handler(ctx, input) {
@@ -383,6 +397,7 @@ export const updateSelfEnrolment = defineOperation({
 
 export const selfEnrol = defineOperation({
   name: 'enrol.self',
+  offline: 'online',
   input: z.object({ courseId: z.string().uuid(), key: z.string().max(100).optional() }),
   async authorize(ctx, i) {
     if (ctx.actor.kind !== 'user') throw new ForbiddenError(msg('errors.enrol.signInToEnrol'));
@@ -435,7 +450,7 @@ export const selfEnrol = defineOperation({
     const endsAt = method.durationDays
       ? new Date(ctx.now.getTime() + method.durationDays * 86_400_000)
       : null;
-    await enrolUserRecord(ctx.tx, {
+    await enrolUserRecord(ctx, ctx.tx, {
       courseId,
       methodId: method.id,
       userId,
@@ -478,6 +493,7 @@ export const selfEnrol = defineOperation({
 
 export const unenrolSelf = defineOperation({
   name: 'enrol.self.leave',
+  offline: 'online',
   input: z.object({ courseId: z.string().uuid() }),
   async handler(ctx, { courseId }) {
     const userId = ctx.perm.userId;

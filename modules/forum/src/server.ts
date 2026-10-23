@@ -927,6 +927,7 @@ export const forum = defineModule<ForumSettingsT>({
   },
   actions: {
     rate: defineAction({
+      offline: 'replay',
       summary:
         'Rate a post (null takes your rating back): points 0..max, or a 1-based position on the forum’s scale',
       input: z.object({ postId: z.string().uuid(), value: z.number().int().nullable() }),
@@ -969,6 +970,7 @@ export const forum = defineModule<ForumSettingsT>({
       },
     }),
     gradeUser: defineAction({
+      offline: 'guarded',
       summary:
         "Grade a student's part in the whole forum (points, or a 1-based scale position; null clears) with feedback",
       capability: 'mod.forum:grade',
@@ -1024,6 +1026,7 @@ export const forum = defineModule<ForumSettingsT>({
       },
     }),
     startDiscussion: defineAction({
+      offline: 'replay',
       summary: 'Start a discussion, optionally in a group, with attachments',
       capability: 'mod.forum:startdiscussion',
       input: z.object({
@@ -1080,6 +1083,7 @@ export const forum = defineModule<ForumSettingsT>({
       },
     }),
     reply: defineAction({
+      offline: 'replay',
       summary: 'Reply to a post (privately to its author when `private`)',
       capability: 'mod.forum:post',
       input: z.object({
@@ -1138,6 +1142,7 @@ export const forum = defineModule<ForumSettingsT>({
       },
     }),
     editPost: defineAction({
+      offline: 'guarded',
       summary: 'Change the text of a post: your own within the edit window, any as a moderator',
       input: z.object({ postId: z.string().uuid(), message: z.string().max(200_000) }),
       async handler(ctx, ref, input) {
@@ -1164,6 +1169,7 @@ export const forum = defineModule<ForumSettingsT>({
       },
     }),
     deletePost: defineAction({
+      offline: 'guarded',
       summary: 'Delete a post (the first post deletes the whole discussion)',
       input: z.object({ postId: z.string().uuid() }),
       async handler(ctx, ref, input) {
@@ -1210,6 +1216,7 @@ export const forum = defineModule<ForumSettingsT>({
       },
     }),
     moderate: defineAction({
+      offline: 'guarded',
       summary: 'Pin or lock a discussion',
       capability: 'mod.forum:moderate',
       input: z.object({
@@ -1230,6 +1237,7 @@ export const forum = defineModule<ForumSettingsT>({
       },
     }),
     subscribe: defineAction({
+      offline: 'replay',
       summary: 'Subscribe to the forum (no discussionId) or one discussion, or unsubscribe',
       input: z.object({ discussionId: z.string().uuid().nullish(), subscribed: z.boolean() }),
       async handler(ctx, ref, input) {
@@ -1266,6 +1274,8 @@ export const forum = defineModule<ForumSettingsT>({
       },
     }),
     markRead: defineAction({
+      // a record of what the person saw: not worth a conflict when the cloud refuses it
+      offline: 'side',
       summary: 'Mark every post of a discussion read',
       input: z.object({ discussionId: z.string().uuid() }),
       async handler(ctx, ref, input) {

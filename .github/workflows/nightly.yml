@@ -37,15 +37,192 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Start Ollama and pull bge-m3
+        env:
+          APP_SECRET: nightly-not-used-but-required-by-compose-1234
+          COMPOSE_PROFILES: ai-local
         run: |
           cat > docker/compose.ci-ollama.yml <<'YAML'
           services:
             ollama:
               ports: ["127.0.0.1:11434:11434"]
           YAML
-          APP_SECRET=nightly-not-used-but-required-by-compose-1234 COMPOSE_PROFILES=ai-local \
-            docker compose -f docker/compose.yml -f docker/compose.ci-ollama.yml up --wait ollama-pull ollama
+          docker compose -f docker/compose.yml -f docker/compose.ci-ollama.yml up --wait ollama-pull ollama
+          # --wait takes the pull for ready once it runs: the model is there when it exits
+          docker compose -f docker/compose.yml -f docker/compose.ci-ollama.yml wait ollama-pull
       - uses: pnpm/setup@v3
         with: { runtime: node@24, cache: true, require-lockfile: true }
       - run: pnpm --filter @hubium/ai exec vitest run test/ollama.test.ts
         env: { OLLAMA_URL: 'http://127.0.0.1:11434/v1' }
+
+  # The whole e2e suite through a local node while it is connected: the cloud and one node
+  # on the runner (e2e/node/stack.ts), the browser at the node, the scenarios' own reads and
+  # writes on the cloud's database.
+  through-node:
+    name: e2e through a local node
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      APP_SECRET: nightly-secret-nightly-secret-nightly-secret-00
+      SMTP_URL: smtp://localhost:1025
+      NEXT_TELEMETRY_DISABLED: 1
+      AUTH_RATE_LIMIT: 'off'
+      SSRF_ALLOW_HOSTS: 127.0.0.1
+      AUTH_KEYCLOAK_ID: hubium-oauth
+      AUTH_KEYCLOAK_SECRET: hubium-oauth-secret
+      AUTH_KEYCLOAK_ISSUER: http://127.0.0.1:8080/realms/hubium
+      HUBIUM_WRITE_GUARD: strict
+      WORKER_QUEUES: default,media
+      NODES: 1
+    services:
+      mailpit:
+        image: axllent/mailpit:v1.31
+        ports: ["1025:1025", "8025:8025"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with: { runtime: node@24, cache: true, require-lockfile: true }
+      - name: Start OpenLDAP
+        run: |
+          docker run -d --name openldap -p 1389:389 \
+            -e LDAP_ORGANISATION=Hubium -e LDAP_DOMAIN=hubium.test -e LDAP_ADMIN_PASSWORD=ldap-admin \
+            -v "$PWD/e2e/ldap:/container/service/slapd/assets/config/bootstrap/ldif/custom" \
+            osixia/openldap:1.5.0 --copy-service
+      - name: Start Keycloak
+        run: |
+          docker run -d --name keycloak -p 8080:8080 \
+            -e KC_BOOTSTRAP_ADMIN_USERNAME=admin -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+            -v "$PWD/e2e/keycloak:/opt/keycloak/data/import:ro" \
+            keycloak/keycloak:26.4.2 start-dev --import-realm
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - run: pnpm --filter @hubium/web build && pnpm --filter @hubium/worker build && pnpm --filter @hubium/cli build
+        # the build loads the app's modules, which want a database address; the stack gives
+        # each of its processes its own
+        env: { DATABASE_URL: 'postgresql://hubium:hubium@127.0.0.1:55432/hubium' }
+      - run: pnpm --filter @hubium/e2e exec playwright install --with-deps chromium
+      - name: The cloud and a node
+        run: |
+          node e2e/node/stack.ts up
+          timeout 180 bash -c "until curl -fsS -o /dev/null http://127.0.0.1:8080/realms/hubium/.well-known/openid-configuration; do sleep 2; done"
+      - run: pnpm --filter @hubium/e2e e2e
+        env:
+          E2E_BASE_URL: http://localhost:3100
+          E2E_DATABASE_URL: postgresql://hubium:hubium@127.0.0.1:55432/hubium
+      - name: Stack logs
+        if: failure()
+        run: tail -n 200 e2e/node/.stack/*.log
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: through-node-report
+          path: e2e/test-results
+
+  # The lab of a cloud and branch servers installed as in production (e2e/lab, docs/PLAN.md):
+  # each server a container with Docker inside, Hubium installed on it with install-hubium.sh
+  # from the production image; outages, power cuts, a second branch, the cloud's upgrade.
+  # A native installation behind nginx (install-hubium.sh --https none and the site it
+  # writes): Ubuntu's nginx with a certificate where certbot keeps one, the checks of e2e/stack
+  # through it, then what a proxy must get right.
+  nginx:
+    name: Behind nginx
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Build the release archive
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: bundle
+          build-args: BUILD_COMMIT=${{ github.sha }}
+          outputs: type=local,dest=release
+          cache-from: type=gha,scope=bundle-amd64
+      - name: Install with install-hubium.sh, nginx in front
+        run: |
+          (cd release && sha256sum -- *.tar.gz > SHA256SUMS)
+          sudo bash install-hubium.sh --yes --mode native --from-dir release \
+            --domain lms.localhost --content-domain content.localhost --https none --db bundled \
+            --storage fs --modules all --demo yes \
+            --admin-email admin@hubium.local --admin-password 'Admin12345!'
+          sudo apt-get install -y --no-install-recommends nginx
+          live=/etc/letsencrypt/live/lms.localhost
+          sudo mkdir -p "$live"
+          sudo openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj /CN=lms.localhost \
+            -addext 'subjectAltName=DNS:lms.localhost,DNS:content.localhost' \
+            -keyout "$live/privkey.pem" -out "$live/fullchain.pem"
+          sudo cp /etc/hubium/nginx.conf /etc/nginx/conf.d/hubium.conf
+          sudo nginx -t
+          sudo systemctl restart nginx
+      - uses: pnpm/setup@v3
+        with: { runtime: node@24, cache: true, require-lockfile: true }
+      - run: pnpm --filter @hubium/e2e stack
+      - name: Redirects, the client's address, live updates and a log without tokens
+        run: |
+          site=https://lms.localhost
+          r=(-sSk --resolve lms.localhost:443:127.0.0.1 --resolve content.localhost:443:127.0.0.1)
+          curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' \
+            --resolve lms.localhost:80:127.0.0.1 http://lms.localhost/login | tee /dev/stderr |
+            grep -q '^301 https://lms.localhost/login$'
+          # a forged X-Forwarded-For: the session has the address nginx saw
+          curl "${r[@]}" -c jar -H 'Content-Type: application/json' -H "Origin: $site" \
+            -H 'X-Forwarded-For: 203.0.113.9' \
+            -d '{"email":"admin@hubium.local","password":"Admin12345!"}' \
+            "$site/api/auth/sign-in/email" | jq -e '.user.email == "admin@hubium.local"'
+          db=$(sudo sed -n "s/^DATABASE_URL='\(.*\)'$/\1/p" /etc/hubium/hubium.env)
+          ip=$(psql "$db" -Atc 'SELECT "ipAddress" FROM "Session" ORDER BY "createdAt" DESC LIMIT 1')
+          [ "$ip" = 127.0.0.1 ] || { echo "the session's address: $ip"; exit 1; }
+          # live updates arrive at once, not when a buffer fills
+          (curl "${r[@]}" -b jar -N --max-time 5 "$site/api/realtime" || true) | grep -q ': connected'
+          # tokens in URLs stay out of the access log
+          curl "${r[@]}" -o /dev/null https://content.localhost/c/nightly-secret-1/index.html || true
+          curl "${r[@]}" -o /dev/null "$site/login?token=nightly-secret-2" || true
+          sudo grep -q 'redacted' /var/log/nginx/hubium.access.log
+          if sudo grep 'nightly-secret' /var/log/nginx/hubium.access.log; then exit 1; fi
+      - name: Logs
+        if: failure()
+        run: |
+          sudo journalctl -u 'hubium-*' -u nginx --no-pager | tee services.log > /dev/null || true
+          sudo cp /var/log/nginx/error.log nginx-error.log && sudo chmod a+r nginx-error.log || true
+          sudo cp /var/log/hubium-install.log . && sudo chmod a+r hubium-install.log || true
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: nginx-report
+          path: |
+            services.log
+            nginx-error.log
+            hubium-install.log
+            e2e/test-results
+
+  lab:
+    name: Lab of a cloud and branch servers
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+      # three servers hold the images: room for them, and tc netem for the slow line
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo modprobe -a sch_netem sch_htb cls_u32 || true
+          df -h /
+      - uses: pnpm/setup@v3
+        with: { runtime: node@24, cache: true, require-lockfile: true }
+      - run: pnpm --filter @hubium/e2e exec playwright install --with-deps chromium
+      - run: pnpm --filter @hubium/e2e lab
+        # the servers stay for the logs below; the runner goes with them
+        env: { LAB_KEEP: '1' }
+      - name: Lab logs
+        if: failure()
+        run: |
+          tail -n 100 e2e/lab/.lab/*.log || true
+          for s in lab-cloud lab-branch1 lab-branch2; do
+            echo "== $s"
+            docker exec "$s" sh -c 'docker ps -a; for c in $(docker ps -aq); do docker logs --tail 60 "$c" 2>&1; done' || true
+          done
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: lab-report
+          path: e2e/test-results

@@ -79,7 +79,7 @@ describe('Web Push', () => {
       'http://push.example.com/x',
       'https://169.254.169.254/latest',
     ])
-      await expect(savePushSubscription(ctx, { endpoint, keys })).rejects.toThrow();
+      await expect(savePushSubscription.run(ctx, { endpoint, keys })).rejects.toThrow();
     // the stand-in push service below runs on 127.0.0.1
     process.env.SSRF_ALLOW_HOSTS = '127.0.0.1';
   });
@@ -90,9 +90,9 @@ describe('Web Push', () => {
     });
     const student = await t.db.user.findFirstOrThrow({ where: { username: 'student1' } });
     const ctx = await ctxFor(t.db, student.id);
-    await savePushSubscription(ctx, { endpoint: `${base}/ok/1`, keys }, 'Test UA');
-    await savePushSubscription(ctx, { endpoint: `${base}/gone/2`, keys });
-    await expect(savePushSubscription(ctx, { endpoint: 'nope', keys })).rejects.toThrow();
+    await savePushSubscription.run(ctx, { endpoint: `${base}/ok/1`, keys, userAgent: 'Test UA' });
+    await savePushSubscription.run(ctx, { endpoint: `${base}/gone/2`, keys });
+    await expect(savePushSubscription.run(ctx, { endpoint: 'nope', keys })).rejects.toThrow();
 
     capturedJobs.length = 0;
     await t.db.$transaction((tx) =>

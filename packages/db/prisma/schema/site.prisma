@@ -60,6 +60,8 @@ model EventLog {
   data          Json        @default("{}")
   origin        EventOrigin
   ip            String?
+  /// The local node the action came through, or ran on without a connection
+  nodeId        String?     @db.Uuid
   createdAt     DateTime    @default(now()) @db.Timestamptz(3)
 
   @@index([createdAt(ops: TimestampTzMinMaxOps)], type: Brin)

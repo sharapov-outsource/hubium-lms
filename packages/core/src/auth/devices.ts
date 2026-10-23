@@ -1,10 +1,12 @@
 import { isIP } from 'node:net';
-import type { Db } from '@hubium/db';
+import type { Db, Prisma } from '@hubium/db';
 import { log } from '@hubium/log';
+import { z } from 'zod';
 import { sha256Hex, sign, verifySignature } from '../crypto.ts';
 import { getEnv } from '../env.ts';
 import { logEvent } from '../events/log.ts';
 import { notifyUsers, registerNotificationType } from '../notifications/notifications.ts';
+import { defineOperation } from '../operation.ts';
 import { getAllSettings } from '../settings/settings.ts';
 
 const logger = log('auth');
@@ -140,7 +142,10 @@ export async function notMeDetails(db: Db, token: string) {
  * "It wasn't me": forgets the device and ends every session of the user. Returns the
  * account's email so the caller can send a password reset (Better Auth does that).
  */
-export async function reportNotMe(db: Db, token: string): Promise<{ email: string | null } | null> {
+export async function reportNotMe(
+  db: Db | Prisma.TransactionClient,
+  token: string,
+): Promise<{ email: string | null } | null> {
   const t = parseNotMeToken(token);
   if (!t) return null;
   const device = await db.knownDevice.findFirst({ where: { id: t.deviceId, userId: t.userId } });
@@ -161,3 +166,11 @@ export async function reportNotMe(db: Db, token: string): Promise<{ email: strin
   });
   return { email: user.emailPlaceholder ? null : user.email };
 }
+
+/** The "it wasn't me" link of a new sign-in notice. */
+export const reportNotMeByToken = defineOperation({
+  name: 'user.notMe',
+  offline: 'online',
+  input: z.object({ token: z.string().max(1000) }),
+  handler: (ctx, { token }) => reportNotMe(ctx.tx, token),
+});

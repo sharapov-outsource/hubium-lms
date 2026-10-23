@@ -11,6 +11,8 @@ export interface SettingsFieldsProps<S = Record<string, unknown>> {
   files?: Record<string, { id: string; name: string; url: string }[]>;
   /** Grade scales the course can use (the site's and its own). */
   scales?: { id: string; name: string; items: string[] }[];
+  /** The site's local nodes, for rules that name them (a quiz taken only in a branch). */
+  nodes?: { id: string; name: string }[];
 }
 
 export interface ViewProps<S = Record<string, unknown>> {

@@ -70,6 +70,7 @@ export async function moduleOverview(ctx: RequestContext): Promise<ModuleRow[]> 
 
 export const saveModuleSettings = defineOperation({
   name: 'site.modules',
+  offline: 'online',
   input: z.object({ enabled: z.array(z.string().min(1).max(50)) }),
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, input) {

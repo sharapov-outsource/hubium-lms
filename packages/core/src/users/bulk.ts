@@ -170,6 +170,7 @@ export async function runBulkUserAction(
 
 export const startBulkUserAction = defineOperation({
   name: 'user.bulk',
+  offline: 'online',
   input: z.object({ selection: BulkSelection, action: BulkAction }),
   mutation: false,
   authorize: (ctx, i) => authorizeAction(ctx, i.action),

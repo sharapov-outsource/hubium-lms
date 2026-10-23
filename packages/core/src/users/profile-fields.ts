@@ -187,6 +187,7 @@ export const ProfileFieldInput = z
 
 export const saveProfileField = defineOperation({
   name: 'profileField.save',
+  offline: 'online',
   input: ProfileFieldInput,
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, input) {
@@ -243,6 +244,7 @@ export const saveProfileField = defineOperation({
 
 export const deleteProfileField = defineOperation({
   name: 'profileField.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, { id }) {
@@ -268,6 +270,7 @@ export const deleteProfileField = defineOperation({
 
 export const moveProfileField = defineOperation({
   name: 'profileField.move',
+  offline: 'online',
   input: z.object({ id: z.string().uuid(), direction: z.enum(['up', 'down']) }),
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, { id, direction }) {

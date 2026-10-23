@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { opRandom } from '@hubium/db';
 import {
   type ActivityRef,
   defineAction,
@@ -39,7 +39,7 @@ const Options = z.preprocess(
     .array(ChoiceOption)
     .min(1, 'mod.choice.errors.addOption')
     .max(100)
-    .transform((list) => list.map((o) => ({ ...o, id: o.id || randomUUID() }))),
+    .transform((list) => list.map((o) => ({ ...o, id: o.id || opRandom().uuid() }))),
 );
 
 export const ChoiceSettings = z
@@ -260,6 +260,7 @@ export const choice = defineModule<ChoiceSettingsT>({
   },
   actions: {
     answer: defineAction({
+      offline: 'replay',
       summary: 'Choose one option, or several when the choice allows it',
       capability: 'mod.choice:choose',
       input: z.object({ optionIds: z.array(z.string().max(64)).min(1).max(100) }),
@@ -299,6 +300,7 @@ export const choice = defineModule<ChoiceSettingsT>({
       },
     }),
     withdraw: defineAction({
+      offline: 'replay',
       summary: 'Remove your answer (when changing it is allowed)',
       capability: 'mod.choice:choose',
       input: z.object({}),
@@ -316,6 +318,7 @@ export const choice = defineModule<ChoiceSettingsT>({
       },
     }),
     deleteResponses: defineAction({
+      offline: 'guarded',
       summary: "Delete people's answers",
       capability: 'mod.choice:deleteresponses',
       input: z.object({ userIds: z.array(z.string().uuid()).min(1).max(5000) }),

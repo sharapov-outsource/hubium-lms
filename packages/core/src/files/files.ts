@@ -1,7 +1,15 @@
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { open, stat } from 'node:fs/promises';
-import { type Db, type File, type Prisma, SYSTEM_CONTEXT_ID, uuidv7 } from '@hubium/db';
+import {
+  currentWriteScope,
+  type Db,
+  type File,
+  modelUuidv7,
+  type Prisma,
+  SYSTEM_CONTEXT_ID,
+  withWriteScope,
+} from '@hubium/db';
 import { log } from '@hubium/log';
 import { msg } from '@hubium/module-sdk';
 import type { RequestContext } from '../context.ts';
@@ -145,27 +153,34 @@ async function storeBlob(
   });
   if (existing?.scannedAt || (existing && !scan)) return existing;
   const scanned = scan ? await assertClean(content, meta) : false;
+  // the stored content and its registry travel with the files, not with what uses them
   if (existing)
     return scanned
-      ? db.fileBlob.update({ where: { id: existing.id }, data: { scannedAt: new Date() } })
+      ? withWriteScope('files', 'blob', () =>
+          db.fileBlob.update({ where: { id: existing.id }, data: { scannedAt: new Date() } }),
+        )
       : existing;
-  const id = uuidv7();
+  const id = modelUuidv7('FileBlob');
   const storageKey = `blobs/${id.slice(-2)}/${id}`;
   await getStorage().put(
     storageKey,
     'data' in content ? content.data : createReadStream(content.filePath),
     meta.mimeType,
   );
-  return db.fileBlob.create({
-    data: {
-      id,
-      storageKey,
-      size: meta.size,
-      mimeType: meta.mimeType,
-      sha256: meta.sha256,
-      scannedAt: scanned ? new Date() : null,
-    },
-  });
+  // a node without a connection sends the file to the cloud before the operation
+  currentWriteScope()?.record?.files.add(storageKey);
+  return withWriteScope('files', 'blob', () =>
+    db.fileBlob.create({
+      data: {
+        id,
+        storageKey,
+        size: meta.size,
+        mimeType: meta.mimeType,
+        sha256: meta.sha256,
+        scannedAt: scanned ? new Date() : null,
+      },
+    }),
+  );
 }
 
 type FileCheck = Pick<StoreFileInput, 'name' | 'mimeType' | 'data' | 'maxBytes' | 'allowedTypes'>;

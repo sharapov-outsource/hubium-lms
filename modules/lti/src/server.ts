@@ -789,6 +789,7 @@ async function handleDeepLink(ctx: ModuleCtx, req: Request, activityId: string) 
 
 export const lti = defineModule<LtiSettingsT>({
   key: 'lti',
+  httpExternal: true,
   archetype: 'activity',
   icon: 'Plug',
   supports: { viewCompletion: true },

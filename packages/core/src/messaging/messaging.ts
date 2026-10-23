@@ -1,4 +1,4 @@
-import { type Db, Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
+import { type Db, opNow, Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
@@ -93,6 +93,7 @@ async function activeMemberIds(db: AnyDb, conversationId: string): Promise<strin
 
 export const openDirectConversation = defineOperation({
   name: 'message.direct.open',
+  offline: 'replay',
   mutation: true,
   input: z.object({ userId: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('message:send'),
@@ -125,6 +126,7 @@ export const openDirectConversation = defineOperation({
 
 export const createGroupConversation = defineOperation({
   name: 'message.group.create',
+  offline: 'replay',
   mutation: true,
   input: z.object({
     name: z.string().trim().min(1).max(100),
@@ -157,6 +159,7 @@ export const createGroupConversation = defineOperation({
  */
 export const openGroupChat = defineOperation({
   name: 'message.groupchat.open',
+  offline: 'replay',
   mutation: true,
   input: z.object({ groupId: z.string().uuid() }),
   async authorize(ctx, { groupId }) {
@@ -224,7 +227,7 @@ export async function leaveGroupChats(
           ? { groupId: { in: where.groupIds } }
           : { courseId: where.courseId, groupId: { not: null } },
     },
-    data: { leftAt: new Date() },
+    data: { leftAt: opNow() },
   });
 }
 
@@ -390,6 +393,7 @@ const Attachment = z.object({
 
 export const sendMessage = defineOperation({
   name: 'message.send',
+  offline: 'replay',
   mutation: true,
   input: z
     .object({
@@ -488,6 +492,7 @@ export const sendMessage = defineOperation({
 
 export const deleteMessage = defineOperation({
   name: 'message.delete',
+  offline: 'guarded',
   mutation: true,
   input: z.object({ id: z.string().uuid() }),
   async handler(ctx, { id }) {
@@ -513,6 +518,7 @@ export const deleteMessage = defineOperation({
 
 export const markConversationRead = defineOperation({
   name: 'message.read',
+  offline: 'replay',
   mutation: true,
   input: z.object({ conversationId: z.string().uuid() }),
   async handler(ctx, { conversationId }) {
@@ -541,6 +547,7 @@ export async function sendTyping(db: Db, userId: string, conversationId: string)
 
 export const setConversationState = defineOperation({
   name: 'message.conversation.state',
+  offline: 'replay',
   mutation: true,
   input: z.object({
     conversationId: z.string().uuid(),
@@ -575,6 +582,7 @@ export const setConversationState = defineOperation({
 
 export const setUserBlocked = defineOperation({
   name: 'message.block',
+  offline: 'replay',
   mutation: true,
   input: z.object({ userId: z.string().uuid(), blocked: z.boolean() }),
   async handler(ctx, input) {
@@ -605,6 +613,7 @@ export async function listBlockedUsers(db: Db, userId: string) {
 
 export const setMessagePrivacy = defineOperation({
   name: 'message.privacy',
+  offline: 'guarded',
   mutation: true,
   input: z.object({ privacy: z.enum(['ANYONE', 'COURSEMATES', 'NOBODY']) }),
   async handler(ctx, { privacy }) {

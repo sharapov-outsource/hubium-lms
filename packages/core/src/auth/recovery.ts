@@ -71,6 +71,7 @@ export async function listRecoveryPassphrases(ctx: RequestContext) {
 
 export const addRecoveryPassphrase = defineOperation({
   name: 'user.addRecoveryPassphrase',
+  offline: 'online',
   input: z.object({
     name: z.string().trim().min(1).max(100),
     passphrase: z.string().max(500),
@@ -123,6 +124,7 @@ export const addRecoveryPassphrase = defineOperation({
 
 export const deleteRecoveryPassphrase = defineOperation({
   name: 'user.deleteRecoveryPassphrase',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   async handler(ctx, { id }) {
     const userId = ownUser(ctx);

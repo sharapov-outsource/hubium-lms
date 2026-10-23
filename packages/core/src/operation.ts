@@ -1,10 +1,20 @@
+import {
+  currentWriteScope,
+  newOpRecord,
+  newSeed,
+  type WriteScope,
+  withWriteScope,
+} from '@hubium/db';
 import { log } from '@hubium/log';
-import { msg, renderMsg } from '@hubium/module-sdk';
+import { msg, type OfflinePolicy, renderMsg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { MutationContext, RequestContext } from './context.ts';
 import { AppError, type MsgOrText, ValidationError } from './errors.ts';
 import { withActorScope } from './events/actor-scope.ts';
 import { issueMsg } from './issue-messages.ts';
+import { isNode } from './node/config.ts';
+import { journalActor, journaling, writeJournal } from './node/journal.ts';
+import { nodeState } from './node/runtime.ts';
 
 const logger = log('operations');
 
@@ -12,6 +22,8 @@ const logger = log('operations');
 
 export interface OperationDef<I extends z.ZodType, O> {
   name: string;
+  /** What a local node does with it without a connection (OfflinePolicy). */
+  offline: OfflinePolicy;
   input: I;
   authorize?: (ctx: RequestContext, input: z.output<I>) => Promise<void> | void;
   handler: (ctx: MutationContext, input: z.output<I>) => Promise<O>;
@@ -39,13 +51,58 @@ export function parseInput<I extends z.ZodType>(schema: I, raw: unknown): z.outp
   return r.data;
 }
 
+// Every operation by name: a local node records them by name and the cloud replays them.
+const registry = new Map<string, Operation<z.ZodType, unknown>>();
+/** How many times each name was defined: once, or two operations share it. */
+const definitions = new Map<string, number>();
+
 export function defineOperation<I extends z.ZodType, O>(def: OperationDef<I, O>): Operation<I, O> {
-  return {
+  const op: Operation<I, O> = {
     ...def,
     run(ctx, raw) {
-      return withActorScope(ctx.actor, () => runOperation(def, ctx, raw));
+      return withActorScope(ctx.actor, () => runOperation(def, ctx, raw), ctx.nodeId);
     },
   };
+  registry.set(def.name, op as Operation<z.ZodType, unknown>);
+  definitions.set(def.name, (definitions.get(def.name) ?? 0) + 1);
+  return op;
+}
+
+/** The operation of a name, among those of the modules loaded so far. */
+export function getOperation(name: string): Operation<z.ZodType, unknown> | undefined {
+  return registry.get(name);
+}
+
+export function listOperations(): Operation<z.ZodType, unknown>[] {
+  return [...registry.values()];
+}
+
+/** Names defined more than once (a reload in development defines them again). */
+export function duplicateOperationNames(): string[] {
+  return [...definitions].filter(([, n]) => n > 1).map(([name]) => name);
+}
+
+/**
+ * The seed of an operation's random numbers: the journal's when the cloud replays it, one
+ * drawn from the enclosing operation's for an operation inside another (so that replaying
+ * the outer one draws the same), a new one otherwise.
+ */
+export function operationSeed(outer: WriteScope | undefined): string {
+  if (outer?.kind === 'operation' && outer.random) return outer.random.uuid().replace(/-/g, '');
+  return outer?.replay?.seed ?? newSeed();
+}
+
+/**
+ * Refuses what a local node may not do now: anything while it reads its replica (changes go
+ * to the cloud; without a connection, or while it syncs, they wait), and without a
+ * connection what needs the cloud (OfflinePolicy 'online').
+ */
+export function assertOfflineAllowed(offline: OfflinePolicy): void {
+  if (!isNode()) return;
+  const { mode } = nodeState();
+  if (mode === 'SYNC') throw new AppError('UNAVAILABLE', msg('errors.node.syncing'));
+  if (mode !== 'OFFLINE') throw new AppError('UNAVAILABLE', msg('errors.node.readonly'));
+  if (offline === 'online') throw new AppError('UNAVAILABLE', msg('errors.node.onlineOnly'));
 }
 
 async function runOperation<I extends z.ZodType, O>(
@@ -53,26 +110,65 @@ async function runOperation<I extends z.ZodType, O>(
   ctx: RequestContext,
   raw: unknown,
 ): Promise<O> {
+  assertOfflineAllowed(def.offline);
   const input = parseInput(def.input, raw);
   if (def.authorize) await def.authorize(ctx, input);
-  const after: (() => void | Promise<void>)[] = [];
-  let result: O;
-  if (def.mutation === false) {
-    result = await def.handler({ ...ctx, tx: ctx.db, afterCommit: (fn) => after.push(fn) }, input);
-  } else {
-    result = await ctx.db.$transaction(
-      (tx) => def.handler({ ...ctx, tx, afterCommit: (fn) => after.push(fn) }, input),
-      { timeout: 30_000 },
-    );
-  }
-  for (const fn of after) {
-    try {
-      await fn();
-    } catch (e) {
-      logger.error({ err: e, operation: def.name }, 'after-commit step failed');
-    }
-  }
-  return result;
+  const outer = currentWriteScope();
+  const seed = operationSeed(outer);
+  // a node working alone records the outermost operation (the inner ones are part of it)
+  const record =
+    journaling() && outer?.kind !== 'operation'
+      ? newOpRecord(def.offline === 'guarded')
+      : undefined;
+  // the cloud replaying a node's entry: its result goes with its changes
+  const replayed = outer?.kind !== 'operation' ? outer?.replay?.commit : undefined;
+  const entry = record && {
+    kind: 'operation' as const,
+    name: def.name,
+    actor: journalActor(ctx.actor),
+    input: raw,
+    ip: ctx.ip,
+    at: ctx.now,
+    seed,
+  };
+  // the handler's writes and its after-commit steps belong to the operation, dated with
+  // its time, with random numbers of its own
+  return withWriteScope(
+    'operation',
+    def.name,
+    async () => {
+      const after: (() => void | Promise<void>)[] = [];
+      let result: O;
+      if (def.mutation === false) {
+        result = await def.handler(
+          { ...ctx, tx: ctx.db, afterCommit: (fn) => after.push(fn) },
+          input,
+        );
+        if (entry) await writeJournal(ctx.db, entry, record!);
+        if (replayed) await replayed(ctx.db as never);
+      } else {
+        result = await ctx.db.$transaction(
+          async (tx) => {
+            const r = await def.handler({ ...ctx, tx, afterCommit: (fn) => after.push(fn) }, input);
+            // in the change's own transaction: the journal has it if and only if it happened
+            if (entry) await writeJournal(tx, entry, record!);
+            if (replayed) await replayed(tx as never);
+            return r;
+          },
+          { timeout: 30_000 },
+        );
+      }
+      for (const fn of after) {
+        try {
+          await fn();
+        } catch (e) {
+          logger.error({ err: e, operation: def.name }, 'after-commit step failed');
+        }
+      }
+      return result;
+    },
+    { now: ctx.now, seed, record },
+  );
 }
 
 export type ActionResult<T> =

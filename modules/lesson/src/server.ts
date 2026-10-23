@@ -1,5 +1,4 @@
-import { randomUUID } from 'node:crypto';
-import type { Prisma } from '@hubium/db';
+import { opRandom, type Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import {
   type ActivityRef,
@@ -141,7 +140,7 @@ function checkPage(type: PageType, p: PageInputT): string | null {
 /** Answers as stored: ids kept or given, jumps only to keywords or pages of the lesson. */
 function answerRows(rows: PageInputT['answers'], pageIds: Set<string>): Answer[] {
   return rows.map((r) => ({
-    id: r.id && UUID.test(r.id) ? r.id : randomUUID(),
+    id: r.id && UUID.test(r.id) ? r.id : opRandom().uuid(),
     text: r.text,
     response: r.response,
     jump:
@@ -190,7 +189,7 @@ async function renumber(db: Prisma.TransactionClient, ids: string[]) {
 
 type AttemptRow = Prisma.LessonAttemptGetPayload<object>;
 
-const pick = <T>(items: T[]): T => items[Math.floor(Math.random() * items.length)]!;
+const pick = <T>(items: T[]): T => items[opRandom().int(0, items.length)]!;
 
 async function stepsOf(db: Prisma.TransactionClient, attemptId: string) {
   return db.lessonStep.findMany({ where: { attemptId }, orderBy: { seq: 'asc' } });
@@ -509,7 +508,7 @@ export async function importPages(
   list: z.input<typeof ExportedPage>[],
   map: (old: string) => string | undefined = () => undefined,
 ) {
-  const ids = new Map(list.map((p) => [p.key, randomUUID()]));
+  const ids = new Map(list.map((p) => [p.key, opRandom().uuid()]));
   const known = new Set(ids.values());
   for (const [i, raw] of list.entries()) {
     const p = ExportedPage.safeParse(raw);
@@ -634,9 +633,12 @@ export const lesson = defineModule<LessonSettingsT>({
       name: 'lesson.overdue.sweep',
       schedule: '* * * * *',
       async handler(ctx) {
-        // ends attempts whose time ran out while the learner was away
+        // ends attempts whose time ran out while the learner was away (not yet those of
+        // a time a local node may still bring answers for)
+        const waiting = await ctx.nodes.waitingSince();
+        const before = waiting && waiting < ctx.now ? waiting : ctx.now;
         const due = await ctx.db.lessonAttempt.findMany({
-          where: { finishedAt: null, dueAt: { lt: ctx.now } },
+          where: { finishedAt: null, dueAt: { lt: before } },
           include: { activity: true },
           take: 200,
         });
@@ -718,6 +720,7 @@ export const lesson = defineModule<LessonSettingsT>({
   actions: {
     // ── editing ──
     addPage: defineAction({
+      offline: 'replay',
       summary: 'Add a page after another one (or first)',
       capability: 'mod.lesson:edit',
       input: PageInput.extend({
@@ -728,7 +731,7 @@ export const lesson = defineModule<LessonSettingsT>({
         const pages = await lessonPages(ctx.db, a.id);
         const err = checkPage(input.type, input);
         if (err) throw new ModuleError('BAD_REQUEST', err);
-        const id = randomUUID();
+        const id = opRandom().uuid();
         const answers = answerRows(input.answers, new Set([...pages.map((p) => p.id), id]));
         await ctx.db.lessonPage.create({
           data: {
@@ -750,6 +753,7 @@ export const lesson = defineModule<LessonSettingsT>({
       },
     }),
     updatePage: defineAction({
+      offline: 'guarded',
       summary: 'Change a page (its kind stays)',
       capability: 'mod.lesson:edit',
       input: PageInput.extend({ id: z.string().uuid() }),
@@ -772,6 +776,7 @@ export const lesson = defineModule<LessonSettingsT>({
       },
     }),
     movePage: defineAction({
+      offline: 'guarded',
       summary: 'Move a page up or down',
       capability: 'mod.lesson:edit',
       input: z.object({ id: z.string().uuid(), direction: z.enum(['up', 'down']) }),
@@ -787,6 +792,7 @@ export const lesson = defineModule<LessonSettingsT>({
       },
     }),
     deletePage: defineAction({
+      offline: 'guarded',
       summary: 'Delete a page (answers to it go with it; jumps to it lead on)',
       capability: 'mod.lesson:edit',
       input: z.object({ id: z.string().uuid() }),
@@ -815,6 +821,7 @@ export const lesson = defineModule<LessonSettingsT>({
     }),
     // ── taking the lesson ──
     start: defineAction({
+      offline: 'replay',
       summary:
         'Start the lesson or go on with the open attempt; `preview` for teachers; `password` when it has one',
       input: z.object({
@@ -875,6 +882,7 @@ export const lesson = defineModule<LessonSettingsT>({
       },
     }),
     choose: defineAction({
+      offline: 'replay',
       summary: 'Press a button of the content page you are on',
       input: z.object({ pageId: z.string().uuid(), answerId: z.string().max(64) }),
       async handler(ctx, ref, input) {
@@ -898,6 +906,7 @@ export const lesson = defineModule<LessonSettingsT>({
       },
     }),
     goTo: defineAction({
+      offline: 'replay',
       summary: 'Go to a content page from the lesson menu',
       input: z.object({ pageId: z.string().uuid() }),
       async handler(ctx, ref, input) {
@@ -914,6 +923,7 @@ export const lesson = defineModule<LessonSettingsT>({
       },
     }),
     answer: defineAction({
+      offline: 'replay',
       summary:
         'Answer the question you are on: `choice`, `choices`, `text` (short answers, numbers, essays) or `matches`',
       input: z.object({
@@ -989,6 +999,7 @@ export const lesson = defineModule<LessonSettingsT>({
       },
     }),
     skip: defineAction({
+      offline: 'replay',
       summary: 'Leave a question answered wrongly instead of trying again',
       input: z.object({ pageId: z.string().uuid() }),
       async handler(ctx, ref, input) {
@@ -1015,6 +1026,7 @@ export const lesson = defineModule<LessonSettingsT>({
     }),
     // ── teachers ──
     gradeEssay: defineAction({
+      offline: 'guarded',
       summary: 'Grade an essay answer: points (up to the answer’s, or 1) and a comment',
       capability: 'mod.lesson:grade',
       input: z.object({
@@ -1070,6 +1082,7 @@ export const lesson = defineModule<LessonSettingsT>({
       },
     }),
     deleteAttempt: defineAction({
+      offline: 'guarded',
       summary: 'Delete an attempt of a learner (their grade is reckoned again)',
       capability: 'mod.lesson:grade',
       input: z.object({ attemptId: z.string().uuid() }),

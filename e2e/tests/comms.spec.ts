@@ -133,6 +133,7 @@ test.describe
       await replier.locator('[id^="msg-"]').first().click();
       await replier.keyboard.type('Список — изменяемая последовательность');
       await replier.getByRole('button', { name: 'Отправить' }).click();
+      await expect(replier.locator('[id^="msg-"]')).toHaveCount(0);
       await expect(replier.getByText('Список — изменяемая последовательность')).toBeVisible();
 
       // the author's bell updates without a reload
@@ -145,6 +146,25 @@ test.describe
       await expect(author.getByText('Список — изменяемая последовательность')).toBeVisible();
       await a.close();
       await b.close();
+    });
+
+    test('two forum replies in a row on the same page', async ({ page }) => {
+      const [discussion] = await sql<{ id: string }>(
+        `SELECT id FROM "ForumDiscussion" WHERE "activityId" = $1 ORDER BY "createdAt" LIMIT 1`,
+        [d.forumId],
+      );
+      await login(page, 'student2', DEMO_PASSWORD);
+      await page.goto(`/course/${d.courseId}/a/${d.forumId}?d=${discussion!.id}`);
+      const mark = `Подряд ${Date.now().toString(36)}`;
+      for (const n of [1, 2]) {
+        await page.getByRole('button', { name: 'Ответить' }).first().click();
+        await page.locator('[id^="msg-"]').first().click();
+        await page.keyboard.type(`${mark} №${n}`);
+        await page.getByRole('button', { name: 'Отправить' }).click();
+        // taken: the form closes (until then the text is the editor's own) and the post shows
+        await expect(page.locator('[id^="msg-"]')).toHaveCount(0);
+        await expect(page.getByText(`${mark} №${n}`)).toBeVisible();
+      }
     });
 
     test('announcement email and one-click unsubscribe without signing in', async ({

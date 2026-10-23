@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { buffer } from 'node:stream/consumers';
-import type { Certificate, Db, Prisma } from '@hubium/db';
+import { type Certificate, type Db, opNow, type Prisma } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
@@ -83,6 +83,7 @@ export const CertificateInput = z.object({
 
 export const saveCertificate = defineOperation({
   name: 'certificate.save',
+  offline: 'online',
   input: CertificateInput,
   async authorize(ctx, i) {
     const courseId = i.id ? (await loadCertificate(ctx.db, i.id)).courseId : i.courseId;
@@ -133,6 +134,7 @@ export function checkCertificateBackground(data: Uint8Array): 'png' | 'jpeg' {
 /** Sets the background picture, or removes it (no data). */
 export const setCertificateBackground = defineOperation({
   name: 'certificate.background',
+  offline: 'online',
   input: z.object({
     id: z.string().uuid(),
     name: z.string().max(255).default(''),
@@ -169,6 +171,7 @@ export const setCertificateBackground = defineOperation({
 
 export const setCertificateStatus = defineOperation({
   name: 'certificate.status',
+  offline: 'online',
   input: z.object({ id: z.string().uuid(), status: z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']) }),
   authorize: async (ctx, i) =>
     ctx.perm.require('certificate:manage', (await loadCertificate(ctx.db, i.id)).courseId),
@@ -201,6 +204,7 @@ export const setCertificateStatus = defineOperation({
 
 export const deleteCertificate = defineOperation({
   name: 'certificate.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: async (ctx, i) =>
     ctx.perm.require('certificate:manage', (await loadCertificate(ctx.db, i.id)).courseId),
@@ -305,7 +309,7 @@ export async function issueIfEarned(
   tx: Tx,
   c: Certificate,
   userId: string,
-  now = new Date(),
+  now = opNow(),
   /** The course's learners, when the caller has them already (a review of many). */
   learners?: Set<string>,
 ): Promise<boolean> {
@@ -359,6 +363,7 @@ export async function reviewCertificate(db: Db, certificateId: string, now = new
 /** Issues a certificate by hand (whether or not the course is completed), or again after a revocation. */
 export const issueCertificate = defineOperation({
   name: 'certificate.issue',
+  offline: 'online',
   input: z.object({ certificateId: z.string().uuid(), userId: z.string().uuid() }),
   authorize: async (ctx, i) =>
     ctx.perm.require(
@@ -402,6 +407,7 @@ export const issueCertificate = defineOperation({
 
 export const revokeCertificateIssue = defineOperation({
   name: 'certificate.revoke',
+  offline: 'online',
   input: z.object({ issueId: z.string().uuid(), reason: z.string().trim().min(1).max(500) }),
   async authorize(ctx, i) {
     const issue = await ctx.db.certificateIssue.findUnique({

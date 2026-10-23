@@ -31,7 +31,7 @@
     "@hubium/tooling": "workspace:*",
     "@types/node": "^24",
     "@types/react": "19.3.0",
-    "next": "16.4.0",
+    "next": "16.4.1",
     "react": "19.3.0",
     "typescript": "~7.0.2",
     "vitest": "5.0.4"

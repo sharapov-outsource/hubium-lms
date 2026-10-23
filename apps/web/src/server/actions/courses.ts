@@ -1,8 +1,9 @@
 'use server';
 
 import {
+  ACTIVITY_FILE_BYTES,
   addSection,
-  buildModuleCtx,
+  COURSE_IMAGE,
   createActivity,
   createCourse,
   deleteActivity,
@@ -17,10 +18,10 @@ import {
   profileValuesFromForm,
   purgeActivity,
   purgeCourse,
-  type RequestContext,
   resetCourse,
   restoreActivity,
   restoreCourse,
+  saveActivityFiles,
   setActivityVisibility,
   setCourseImage,
   setSectionVisible,
@@ -30,13 +31,12 @@ import {
   updateSection,
   ValidationError,
 } from '@hubium/core';
-import { checkFile, storeFile } from '@hubium/core/files/files';
+import { checkFile } from '@hubium/core/files/files';
 import { checkUpload } from '@hubium/core/files/uploads';
 import { duplicateActivity } from '@hubium/interchange';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
 import { safePath } from '@/lib/safe-path';
 import { formBool, formToObject, runAction } from '../action';
 import { courseFieldViews } from '../course-fields';
@@ -65,8 +65,6 @@ function courseFormValues(fd: FormData) {
   };
 }
 
-const COVER = { maxBytes: 5 * 1024 * 1024, allowedTypes: /^image\/(png|jpeg|webp|gif)$/ };
-
 /** Checks a file of the form, its refusal shown at the form's own input. */
 async function checkFormFile(
   field: string,
@@ -90,26 +88,8 @@ async function courseImage(fd: FormData) {
     mimeType: image.type,
     data: Buffer.from(await image.arrayBuffer()),
   };
-  await checkFormFile('image', { ...file, ...COVER });
+  await checkFormFile('image', { ...file, ...COURSE_IMAGE });
   return file;
-}
-
-async function saveCourseImage(
-  ctx: RequestContext,
-  courseId: string,
-  image: Awaited<ReturnType<typeof courseImage>>,
-) {
-  if (!image) return;
-  const f = await storeFile(db, {
-    contextId: courseId,
-    component: 'course',
-    area: 'image',
-    ...image,
-    ...COVER,
-    uploadedById: ctx.perm.userId,
-    replace: true,
-  });
-  await setCourseImage(ctx, courseId, f.id);
 }
 
 /** Values of the custom course fields the person may change in the form. */
@@ -129,7 +109,7 @@ export async function createCourseAction(fd: FormData) {
       customFields: await customFieldValues(fd, values.categoryId ?? ''),
     });
     // the author's role in the new course is not in the request's permissions yet
-    await saveCourseImage(await freshContext(), r.id, image);
+    if (image) await setCourseImage.run(await freshContext(), { courseId: r.id, image });
     return r;
   });
   if (res.ok) redirect(`/course/${res.data.id}?edit=1`);
@@ -145,8 +125,9 @@ export async function updateCourseAction(fd: FormData) {
       ...courseFormValues(fd),
       customFields: await customFieldValues(fd, id),
     });
-    await saveCourseImage(await getContext(), id, image);
-    if (formBool(fd.get('removeImage'))) await setCourseImage(await getContext(), id, null);
+    if (image) await setCourseImage.run(await getContext(), { courseId: id, image });
+    else if (formBool(fd.get('removeImage')))
+      await setCourseImage.run(await getContext(), { courseId: id, image: null });
     revalidatePath(`/course/${id}`, 'layout');
     return r;
   });
@@ -258,8 +239,6 @@ function collectCompletionRules(fd: FormData) {
   return { view: formBool(fd.get('completionView')), module };
 }
 
-const ACTIVITY_FILE_BYTES = 200 * 1024 * 1024;
-
 /** The form's files, checked (size, type, malware) before the activity is saved: a file the
  *  check refuses leaves no activity without it behind, to be made twice on the next try. */
 async function checkActivityFiles(fd: FormData) {
@@ -281,32 +260,23 @@ async function checkActivityFiles(fd: FormData) {
 
 const isActivityFile = (k: string) => k.startsWith('files.') && k !== 'files.remove';
 
-async function saveActivityFiles(activityId: string, fd: FormData) {
-  const ctx = await getContext();
-  const mctx = buildModuleCtx(ctx);
+async function saveFormFiles(activityId: string, fd: FormData) {
+  const add = await Promise.all(
+    formFiles(fd, isActivityFile).map(async (f) => {
+      const area = f.field.slice('files.'.length);
+      return f.file
+        ? {
+            area,
+            name: f.file.name,
+            mimeType: f.file.type,
+            data: Buffer.from(await f.file.arrayBuffer()),
+          }
+        : { area, uploadId: f.uploadId };
+    }),
+  );
   const remove = fd.getAll('files.remove').map(String);
-  for (const f of formFiles(fd, isActivityFile)) {
-    const area = f.field.slice('files.'.length);
-    if (f.file)
-      await mctx.files.store(
-        activityId,
-        area,
-        { name: f.file.name, mimeType: f.file.type, data: Buffer.from(await f.file.arrayBuffer()) },
-        { maxBytes: ACTIVITY_FILE_BYTES },
-      );
-    else
-      await mctx.files.storeUpload(activityId, area, f.uploadId, { maxBytes: ACTIVITY_FILE_BYTES });
-  }
-  if (remove.length) {
-    const files = await db.file.findMany({ where: { id: { in: remove }, contextId: activityId } });
-    for (const area of new Set(files.map((f) => f.area))) {
-      await mctx.files.remove(
-        activityId,
-        area,
-        files.filter((f) => f.area === area).map((f) => f.id),
-      );
-    }
-  }
+  if (add.length || remove.length)
+    await saveActivityFiles.run(await getContext(), { activityId, add, remove });
 }
 
 function activityValues(fd: FormData) {
@@ -338,7 +308,7 @@ export async function createActivityAction(fd: FormData) {
       moduleKey: v.moduleKey,
       ...activityValues(fd),
     });
-    await saveActivityFiles(r.id, fd);
+    await saveFormFiles(r.id, fd);
     return r;
   });
   if (res.ok) redirect(`/course/${v.courseId}?edit=1#a-${res.data.id}`);
@@ -350,7 +320,7 @@ export async function updateActivityAction(fd: FormData) {
   const res = await runAction(async () => {
     await checkActivityFiles(fd);
     const r = await updateActivity.run(await getContext(), { id: v.id, ...activityValues(fd) });
-    await saveActivityFiles(r.id, fd);
+    await saveFormFiles(r.id, fd);
     return r;
   });
   if (res.ok && v.returnTo) redirect(safePath(v.returnTo, '/'));
@@ -378,11 +348,9 @@ export async function activityCommandAction(
       case 'stealth':
         await setActivityVisibility.run(ctx, { id, visibility: 'STEALTH' });
         break;
-      case 'duplicate': {
-        const t = await getTranslations('course');
-        await duplicateActivity(ctx, id, (name) => t('copyName', { name }));
+      case 'duplicate':
+        await duplicateActivity.run(ctx, { activityId: id });
         break;
-      }
       case 'delete':
         await deleteActivity.run(ctx, { id });
         break;

@@ -22,10 +22,11 @@ export async function duplicateCourseAction(fd: FormData) {
       throw new ValidationError({ fullName: [msg('errors.field.required')] });
     if (!v.shortName?.trim())
       throw new ValidationError({ shortName: [msg('errors.field.required')] });
-    return duplicateCourse(await getContext(), v.courseId!, {
+    return duplicateCourse.run(await getContext(), {
+      courseId: v.courseId,
       categoryId: v.categoryId || undefined,
-      fullName: v.fullName.trim(),
-      shortName: v.shortName.trim(),
+      fullName: v.fullName,
+      shortName: v.shortName,
     });
   });
   if (res.ok) {
@@ -41,7 +42,7 @@ export async function importActivitiesAction(input: {
   sourceCourseId: string;
   activityIds: string[];
 }) {
-  const res = await runAction(async () => importActivities(await getContext(), input));
+  const res = await runAction(async () => importActivities.run(await getContext(), input));
   if (res.ok) revalidatePath(`/course/${input.targetCourseId}`);
   return res;
 }
@@ -51,19 +52,14 @@ export async function startImportAction(input: {
   categoryId: string;
   kind: 'hubium' | 'mbz';
 }) {
-  return runAction(async () => {
-    const ctx = await getContext();
-    if (ctx.actor.kind !== 'user') throw new ForbiddenError();
-    const cap = input.kind === 'mbz' ? 'import:moodle' : 'restore:course';
-    await ctx.perm.require('course:create', input.categoryId);
-    await ctx.perm.require(cap, input.categoryId);
-    return { taskId: await startImport(ctx.db, ctx.actor.userId, input) };
-  });
+  return runAction(async () => ({ taskId: await startImport.run(await getContext(), input) }));
 }
 
 /** Starts a backup of the course in the background (see backupStatusAction). */
 export async function startBackupAction(courseId: string) {
-  return runAction(async () => ({ taskId: await startBackup(await getContext(), courseId) }));
+  return runAction(async () => ({
+    taskId: await startBackup.run(await getContext(), { courseId }),
+  }));
 }
 
 export async function backupStatusAction(taskId: string) {
@@ -80,7 +76,7 @@ export async function backupStatusAction(taskId: string) {
 }
 
 export async function deleteBackupAction(fileId: string) {
-  return runAction(async () => deleteBackup(await getContext(), fileId));
+  return runAction(async () => deleteBackup.run(await getContext(), { fileId }));
 }
 
 export async function importStatusAction(taskId: string) {

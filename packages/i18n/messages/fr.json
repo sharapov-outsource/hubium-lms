@@ -534,7 +534,8 @@
       "security": "Sécurité",
       "email": "E-mail",
       "maintenance": "Maintenance"
-    }
+    },
+    "nodes": "Nœuds"
   },
   "email": {
     "footer": "Vous recevez cet e-mail car vous avez un compte sur ce site.",
@@ -1109,6 +1110,15 @@
       "tooManyColumns": "{n} colonnes au maximum",
       "tooLarge": "Le fichier dépasse {n} Mo",
       "notSheet": "Ce n’est pas un tableur : utilisez CSV, XLSX ou ODS"
+    },
+    "node": {
+      "onlineOnly": "Cela nécessite la connexion au serveur principal : ce n'est pas disponible pour l'instant.",
+      "readonly": "Pas de connexion au serveur principal : pour l'instant, consultation seulement.",
+      "syncing": "Le travail fait sans connexion est transmis au serveur principal : réessayez dans une minute.",
+      "cannotDecide": "Seuls les enseignants du cours et les administrateurs en décident.",
+      "notANode": "Ce serveur n'est pas un nœud local.",
+      "agent": "L'agent du nœud n'a pas répondu.",
+      "badCode": "Le code d’installation est erroné ou a expiré."
     }
   },
   "editor": {
@@ -1198,6 +1208,7 @@
       "groups": "Groupes",
       "grades": "Notes",
       "completion": "Achèvement",
+      "nodeConflicts": "Conflits des nœuds",
       "reports": "Rapports",
       "settings": "Paramètres",
       "enrolment": "Inscription",
@@ -1613,6 +1624,9 @@
     "who": "Qui (nom ou e-mail)",
     "anyEvent": "Tout événement",
     "anyActivity": "Toute activité",
+    "node": "Nœud",
+    "anyNode": "Tout nœud",
+    "noNode": "Sans nœud",
     "from": "Du",
     "to": "Au",
     "noLogs": "Aucun événement trouvé",
@@ -2126,7 +2140,8 @@
       "badge_awarded": "Badges obtenus",
       "certificate_issued": "Certificats délivrés",
       "competency_plan": "Plans de formation",
-      "competency_comment": "Commentaires sur les plans et compétences"
+      "competency_comment": "Commentaires sur les plans et compétences",
+      "node_conflict": "Travail fait sans connexion"
     },
     "text": {
       "enrolled": "Vous avez été inscrit au cours « {course} »",
@@ -2138,7 +2153,9 @@
       "planCreated": "Un plan de formation « {name} » a été créé pour vous",
       "planApproved": "Plan de formation « {name} » approuvé",
       "planCompleted": "Plan de formation « {name} » terminé",
-      "competencyComment": "Un nouveau commentaire sur votre plan ou votre compétence"
+      "competencyComment": "Un nouveau commentaire sur votre plan ou votre compétence",
+      "nodeConflict": "Un travail fait sans connexion ({node}) n'a pas été accepté",
+      "nodeConflictAccepted": "Un travail fait sans connexion ({node}) a été accepté"
     },
     "email": {
       "open": "Ouvrir",
@@ -3592,6 +3609,147 @@
       "intro": "Le rapport « {name} » est joint : {rows, plural, one {# ligne} other {# lignes}}.",
       "open": "Ouvrir le rapport",
       "footer": "Envoi « {schedule} »."
+    }
+  },
+  "nodes": {
+    "title": "Nœuds locaux",
+    "description": "Des serveurs dans les réseaux des sites et bâtiments : on y travaille à travers eux, rapidement, et on continue quand la ligne vers ce serveur est coupée. Ce qui est fait sans elle arrive ici dès son retour.",
+    "name": "Nom",
+    "nameHint": "Le site ou le bâtiment, tel qu'on le connaît.",
+    "state": "État",
+    "lastSeen": "Dernier signal",
+    "lag": "Retard",
+    "files": "Fichiers copiés",
+    "conflicts": "Conflits",
+    "allConflicts": "Tous les conflits",
+    "new": "Ajouter un nœud",
+    "newHint": "Vous obtenez un code qui installe le nœud sur un serveur de ce réseau (valable un jour).",
+    "add": "Ajouter le nœud",
+    "categories": "Fichiers de ces catégories seulement",
+    "categoriesHint": "Aucune : tous les fichiers sont copiés sur le nœud. Avec des catégories, les fichiers de leurs cours sont copiés d'avance, les autres à l'ouverture (avec la connexion).",
+    "codeTitle": "Installez le nœud avec cette commande",
+    "codeHint": "Exécutez-la sur le serveur du nœud ; le code s'affiche une fois et vaut un jour.",
+    "copy": "Copier",
+    "copied": "Copié",
+    "mode": {
+      "revoked": "Révoqué",
+      "notInstalled": "Non installé",
+      "silent": "Pas de signal",
+      "NEW": "Nouveau",
+      "ONLINE": "Connecté",
+      "READONLY": "Sans connexion : consultation",
+      "OFFLINE": "Travaille seul",
+      "SYNC": "Synchronisation",
+      "PASSTHROUGH": "Transmet tout"
+    },
+    "modeHint": {
+      "ONLINE": "Pages et fichiers viennent du nœud ; les modifications vont au serveur principal.",
+      "READONLY": "Le serveur principal est injoignable : on peut consulter, les modifications attendent. Bientôt le nœud travaillera seul.",
+      "OFFLINE": "Le nœud travaille sur sa propre base et tient un journal ; il le transmettra au retour du serveur principal.",
+      "SYNC": "Le journal part au serveur principal ; les modifications attendent une minute ou deux.",
+      "PASSTHROUGH": "La copie de la base du nœud n'est pas prête (ou une autre version) : tout va au serveur principal."
+    },
+    "nodeDescription": "Son état tel qu'il l'a signalé, son installation, ses responsables et ses coupures.",
+    "release": "Version",
+    "replicaB": "Base propre",
+    "replicaState": {
+      "ready": "prête",
+      "copying": "en copie",
+      "promoted": "en service",
+      "missing": "absente"
+    },
+    "pendingOps": "Entrées du journal en attente",
+    "offlineSince": "Sans connexion depuis",
+    "slot": "Slot de réplication",
+    "slotState": {
+      "reserved": "conservé",
+      "extended": "conservé au-delà",
+      "unreserved": "bientôt perdu",
+      "lost": "perdu : le nœud recopie la base"
+    },
+    "openConflicts": "{n, plural, one {# conflit ouvert} other {# conflits ouverts}}",
+    "installation": "Installation",
+    "installedHint": "Le nœud est installé. Un nouveau code le réinstalle (autre serveur, nouveau disque) ; l'ancienne installation s'arrête à l'enregistrement de la nouvelle.",
+    "codeExpires": "Pas encore installé. Son code vaut jusqu'au {at}.",
+    "reinstall": "Nouveau code pour réinstaller",
+    "newCode": "Nouveau code d'installation",
+    "settings": "Réglages",
+    "admins": "Administrateurs du nœud",
+    "adminsHint": "Ils voient l'état du nœud sur le nœud (/node), activent son mode autonome et reportent sa synchronisation, sans administrer le site.",
+    "outages": "Coupures",
+    "outagesHint": "Périodes où ce serveur n'a pas eu de nouvelles du nœud, et ce qu'est devenu le travail fait alors.",
+    "outageFrom": "Du",
+    "outageTo": "Au",
+    "applied": "Reçu",
+    "synced": "Synchronisé",
+    "ongoing": "en cours",
+    "noOutages": "Aucune pour l'instant.",
+    "revokeTitle": "Révoquer le nœud",
+    "revokeHint": "Son jeton, son rôle et son slot de réplication disparaissent : il ne reçoit plus rien de ce serveur. Ce qu'il détient reste sur son disque ; effacez ce serveur.",
+    "revoke": "Révoquer",
+    "revokeConfirm": "Révoquer ce nœud ? Il cesse aussitôt de servir son réseau.",
+    "revoked": "Nœud révoqué",
+    "deleteTitle": "Supprimer le nœud",
+    "deleteHint": "Retire le nœud révoqué de la liste, avec ses coupures et conflits.",
+    "delete": "Supprimer",
+    "deleteConfirm": "Supprimer ce nœud, ses coupures et ses conflits ?",
+    "conflictsTitle": "Conflits du travail fait sans connexion",
+    "conflictsDescription": "Travail fait sur des nœuds sans connexion que ce serveur n'a pas pris : quelque chose l'a modifié ici entre-temps, ou une règle le refuse maintenant. Les auteurs ont été prévenus.",
+    "courseConflictsDescription": "Travail fait dans ce cours sur des nœuds sans connexion et non pris. Vous pouvez accepter le travail d'un étudiant malgré la règle (tentative au-delà de la limite, rendu après l'échéance).",
+    "noConflicts": "Aucun conflit.",
+    "when": "Quand",
+    "node": "Nœud",
+    "author": "Auteur",
+    "why": "Pourquoi",
+    "status": "Statut",
+    "conflictStatus": {
+      "OPEN": "Ouvert",
+      "ACCEPTED": "Accepté",
+      "DISMISSED": "Écarté"
+    },
+    "conflictTitle": "Travail non pris",
+    "conflictDescription": "Fait sur un nœud local sans connexion ; ce serveur ne l'a pas pris. Rien n'est perdu : voici son contenu.",
+    "doneAt": "Fait le",
+    "activity": "Activité",
+    "what": "Action",
+    "content": "Contenu",
+    "decideHint": "Accepter le relance comme son auteur l'a fait, les règles de temps et de nombre cédant, avec le travail de la même personne dans cette activité qu'il retenait.",
+    "accept": "Accepter",
+    "acceptConfirm": "Accepter ce travail malgré la règle ?",
+    "accepted": "Accepté",
+    "dismiss": "Écarter",
+    "dismissConfirm": "L'écarter ? Il reste ici à lire.",
+    "dismissed": "Écarté",
+    "thisNode": "Ce nœud",
+    "thisNodeDescription": "Le nœud local de votre réseau : sa connexion au serveur principal et ce qu'il fait sans elle.",
+    "since": "Dans cet état depuis",
+    "lastHeartbeat": "Serveur principal joint pour la dernière fois",
+    "goOffline": "Travailler sans le serveur principal maintenant",
+    "goOfflineConfirm": "Le nœud cesse d'envoyer les modifications au serveur principal et travaille seul jusqu'à ce que vous désactiviez ce mode (un examen sur une ligne faible). Continuer ?",
+    "goOnline": "Revenir au serveur principal",
+    "goOnlineConfirm": "Le nœud transmet ce qu'il a fait seul et revient au serveur principal, une fois finis les tests chronométrés en cours. Continuer ?",
+    "commandDone": "Fait",
+    "postponeUntil": "Reporter la synchronisation jusqu'au",
+    "postpone": "Reporter",
+    "postponedTill": "La synchronisation attend jusqu'au {at}.",
+    "banner": {
+      "readonly": "Pas de connexion au serveur principal. Pour l'instant, vous pouvez consulter ; les modifications seront bientôt de nouveau possibles.",
+      "offline": "Pas de connexion au serveur principal. Votre travail est enregistré sur le serveur de votre établissement et sera transmis automatiquement.",
+      "sync": "Le travail fait sans connexion est transmis au serveur principal : les modifications sont suspendues une minute ou deux."
+    },
+    "unavailable": {
+      "title": "Indisponible pour l'instant",
+      "offline": "Pas de connexion au serveur principal : ce n'est pas possible maintenant. La consultation fonctionne ; réessayez plus tard.",
+      "sync": "Le travail fait sans connexion est transmis au serveur principal. Réessayez dans une minute.",
+      "back": "Retour au tableau de bord"
+    },
+    "reason": {
+      "time": "L'heure de l'action est hors de la coupure du nœud (horloge déréglée ?)",
+      "actorGone": "Le compte de son auteur n'est plus actif",
+      "changed": "Modifié entre-temps sur le serveur principal",
+      "unknown": "Ce serveur ne connaît pas l'action {name}",
+      "refused": "Refusé par le serveur principal",
+      "failed": "Le serveur principal n'a pas pu le faire"
     }
   }
 }

@@ -1,0 +1,62 @@
+# HTTPS of a local node (docker/node/compose.yml) in front of the agent's gateway. The site
+# addresses are the node's APP_URL and CONTENT_HOST. NODE_TLS picks the certificates:
+#   cloud     the cloud's names (the network's DNS sends them to the node): the certificate
+#             the cloud hands its nodes, which the agent keeps in /certs and loads here
+#             through the admin API when it changes
+#   acme      the node's own names, with a certificate from Let's Encrypt
+#   internal  the node's own names, with Caddy's own CA (a network without the internet)
+{
+	admin 0.0.0.0:2019 {
+		origins caddy:2019
+	}
+}
+
+(tls-cloud-app) {
+	tls /certs/app.crt /certs/app.key
+}
+
+(tls-cloud-content) {
+	tls /certs/content.crt /certs/content.key
+}
+
+(tls-acme-app) {
+}
+
+(tls-acme-content) {
+}
+
+(tls-internal-app) {
+	tls internal
+}
+
+(tls-internal-content) {
+	tls internal
+}
+
+# Tokens in URLs are replaced in the access log and the Referer is dropped (as in the cloud).
+(access_log) {
+	log {
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp "(/(?:c|unsubscribe|ical)/)[^/?]+|([?&]token=)[^&]+" "${1}${2}[redacted]"
+				request>headers>Referer delete
+			}
+		}
+	}
+}
+
+{$APP_URL} {
+	import tls-{$NODE_TLS:cloud}-app
+	import access_log
+	encode zstd gzip
+	reverse_proxy agent:3000 {
+		flush_interval -1
+	}
+}
+
+{$CONTENT_HOST} {
+	import tls-{$NODE_TLS:cloud}-content
+	import access_log
+	reverse_proxy agent:3000
+}

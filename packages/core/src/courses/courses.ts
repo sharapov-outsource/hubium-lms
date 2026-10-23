@@ -1,6 +1,7 @@
-import { type Course, type Db, Prisma, SYSTEM_CONTEXT_ID, uuidv7 } from '@hubium/db';
+import { type Course, type Db, opNow, Prisma, SYSTEM_CONTEXT_ID, uuidv7 } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { msg } from '@hubium/module-sdk';
+import { FileInput } from '@hubium/module-sdk/inputs';
 import { z } from 'zod';
 import type { Capability } from '../access/capabilities.ts';
 import { createContext } from '../access/contexts.ts';
@@ -10,9 +11,12 @@ import type { RequestContext } from '../context.ts';
 import { logEnrolments } from '../enrol/enrol.ts';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
+import { fileUrl, storeFile } from '../files/files.ts';
+import { ensureCourseGradebook } from '../grades/gradebook.ts';
 import { rankBetween } from '../lib/rank.ts';
 import { localeCode, optionalText } from '../lib/zod.ts';
 import { defineOperation } from '../operation.ts';
+import { ensureDefaultQuestionCategory } from '../questions/bank.ts';
 import { getAllSettings } from '../settings/settings.ts';
 import { checkCourseValues, courseFieldFilters } from './course-fields.ts';
 import { purgeCourseRecord } from './recyclebin.ts';
@@ -59,6 +63,7 @@ export const CourseInput = z.object({
 
 export const createCourse = defineOperation({
   name: 'course.create',
+  offline: 'online',
   input: CourseInput,
   authorize: (ctx, i) => ctx.perm.require('course:create', i.categoryId),
   async handler(ctx, input) {
@@ -116,6 +121,9 @@ export const createCourse = defineOperation({
         { courseId: id, type: 'SELF', roleId: student.id, enabled: false, sortOrder: 1 },
       ],
     });
+    // the gradebook and the question bank are there from the start: pages only read them
+    await ensureCourseGradebook(ctx.tx, id);
+    await ensureDefaultQuestionCategory(ctx.tx, id);
     // The creator becomes the course teacher unless they already manage it from above.
     if (userId && !ctx.perm.isSiteAdmin) {
       // a setting naming a role deleted before it was kept from that: the default role
@@ -157,6 +165,7 @@ export const createCourse = defineOperation({
 
 export const updateCourse = defineOperation({
   name: 'course.update',
+  offline: 'guarded',
   input: CourseInput.omit({ sections: true }).extend({ id: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('course:update', i.id),
   async handler(ctx, input) {
@@ -213,13 +222,62 @@ export const updateCourse = defineOperation({
   },
 });
 
-export const setCourseImage = async (
-  ctx: RequestContext,
-  courseId: string,
-  fileId: string | null,
-) => {
-  await ctx.perm.require('course:update', courseId);
-  await ctx.db.course.update({ where: { id: courseId }, data: { imageFileId: fileId } });
+/** What a course's cover may be. */
+export const COURSE_IMAGE = {
+  maxBytes: 5 * 1024 * 1024,
+  allowedTypes: /^image\/(png|jpeg|webp|gif)$/,
+};
+
+/** The course's cover, stored in its "image" area, or none. */
+export const setCourseImage = defineOperation({
+  name: 'course.image.set',
+  offline: 'guarded',
+  input: z.object({ courseId: z.string().uuid(), image: FileInput.nullable() }),
+  authorize: (ctx, i) => ctx.perm.require('course:update', i.courseId),
+  async handler(ctx, { courseId, image }) {
+    const file = image
+      ? await storeFile(ctx.tx, {
+          contextId: courseId,
+          component: 'course',
+          area: 'image',
+          ...image,
+          ...COURSE_IMAGE,
+          uploadedById: ctx.perm.userId,
+          replace: true,
+        })
+      : null;
+    await ctx.tx.course.update({
+      where: { id: courseId },
+      data: { imageFileId: file?.id ?? null },
+    });
+    return { fileId: file?.id ?? null };
+  },
+});
+
+/** A picture put in a text of the course with the editor, stored in its "editor" area. */
+export const storeEditorImage = defineOperation({
+  name: 'course.editorImage.store',
+  offline: 'replay',
+  input: FileInput.extend({ courseId: z.string().uuid() }),
+  authorize: (ctx, i) => ctx.perm.require('course:manageactivities', i.courseId),
+  async handler(ctx, { courseId, ...image }) {
+    const f = await storeFile(ctx.tx, {
+      contextId: courseId,
+      component: 'course',
+      area: 'editor',
+      path: `/${ctx.now.getTime()}/`,
+      ...image,
+      uploadedById: ctx.perm.userId,
+      ...EDITOR_IMAGE,
+    });
+    return { url: fileUrl(f) };
+  },
+});
+
+/** What a picture put in a text with the editor may be. */
+export const EDITOR_IMAGE = {
+  maxBytes: 10 * 1024 * 1024,
+  allowedTypes: /^image\/(png|jpeg|gif|webp)$/,
 };
 
 /** Refuses a short name another course has, saying when that course is in the recycle bin:
@@ -240,6 +298,7 @@ async function shortNameFree(tx: Prisma.TransactionClient, shortName: string, id
 /** Moves the course to the recycle bin (soft delete). */
 export const deleteCourse = defineOperation({
   name: 'course.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('course:delete', i.id),
   async handler(ctx, { id }) {
@@ -257,6 +316,7 @@ export const deleteCourse = defineOperation({
 /** Deletes a course in the recycle bin for good, with everything in it. */
 export const purgeCourse = defineOperation({
   name: 'course.purge',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('course:delete', i.id),
   async handler(ctx, { id }) {
@@ -281,6 +341,7 @@ export const purgeCourse = defineOperation({
 
 export const restoreCourse = defineOperation({
   name: 'course.restore',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx, i) => ctx.perm.require('course:delete', i.id),
   async handler(ctx, { id }) {
@@ -399,6 +460,7 @@ async function parentSection(tx: Prisma.TransactionClient, courseId: string, par
  */
 export const addSection = defineOperation({
   name: 'section.add',
+  offline: 'replay',
   input: z.object({
     courseId: z.string().uuid(),
     afterSectionId: z.string().uuid().optional(),
@@ -437,6 +499,7 @@ export const addSection = defineOperation({
 
 export const updateSection = defineOperation({
   name: 'section.update',
+  offline: 'guarded',
   input: z.object({
     id: z.string().uuid(),
     title: z.string().trim().max(255),
@@ -481,6 +544,7 @@ export const updateSection = defineOperation({
 
 export const setSectionVisible = defineOperation({
   name: 'section.visibility',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid(), visible: z.boolean() }),
   async authorize(ctx, i) {
     const s = await ctx.db.courseSection.findUniqueOrThrow({ where: { id: i.id } });
@@ -495,6 +559,7 @@ export const setSectionVisible = defineOperation({
 /** Moves a section one place among the course's sections, a subsection among its section's items. */
 export const moveSection = defineOperation({
   name: 'section.move',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid(), direction: z.enum(['up', 'down']) }),
   async authorize(ctx, i) {
     const s = await ctx.db.courseSection.findUniqueOrThrow({ where: { id: i.id } });
@@ -530,6 +595,7 @@ export const moveSection = defineOperation({
 /** Moves a subsection, with its activities, to the end of another section. */
 export const moveSubsection = defineOperation({
   name: 'section.moveTo',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid(), parentId: z.string().uuid() }),
   async authorize(ctx, i) {
     const s = await ctx.db.courseSection.findUniqueOrThrow({ where: { id: i.id } });
@@ -550,6 +616,7 @@ export const moveSubsection = defineOperation({
 
 export const deleteSection = defineOperation({
   name: 'section.delete',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   async authorize(ctx, i) {
     const s = await ctx.db.courseSection.findUniqueOrThrow({ where: { id: i.id } });
@@ -739,8 +806,8 @@ export async function recordCourseAccess(
 ): Promise<void> {
   await db.courseAccess.upsert({
     where: { userId_courseId: { userId, courseId } },
-    create: { userId, courseId, lastAccessAt: new Date(), lastActivityId: activityId ?? null },
-    update: { lastAccessAt: new Date(), ...(activityId ? { lastActivityId: activityId } : {}) },
+    create: { userId, courseId, lastAccessAt: opNow(), lastActivityId: activityId ?? null },
+    update: { lastAccessAt: opNow(), ...(activityId ? { lastActivityId: activityId } : {}) },
   });
 }
 

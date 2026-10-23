@@ -1,4 +1,4 @@
-import { type Db, type EmailMode, type Prisma, uuidv7 } from '@hubium/db';
+import { type Db, type EmailMode, modelUuidv7, type Prisma } from '@hubium/db';
 import type { Locale } from '@hubium/i18n';
 import { createTranslator } from '@hubium/i18n/packs';
 import { log } from '@hubium/log';
@@ -9,7 +9,7 @@ import { enqueue } from '../jobs/jobs.ts';
 import { zoneOr } from '../lib/zod.ts';
 import { deliverMail, renderActionEmail, renderDigestEmail } from '../mail/mail.ts';
 import { provideModuleServices, service } from '../modules/module-ctx.ts';
-import { getModule } from '../modules/registry.ts';
+import { getModule, listModules } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
 import { publishRealtime } from '../realtime.ts';
 import { isModuleEnabled } from '../settings/modules.ts';
@@ -41,6 +41,8 @@ const coreTypes = new Map<string, NotificationTypeDef>([
   ['certificate.issued', { email: 'IMMEDIATE' }],
   ['competency.plan', { email: 'IMMEDIATE' }],
   ['competency.comment', { email: 'IMMEDIATE' }],
+  // work done on a local node without a connection that the cloud did not take
+  ['node.conflict', { email: 'IMMEDIATE' }],
 ]);
 
 export function registerNotificationType(type: string, def: NotificationTypeDef): void {
@@ -141,7 +143,7 @@ export async function deliverNotifications(
     let t = translators.get(locale);
     if (!t) translators.set(locale, (t = createTranslator(locale, siteLocale(settings))));
     rows.push({
-      id: uuidv7(),
+      id: modelUuidv7('Notification'),
       userId: u.id,
       type: n.type,
       actorId: n.actorId ?? null,
@@ -223,6 +225,7 @@ export async function listNotifications(
 
 export const markNotificationsRead = defineOperation({
   name: 'notification.read',
+  offline: 'replay',
   mutation: true,
   input: z.object({
     ids: z.array(z.string().uuid()).max(500).optional(),
@@ -264,6 +267,7 @@ export async function getNotificationPreferences(db: Db, userId: string, moduleK
 
 export const updateNotificationPreferences = defineOperation({
   name: 'notification.preferences.update',
+  offline: 'guarded',
   mutation: true,
   input: z.object({
     digestHour: z.coerce.number().int().min(0).max(23),
@@ -326,7 +330,7 @@ export function parseUnsubscribeToken(token: string): { userId: string; type: st
 
 /** Turns email off for the token's type (or all types). Works without signing in. */
 export async function applyUnsubscribe(
-  db: Db,
+  db: Db | Prisma.TransactionClient,
   token: string,
   moduleKeys: string[],
 ): Promise<{ type: string } | null> {
@@ -349,6 +353,19 @@ export async function applyUnsubscribe(
   }
   return { type: parsed.type };
 }
+
+/** The unsubscribe link of an email: its page and the one-click endpoint (RFC 8058). */
+export const unsubscribeByToken = defineOperation({
+  name: 'notification.unsubscribe',
+  offline: 'online',
+  input: z.object({ token: z.string().max(1000) }),
+  handler: (ctx, { token }) =>
+    applyUnsubscribe(
+      ctx.tx,
+      token,
+      listModules().map((m) => m.key),
+    ),
+});
 
 // ── email delivery (worker) ───────────────────────────────────────────────────
 

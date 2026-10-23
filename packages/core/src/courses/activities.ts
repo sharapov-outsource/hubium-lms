@@ -1,6 +1,7 @@
-import { type Activity, type CompletionState, Prisma, uuidv7 } from '@hubium/db';
+import { type Activity, type CompletionState, modelUuidv7, Prisma } from '@hubium/db';
 import { sanitizeRichText } from '@hubium/editor/server';
 import { type CalendarEventSpec, msg, parseSettings } from '@hubium/module-sdk';
+import { FileInput } from '@hubium/module-sdk/inputs';
 import { z } from 'zod';
 import { createContext } from '../access/contexts.ts';
 import { countsTowardsProgress, scheduleCourseProgress } from '../completion/schedule.ts';
@@ -205,6 +206,8 @@ async function scheduleAiIndex(ctx: RequestContext, activityId: string) {
 const activityCreate = (name: string, restoring: boolean) =>
   defineOperation({
     name,
+    // a teacher adds activities offline; restores and imports need the cloud
+    offline: restoring ? 'online' : 'replay',
     input: ActivityInput,
     async authorize(ctx, i) {
       await ctx.perm.require('course:manageactivities', i.courseId);
@@ -225,7 +228,7 @@ async function insertActivity(ctx: MutationContext, input: z.output<typeof Activ
   );
   const availability = validateAvailability(input.availability);
   const groups = await groupSetup(ctx.tx, input.courseId, input);
-  const id = uuidv7();
+  const id = modelUuidv7('Activity');
   await createContext(ctx.tx, id, 'ACTIVITY', input.courseId);
   await requireActivityIdNumber(ctx.tx, input.courseId, input.idNumber);
   const a = await ctx.tx.activity.create({
@@ -274,6 +277,7 @@ export const importActivity = activityCreate('activity.import', true);
 
 export const updateActivity = defineOperation({
   name: 'activity.update',
+  offline: 'guarded',
   input: ActivityInput.omit({ courseId: true, sectionId: true, moduleKey: true }).extend({
     id: z.string().uuid(),
   }),
@@ -354,8 +358,65 @@ async function authorizeActivity(
   if (opts.enabledType) await assertModuleEnabled(ctx.db, a.moduleKey);
 }
 
+/** How large a file of an activity's form may be. */
+export const ACTIVITY_FILE_BYTES = 200 * 1024 * 1024;
+
+const FileArea = z.string().min(1).max(100);
+
+/**
+ * The files of an activity's form, in the areas the form names: sent with the form or
+ * uploaded before it (resumable), and the ones to remove.
+ */
+export const saveActivityFiles = defineOperation({
+  name: 'activity.files.save',
+  offline: 'guarded',
+  input: z.object({
+    activityId: z.string().uuid(),
+    add: z
+      .array(
+        z.union([
+          FileInput.extend({ area: FileArea }),
+          z.object({ area: FileArea, uploadId: z.string().uuid() }),
+        ]),
+      )
+      .max(100)
+      .default([]),
+    remove: z.array(z.string().uuid()).max(1000).default([]),
+  }),
+  authorize: (ctx, i) => authorizeActivity(ctx, i.activityId),
+  async handler(ctx, { activityId, add, remove }) {
+    const mctx = buildModuleCtx(ctx, ctx.tx);
+    for (const f of add) {
+      if ('uploadId' in f)
+        await mctx.files.storeUpload(activityId, f.area, f.uploadId, {
+          maxBytes: ACTIVITY_FILE_BYTES,
+        });
+      else
+        await mctx.files.store(
+          activityId,
+          f.area,
+          { name: f.name, mimeType: f.mimeType, data: f.data },
+          { maxBytes: ACTIVITY_FILE_BYTES },
+        );
+    }
+    if (remove.length) {
+      const files = await ctx.tx.file.findMany({
+        where: { id: { in: remove }, contextId: activityId },
+      });
+      for (const area of new Set(files.map((f) => f.area)))
+        await mctx.files.remove(
+          activityId,
+          area,
+          files.filter((f) => f.area === area).map((f) => f.id),
+        );
+    }
+    return null;
+  },
+});
+
 export const setActivityVisibility = defineOperation({
   name: 'activity.visibility',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid(), visibility: z.enum(['SHOWN', 'HIDDEN', 'STEALTH']) }),
   authorize: (ctx, i) => authorizeActivity(ctx, i.id),
   async handler(ctx, { id, visibility }) {
@@ -371,6 +432,7 @@ export const setActivityVisibility = defineOperation({
 /** Moves an activity to a section, before another activity or subsection (or to the end). */
 export const moveActivity = defineOperation({
   name: 'activity.move',
+  offline: 'guarded',
   input: z.object({
     id: z.string().uuid(),
     sectionId: z.string().uuid(),
@@ -400,6 +462,7 @@ export const moveActivity = defineOperation({
 
 export const moveActivityStep = defineOperation({
   name: 'activity.moveStep',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid(), direction: z.enum(['up', 'down']) }),
   authorize: (ctx, i) => authorizeActivity(ctx, i.id),
   async handler(ctx, { id, direction }) {
@@ -422,6 +485,7 @@ async function syncGrades(ctx: RequestContext & { tx: Prisma.TransactionClient }
 
 export const deleteActivity = defineOperation({
   name: 'activity.delete',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx, i) => authorizeActivity(ctx, i.id),
   async handler(ctx, { id }) {
@@ -444,6 +508,7 @@ export const deleteActivity = defineOperation({
 
 export const restoreActivity = defineOperation({
   name: 'activity.restore',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx, i) => authorizeActivity(ctx, i.id),
   async handler(ctx, { id }) {
@@ -459,6 +524,7 @@ export const restoreActivity = defineOperation({
 /** Permanently removes an activity from the recycle bin. */
 export const purgeActivity = defineOperation({
   name: 'activity.purge',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx, i) => authorizeActivity(ctx, i.id),
   async handler(ctx, { id }) {

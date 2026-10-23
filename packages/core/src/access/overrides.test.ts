@@ -32,7 +32,7 @@ describe('permission overrides', () => {
       permission: 'DENY',
     });
     expect(await (await student()).perm.can('mod.forum:post', forum.id)).toBe(false);
-    const listed = await listRoleOverrides.run(manager, { contextId: f.courseId });
+    const listed = await listRoleOverrides(manager, f.courseId);
     expect(listed.level).toBe('COURSE');
     expect(listed.overrides).toEqual([
       { roleId: f.roles.student, capability: 'mod.forum:post', permission: 'DENY' },

@@ -1,5 +1,7 @@
-import type { Db } from '@hubium/db';
+import type { Db, Prisma } from '@hubium/db';
+import { z } from 'zod';
 import { logEvent } from '../events/log.ts';
+import { defineOperation } from '../operation.ts';
 import { type AllSettings, setSettings } from '../settings/settings.ts';
 
 // Maintenance mode, as in Moodle: while it is on only site administrators use the site.
@@ -27,8 +29,12 @@ export function retryAfterSeconds(m: MaintenanceState, now = new Date()): number
   return Math.max(60, Math.ceil((m.until.getTime() - now.getTime()) / 1000));
 }
 
-/** Paths that stay open: signing in, health checks, assets. */
+/**
+ * Paths that stay open: signing in, health checks, assets, and the node API (local nodes
+ * keep hearing the cloud, and show the maintenance page themselves).
+ */
 const OPEN = [
+  '/api/node/',
   '/login',
   '/two-factor',
   '/api/auth',
@@ -49,7 +55,7 @@ export function openDuringMaintenance(pathname: string): boolean {
 
 /** Turns maintenance mode on or off (the settings page, `hubium maintenance`). */
 export async function setMaintenance(
-  db: Db,
+  db: Db | Prisma.TransactionClient,
   input: { enabled: boolean; message?: string; until?: string | null },
   actorId?: string | null,
 ) {
@@ -68,3 +74,19 @@ export async function setMaintenance(
     origin: actorId ? 'WEB' : 'CLI',
   });
 }
+
+/** Maintenance mode from the settings page. */
+export const setMaintenanceMode = defineOperation({
+  name: 'site.maintenance.set',
+  offline: 'online',
+  input: z.object({
+    enabled: z.boolean(),
+    message: z.string().max(10_000).optional(),
+    until: z.string().max(64).nullish(),
+  }),
+  authorize: (ctx) => ctx.perm.require('site:config'),
+  async handler(ctx, input) {
+    await setMaintenance(ctx.tx, input, ctx.perm.userId);
+    return null;
+  },
+});

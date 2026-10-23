@@ -3,7 +3,7 @@ name: Release
 # A tag vX.Y.Z (or vX.Y.Z-rc.N) whose version equals package.json's builds and publishes:
 # - images ghcr.io/sharapov-outsource/hubium-lms and hubium-lms-media for amd64 and arm64;
 # - the archives hubium-X.Y.Z-linux-{x64,arm64}.tar.gz with Node.js inside;
-# - a GitHub release with install-hubium.sh, compose.yml, Caddyfile and SHA256SUMS.
+# - a GitHub release with install-hubium.sh, compose.yml, Caddyfile, nginx.conf and SHA256SUMS.
 # Nothing is published until the checks and installations of these very builds pass.
 # How to cut a release: docs/releasing.md.
 
@@ -161,7 +161,8 @@ jobs:
       - name: Install
         run: |
           mkdir -p release
-          cp build/release/*.tar.gz docker/compose.yml docker/Caddyfile release/
+          cp build/release/*.tar.gz docker/compose.yml docker/Caddyfile docker/nginx.conf release/
+          sh scripts/node-files.sh "$PWD/release"
           (cd release && sha256sum -- * > SHA256SUMS)
           sudo bash install-hubium.sh --yes --mode ${{ matrix.mode }} --from-dir release \
             --version "$VERSION" --no-pull --domain lms.localhost --content-domain content.localhost \
@@ -248,7 +249,8 @@ jobs:
           mkdir -p assets
           cp build/release/hubium-*.tar.gz assets/
           sed "s/__HUBIUM_VERSION__/$VERSION/" install-hubium.sh > assets/install-hubium.sh
-          cp docker/compose.yml docker/Caddyfile assets/
+          cp docker/compose.yml docker/Caddyfile docker/nginx.conf assets/
+          sh scripts/node-files.sh "$PWD/assets"
           cp .env.production.example assets/env.production.example
           (cd assets && sha256sum -- * > SHA256SUMS && cat SHA256SUMS)
       # artifact attestations need a public repository (or GitHub Enterprise Cloud)

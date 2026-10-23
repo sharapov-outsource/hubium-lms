@@ -8,6 +8,7 @@ import { type Localized, localizedText } from '../lib/localized.ts';
 import { buildModuleCtx } from '../modules/module-ctx.ts';
 import { listModules } from '../modules/registry.ts';
 import { defineOperation } from '../operation.ts';
+import { touch } from '../touch/touch.ts';
 import { listProfileFields, profileFieldLabel, profileValueText } from '../users/profile-fields.ts';
 
 // Personal data: export ("download my data") and erasure on account deletion, plus
@@ -175,11 +176,14 @@ export async function exportUserData(ctx: RequestContext, userId: string) {
   const mctx = buildModuleCtx(ctx);
   for (const m of listModules())
     if (m.privacy?.export) modules[m.key] = await m.privacy.export(mctx, userId);
-  await logEvent(db, {
-    name: 'privacy.exported',
-    actorId: ctx.actor.kind === 'user' ? ctx.actor.userId : null,
-    relatedUserId: userId,
-    origin: ctx.origin,
+  await touch(db, {
+    kind: 'event',
+    event: {
+      name: 'privacy.exported',
+      actorId: ctx.actor.kind === 'user' ? ctx.actor.userId : null,
+      relatedUserId: userId,
+      origin: ctx.origin,
+    },
   });
   // custom profile fields under their names, as the person saw them on the profile
   const stored = (user.customFields ?? {}) as Record<string, string | boolean>;
@@ -359,6 +363,7 @@ export async function erasePersonalData(
 
 export const savePolicy = defineOperation({
   name: 'policy.save',
+  offline: 'online',
   mutation: true,
   input: z.object({
     id: z.string().uuid().optional(),
@@ -379,6 +384,7 @@ export const savePolicy = defineOperation({
 
 export const publishPolicyVersion = defineOperation({
   name: 'policy.publish',
+  offline: 'online',
   mutation: true,
   input: z.object({
     policyId: z.string().uuid(),
@@ -406,7 +412,7 @@ export const publishPolicyVersion = defineOperation({
   },
 });
 
-export async function listPolicies(db: Db) {
+export async function listPolicies(db: Db | Prisma.TransactionClient) {
   const policies = await db.policy.findMany({
     orderBy: { createdAt: 'asc' },
     include: {
@@ -422,7 +428,7 @@ export async function listPolicies(db: Db) {
 }
 
 /** Latest published mandatory versions the user has not accepted yet. */
-export async function pendingPolicies(db: Db, userId: string) {
+export async function pendingPolicies(db: Db | Prisma.TransactionClient, userId: string) {
   const policies = await listPolicies(db);
   const current = policies.flatMap((p) =>
     p.current?.mandatory ? [{ policy: p, version: p.current }] : [],
@@ -447,16 +453,22 @@ export async function pendingPolicies(db: Db, userId: string) {
     }));
 }
 
-export async function acceptPolicies(ctx: RequestContext, versionIds: string[]) {
-  if (ctx.actor.kind !== 'user') throw new ForbiddenError();
-  const userId = ctx.actor.userId;
-  const pending = await pendingPolicies(ctx.db, userId);
-  const ids = new Set(pending.map((p) => p.versionId));
-  const missing = [...ids].filter((id) => !versionIds.includes(id));
-  if (missing.length) throw new ValidationError({ versionIds: [msg('errors.privacy.acceptAll')] });
-  await ctx.db.policyAcceptance.createMany({
-    data: [...ids].map((versionId) => ({ userId, versionId })),
-    skipDuplicates: true,
-  });
-  return { accepted: ids.size };
-}
+export const acceptPolicies = defineOperation({
+  name: 'policy.accept',
+  offline: 'replay',
+  input: z.object({ versionIds: z.array(z.string().uuid()).max(100) }),
+  async handler(ctx, { versionIds }) {
+    if (ctx.actor.kind !== 'user') throw new ForbiddenError();
+    const userId = ctx.actor.userId;
+    const pending = await pendingPolicies(ctx.tx, userId);
+    const ids = new Set(pending.map((p) => p.versionId));
+    const missing = [...ids].filter((id) => !versionIds.includes(id));
+    if (missing.length)
+      throw new ValidationError({ versionIds: [msg('errors.privacy.acceptAll')] });
+    await ctx.tx.policyAcceptance.createMany({
+      data: [...ids].map((versionId) => ({ userId, versionId })),
+      skipDuplicates: true,
+    });
+    return { accepted: ids.size };
+  },
+});

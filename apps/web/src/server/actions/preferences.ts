@@ -1,10 +1,10 @@
 'use server';
 
-import { enabledLocales, getAllSettings } from '@hubium/core';
+import { enabledLocales, getAllSettings, setMyPreferences } from '@hubium/core';
 import { LOCALE_COOKIE } from '@hubium/i18n';
 import { cookies } from 'next/headers';
 import { db } from '../db';
-import { getCurrentUser } from '../session';
+import { getContext } from '../session';
 
 export async function setLocaleAction(locale: string): Promise<void> {
   if (!enabledLocales(await getAllSettings(db)).includes(locale)) return;
@@ -13,12 +13,12 @@ export async function setLocaleAction(locale: string): Promise<void> {
     maxAge: 60 * 60 * 24 * 365,
     sameSite: 'lax',
   });
-  const user = await getCurrentUser();
-  if (user) await db.user.update({ where: { id: user.id }, data: { locale } });
+  const ctx = await getContext();
+  if (ctx.actor.kind === 'user') await setMyPreferences.run(ctx, { locale });
 }
 
 export async function setThemeAction(theme: string): Promise<void> {
-  if (!['light', 'dark', 'system'].includes(theme)) return;
-  const user = await getCurrentUser();
-  if (user) await db.user.update({ where: { id: user.id }, data: { theme } });
+  if (theme !== 'light' && theme !== 'dark' && theme !== 'system') return;
+  const ctx = await getContext();
+  if (ctx.actor.kind === 'user') await setMyPreferences.run(ctx, { theme });
 }

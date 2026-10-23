@@ -24,13 +24,13 @@ const siteLti = async (ctx: RequestContext) => {
 
 const saveLtiTool = defineOperation({
   name: 'lti.tool.save',
+  offline: 'online',
   input: z.record(z.string(), z.unknown()),
   authorize: siteLti,
-  mutation: false,
   async handler(ctx, input) {
     try {
-      const tool = await saveTool(ctx.db, input);
-      await logEvent(ctx.db, {
+      const tool = await saveTool(ctx.tx, input);
+      await logEvent(ctx.tx, {
         name: input.id ? 'lti.tool.updated' : 'lti.tool.created',
         actorId: ctx.perm.userId,
         objectType: 'LtiTool',
@@ -48,6 +48,7 @@ const saveLtiTool = defineOperation({
 
 const deleteLtiTool = defineOperation({
   name: 'lti.tool.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, { id }) {
@@ -65,12 +66,13 @@ const deleteLtiTool = defineOperation({
 
 const rotateLtiKey = defineOperation({
   name: 'lti.key.rotate',
+  offline: 'online',
   input: z.object({}),
   authorize: siteLti,
-  mutation: false,
+  // the old key retires only with the new one made
   async handler(ctx) {
-    const kid = await rotateKey(ctx.db);
-    await logEvent(ctx.db, { name: 'lti.key.rotated', actorId: ctx.perm.userId, data: { kid } });
+    const kid = await rotateKey(ctx.tx);
+    await logEvent(ctx.tx, { name: 'lti.key.rotated', actorId: ctx.perm.userId, data: { kid } });
     return null;
   },
 });

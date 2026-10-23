@@ -4,13 +4,12 @@ import {
   addRecoveryPassphrase,
   assertPasswordAllowed,
   deleteRecoveryPassphrase,
-  isTimeZone,
   listProfileFields,
   profileValuesFromForm,
+  updateMyProfile,
   ValidationError,
-  validateProfileValues,
-  writeProfileValues,
 } from '@hubium/core';
+import { withWriteScope } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
 import { APIError } from 'better-auth/api';
 import { revalidatePath } from 'next/cache';
@@ -21,32 +20,17 @@ import { auth } from '../auth';
 import { db } from '../db';
 import { getContext, requireUser } from '../session';
 
-const ProfileInput = z.object({
-  firstName: z.string().trim().min(1).max(100),
-  lastName: z.string().trim().min(1).max(100),
-  timezone: z.string().trim().max(64).optional(),
-});
-
 export async function updateProfileAction(fd: FormData) {
   return runAction(async () => {
-    const user = await requireUser();
+    await requireUser();
     const form = formToObject(fd);
-    const r = ProfileInput.safeParse(form);
-    if (!r.success) throw r.error;
-    const { firstName, lastName, timezone } = r.data;
-    if (timezone && !isTimeZone(timezone))
-      throw new ValidationError({ timezone: [msg('errors.account.unknownTimeZone')] });
-    // custom profile fields the person may change themselves
+    // the form names custom profile fields cf_<short name>
     const fields = (await listProfileFields(db)).filter((f) => !f.locked);
-    const custom = validateProfileValues(fields, profileValuesFromForm(fields, form), {
-      requireAll: true,
-    });
-    await db.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: user.id },
-        data: { firstName, lastName, name: `${firstName} ${lastName}`, timezone: timezone || null },
-      });
-      await writeProfileValues(tx, user.id, custom);
+    await updateMyProfile.run(await getContext(), {
+      firstName: form.firstName,
+      lastName: form.lastName,
+      timezone: form.timezone,
+      profile: profileValuesFromForm(fields, form),
     });
     revalidatePath('/', 'layout');
     return null;
@@ -89,10 +73,10 @@ export async function changePasswordAction(fd: FormData) {
         if (e instanceof APIError && e.body?.code === 'PASSWORD_POLICY') throw e;
         throw new ValidationError({ currentPassword: [msg('errors.auth.wrongPassword')] });
       }
-      await db.user.update({
-        where: { id: user.id },
-        data: { mustChangePassword: false },
-      });
+      // part of the change Better Auth just made
+      await withWriteScope('auth', 'user.changePassword', () =>
+        db.user.update({ where: { id: user.id }, data: { mustChangePassword: false } }),
+      );
       return null;
     },
     { duringGate: true },

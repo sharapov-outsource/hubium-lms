@@ -451,6 +451,7 @@ export const video = defineModule<VideoSettingsT>({
   ],
   actions: {
     attachUpload: defineAction({
+      offline: 'online',
       summary: 'Use a finished upload (POST /uploads) as the video file and transcode it',
       input: z.object({ uploadId: z.string().uuid() }),
       async handler(ctx, a, input) {
@@ -479,6 +480,7 @@ export const video = defineModule<VideoSettingsT>({
       },
     }),
     retranscode: defineAction({
+      offline: 'online',
       summary: 'Transcode the uploaded file again',
       input: z.object({}),
       async handler(ctx, a) {
@@ -499,6 +501,7 @@ export const video = defineModule<VideoSettingsT>({
       },
     }),
     addCaption: defineAction({
+      offline: 'replay',
       summary: 'Add or replace a caption track (SRT or WebVTT file) for a language',
       input: z.object({
         lang: z.string().regex(/^[a-z]{2,3}(-[A-Z]{2})?$/),
@@ -534,6 +537,7 @@ export const video = defineModule<VideoSettingsT>({
       },
     }),
     removeCaption: defineAction({
+      offline: 'guarded',
       summary: 'Remove the caption track of a language',
       input: z.object({ lang: z.string().max(10) }),
       async handler(ctx, a, input) {
@@ -551,6 +555,7 @@ export const video = defineModule<VideoSettingsT>({
       },
     }),
     progress: defineAction({
+      offline: 'replay',
       summary: 'Report watched intervals and the position for completion and resume',
       input: z.object({
         intervals: z.array(IntervalInput).max(500),

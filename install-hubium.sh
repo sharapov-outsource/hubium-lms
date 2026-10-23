@@ -4,6 +4,9 @@
 #   curl -fsSLO https://github.com/sharapov-outsource/hubium-lms/releases/latest/download/install-hubium.sh
 #   sudo bash install-hubium.sh             # install; asks what it needs to know
 #   sudo bash install-hubium.sh upgrade     # upgrade an installation made by this script
+#   sudo bash install-hubium.sh enable-nodes  # let local nodes replicate this installation
+#   sudo bash install-hubium.sh --node --hub https://lms.example.org --code CODE
+#                                           # a local node of a branch (docs/operations.md)
 #   bash install-hubium.sh --help
 #
 # Installs a published release in Docker (any Linux with Docker) or natively with systemd
@@ -37,12 +40,13 @@ DB="" DATABASE_URL="" STORAGE="" S3_ENDPOINT="" S3_PUBLIC_URL="" S3_REGION="" S3
 S3_ACCESS_KEY="" S3_SECRET_KEY="" SMTP_URL="" MAIL_FROM="" ADMIN_EMAIL="" ADMIN_PASSWORD=""
 DEMO="" ANTIVIRUS="" AI_LOCAL="" EMBEDDINGS_URL="" EMBEDDINGS_MODEL="" PREFIX=/opt/hubium DATA_DIR=/var/lib/hubium CONFIG_DIR=/etc/hubium FROM_DIR=""
 IMAGE="" PULL=yes SKIP_PACKAGES=no ASSUME_YES=no DRY_RUN=no BACKUP=""
+NODE=no HUB="" NODE_CODE="" HUB_ADDRESS="" HUB_CA="" NODE_TLS="" REPLICATION_HOST="" REPLICATION_PORT=""
 
 usage() {
   cat <<'EOF'
 Hubium LMS installer
 
-Usage: sudo bash install-hubium.sh [install|upgrade] [options]
+Usage: sudo bash install-hubium.sh [install|upgrade|enable-nodes] [options]
 
 Without options it asks. With --yes it takes the options and defaults and asks nothing.
 
@@ -58,6 +62,7 @@ Site
   --content-domain HOST        separate host for untrusted SCORM and H5P content
                                (default: content.<domain>)
   --https caddy|none           Caddy with automatic certificates, or your own proxy
+                               (none writes a site for nginx to include)
   --web-port PORT              where the web server listens on 127.0.0.1 (3000)
 
 Modules (content pages, links, labels and files are always installed)
@@ -100,6 +105,23 @@ Paths
 Upgrade
   --backup yes|no              dump the database before upgrading (yes)
 
+Local nodes (servers in the networks of branches that keep working without a connection)
+  enable-nodes                 in the cloud (Docker, bundled database): the database takes
+                               the nodes' replication over TLS
+  --replication-host HOST      where nodes reach the database (the main address)
+  --replication-port PORT      the database port open to the nodes (5432)
+  --node                       install a node here (Docker); the cloud stays the primary
+  --hub URL                    the cloud's address, e.g. https://lms.example.org
+  --code CODE                  the installation code from Administration → Nodes
+  --hub-address HOST[:PORT]    where the cloud is reached when this network's DNS sends its
+                               name to the node
+  --hub-ca FILE                the certificate (PEM) of the authority that signed the
+                               cloud's, when it is not a public one (a company's own CA)
+  --node-tls cloud|acme|internal
+                               the cloud's names with its certificate (cloud), or the node's
+                               own names (--domain, --content-domain) with Let's Encrypt or
+                               Caddy's own CA
+
 Testing an unpublished build
   --from-dir DIR               take the archive, compose.yml and Caddyfile from DIR
   --image NAME                 image name instead of ghcr.io/sharapov-outsource/hubium-lms
@@ -116,7 +138,15 @@ done
 set -- ${args[@]+"${args[@]}"}
 while (($#)); do
   case $1 in
-    install | upgrade) ACTION=$1 ;;
+    install | upgrade | enable-nodes | node-update) ACTION=$1 ;;
+    --node) NODE=yes ;;
+    --hub) HUB=${2-}; shift ;;
+    --code) NODE_CODE=${2-}; shift ;;
+    --hub-address) HUB_ADDRESS=${2-}; shift ;;
+    --hub-ca) HUB_CA=${2-}; shift ;;
+    --node-tls) NODE_TLS=${2-}; shift ;;
+    --replication-host) REPLICATION_HOST=${2-}; shift ;;
+    --replication-port) REPLICATION_PORT=${2-}; shift ;;
     --mode) MODE=${2-}; shift ;;
     --version) VERSION=${2-}; shift ;;
     --domain) DOMAIN=${2-}; shift ;;
@@ -545,7 +575,7 @@ ask_everything() {
   [[ $CONTENT_DOMAIN != "$DOMAIN" ]] || die "The content host must differ from the main address."
   choose HTTPS "HTTPS" caddy \
     caddy "Caddy gets and renews certificates (ports 80 and 443)" \
-    none "my own reverse proxy forwards to 127.0.0.1"
+    none "my own reverse proxy (nginx or another) forwards to 127.0.0.1"
   ask WEB_PORT "Port of the web server on 127.0.0.1" 3000
   [[ $WEB_PORT =~ ^[0-9]+$ ]] || die "--web-port: not a port number."
 
@@ -612,6 +642,8 @@ ask_everything() {
       ask_secret S3_SECRET_KEY "Secret key"
       [[ -n $S3_SECRET_KEY ]] || die "The S3 secret key is required (--s3-secret-key)."
     else
+      [[ $HTTPS == caddy ]] ||
+        die "The S3 storage installed here is reached through Caddy: with your own proxy, keep files on this server (--storage fs) or give your S3 (--s3-endpoint)."
       ask FILES_DOMAIN "Host browsers download files from" "files.$base"
       FILES_DOMAIN=$(lower "${FILES_DOMAIN#https://}")
       valid_host "$FILES_DOMAIN" || die "Not a host name: $FILES_DOMAIN"
@@ -735,7 +767,12 @@ disabled_modules() {
 }
 
 # ── Docker ──────────────────────────────────────────────────────────────────────
-dc() { docker compose --project-directory "$PREFIX" -f "$PREFIX/compose.yml" --env-file "$PREFIX/.env" "$@"; }
+dc() {
+  local files=(-f "$PREFIX/compose.yml")
+  # after enable-nodes: the database takes the nodes' replication
+  [[ -f $PREFIX/node/cloud.yml ]] && files+=(-f "$PREFIX/node/cloud.yml")
+  docker compose --project-directory "$PREFIX" "${files[@]}" --env-file "$PREFIX/.env" "$@"
+}
 
 docker_env() {
   local profiles=caddy
@@ -823,6 +860,10 @@ install_docker_mode() {
   run install -d -m 0750 "$PREFIX"
   get_asset compose.yml "$PREFIX"
   get_asset Caddyfile "$PREFIX"
+  if [[ $HTTPS == none ]]; then
+    get_asset nginx.conf "$PREFIX"
+    nginx_site "$PREFIX/nginx.conf" "$PREFIX/nginx.conf"
+  fi
   docker_env | write_file "$PREFIX/.env" 0600
   ok "compose.yml, Caddyfile and .env in $PREFIX"
 
@@ -1081,6 +1122,18 @@ caddy_config() {
   }
 }
 
+# With your own proxy: an nginx site for this installation's names and port, to include in
+# nginx's configuration (or to read for another proxy).
+nginx_site() {
+  local source=$1 file=$2
+  if [[ $DRY_RUN == yes ]]; then
+    printf '  %swrite %s for %s and %s%s\n' "$DIM" "$file" "$DOMAIN" "$CONTENT_DOMAIN" "$RESET"
+    return 0
+  fi
+  sed -e "s#lms\.example\.org#$DOMAIN#g" -e "s#content\.example\.org#$CONTENT_DOMAIN#g" \
+    -e "s#127\.0\.0\.1:3000#127.0.0.1:$WEB_PORT#g" "$source" | write_file "$file" 0644
+}
+
 setup_caddy() {
   [[ $HTTPS == caddy ]] || return 0
   step "Configuring Caddy"
@@ -1149,6 +1202,7 @@ install_native_mode() {
   run systemctl enable --now "${SERVICES[@]}"
   wait_healthy
   setup_caddy
+  if [[ $HTTPS == none ]]; then nginx_site "$RELEASE_DIR/deploy/nginx.conf" "$CONFIG_DIR/nginx.conf"; fi
 }
 
 save_install_conf() {
@@ -1183,7 +1237,8 @@ finish() {
   printf '\n'
   if [[ $HTTPS == none ]]; then
     note "Forward https://$DOMAIN and https://$CONTENT_DOMAIN to http://127.0.0.1:$WEB_PORT"
-    note "with the Host header kept and X-Forwarded-Proto set."
+    note "with the Host header kept and X-Forwarded-Proto set. An nginx site for them, with"
+    note "the steps for its certificate: $([[ $MODE == docker ]] && echo "$PREFIX" || echo "$CONFIG_DIR")/nginx.conf"
   fi
   if [[ $MODE == docker ]]; then
     note "Settings:  $PREFIX/.env    Logs: docker compose --project-directory $PREFIX logs -f"
@@ -1211,6 +1266,11 @@ upgrade() {
   local current=$VERSION
   VERSION=$requested
   [[ -n $IMAGE ]] || IMAGE=""
+  # a node follows the cloud's release
+  if [[ $MODE == node ]]; then
+    node_update
+    return 0
+  fi
   resolve_version
   step "Upgrading Hubium $current → $VERSION ($MODE)"
   if [[ $current == "$VERSION" ]]; then
@@ -1267,6 +1327,7 @@ upgrade_docker() {
   run cp "$PREFIX/compose.yml" "$PREFIX/compose.yml.previous"
   run cp "$tmp/compose.yml" "$tmp/Caddyfile" "$PREFIX/"
   run rm -rf "$tmp"
+  [[ -f $PREFIX/node/cloud.yml ]] && node_files
   [[ $DRY_RUN == yes ]] || sed -i "s/^HUBIUM_VERSION=.*/HUBIUM_VERSION=$(quote "$VERSION")/" "$PREFIX/.env"
   if [[ $PULL == yes ]]; then
     step "Downloading the images"
@@ -1323,12 +1384,281 @@ upgrade_native() {
   ok "previous release kept in $previous"
 }
 
+# ── local nodes ─────────────────────────────────────────────────────────────────
+# A node is a Docker installation in $PREFIX/node (docker/node/compose.yml): replicas of the
+# cloud's database, the web server and the agent in the node role, and Caddy. It runs the
+# cloud's release: hubium-node-update.timer follows the cloud after its upgrades.
+NODE_DIR=""
+dcn() { docker compose --project-directory "$NODE_DIR" -f "$NODE_DIR/compose.yml" --env-file "$NODE_DIR/.env" "$@"; }
+
+# env_value FILE KEY: a value of a .env this script or `hubium node register` wrote
+env_value() { sed -n "s/^$2='\{0,1\}\([^']*\)'\{0,1\}\$/\1/p" "$1" | tail -n 1; }
+
+# The C library the replicas' image sorts text with must be the cloud's: a physical copy
+# keeps the cloud's indexes, which follow its collations. Prints the Debian release of the
+# PostgreSQL image with the same glibc.
+node_pg_image() {
+  local major=${1:-18} collation=$2 debian glibc
+  if [[ $collation != c:* || -z ${collation#c:} || $DRY_RUN == yes ]]; then
+    printf 'bookworm'
+    return 0
+  fi
+  for debian in bookworm trixie; do
+    [[ $PULL == yes ]] && docker pull -q "pgvector/pgvector:0.8.7-pg$major-$debian" >>"$LOG" 2>&1
+    glibc=$(docker run --rm --entrypoint ldd "pgvector/pgvector:0.8.7-pg$major-$debian" --version 2>/dev/null |
+      awk 'NR == 1 { print $NF }')
+    if [[ $glibc == "${collation#c:}" ]]; then
+      printf '%s' "$debian"
+      return 0
+    fi
+  done
+  die "The cloud's database sorts text with glibc ${collation#c:}; no PostgreSQL image for nodes has it (bookworm 2.36, trixie 2.41). Install the cloud with Docker, or see docs/operations.md."
+}
+
+# The node's files of a release (compose.yml, Caddyfile, replica.sh and the cloud's) in
+# $PREFIX/node.
+node_files() {
+  local tmp
+  tmp=$(mktemp -d)
+  get_asset node.tar.gz "$tmp"
+  run tar -xzf "$tmp/node.tar.gz" -C "$PREFIX" --no-same-owner
+  run rm -rf "$tmp"
+}
+
+install_node() {
+  [[ -n $HUB ]] || die "--hub is needed with --node: the cloud's address, e.g. https://lms.example.org"
+  [[ -n $NODE_CODE ]] || die "--code is needed with --node: Administration → Nodes in the cloud gives it."
+  [[ $HUB == https://* || $HUB == http://* ]] || HUB="https://$HUB"
+  NODE_TLS=${NODE_TLS:-cloud}
+  case $NODE_TLS in
+    cloud) ;;
+    acme | internal)
+      [[ -n $DOMAIN && -n $CONTENT_DOMAIN ]] ||
+        die "--node-tls $NODE_TLS gives the node names of its own: --domain and --content-domain."
+      ;;
+    *) die "--node-tls: cloud, acme or internal." ;;
+  esac
+  # the node's processes trust this authority besides the public ones (the hubium launcher
+  # gives it to Node.js)
+  local hub_ca=""
+  if [[ -n $HUB_CA ]]; then
+    [[ -r $HUB_CA ]] || die "--hub-ca $HUB_CA: no such file."
+    if have openssl; then
+      openssl x509 -noout -in "$HUB_CA" 2>/dev/null || die "--hub-ca $HUB_CA: not a PEM certificate."
+    fi
+    hub_ca=$(base64 -w0 <"$HUB_CA")
+  fi
+  MODE=node
+  resolve_version
+  check_docker
+  NODE_DIR=$PREFIX/node
+  [[ -f $NODE_DIR/.env ]] && die "$NODE_DIR/.env exists: a node is installed here."
+  local image=${IMAGE:-ghcr.io/sharapov-outsource/hubium-lms}:$VERSION reg file
+  step "Registering this node with $HUB"
+  [[ $PULL == yes ]] && run docker pull -q "$image"
+  if [[ $DRY_RUN == yes ]]; then
+    reg="HUBIUM_VERSION='$VERSION'"
+  else
+    # --code=: a code may begin with a dash, which would read as an option
+    reg=$(docker run --rm ${hub_ca:+-e NODE_HUB_CA="$hub_ca"} "$image" node register \
+      --hub="$HUB" --code="$NODE_CODE" ${HUB_ADDRESS:+--address="$HUB_ADDRESS"}) ||
+      die "The cloud did not register this node (see above)."
+  fi
+  ok "registered"
+  file=$(mktemp)
+  printf '%s\n' "$reg" >"$file"
+  local cloud_version major collation debian
+  cloud_version=$(env_value "$file" HUBIUM_VERSION)
+  major=$(env_value "$file" NODE_PG_MAJOR)
+  collation=$(env_value "$file" NODE_DB_COLLATION)
+  step "Checking that this server can copy the cloud's database"
+  debian=$(node_pg_image "$major" "$collation")
+  ok "PostgreSQL ${major:-18} ($debian)"
+  # the node runs the cloud's release, with its files
+  VERSION=${cloud_version:-$VERSION}
+  run install -d -m 0750 "$PREFIX"
+  node_files
+  {
+    echo "# Hubium LMS local node — written by install-hubium.sh. After a change:"
+    echo "# docker compose --project-directory $NODE_DIR up -d"
+    cat "$file"
+    echo "NODE_PG_DEBIAN=$(quote "$debian")"
+    echo "NODE_TLS=$(quote "$NODE_TLS")"
+    if [[ -n $IMAGE ]]; then echo "HUBIUM_IMAGE=$(quote "$IMAGE")"; fi
+    if [[ -n $hub_ca ]]; then echo "NODE_HUB_CA=$(quote "$hub_ca")"; fi
+    if [[ $NODE_TLS != cloud ]]; then
+      echo "APP_URL=$(quote "https://$DOMAIN")"
+      echo "CONTENT_HOST=$(quote "https://$CONTENT_DOMAIN")"
+    fi
+    if [[ -n $SMTP_URL ]]; then echo "SMTP_URL=$(quote "$SMTP_URL")"; fi
+    if [[ -n $MAIL_FROM ]]; then echo "MAIL_FROM=$(quote "$MAIL_FROM")"; fi
+  } | write_file "$NODE_DIR/.env" 0600
+  rm -f "$file"
+  if [[ $PULL == yes ]]; then
+    step "Downloading the images"
+    run_shown dcn pull --quiet
+  fi
+  step "Starting the node: it copies the cloud's database first"
+  run_shown dcn up -d
+  if [[ $NODE_TLS == cloud ]]; then node_certificates; fi
+  install_node_update
+  save_install_conf
+  step "Done"
+  [[ $DRY_RUN == yes ]] && { note "Dry run: nothing was changed."; return 0; }
+  note "The node copies the cloud's database and files, then serves this network."
+  note "State:     docker compose --project-directory $NODE_DIR exec agent hubium node status"
+  note "Logs:      docker compose --project-directory $NODE_DIR logs -f"
+  if [[ $NODE_TLS == cloud ]]; then
+    note "DNS:       in this network, point the cloud's main and content hosts at this server."
+  fi
+  note "Updates:   the node follows the cloud's release (hubium-node-update.timer)."
+}
+
+# The node answers under the cloud's names with the cloud's certificates, which its agent
+# fetches within seconds of starting; Caddy, which cannot start without them, is started
+# again once they are there rather than at the end of its restart delay.
+node_certificates() {
+  [[ $DRY_RUN == yes ]] && return 0
+  step "Fetching the cloud's certificates"
+  local i
+  for ((i = 0; i < 60; i++)); do
+    if dcn exec -T agent test -s /certs/app.crt 2>/dev/null; then
+      run_shown dcn restart caddy
+      ok "the node answers with the cloud's certificate"
+      return 0
+    fi
+    sleep 2
+  done
+  warn "No certificate from the cloud yet: the node answers once its agent gets one (docker compose --project-directory $NODE_DIR logs agent)."
+}
+
+# Follows the cloud's release: hubium-node-update.timer runs node-update every ten minutes.
+install_node_update() {
+  if [[ ! -d /run/systemd/system ]]; then
+    warn "No systemd: run \"install-hubium.sh node-update\" after the cloud's upgrades."
+    return 0
+  fi
+  run install -m 0755 "$0" "$PREFIX/install-hubium.sh"
+  printf '%s\n' "[Unit]" "Description=Hubium LMS local node: follow the cloud's release" \
+    "After=docker.service" "" "[Service]" "Type=oneshot" \
+    "ExecStart=/bin/bash $PREFIX/install-hubium.sh node-update --yes" |
+    write_file /etc/systemd/system/hubium-node-update.service 0644
+  printf '%s\n' "[Unit]" "Description=Hubium LMS local node: follow the cloud's release" "" \
+    "[Timer]" "OnBootSec=5min" "OnUnitActiveSec=10min" "" "[Install]" "WantedBy=timers.target" |
+    write_file /etc/systemd/system/hubium-node-update.timer 0644
+  run systemctl daemon-reload
+  run systemctl enable --now hubium-node-update.timer
+}
+
+node_update() {
+  [[ -f /etc/hubium/install.conf ]] || die "No installation made by this script (/etc/hubium/install.conf)."
+  # shellcheck disable=SC1091
+  . /etc/hubium/install.conf
+  [[ $MODE == node ]] || die "node-update is for local nodes."
+  NODE_DIR=$PREFIX/node
+  local state mode cloud current
+  state=$(dcn exec -T agent hubium node status --json 2>/dev/null) || die "The node's agent does not answer."
+  mode=$(sed -n 's/.*"mode":"\([A-Z]*\)".*/\1/p' <<<"$state")
+  cloud=$(sed -n 's/.*"cloudRelease":"\([^"+]*\).*/\1/p' <<<"$state")
+  current=$(env_value "$NODE_DIR/.env" HUBIUM_VERSION)
+  [[ -n $cloud && $cloud != "$current" ]] || return 0
+  # working alone, the node runs its release on its own database: it follows the cloud's
+  # once its journal is in the cloud (the timer tries again)
+  if [[ $mode != ONLINE && $mode != PASSTHROUGH ]]; then
+    note "The cloud runs $cloud; the node ($mode) follows once it is back on the line."
+    return 0
+  fi
+  step "The cloud runs $cloud: upgrading the node from $current"
+  VERSION=$cloud
+  node_files
+  [[ $DRY_RUN == yes ]] || sed -i "s/^HUBIUM_VERSION=.*/HUBIUM_VERSION=$(quote "$VERSION")/" "$NODE_DIR/.env"
+  if [[ $PULL == yes ]]; then run_shown dcn pull --quiet; fi
+  run_shown dcn up -d --remove-orphans
+  save_install_conf
+}
+
+# In the cloud: the bundled database takes the replication of local nodes over TLS.
+enable_nodes() {
+  [[ -f /etc/hubium/install.conf ]] || die "No installation made by this script (/etc/hubium/install.conf)."
+  local requested=$VERSION
+  # shellcheck disable=SC1091
+  . /etc/hubium/install.conf
+  [[ -n $requested ]] && VERSION=$requested
+  [[ $MODE == docker ]] || die "enable-nodes sets up a Docker installation; for a native one see docs/operations.md (Local nodes)."
+  [[ $DB == bundled ]] || die "The database is external: let the nodes replicate it as docs/operations.md (Local nodes) shows."
+  have openssl || die "openssl is missing (apt-get install openssl)."
+  local host=${REPLICATION_HOST:-$DOMAIN} port=${REPLICATION_PORT:-5432}
+  step "Fetching the files for local nodes"
+  node_files
+  local tls=$PREFIX/node/tls
+  if [[ ! -f $tls/server.crt ]]; then
+    step "A certificate for the database's TLS"
+    run install -d -m 0755 "$tls"
+    run openssl req -x509 -newkey rsa:4096 -nodes -days 3650 -subj "/CN=$host" \
+      -keyout "$tls/server.key" -out "$tls/server.crt"
+    run chmod 0600 "$tls/server.key"
+    run chmod 0644 "$tls/server.crt"
+  fi
+  if [[ $DRY_RUN == no ]]; then
+    sed -i '/^NODE_REPLICATION_\(HOST\|PORT\)=/d' "$PREFIX/.env"
+    {
+      echo "NODE_REPLICATION_HOST=$(quote "$host")"
+      echo "NODE_REPLICATION_PORT=$(quote "$port")"
+    } >>"$PREFIX/.env"
+  fi
+  if [[ $HTTPS == none ]]; then node_certs_own_proxy; fi
+  step "Restarting with replication on"
+  run_shown dc up -d --wait --wait-timeout 600
+  save_install_conf
+  step "Done"
+  note "Nodes replicate over TLS on port $port of $host: open it to the nodes' addresses only."
+  note "Add a node in Administration → Nodes; its code installs it on the node's server:"
+  note "  sudo bash install-hubium.sh --node --hub https://$DOMAIN --code <code>"
+}
+
+# Nodes answer under the cloud's names with its certificates. Behind Caddy the node-certs
+# service copies them from it; behind your own proxy they are kept in /etc/hubium/node-certs,
+# where certbot's are copied as it renews them (a deploy hook), and anyone else's by hand.
+node_certs_own_proxy() {
+  local dir=/etc/hubium/node-certs hooks=/etc/letsencrypt/renewal-hooks/deploy
+  local lineage=/etc/letsencrypt/live/$DOMAIN
+  step "The certificates of $DOMAIN and $CONTENT_DOMAIN for the nodes"
+  run install -d -m 0700 -o 1001 -g 0 "$dir"
+  if [[ $DRY_RUN == no ]]; then
+    sed -i '/^NODE_CERTS_DIR=/d' "$PREFIX/.env"
+    echo "NODE_CERTS_DIR=$(quote "$dir")" >>"$PREFIX/.env"
+  fi
+  if [[ -d $hooks ]]; then
+    {
+      echo "#!/bin/sh"
+      echo "# Hubium LMS — written by install-hubium.sh enable-nodes: the certificate of the"
+      echo "# LMS's names, for its local nodes, copied as certbot renews it"
+      echo "[ \"\$RENEWED_LINEAGE\" = $lineage ] || exit 0"
+      echo "for host in $DOMAIN $CONTENT_DOMAIN; do"
+      echo "  install -m 0600 -o 1001 \"\$RENEWED_LINEAGE/fullchain.pem\" \"$dir/\$host.crt\""
+      echo "  install -m 0600 -o 1001 \"\$RENEWED_LINEAGE/privkey.pem\" \"$dir/\$host.key\""
+      echo "done"
+    } | write_file "$hooks/hubium-node-certs" 0755
+  fi
+  if [[ -d $hooks && -d $lineage ]]; then
+    run env RENEWED_LINEAGE="$lineage" sh "$hooks/hubium-node-certs"
+    ok "certbot's certificate of $DOMAIN is in $dir, now and as certbot renews it"
+  else
+    warn "Put the certificates of $DOMAIN and $CONTENT_DOMAIN into $dir as $DOMAIN.crt, $DOMAIN.key, $CONTENT_DOMAIN.crt and $CONTENT_DOMAIN.key (owner 1001), and again as they renew; with certbot, run enable-nodes again once it has them."
+  fi
+}
+
 # ── main ────────────────────────────────────────────────────────────────────────
 main() {
   printf '%sHubium LMS installer%s\n' "$BOLD" "$RESET"
   preflight
-  if [[ $ACTION == upgrade ]]; then
-    upgrade
+  case $ACTION in
+    upgrade) upgrade; return 0 ;;
+    enable-nodes) enable_nodes; return 0 ;;
+    node-update) node_update; return 0 ;;
+  esac
+  if [[ $NODE == yes ]]; then
+    install_node
     return 0
   fi
   ask_everything

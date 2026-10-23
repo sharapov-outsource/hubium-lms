@@ -1,6 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import { buffer } from 'node:stream/consumers';
-import { type Badge, type BadgeAward, type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
+import {
+  type Badge,
+  type BadgeAward,
+  type Db,
+  opNow,
+  type Prisma,
+  SYSTEM_CONTEXT_ID,
+} from '@hubium/db';
 import { createTranslator } from '@hubium/i18n/packs';
 import { log } from '@hubium/log';
 import { msg } from '@hubium/module-sdk';
@@ -131,6 +138,7 @@ export const BadgeInput = z.object({
 
 export const saveBadge = defineOperation({
   name: 'badge.save',
+  offline: 'online',
   input: BadgeInput,
   async authorize(ctx, i) {
     const courseId = i.id ? (await loadBadge(ctx.db, i.id)).courseId : (i.courseId ?? null);
@@ -194,6 +202,7 @@ export function checkBadgeImage(data: Uint8Array): 'png' | 'svg' {
 
 export const setBadgeImage = defineOperation({
   name: 'badge.image',
+  offline: 'online',
   input: z.object({
     id: z.string().uuid(),
     name: z.string().max(255),
@@ -224,6 +233,7 @@ export const setBadgeImage = defineOperation({
 
 export const setBadgeStatus = defineOperation({
   name: 'badge.status',
+  offline: 'online',
   input: z.object({ id: z.string().uuid(), status: z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']) }),
   authorize: async (ctx, i) => requireManage(ctx, (await loadBadge(ctx.db, i.id)).courseId),
   async handler(ctx, { id, status }) {
@@ -256,6 +266,7 @@ export const setBadgeStatus = defineOperation({
 
 export const deleteBadge = defineOperation({
   name: 'badge.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: async (ctx, i) => requireManage(ctx, (await loadBadge(ctx.db, i.id)).courseId),
   async handler(ctx, { id }) {
@@ -278,6 +289,7 @@ export const deleteBadge = defineOperation({
 /** Who issues the site's badges, as their Open Badges issuer names it. */
 export const saveBadgeIssuer = defineOperation({
   name: 'badge.issuer',
+  offline: 'online',
   input: z.object({
     name: z.string().trim().max(255).default(''),
     email: z.union([z.literal(''), z.string().trim().email().max(255)]).default(''),
@@ -370,7 +382,7 @@ export async function awardIfEarned(
   } = {},
 ): Promise<boolean> {
   if (badge.status !== 'ACTIVE') return false;
-  const now = opts.now ?? new Date();
+  const now = opts.now ?? opNow();
   const had = await tx.badgeAward.findUnique({
     where: { badgeId_userId: { badgeId: badge.id, userId } },
   });
@@ -529,6 +541,7 @@ async function rolesOf(ctx: RequestContext, badge: Badge, roleIds: string[]) {
 /** Awards a badge by hand: recorded for the giver's roles; the badge follows its criteria. */
 export const markBadge = defineOperation({
   name: 'badge.mark',
+  offline: 'online',
   input: z.object({ badgeId: z.string().uuid(), userId: z.string().uuid() }),
   authorize: async (ctx, i) => requireAward(ctx, (await loadBadge(ctx.db, i.badgeId)).courseId),
   async handler(ctx, { badgeId, userId }) {
@@ -562,6 +575,7 @@ export const markBadge = defineOperation({
 /** Gives a revoked or expired award again, when its learner still meets the criteria. */
 export const awardBadgeAgain = defineOperation({
   name: 'badge.awardAgain',
+  offline: 'online',
   input: z.object({ awardId: z.string().uuid() }),
   async authorize(ctx, i) {
     const a = await ctx.db.badgeAward.findUnique({
@@ -592,6 +606,7 @@ export const awardBadgeAgain = defineOperation({
 
 export const revokeBadgeAward = defineOperation({
   name: 'badge.revoke',
+  offline: 'online',
   input: z.object({ awardId: z.string().uuid(), reason: z.string().trim().min(1).max(500) }),
   async authorize(ctx, i) {
     const a = await ctx.db.badgeAward.findUnique({

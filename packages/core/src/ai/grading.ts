@@ -249,7 +249,7 @@ provideModuleServices({
       };
     },
     async acceptConsent(feature) {
-      await acceptConsent(ctx, feature);
+      await acceptConsent.run(ctx, { feature });
     },
     suggestGrade: (input) => suggestGrade(ctx, input),
     async markSuggestion(id, status) {

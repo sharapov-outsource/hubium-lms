@@ -136,6 +136,7 @@ model User {
   aiConsents         AiConsent[]
   pushSubscriptions  PushSubscription[]
   tutorConversations TutorConversation[]
+  nodesAdministered  NodeAdmin[]
 
   @@index([status])
   @@index([lastName, firstName])

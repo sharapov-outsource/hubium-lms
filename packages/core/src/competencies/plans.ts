@@ -6,11 +6,13 @@ import {
   SYSTEM_CONTEXT_ID,
 } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
+import { FileInput } from '@hubium/module-sdk/inputs';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors.ts';
 import { logEvent } from '../events/log.ts';
-import { deleteFiles, registerFileArea } from '../files/files.ts';
+import { deleteFiles, registerFileArea, storeFile, storeFileFromPath } from '../files/files.ts';
+import { consumeUpload } from '../files/uploads.ts';
 import { notifyUsers } from '../notifications/notifications.ts';
 import { defineOperation } from '../operation.ts';
 import { competencyScale } from './frameworks.ts';
@@ -91,6 +93,7 @@ async function requirePlan(
 
 export const saveTemplate = defineOperation({
   name: 'competency.template.save',
+  offline: 'online',
   input: z.object({
     id: z.string().uuid().optional(),
     name: z.string().trim().min(1).max(255),
@@ -126,6 +129,7 @@ export const saveTemplate = defineOperation({
 /** Deletes a template; its plans are deleted with it or kept with its competencies. */
 export const deleteTemplate = defineOperation({
   name: 'competency.template.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid(), deletePlans: z.boolean().default(false) }),
   authorize: (ctx) => ctx.perm.require('competency:templatemanage'),
   async handler(ctx, { id, deletePlans }) {
@@ -140,6 +144,7 @@ export const deleteTemplate = defineOperation({
 
 export const setTemplateCompetency = defineOperation({
   name: 'competency.template.competency',
+  offline: 'online',
   input: z.object({
     templateId: z.string().uuid(),
     competencyId: z.string().uuid(),
@@ -176,6 +181,7 @@ export const setTemplateCompetency = defineOperation({
 
 export const setTemplateCohort = defineOperation({
   name: 'competency.template.cohort',
+  offline: 'online',
   input: z.object({
     templateId: z.string().uuid(),
     cohortId: z.string().uuid(),
@@ -255,6 +261,7 @@ async function createPlans(
 
 export const createPlansFromTemplate = defineOperation({
   name: 'competency.template.plans',
+  offline: 'online',
   input: z.object({
     templateId: z.string().uuid(),
     userIds: z.array(z.string().uuid()).min(1).max(1000),
@@ -298,6 +305,7 @@ export async function syncTemplateCohorts(db: Db, now = new Date()): Promise<num
 
 export const savePlan = defineOperation({
   name: 'competency.plan.save',
+  offline: 'online',
   input: z.object({
     id: z.string().uuid().optional(),
     userId: z.string().uuid().optional(),
@@ -335,6 +343,7 @@ export const savePlan = defineOperation({
 
 export const deletePlan = defineOperation({
   name: 'competency.plan.delete',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: async (ctx, i) => void (await requirePlan(ctx, i.id, 'remove')),
   async handler(ctx, { id }) {
@@ -345,6 +354,7 @@ export const deletePlan = defineOperation({
 
 export const setPlanCompetency = defineOperation({
   name: 'competency.plan.competency',
+  offline: 'online',
   input: z.object({
     planId: z.string().uuid(),
     competencyId: z.string().uuid(),
@@ -400,6 +410,7 @@ async function unlink(tx: Tx, p: LearningPlan) {
 
 export const unlinkPlan = defineOperation({
   name: 'competency.plan.unlink',
+  offline: 'online',
   input: z.object({ id: z.string().uuid() }),
   authorize: async (ctx, i) => void (await requirePlan(ctx, i.id, 'unlink')),
   async handler(ctx, { id }) {
@@ -446,6 +457,7 @@ const STEPS = [
 /** Moves a plan along: reviews, approval, completion (which keeps its ratings), reopening. */
 export const planStep = defineOperation({
   name: 'competency.plan.step',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid(), step: z.enum(STEPS) }),
   authorize: async (ctx, i) => void (await requirePlan(ctx, i.id, i.step)),
   async handler(ctx, { id, step }) {
@@ -523,6 +535,7 @@ export const planStep = defineOperation({
 
 export const addCompetencyComment = defineOperation({
   name: 'competency.comment',
+  offline: 'replay',
   input: z.object({
     planId: z.string().uuid().optional(),
     userId: z.string().uuid().optional(),
@@ -574,6 +587,7 @@ export const addCompetencyComment = defineOperation({
 
 export const deleteCompetencyComment = defineOperation({
   name: 'competency.comment.delete',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   async authorize(ctx, i) {
     const c = await ctx.db.competencyComment.findUnique({ where: { id: i.id } });
@@ -595,12 +609,18 @@ async function requireOwnEvidence(ctx: RequestContext, userId: string) {
 
 export const saveUserEvidence = defineOperation({
   name: 'competency.userevidence.save',
+  offline: 'guarded',
   input: z.object({
     id: z.string().uuid().optional(),
     userId: z.string().uuid().optional(),
     name: z.string().trim().min(1).max(255),
     description: z.string().max(10_000).default(''),
     url: z.union([z.literal(''), z.url({ protocol: /^https?$/ }).max(2000)]).default(''),
+    /** Files added to the evidence: sent with the form or uploaded before it. */
+    files: z
+      .array(z.union([FileInput, z.object({ uploadId: z.string().uuid() })]))
+      .max(20)
+      .default([]),
   }),
   async authorize(ctx, i) {
     const userId = i.id
@@ -611,19 +631,39 @@ export const saveUserEvidence = defineOperation({
   },
   async handler(ctx, i) {
     const data = { name: i.name, description: i.description, url: i.url };
-    if (i.id) {
-      await ctx.tx.userEvidence.update({ where: { id: i.id }, data });
-      return { id: i.id };
+    const id = i.id
+      ? (await ctx.tx.userEvidence.update({ where: { id: i.id }, data })).id
+      : (
+          await ctx.tx.userEvidence.create({
+            data: { ...data, userId: i.userId ?? ctx.perm.userId! },
+          })
+        ).id;
+    const where = {
+      contextId: SYSTEM_CONTEXT_ID,
+      component: USER_EVIDENCE_COMPONENT,
+      area: 'userevidence',
+      itemId: id,
+      uploadedById: ctx.perm.userId ?? null,
+    };
+    for (const f of i.files) {
+      if ('uploadId' in f)
+        await consumeUpload(ctx.tx, ctx.perm.userId ?? '', f.uploadId, (u) =>
+          storeFileFromPath(ctx.tx, {
+            ...where,
+            name: u.name,
+            mimeType: u.mimeType,
+            filePath: u.path,
+          }),
+        );
+      else await storeFile(ctx.tx, { ...where, ...f });
     }
-    const e = await ctx.tx.userEvidence.create({
-      data: { ...data, userId: i.userId ?? ctx.perm.userId! },
-    });
-    return { id: e.id };
+    return { id };
   },
 });
 
 export const deleteUserEvidence = defineOperation({
   name: 'competency.userevidence.delete',
+  offline: 'guarded',
   input: z.object({ id: z.string().uuid() }),
   async authorize(ctx, i) {
     const e = await ctx.db.userEvidence.findUnique({ where: { id: i.id } });
@@ -645,6 +685,7 @@ export const deleteUserEvidence = defineOperation({
 /** Ties evidence to a competency (logged on it), or unties it. */
 export const linkUserEvidence = defineOperation({
   name: 'competency.userevidence.link',
+  offline: 'guarded',
   input: z.object({
     id: z.string().uuid(),
     competencyId: z.string().uuid(),

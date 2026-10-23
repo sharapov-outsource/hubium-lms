@@ -49,6 +49,7 @@ import {
   effectivePasswords,
   networkAllowed,
   nextAttemptAt,
+  nodeAllowed,
 } from './access.ts';
 import { type LiveState, type PublicQuestion, toPublicQuestion } from './public.ts';
 
@@ -91,6 +92,11 @@ export const QuizSettings = z
             params: { entries: bad.join(', ') },
           });
       }),
+    /** Local nodes attempts may only be taken through (rooms of a branch); [] for any. */
+    nodeIds: z.preprocess(
+      (v) => (v === undefined ? [] : (Array.isArray(v) ? v : [v]).filter((x) => x !== '')),
+      z.array(z.string().uuid()).max(100),
+    ),
     /** Minutes to wait after the first attempt, and after each later one. */
     delay1Min: z.coerce
       .number()
@@ -233,15 +239,18 @@ export function accessRules(
   return {
     passwords: e.passwords,
     subnet: a.settings.subnet,
+    nodeIds: a.settings.nodeIds,
     delay1Sec: a.settings.delay1Min * 60,
     delay2Sec: a.settings.delay2Min * 60,
   };
 }
 
-/** Attempts may only be taken (and continued) from the quiz's network addresses. */
+/** Attempts may only be taken (and continued) from the quiz's networks and nodes. */
 function requireNetwork(ctx: ModuleCtx, a: ActivityRef<QuizSettingsT>) {
   if (!networkAllowed(a.settings, ctx.ip))
     throw new ModuleError('FORBIDDEN', msg('mod.quiz.errors.networkOnly'));
+  if (!nodeAllowed(a.settings, ctx.nodeId))
+    throw new ModuleError('FORBIDDEN', msg('mod.quiz.errors.nodeOnly'));
 }
 
 /**
@@ -473,7 +482,7 @@ export async function startAttempt(
     where: { activityId: a.id, userId, preview },
     orderBy: { attemptNumber: 'desc' },
   });
-  const seed = Math.floor(Math.random() * 2 ** 31);
+  const seed = ctx.random.int(0, 2 ** 31);
   const order = a.settings.shuffleQuestions ? shuffle(slots, seed) : slots;
   // calculated questions draw from their own datasets and the ones their category shares
   const shared = new Map<string, Dataset[]>();
@@ -934,6 +943,7 @@ export async function readQuizOverview(ctx: ModuleCtx, a: Quiz) {
     questions,
     requiresPassword: rules.passwords.length > 0,
     networkAllowed: networkAllowed(rules, ctx.ip),
+    nodeAllowed: nodeAllowed(rules, ctx.nodeId),
     /** The wait between attempts ends then (null: no wait now). */
     nextAttemptAt: next && next > ctx.now ? next : null,
     timeLimitSec: e.timeLimitSec || null,
@@ -1370,6 +1380,9 @@ export const quiz = defineModule<QuizSettingsT>({
         networkAllowed: z
           .boolean()
           .describe('false: the quiz only takes attempts from other network addresses'),
+        nodeAllowed: z
+          .boolean()
+          .describe('false: the quiz only takes attempts through some local nodes'),
         nextAttemptAt: z
           .string()
           .nullable()
@@ -1509,6 +1522,7 @@ export const quiz = defineModule<QuizSettingsT>({
   actions: {
     // ── editing ──
     addQuestions: defineAction({
+      offline: 'replay',
       summary: 'Add questions from the course question bank as fixed slots',
       capability: 'course:manageactivities',
       input: z.object({ questionIds: z.array(z.string().uuid()).min(1).max(200) }),
@@ -1545,6 +1559,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     addRandom: defineAction({
+      offline: 'replay',
       summary: 'Add slots that draw random questions from a category',
       capability: 'course:manageactivities',
       input: z.object({
@@ -1584,6 +1599,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     editSlot: defineAction({
+      offline: 'guarded',
       summary: 'Remove or move a slot, change its mark, or add or remove the page break after it',
       capability: 'course:manageactivities',
       input: z.object({
@@ -1643,6 +1659,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     repaginate: defineAction({
+      offline: 'guarded',
       summary: 'Lay the questions out anew, a given number to a page (0: all on one page)',
       capability: 'course:manageactivities',
       input: z.object({ perPage: z.number().int().min(0).max(100) }),
@@ -1653,6 +1670,7 @@ export const quiz = defineModule<QuizSettingsT>({
     }),
     // ── attempts ──
     start: defineAction({
+      offline: 'replay',
       summary:
         'Start an attempt or resume the open one; `preview` for teachers. `password` when the quiz has one',
       input: z.object({
@@ -1668,7 +1686,11 @@ export const quiz = defineModule<QuizSettingsT>({
         const open = await ctx.db.quizAttempt.findFirst({
           where: { activityId: a.id, userId, preview, state: 'IN_PROGRESS' },
         });
-        if (open) return { attemptId: open.id };
+        // an attempt whose time ran out closes here as the sweep would close it, so a start
+        // after it means a new attempt whether the sweep has come by or not
+        if (open?.dueAt && open.dueAt.getTime() + GRACE_MS < ctx.now.getTime())
+          await finishAttempt(ctx, quizA, open.id);
+        else if (open) return { attemptId: open.id };
         const e = await effectiveQuiz(ctx.db, quizA, userId);
         const finished = await ctx.db.quizAttempt.findMany({
           where: { activityId: a.id, userId, preview: false, state: 'FINISHED' },
@@ -1677,6 +1699,7 @@ export const quiz = defineModule<QuizSettingsT>({
         });
         const refusal = checkStart(accessRules(quizA, e), {
           ip: ctx.ip,
+          nodeId: ctx.nodeId,
           now: ctx.now,
           finished: finished.map((x) => x.finishedAt),
           password,
@@ -1689,7 +1712,8 @@ export const quiz = defineModule<QuizSettingsT>({
             'CONFLICT',
             msg('mod.quiz.errors.nextAttemptAt', { at: refusal.until.toISOString() }),
           );
-        if (!preview) {
+        // a teacher accepting an attempt made on a node without a connection lets it be
+        if (!preview && !ctx.override) {
           const w = quizIsOpen(e, ctx.now);
           if (!w.ok)
             throw new ModuleError(
@@ -1710,6 +1734,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     save: defineAction({
+      offline: 'guarded',
       summary: 'Save answers and flags of your attempt without finishing it',
       input: z.object({
         attemptId: z.string().uuid(),
@@ -1732,6 +1757,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     page: defineAction({
+      offline: 'replay',
       summary:
         'Save the answers of this page and go to another page of your attempt (with sequential navigation only to the next one)',
       input: z.object({
@@ -1770,6 +1796,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     check: defineAction({
+      offline: 'replay',
       summary:
         'Immediate and interactive behaviours: save one answer and check it now. Returns the question with its feedback',
       input: z.object({
@@ -1798,6 +1825,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     tryAgain: defineAction({
+      offline: 'replay',
       summary:
         'Interactive behaviour: after a wrong answer, open the question for the next try (wrong parts cleared if its hint says so)',
       input: z.object({ attemptId: z.string().uuid(), slot: z.number().int().min(1) }),
@@ -1819,6 +1847,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     finish: defineAction({
+      offline: 'replay',
       summary: 'Save the last answers and finish your attempt',
       input: z.object({
         attemptId: z.string().uuid(),
@@ -1837,6 +1866,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     setOverride: defineAction({
+      offline: 'guarded',
       summary: 'Give one participant or a group their own dates, time limit, attempts or password',
       capability: 'mod.quiz:manageoverrides',
       input: z
@@ -1910,6 +1940,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     deleteOverride: defineAction({
+      offline: 'guarded',
       summary: 'Remove a participant or group setting',
       capability: 'mod.quiz:manageoverrides',
       input: z.object({ id: z.string().uuid() }),
@@ -1920,6 +1951,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     regrade: defineAction({
+      offline: 'online',
       summary:
         'Regrade finished attempts with the current questions; `dryRun` only reports changes',
       capability: 'mod.quiz:grade',
@@ -1929,6 +1961,7 @@ export const quiz = defineModule<QuizSettingsT>({
       },
     }),
     gradeQuestion: defineAction({
+      offline: 'guarded',
       summary: 'Mark a manually graded answer (essay) and comment on it',
       capability: 'mod.quiz:grade',
       input: z.object({
@@ -2047,9 +2080,13 @@ export const quiz = defineModule<QuizSettingsT>({
       name: 'quiz.overdue.sweep',
       schedule: '* * * * *',
       async handler(ctx) {
-        // Closes attempts whose time ran out while the browser was closed.
+        // Closes attempts whose time ran out while the browser was closed; those that ran
+        // out while a local node worked without a connection wait for its journal, which
+        // may hold their answers.
+        const waiting = await ctx.nodes.waitingSince();
+        const before = Math.min(ctx.now.getTime() - GRACE_MS, waiting?.getTime() ?? Infinity);
         const due = await ctx.db.quizAttempt.findMany({
-          where: { state: 'IN_PROGRESS', dueAt: { lt: new Date(ctx.now.getTime() - GRACE_MS) } },
+          where: { state: 'IN_PROGRESS', dueAt: { lt: new Date(before) } },
           orderBy: { dueAt: 'asc' },
           take: 200,
         });

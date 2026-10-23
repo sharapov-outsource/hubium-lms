@@ -42,7 +42,7 @@ for (let i = 1; i <= n; i++) {
     actor: { kind: 'user' as const, userId: u.id, isSiteAdmin: false },
     perm: new core.Permissions(db, await core.loadUserAccess(db, u)),
   };
-  const t = await core.createApiToken(ctx, {
+  const t = await core.createApiToken.run(ctx, {
     name: 'k6',
     scopes: ['read', 'write'],
     expiresInDays: 7,

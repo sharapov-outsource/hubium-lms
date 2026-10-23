@@ -286,7 +286,7 @@ export async function importGiftAction(fd: FormData) {
     if (!gift.trim()) throw new ValidationError({ gift: [msg('errors.grades.giftMissing')] });
     if (gift.trimStart().startsWith('<')) {
       // Moodle XML: categories come from the file itself.
-      const r = await importMoodleXml(await getContext(), v.courseId ?? '', gift);
+      const r = await importMoodleXml.run(await getContext(), { courseId: v.courseId, xml: gift });
       revalidatePath(`/course/${v.courseId}/question-bank`);
       return {
         created: r.created,

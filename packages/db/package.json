@@ -13,7 +13,7 @@
     "./migrate": "./src/migrate.ts"
   },
   "scripts": {
-    "generate": "prisma generate",
+    "generate": "prisma generate && node scripts/model-info.mjs",
     "migrate:dev": "node scripts/new-migration.mjs",
     "migrate:deploy": "prisma migrate deploy",
     "migrate:diff": "node scripts/check-drift.mjs",
@@ -21,6 +21,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@hubium/log": "workspace:*",
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "pg": "8.23.1"

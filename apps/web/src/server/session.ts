@@ -10,10 +10,13 @@ import {
   isSwitchableRole,
   loadUserAccess,
   NotFoundError,
-  noteUserAccess,
   Permissions,
   type RequestContext,
+  touch,
 } from '@hubium/core';
+import { CLIENT_IP_HEADER } from '@hubium/core/client-ip';
+import { NODE_ID_HEADER } from '@hubium/core/node/auth';
+import { isNode, nodeConfig } from '@hubium/core/node/config';
 import { log } from '@hubium/log';
 import { cookies, headers } from 'next/headers';
 import { forbidden, notFound, redirect } from 'next/navigation';
@@ -35,9 +38,11 @@ export const getCurrentUser = cache(async () => {
   if (user?.status !== 'ACTIVE') return null;
   // an administrator logged in as the user is not the user's visit
   if (!session.session.impersonatedBy)
-    await noteUserAccess(db, user).catch((err) =>
-      logger.warn({ err, userId: user.id }, 'Could not record the last visit'),
-    );
+    await touch(db, {
+      kind: 'user.access',
+      userId: user.id,
+      lastAccessAt: user.lastAccessAt,
+    }).catch((err) => logger.warn({ err, userId: user.id }, 'Could not record the last visit'));
   return user;
 });
 
@@ -67,7 +72,10 @@ export async function requireUser(): Promise<CurrentUser> {
 export async function freshContext(): Promise<RequestContext> {
   const user = await getCurrentUser();
   const h = await headers();
-  const ip = clientIp(h.get('x-forwarded-for'));
+  // the address proxy.ts worked out (for a request a node passed on, the one it signed)
+  const ip = h.get(CLIENT_IP_HEADER) ?? clientIp(h.get('x-forwarded-for'));
+  // the node a request came through (its signature, see node-forward.ts), or this one
+  const nodeId = isNode() ? nodeConfig().id : h.get(NODE_ID_HEADER);
   const locale = await getLocale();
   if (!user) {
     return {
@@ -78,6 +86,7 @@ export async function freshContext(): Promise<RequestContext> {
       locale,
       ip,
       origin: 'WEB',
+      nodeId,
     };
   }
   const session = await getSession();
@@ -96,6 +105,7 @@ export async function freshContext(): Promise<RequestContext> {
     locale,
     ip,
     origin: 'WEB',
+    nodeId,
   };
 }
 

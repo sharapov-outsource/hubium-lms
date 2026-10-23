@@ -8,6 +8,7 @@ import {
   describeError,
   disabledTypesIn,
   disabledTypesWarning,
+  dropEmptyDefaultCategory,
   ensureCourseGradebook,
   foreignCourseValues,
   getModule,
@@ -1335,6 +1336,7 @@ export async function importMbz(
           }
         }
       }
+      await dropEmptyDefaultCategory(db, courseId);
     }
 
     // scales (the site's come as the course's), then groups and groupings without members

@@ -3,7 +3,7 @@ import { config as loadEnv } from 'dotenv';
 
 loadEnv({ path: path.resolve(import.meta.dirname, '../../../.env'), quiet: true });
 
-const { createDb } = await import('@hubium/db');
+const { createDb, withWriteScope } = await import('@hubium/db');
 const { registerModules } = await import('../src/modules/registry.ts');
 const { serverModules } = await import('@hubium/modules');
 await import('../src/bootstrap.ts');
@@ -29,11 +29,13 @@ if (!adminPassword) {
 
 const db = createDb();
 try {
-  const result = await seed(db, {
-    profile,
-    adminEmail: process.env.SEED_ADMIN_EMAIL ?? 'admin@hubium.local',
-    adminPassword,
-  });
+  const result = await withWriteScope('system', 'seed', () =>
+    seed(db, {
+      profile,
+      adminEmail: process.env.SEED_ADMIN_EMAIL ?? 'admin@hubium.local',
+      adminPassword,
+    }),
+  );
   console.log('Seed complete:', result);
 } finally {
   // activities of the demo queue jobs (course progress): the queue's connections end too

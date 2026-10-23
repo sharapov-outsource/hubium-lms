@@ -35,13 +35,11 @@ import {
   setRelatedCompetency,
   setTemplateCohort,
   setTemplateCompetency,
-  USER_EVIDENCE_COMPONENT,
   unlinkPlan,
   ValidationError,
 } from '@hubium/core';
-import { checkFile, storeFile, storeFileFromPath } from '@hubium/core/files/files';
-import { checkUpload, consumeUpload, getUpload } from '@hubium/core/files/uploads';
-import { SYSTEM_CONTEXT_ID } from '@hubium/db';
+import { checkFile } from '@hubium/core/files/files';
+import { checkUpload, getUpload } from '@hubium/core/files/uploads';
 import { createTranslator } from '@hubium/i18n/packs';
 import { msg } from '@hubium/module-sdk';
 import { decodeCsv } from '@hubium/module-sdk/csv';
@@ -536,7 +534,7 @@ export async function saveUserEvidenceAction(fd: FormData) {
     }
     // checked (malware too) before the evidence is saved, or a refused file would leave it
     // saved without its files, and the next try would save it twice
-    const sent: { name: string; mimeType: string; data: Buffer }[] = [];
+    const sent: ({ name: string; mimeType: string; data: Buffer } | { uploadId: string })[] = [];
     for (const f of files) {
       if (f.file) {
         const u = {
@@ -546,7 +544,10 @@ export async function saveUserEvidenceAction(fd: FormData) {
         };
         await checkFile(db, u);
         sent.push(u);
-      } else await checkUpload(db, userId, f.uploadId);
+      } else {
+        await checkUpload(db, userId, f.uploadId);
+        sent.push({ uploadId: f.uploadId });
+      }
     }
     const r = await saveUserEvidence.run(ctx, {
       id: v.id || undefined,
@@ -554,20 +555,8 @@ export async function saveUserEvidenceAction(fd: FormData) {
       name: v.name ?? '',
       description: v.description ?? '',
       url: v.url ?? '',
+      files: sent,
     });
-    const where = {
-      contextId: SYSTEM_CONTEXT_ID,
-      component: USER_EVIDENCE_COMPONENT,
-      area: 'userevidence',
-      itemId: r.id,
-      uploadedById: ctx.perm.userId ?? null,
-    };
-    for (const u of sent) await storeFile(db, { ...where, ...u });
-    for (const f of files)
-      if (!f.file)
-        await consumeUpload(db, userId, f.uploadId, (u) =>
-          storeFileFromPath(db, { ...where, name: u.name, mimeType: u.mimeType, filePath: u.path }),
-        );
     for (const competencyId of ids(v.competencyIds))
       await linkUserEvidence.run(ctx, { id: r.id, competencyId, linked: true });
     revalidatePath('/evidence');

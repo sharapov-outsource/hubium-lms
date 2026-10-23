@@ -1,4 +1,4 @@
-import { type Db, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
+import { type Db, opNow, type Prisma, SYSTEM_CONTEXT_ID } from '@hubium/db';
 import { extractText, sanitizeRichText } from '@hubium/editor/server';
 import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
@@ -37,7 +37,7 @@ async function authorizeScope(ctx: RequestContext, courseId: string | null | und
 }
 
 /** Sends the notifications of a published announcement once. */
-export async function notifyAnnouncement(tx: Tx, id: string, now = new Date()): Promise<number> {
+export async function notifyAnnouncement(tx: Tx, id: string, now = opNow()): Promise<number> {
   const a = await tx.announcement.findUnique({
     where: { id },
     include: { course: { select: { fullName: true, visible: true } } },
@@ -97,6 +97,7 @@ export async function publishDueAnnouncements(db: Db, now = new Date()): Promise
 
 export const createAnnouncement = defineOperation({
   name: 'announcement.create',
+  offline: 'replay',
   mutation: true,
   input: AnnouncementInput.extend({ courseId: z.string().uuid().nullish() }),
   authorize: (ctx, i) => authorizeScope(ctx, i.courseId),
@@ -140,6 +141,7 @@ async function loadForEdit(ctx: RequestContext, id: string) {
 
 export const updateAnnouncement = defineOperation({
   name: 'announcement.update',
+  offline: 'guarded',
   mutation: true,
   input: AnnouncementInput.extend({ id: z.string().uuid() }),
   authorize: async (ctx, i) => {
@@ -173,6 +175,7 @@ export const updateAnnouncement = defineOperation({
 
 export const deleteAnnouncement = defineOperation({
   name: 'announcement.delete',
+  offline: 'guarded',
   mutation: true,
   input: z.object({ id: z.string().uuid() }),
   authorize: async (ctx, i) => {
@@ -186,6 +189,7 @@ export const deleteAnnouncement = defineOperation({
 
 export const pinAnnouncement = defineOperation({
   name: 'announcement.pin',
+  offline: 'guarded',
   mutation: true,
   input: z.object({ id: z.string().uuid(), pinned: z.boolean() }),
   authorize: async (ctx, i) => {

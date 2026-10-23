@@ -1,5 +1,4 @@
 import {
-  buildModuleCtx,
   contentOrigin,
   getAllSettings,
   getModule,
@@ -9,6 +8,7 @@ import {
   siteLocale,
   verifyContentToken,
 } from '@hubium/core';
+import { runContent } from '@hubium/core/modules/content-run';
 import { db } from '@/server/db';
 
 export const dynamic = 'force-dynamic';
@@ -46,8 +46,11 @@ async function handle(
     locale: siteLocale(settings),
     origin: 'WEB',
   };
-  return m.content(
-    buildModuleCtx(ctx),
+  // what the user does in the content (a commit, a result) is their change; a view
+  // writes side records at most
+  return runContent(
+    ctx,
+    m,
     { activityId: grant.a, userId: grant.u, data: grant.d ?? {}, token },
     req,
     path,

@@ -1,6 +1,7 @@
 import type { Prisma } from '@hubium/db';
 import { log } from '@hubium/log';
 import { fromPrisma, PgBoss, type SendOptions } from 'pg-boss';
+import { journaling } from '../node/journal.ts';
 
 const logger = log('jobs');
 
@@ -81,6 +82,9 @@ export async function enqueue<N extends JobName>(
     sink({ name, data, opts: sendOpts });
     return null;
   }
+  // A node working alone queues nothing: its copy of the queue is the cloud's, and the cloud
+  // queues the same jobs when it replays the node's operations.
+  if (journaling()) return null;
   await ensureQueue(name);
   const boss = await getBoss();
   return boss.send(name, data, {

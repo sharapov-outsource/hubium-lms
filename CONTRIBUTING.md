@@ -17,8 +17,9 @@ Thanks for helping! A few rules keep the codebase healthy.
      COMPOSE_PROFILES=db,caddy,media,mailpit docker compose -f docker/compose.yml up -d --build --wait
    pnpm --filter @hubium/e2e stack
    ```
-   Shell scripts are checked with `shellcheck install-hubium.sh deploy/bin/hubium scripts/bundle.sh`.
-6. Releases are cut by pushing a `vX.Y.Z` tag that matches `package.json`; see [docs/releasing.md](docs/releasing.md).
+   Shell scripts are checked with `shellcheck install-hubium.sh deploy/bin/hubium scripts/bundle.sh`. The site for nginx in front of an installation without Caddy (`docker/nginx.conf`) is checked every night: the nightly CI installs the archive with `--https none` behind Ubuntu's nginx and runs the same checks through it.
+6. For changes to local nodes, run their scenarios: `pnpm --filter @hubium/e2e nodes` starts the cloud and two nodes from the built apps (`pnpm build` first) with links the scenarios cut. Changes to how a node is installed, started or updated also go through the lab of a cloud and branch servers installed as in production, which the nightly CI runs: `pnpm --filter @hubium/e2e lab` builds the images, installs the cloud and the nodes with `install-hubium.sh` on servers that are containers with Docker inside, and runs `e2e/lab`. It needs Docker that runs privileged containers, about 25 GB of disk and an hour and a half. `LAB=running` reuses a lab that is up (`node e2e/lab/lab.ts build && node e2e/lab/lab.ts up`), `LAB_KEEP=1` leaves it up, `LAB_REBUILD=1` builds the app's images again; behind a proxy with its own certificate authority, `LAB_BUILD_CA` names its certificate.
+7. Releases are cut by pushing a `vX.Y.Z` tag that matches `package.json`; see [docs/releasing.md](docs/releasing.md).
 
 ## Architecture rules
 
@@ -27,6 +28,7 @@ Thanks for helping! A few rules keep the codebase healthy.
 - The worker never imports UI code.
 - Every user-visible string goes into every pack in `packages/i18n/messages/` (ru, en, fr, de, it); module strings into `modules/<module>/messages/`. A test checks that each pack is complete and its placeholders match English. See [docs/i18n.md](docs/i18n.md).
 - Permission checks go through `ctx.perm.can()/require()` with code-defined capabilities.
+- A change to the data is an operation (`defineOperation`) or a module action, which declares its `offline` policy; side records of page views go through `touch`. Writes outside these belong to a write scope ([docs/architecture.md §1.4](docs/architecture.md)). The e2e suite runs with `HUBIUM_WRITE_GUARD=strict`, which refuses any other write; `report` logs them instead. Time and random numbers inside an operation come from `opNow()` and `opRandom()` (`ctx.random` in modules), so that the cloud can replay what a local node ran.
 - Database changes: edit `packages/db/prisma/schema/*.prisma`, then `pnpm db:migrate:dev --name <change>`. The script names the migration after the last one (some are named for a later date) and keeps the indexes Prisma cannot express, which are listed in `packages/db/scripts/raw-indexes.mjs`; add a hand-made index there when a migration creates one. With `--create-only` it creates the migration to edit first, even an empty one for a change of data only, and `pnpm db:migrate` applies it. `pnpm --filter @hubium/db migrate:diff` fails on drift between the schema and the migrated database, and on a missing hand-made index.
 
 ## Dependencies

@@ -21,7 +21,8 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
   - Off until an administrator picks a provider.
   - Asks people for consent, enforces quotas, and pseudonymises student work before grading.
 - **Standards and migration.** SCORM 1.2/2004, H5P, LTI 1.3 Advantage, `.mbz` import from Moodle 4.1–5.x, and GIFT and Moodle XML questions.
-- **Ready to run.** One script installs a release in Docker or natively with systemd, with HTTPS (Caddy), separate workers for jobs and video, JSON logs, health checks and Prometheus metrics. CI installs both kinds of release the way users do and tests them end to end on every commit.
+- **Local nodes for poor connections.** A server in a branch's network serves its people from a replica of the cloud, and keeps working when the line to the cloud is down: quizzes, assignments, forums and every other activity. Work done without a connection goes to the cloud when the line is back; the cloud checks it again, and what it does not take becomes a conflict a teacher can accept. One cloud takes any number of nodes, each installed with one command and a code from the cloud. See [Local nodes](#local-nodes) below.
+- **Ready to run.** One script installs a release in Docker or natively with systemd, with HTTPS (Caddy), separate workers for jobs and video, JSON logs, health checks and Prometheus metrics. CI installs both kinds of release the way users do and tests them end to end on every commit; it cuts the line between the cloud and local nodes on every commit too, and runs the whole end-to-end suite through a node every night.
 
 ## Features
 
@@ -37,7 +38,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
   - expiry handled by a scheduled job.
 - Groups and groupings (an activity can be limited to one), site-wide cohorts, and a participants page with filters and bulk actions.
 - A dashboard with "continue", a to-do list and upcoming deadlines, plus a course stream like Google Classroom.
-- Course reports: participation and an event log.
+- Course reports: participation and an event log (filtered by local node).
 - A report builder: reports on users, courses, participants, completion, grades, badges, certificates, competencies and learning plans, with columns from predefined fields (custom profile and course fields included), aggregation, conditions, filters for viewers and sorting, shared with chosen roles, cohorts or people, downloaded as CSV or XLSX and emailed on a schedule.
 - Badges (Open Badges 2.0) of the site and of courses: earned by completing the course, activities or other courses, by a course grade, by cohort membership or awarded by hand by chosen roles; each award can be verified at public addresses, downloaded with the assertion baked into its image, and revoked with a reason.
 - Course certificates as PDF: a background with fields placed by coordinates (name, course, completion date, grade, verification code and address, free text), issued on course completion or by hand, downloaded by the learner, checked by anyone at `/verify` by the code printed on them, revoked with a reason, and listed in an issue report with CSV export.
@@ -58,7 +59,7 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 | Database | Fields the teacher defines (text, rich text, number, date, menu, radio buttons, checkboxes, URL, file, picture), templates with [[Field]] for the list and an entry's page, search and sorting, approval, entry limits, entries required before seeing others', group mode, ratings into the gradebook, export to CSV and XLSX, import from CSV |
 | Workshop | Peer assessment in phases switched by the teacher or by date: an assessment form (accumulative, comments, number of errors, rubric), work handed in, reviewers allocated by hand or at random (apart from groupmates, with self-assessment), grades for the work from weighted assessments and grades for assessing by comparison with the best assessment, teacher overrides, published work; both grades go to the gradebook |
 | Assignment | Online text and files, word limit, open, due and cut-off dates, dates for students and groups, team submissions, a statement of authorship, a late penalty per day with a cap, reopened attempts, grading in points or on a scale, rubrics and marking guides, a marking workflow with allocated markers, blind marking, feedback with files, download all submissions as a zip |
-| Quiz | A question bank with 14 types (ordering, select missing words, drag and drop into text, embedded answers (Cloze) and calculated questions with datasets among them), random questions from a category, shuffling, a time limit enforced on the server (closes even if the browser is gone), autosave, deferred, immediate or interactive feedback (hints between tries, a penalty for each wrong one), a password, network addresses and waits between attempts, pages in order, grading methods, review options, dates, time and attempts per student or group, manual essay grading, regrading with a dry run, question statistics |
+| Quiz | A question bank with 14 types (ordering, select missing words, drag and drop into text, embedded answers (Cloze) and calculated questions with datasets among them), random questions from a category, shuffling, a time limit enforced on the server (closes even if the browser is gone), autosave, deferred, immediate or interactive feedback (hints between tries, a penalty for each wrong one), a password, network addresses or the networks of chosen local nodes only, waits between attempts, pages in order, grading methods, review options, dates, time and attempts per student or group, manual essay grading, regrading with a dry run, question statistics |
 | Forum | General and Q&A types, subscriptions (optional, auto, forced), group modes, pinned and locked threads, private replies, unread tracking, completion by posts, post ratings (by teachers, and by students when allowed) and a grade for the whole forum, each in the gradebook |
 | Video | Resumable upload, HLS transcoding to 360/720/1080p (never above the source), poster and scrubbing previews, VTT/SRT captions, optional no-skip-ahead, completion at N% watched |
 | Live session | BigBlueButton (with recordings) and Jitsi, schedule in the calendar, moderator or attendee role from permissions, attendance |
@@ -129,6 +130,15 @@ Hubium LMS covers what schools, universities and companies run Moodle for. That 
 - Webhooks for users, courses, enrolments, grades, completions, submissions and quiz attempts, signed with HMAC-SHA256 and retried with backoff.
 - `/api/health` and Prometheus metrics at `/api/metrics`.
 
+### Local nodes
+
+- **A node** is a server in a branch's or building's network with a replica of the cloud's database and a copy of its files. People open the usual address (the network's DNS points it at the node): pages and files come from the building's network, changes go to the cloud.
+- **Without a connection** the node starts working on its own after two minutes: timed quizzes, assignments, forums, wikis, grading, course editing and signing in with a password. Site administration, AI, LTI and live sessions wait for the line.
+- **When the line is back,** the node sends its journal and the cloud does each action again under its own rules, exactly once even if the transfer breaks off. What it does not take becomes a conflict: the author is notified, and a teacher can accept the work despite a deadline or an attempt limit.
+- **Administration → Nodes:** state, replica lag, file copying, outages, conflicts, node administrators and revocation in one action. A node administrator puts the node on its own before an exam and puts the sync off until the end of a lesson on the node's `/node` page.
+- **In courses:** a quiz can be limited to the networks of chosen nodes, and the event log shows which node an event came through.
+- **Upkeep:** a node upgrades after the cloud and gets its certificates from it; node metrics go to Prometheus.
+
 ### Platform
 
 - Sign-in by email or username (for learners without email), email verification, two-factor authentication (TOTP) with backup codes and recovery phrases for a lost phone, a password policy (length, character classes, no reuse, expiry), lockout after failed sign-ins with an unlock link by email, notices of sign-ins from a new device with an "it wasn't me" link, sign-in with Google, Yandex ID, VK ID, Keycloak and custom OAuth 2 providers, single sign-on over OpenID Connect and SAML 2.0 (Keycloak, Microsoft Entra ID, ADFS, Okta and others) with profile field mapping, LDAP sign-in (OpenLDAP, Active Directory, FreeIPA) with a nightly sync, and active session management.
@@ -174,7 +184,7 @@ The script checks the server and then asks:
 
 1. Docker or native installation.
 2. The site address and the content host.
-3. HTTPS: Caddy with automatic certificates, or your own proxy.
+3. HTTPS: Caddy with automatic certificates, or your own proxy (the installer writes a site for nginx).
 4. Which activity modules to install. Assignments, quizzes, forums, video, live sessions, SCORM, H5P and LTI can each be left out; the other activities are always there.
 5. The database: installed on the server, or an existing PostgreSQL. An existing one is checked first, and the script prints the SQL a DBA needs to run if rights or extensions are missing.
 6. Where files are kept: on the server, or in S3.
@@ -225,6 +235,8 @@ The `hubium` command checks and maintains an installation. In Docker, run it as 
 | `hubium secrets rotate` | re-encrypts stored secrets after `APP_SECRET` changes |
 | `hubium ai reindex [--course <id>] [--sync]` | rebuilds what the AI tutor searches, e.g. after changing the embedding model |
 | `hubium version` | prints the version and the commit |
+| `hubium nodes list\|add\|code\|revoke` | in the cloud: local nodes, a new node with its installation code, a new code, revocation |
+| `hubium node status\|offline\|online\|postpone` | on a node (`docker compose --project-directory /opt/hubium/node exec agent hubium node …`): its state, working without the cloud, going back, putting the sync off |
 
 ### Upgrading
 
@@ -241,6 +253,17 @@ The upgrade does the following:
 4. Restarts the services.
 
 A native installation keeps the previous releases next to the new one.
+
+### Installing a local node
+
+Turn nodes on once in the cloud (a Docker installation). Then add a node in **Administration → Nodes** and run the command with the code the cloud shows on the branch's server:
+
+```bash
+sudo bash install-hubium.sh enable-nodes                                       # in the cloud
+sudo bash install-hubium.sh --node --hub https://lms.example.org --code <code>  # on the node's server
+```
+
+The node server's requirements, the branch network's DNS and an external database are covered in [docs/operations.md](docs/operations.md#локальные-узлы) (in Russian), working with nodes in the interface in the [administrator's guide](docs/guide/06-admin.md#локальные-узлы) (in Russian).
 
 ### Without the script
 
@@ -295,6 +318,7 @@ pnpm dev                                          # http://localhost:3000
 | `pnpm test` | unit and integration tests on PostgreSQL (S3 tests run with `S3_TEST_ENDPOINT`) |
 | `pnpm --filter @hubium/e2e e2e` | Playwright scenarios against a running app, with axe checks |
 | `pnpm --filter @hubium/e2e stack` | checks against the production Docker stack (see [CONTRIBUTING.md](CONTRIBUTING.md)) |
+| `pnpm --filter @hubium/e2e nodes` | local node scenarios: the cloud and two nodes on one machine, with the line between them cut (needs Docker and built web, worker and cli) |
 | `pnpm depcruise` | architecture boundaries |
 | `pnpm licenses:check` | dependency licences compatible with AGPL-3.0 |
 
@@ -303,7 +327,7 @@ pnpm dev                                          # http://localhost:3000
 | Path | Contents |
 |---|---|
 | `apps/web` | Next.js 16: interface, server actions, REST API, SSE, file routes |
-| `apps/worker` | pg-boss jobs: email, notifications, video transcoding, imports, AI indexing, schedules |
+| `apps/worker` | pg-boss jobs: email, notifications, video transcoding, imports, AI indexing, schedules; the local node's agent |
 | `apps/cli` | the `hubium` command: migrations, checks, modules, maintenance |
 | `packages/core` | business logic, permissions and operations; no Next.js or React |
 | `packages/db` | Prisma schema, migrations and client |
@@ -312,7 +336,7 @@ pnpm dev                                          # http://localhost:3000
 | `packages/ai`, `packages/questions`, `packages/interchange` | LLM providers and text extraction, question types and formats, backup and Moodle import |
 | `packages/api`, `packages/i18n`, `packages/log` | REST API, translations, structured logs |
 | `modules/*` | activity modules: content, book, choice, feedback, glossary, lesson, wiki, data, workshop, assign, quiz, forum, video, livesession, scorm, h5p, lti |
-| `docker/`, `deploy/` | Dockerfile, Compose files and Caddyfile; the launcher and systemd units of the archive |
+| `docker/`, `deploy/` | Dockerfile, Compose files and Caddyfile of the cloud and the node (`docker/node`); the launcher and systemd units of the archive |
 | `install-hubium.sh` | the installer published with every release |
 
 The stack is Node.js 24, Next.js 16, React 19, PostgreSQL 18 with pgvector, Prisma 7, Better Auth, pg-boss (no Redis), Tailwind CSS 4 and Biome.

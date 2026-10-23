@@ -22,6 +22,7 @@ import {
 /** Site settings by key; each value is checked against its setting. */
 export const saveSiteSettings = defineOperation({
   name: 'site.settings.save',
+  offline: 'online',
   input: z.object({ values: z.record(z.string(), z.unknown()) }),
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx, { values }) {
@@ -33,6 +34,7 @@ export const saveSiteSettings = defineOperation({
 /** The accent colour and the logo: a new one replaces the old, which goes with it. */
 export const saveBranding = defineOperation({
   name: 'site.branding.save',
+  offline: 'online',
   input: z.object({
     accent: z.string().max(20),
     logo: z
@@ -76,6 +78,7 @@ export const saveBranding = defineOperation({
 /** A test letter to the administrator who asks, through the site's mail settings. */
 export const sendTestEmail = defineOperation({
   name: 'email.test',
+  offline: 'online',
   input: z.object({}),
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx) {
@@ -114,6 +117,7 @@ export const sendTestEmail = defineOperation({
 /** Rebuilds what the AI tutor searches in every course: one job queues them all. */
 export const reindexAllCourses = defineOperation({
   name: 'ai.reindex.all',
+  offline: 'online',
   input: z.object({}),
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx) {
@@ -125,6 +129,7 @@ export const reindexAllCourses = defineOperation({
 /** Brings the directory's accounts up to date now rather than at night. */
 export const startLdapSync = defineOperation({
   name: 'auth.ldap.sync',
+  offline: 'online',
   input: z.object({}),
   authorize: (ctx) => ctx.perm.require('site:config'),
   async handler(ctx) {

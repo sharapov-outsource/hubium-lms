@@ -1,5 +1,4 @@
-import { randomUUID } from 'node:crypto';
-import type { Prisma } from '@hubium/db';
+import { opRandom, type Prisma } from '@hubium/db';
 import { isEmptyRichText, sanitizeRichText } from '@hubium/editor/server';
 import {
   type ActivityRef,
@@ -153,7 +152,7 @@ export function cleanForm(
     const description = d.description.trim() ? sanitizeRichText(d.description) : '';
     if (!description || isEmptyRichText(description))
       throw new ModuleError('BAD_REQUEST', msg('mod.workshop.errors.describeAspect', { n: i + 1 }));
-    const id = d.id && /^[\w-]{1,64}$/.test(d.id) ? d.id : randomUUID();
+    const id = d.id && /^[\w-]{1,64}$/.test(d.id) ? d.id : opRandom().uuid();
     if (strategy === 'accumulative') {
       if (!d.maxGrade)
         throw new ModuleError('BAD_REQUEST', msg('mod.workshop.errors.maxPoints', { n: i + 1 }));
@@ -169,7 +168,7 @@ export function cleanForm(
       };
     if (strategy === 'rubric') {
       const levels = (d.levels ?? []).map((l) => ({
-        id: l.id && /^[\w-]{1,64}$/.test(l.id) ? l.id : randomUUID(),
+        id: l.id && /^[\w-]{1,64}$/.test(l.id) ? l.id : opRandom().uuid(),
         grade: l.grade,
         definition: l.definition,
       }));
@@ -500,7 +499,9 @@ export const workshop = defineModule<WorkshopSettingsT>({
       name: 'workshop.phase.switch',
       schedule: '*/5 * * * *',
       async handler(ctx) {
-        // workshops whose submissions ended go on to assessment, if they are set to
+        // workshops whose submissions ended go on to assessment, if they are set to; not
+        // while a local node may still bring work handed in before the end
+        const waiting = await ctx.nodes.waitingSince();
         const rows = await ctx.db.workshop.findMany({
           where: { phase: 'submission' },
           include: { activity: true },
@@ -510,7 +511,8 @@ export const workshop = defineModule<WorkshopSettingsT>({
         for (const w of rows) {
           const s = WorkshopSettings.safeParse(w.activity.settings);
           if (!s.success || !s.data.phaseSwitch || !s.data.submissionEnd) continue;
-          if (new Date(s.data.submissionEnd) > ctx.now) continue;
+          const end = new Date(s.data.submissionEnd);
+          if (end > ctx.now || (waiting && end >= waiting)) continue;
           await ctx.db.workshop.update({
             where: { activityId: w.activityId },
             data: { phase: 'assessment' },
@@ -645,6 +647,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
   actions: {
     // ── the teacher ──
     switchPhase: defineAction({
+      offline: 'guarded',
       summary: 'Move the workshop to a phase (closing it puts the grades into the gradebook)',
       capability: 'mod.workshop:manage',
       input: z.object({ phase: z.enum(phases) }),
@@ -674,6 +677,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
       },
     }),
     saveForm: defineAction({
+      offline: 'guarded',
       summary: 'Write the assessment form of the grading strategy (before anyone assesses)',
       capability: 'mod.workshop:manage',
       input: z.object({
@@ -700,6 +704,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
       },
     }),
     allocate: defineAction({
+      offline: 'guarded',
       summary: 'Have a learner assess a submission',
       capability: 'mod.workshop:manage',
       input: z.object({ submissionId: z.string().uuid(), reviewerId: z.string().uuid() }),
@@ -729,6 +734,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
       },
     }),
     deallocate: defineAction({
+      offline: 'guarded',
       summary: 'Take an allocation back (its assessment goes with it)',
       capability: 'mod.workshop:manage',
       input: z.object({ assessmentId: z.string().uuid() }),
@@ -744,6 +750,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
       },
     }),
     randomAllocate: defineAction({
+      offline: 'guarded',
       summary:
         'Allocate at random: `count` reviews per submission or per reviewer, apart from groupmates if asked',
       capability: 'mod.workshop:manage',
@@ -782,7 +789,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
         const shuffle = <T>(xs: T[]) => {
           const out = [...xs];
           for (let i = out.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
+            const j = ctx.random.int(0, i + 1);
             [out[i], out[j]] = [out[j]!, out[i]!];
           }
           return out;
@@ -821,6 +828,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
       },
     }),
     calculateGrades: defineAction({
+      offline: 'guarded',
       summary:
         'Grades for the work from its assessments, and for assessing by comparison with the best',
       capability: 'mod.workshop:manage',
@@ -839,6 +847,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
       },
     }),
     gradeSubmission: defineAction({
+      offline: 'guarded',
       summary:
         'The teacher’s grade for a submission (0..100 % of the grade, null to use the calculated one), feedback and publishing',
       capability: 'mod.workshop:manage',
@@ -864,6 +873,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
       },
     }),
     gradeAssessment: defineAction({
+      offline: 'guarded',
       summary:
         'Weigh an assessment (0..16), give its grade for assessing (0..100 %, null for the calculated one) and a comment to the reviewer',
       capability: 'mod.workshop:manage',
@@ -890,6 +900,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
     }),
     // ── learners ──
     submit: defineAction({
+      offline: 'replay',
       summary: 'Hand in your work, or change it while submissions are open',
       capability: 'mod.workshop:submit',
       input: z.object({
@@ -963,6 +974,7 @@ export const workshop = defineModule<WorkshopSettingsT>({
       },
     }),
     assess: defineAction({
+      offline: 'guarded',
       summary:
         'Fill in the assessment form for a submission you were allocated (teachers may assess any submission by its id)',
       input: z.object({

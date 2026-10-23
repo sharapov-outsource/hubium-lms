@@ -5,12 +5,14 @@ import {
   effectivePasswords,
   networkAllowed,
   nextAttemptAt,
+  nodeAllowed,
 } from './access.ts';
 import { normalisePages, pageForNewSlot } from './server.ts';
 
 const rules = (o: Partial<AccessRules> = {}): AccessRules => ({
   passwords: [],
   subnet: '',
+  nodeIds: [],
   delay1Sec: 0,
   delay2Sec: 0,
   ...o,
@@ -69,5 +71,16 @@ describe('quiz pages', () => {
     expect(pageForNewSlot([1, 1, 2], 0)).toBe(2);
     expect(normalisePages([1, 1, 3, 3, 4])).toEqual([1, 1, 2, 2, 3]);
     expect(normalisePages([2, 2, 5])).toEqual([1, 1, 2]);
+  });
+  it('takes attempts only through the quiz’s local nodes when it names some', () => {
+    const r = rules({ nodeIds: ['01900000-0000-7000-8000-00000000000a'] });
+    expect(nodeAllowed(rules(), null)).toBe(true);
+    expect(nodeAllowed(r, '01900000-0000-7000-8000-00000000000a')).toBe(true);
+    expect(nodeAllowed(r, '01900000-0000-7000-8000-00000000000b')).toBe(false);
+    // in the cloud itself, not through a node
+    expect(nodeAllowed(r, null)).toBe(false);
+    expect(checkStart(r, { ip: null, nodeId: null, now, finished: [], preview: false })).toEqual({
+      reason: 'node',
+    });
   });
 });

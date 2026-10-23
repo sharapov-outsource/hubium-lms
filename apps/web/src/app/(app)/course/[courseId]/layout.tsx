@@ -146,6 +146,16 @@ export default async function CourseLayout({
               })) > 0),
         },
         {
+          // work done on local nodes without a connection that the cloud did not take
+          key: 'nodeConflicts',
+          href: `${base}/node-conflicts`,
+          label: t('tabs.nodeConflicts'),
+          show:
+            !access.isGuest &&
+            (await ctx.perm.can('grade:edit', courseId)) &&
+            (await db.nodeConflict.count({ where: { courseId } })) > 0,
+        },
+        {
           key: 'reports',
           href: `${base}/reports`,
           label: t('tabs.reports'),

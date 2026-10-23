@@ -43,7 +43,7 @@ describe('course backups and imports in the background', () => {
 
   it("backs a course up in the worker, into the course's backups", async () => {
     const teacher = await ctxFor(t.db, f.users.teacher!);
-    const taskId = await startBackup(teacher, f.courseId);
+    const taskId = await startBackup.run(teacher, { courseId: f.courseId });
     // queued for as long as hours, with a heartbeat that notices a stopped worker
     expect(capturedJobs.at(-1)).toMatchObject({
       name: BACKUP_JOB,
@@ -51,7 +51,7 @@ describe('course backups and imports in the background', () => {
       opts: { heartbeatSeconds: 300, retryLimit: 1 },
     });
     // the one under way is the one asked for again
-    expect(await startBackup(teacher, f.courseId)).toBe(taskId);
+    expect(await startBackup.run(teacher, { courseId: f.courseId })).toBe(taskId);
 
     const fileId = await runBackupTask(t.db, taskId);
     expect(await t.db.backgroundTask.findUniqueOrThrow({ where: { id: taskId } })).toMatchObject({
@@ -75,7 +75,7 @@ describe('course backups and imports in the background', () => {
     const student = await ctxFor(t.db, f.users.student1!);
     expect(await canReadFile(teacher, file)).toBe(true);
     expect(await canReadFile(student, file)).toBe(false);
-    await expect(startBackup(student, f.courseId)).rejects.toThrow();
+    await expect(startBackup.run(student, { courseId: f.courseId })).rejects.toThrow();
     await expect(courseBackups(student, f.courseId)).rejects.toThrow();
   });
 
@@ -83,20 +83,20 @@ describe('course backups and imports in the background', () => {
     const teacher = await ctxFor(t.db, f.users.teacher!);
     const [first] = await courseBackups(teacher, f.courseId);
     for (let i = 0; i < BACKUPS_KEPT; i++)
-      await runBackupTask(t.db, await startBackup(teacher, f.courseId));
+      await runBackupTask(t.db, await startBackup.run(teacher, { courseId: f.courseId }));
     const kept = await courseBackups(teacher, f.courseId);
     expect(kept).toHaveLength(BACKUPS_KEPT);
     expect(kept.map((b) => b.id)).not.toContain(first!.id);
     await expect(
-      deleteBackup(await ctxFor(t.db, f.users.student1!), kept[0]!.id),
+      deleteBackup.run(await ctxFor(t.db, f.users.student1!), { fileId: kept[0]!.id }),
     ).rejects.toThrow();
-    await deleteBackup(teacher, kept[0]!.id);
+    await deleteBackup.run(teacher, { fileId: kept[0]!.id });
     expect(await courseBackups(teacher, f.courseId)).toHaveLength(BACKUPS_KEPT - 1);
   });
 
   it('queues an import with its task', async () => {
     const admin = await ctxFor(t.db, 'admin@test.local');
-    const taskId = await startImport(t.db, admin.perm.userId!, {
+    const taskId = await startImport.run(admin, {
       uploadId: crypto.randomUUID(),
       categoryId,
       kind: 'hubium',

@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # main, and the working branches before they become pull requests
+    branches: [main, 'claude/**']
   pull_request:
   # the release workflow runs every check before it publishes
   workflow_call:
@@ -60,7 +61,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - run: pnpm lint
       - name: Shell scripts
-        run: shellcheck install-hubium.sh deploy/bin/hubium scripts/bundle.sh
+        run: shellcheck install-hubium.sh deploy/bin/hubium scripts/bundle.sh scripts/node-files.sh docker/node/*.sh
       - run: pnpm depcruise
       - run: pnpm licenses:check
       - run: pnpm --filter @hubium/db migrate:deploy
@@ -86,6 +87,8 @@ jobs:
       AUTH_KEYCLOAK_ID: hubium-oauth
       AUTH_KEYCLOAK_SECRET: hubium-oauth-secret
       AUTH_KEYCLOAK_ISSUER: http://127.0.0.1:8080/realms/hubium
+      # the app and the worker refuse database writes outside an operation or a write scope
+      HUBIUM_WRITE_GUARD: strict
     services:
       db:
         image: pgvector/pgvector:0.8.7-pg18-bookworm
@@ -135,6 +138,31 @@ jobs:
           name: playwright-report
           path: e2e/test-results
 
+  # Local nodes: the cloud and two nodes on the runner (e2e/node/stack.ts), with links the
+  # scenarios cut: work during an outage, its sync, conflicts, files, a cut in the middle of
+  # a sync and two nodes at once.
+  nodes:
+    runs-on: ubuntu-latest
+    needs: check
+    timeout-minutes: 60
+    env:
+      HUBIUM_WRITE_GUARD: strict
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with: { runtime: node@24, cache: true, require-lockfile: true }
+      - run: pnpm --filter @hubium/web build && pnpm --filter @hubium/worker build && pnpm --filter @hubium/cli build
+      - run: pnpm --filter @hubium/e2e exec playwright install --with-deps chromium
+      - run: pnpm --filter @hubium/e2e nodes
+      - name: Stack logs
+        if: failure()
+        run: tail -n 200 e2e/node/.stack/*.log
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: nodes-report
+          path: e2e/test-results
+
   # Builds the production images, installs them with install-hubium.sh (Docker mode: every
   # optional service including ClamAV, S3 storage, Caddy on *.localhost) and runs the checks
   # in e2e/stack.
@@ -156,6 +184,7 @@ jobs:
       - name: Install with install-hubium.sh
         run: |
           mkdir -p release && cp docker/compose.yml docker/Caddyfile release/
+          sh scripts/node-files.sh "$PWD/release"
           sudo bash install-hubium.sh --yes --mode docker --from-dir release --version ci --no-pull \
             --domain lms.localhost --content-domain content.localhost --https caddy --db bundled \
             --storage s3 --files-domain files.localhost --modules all --demo yes --antivirus yes \

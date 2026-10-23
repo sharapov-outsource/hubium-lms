@@ -7,7 +7,9 @@
   "type": "module",
   "scripts": {
     "e2e": "playwright test",
-    "stack": "playwright test -c playwright.stack.config.ts"
+    "stack": "playwright test -c playwright.stack.config.ts",
+    "nodes": "playwright test -c playwright.node.config.ts",
+    "lab": "playwright test -c playwright.lab.config.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",

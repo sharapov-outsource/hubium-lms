@@ -20,14 +20,14 @@ describe('account gate', () => {
 
     const teacher = await t.db.user.findUniqueOrThrow({ where: { username: 'teacher' } });
     const version = await t.db.policyVersion.findFirstOrThrow({ where: { policyId: id } });
-    await acceptPolicies(await ctxFor(t.db, teacher.id), [version.id]);
+    await acceptPolicies.run(await ctxFor(t.db, teacher.id), { versionIds: [version.id] });
     expect(await gateOf('teacher')).toBe('PASSWORD');
     await t.db.user.update({ where: { id: teacher.id }, data: { mustChangePassword: false } });
     expect(await gateOf('teacher')).toBeNull();
 
     // administrators, when the site requires it
     const site = await t.db.user.findUniqueOrThrow({ where: { email: 'admin@test.local' } });
-    await acceptPolicies(admin, [version.id]);
+    await acceptPolicies.run(admin, { versionIds: [version.id] });
     expect(await accountGate(t.db, site)).toBeNull();
     await setSettings(t.db, { 'auth.require2faForAdmins': true });
     try {

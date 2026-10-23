@@ -1,8 +1,11 @@
 import { AiProviderError, AiRefusalError, type Usage } from '@hubium/ai';
 import type { AiFeature, AiUsageStatus, Db, Prisma } from '@hubium/db';
+import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
 import { AppError, ForbiddenError, NotFoundError } from '../errors.ts';
+import { defineOperation } from '../operation.ts';
 import {
+  AI_FEATURES,
   featureCapability,
   featureEnabledForCourse,
   type ResolvedFeature,
@@ -167,7 +170,11 @@ export async function checkLimits(
 
 // ── consent ──────────────────────────────────────────────────────────────────
 
-export async function consentStatus(db: Db, userId: string, feature: AiFeature) {
+export async function consentStatus(
+  db: Db | Prisma.TransactionClient,
+  userId: string,
+  feature: AiFeature,
+) {
   const cfg = await db.aiFeatureConfig.findUnique({ where: { feature } });
   const version = cfg?.noticeVersion ?? 1;
   const row = await db.aiConsent.findUnique({
@@ -176,18 +183,23 @@ export async function consentStatus(db: Db, userId: string, feature: AiFeature) 
   return { noticeVersion: version, accepted: !!row };
 }
 
-export async function acceptConsent(ctx: RequestContext, feature: AiFeature) {
-  if (ctx.actor.kind !== 'user') throw new ForbiddenError();
-  const { noticeVersion } = await consentStatus(ctx.db, ctx.actor.userId, feature);
-  await ctx.db.aiConsent.upsert({
-    where: {
-      userId_feature_noticeVersion: { userId: ctx.actor.userId, feature, noticeVersion },
-    },
-    create: { userId: ctx.actor.userId, feature, noticeVersion },
-    update: {},
-  });
-  return { noticeVersion };
-}
+export const acceptConsent = defineOperation({
+  name: 'ai.consent.accept',
+  offline: 'online',
+  input: z.object({ feature: z.enum(AI_FEATURES) }),
+  async handler(ctx, { feature }) {
+    if (ctx.actor.kind !== 'user') throw new ForbiddenError();
+    const { noticeVersion } = await consentStatus(ctx.tx, ctx.actor.userId, feature);
+    await ctx.tx.aiConsent.upsert({
+      where: {
+        userId_feature_noticeVersion: { userId: ctx.actor.userId, feature, noticeVersion },
+      },
+      create: { userId: ctx.actor.userId, feature, noticeVersion },
+      update: {},
+    });
+    return { noticeVersion };
+  },
+});
 
 // ── the gate ─────────────────────────────────────────────────────────────────
 

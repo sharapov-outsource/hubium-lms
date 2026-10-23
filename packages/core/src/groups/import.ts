@@ -1,3 +1,4 @@
+import { opRandom } from '@hubium/db';
 import { msg } from '@hubium/module-sdk';
 import { z } from 'zod';
 import type { RequestContext } from '../context.ts';
@@ -83,6 +84,7 @@ function readRows(csv: string, names: Record<string, string[]>, required: string
 
 export const importCourseGroups = defineOperation({
   name: 'group.import',
+  offline: 'online',
   input: z.object({
     courseId: z.string().uuid(),
     csv: z.string().min(1).max(MAX_CSV),
@@ -199,6 +201,7 @@ export const importCourseGroups = defineOperation({
 
 export const importCohorts = defineOperation({
   name: 'cohort.import',
+  offline: 'online',
   input: z.object({ csv: z.string().min(1).max(MAX_CSV), apply: z.boolean().default(false) }),
   mutation: false,
   authorize: (ctx) => ctx.perm.require('cohort:manage'),
@@ -305,6 +308,7 @@ export function groupName(pattern: string, i: number): string {
 
 export const autoCreateGroups = defineOperation({
   name: 'group.autocreate',
+  offline: 'online',
   input: z
     .object({
       courseId: z.string().uuid(),
@@ -336,9 +340,10 @@ export const autoCreateGroups = defineOperation({
     if (!people.length)
       throw new ValidationError({ roleId: [msg('errors.groups.nobodyWithRole')] });
     const ids = people.map((p) => p.id);
+    const random = opRandom();
     if (input.order === 'random')
       for (let i = ids.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
+        const j = random.int(0, i + 1);
         [ids[i], ids[j]] = [ids[j]!, ids[i]!];
       }
     const count =

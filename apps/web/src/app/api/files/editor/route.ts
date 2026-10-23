@@ -1,5 +1,6 @@
+import { EDITOR_IMAGE, storeEditorImage } from '@hubium/core';
 import { describeError, isAppError, ValidationError } from '@hubium/core/errors';
-import { fileUrl, storeFile } from '@hubium/core/files/files';
+import { checkFile } from '@hubium/core/files/files';
 import { db } from '@/server/db';
 import { getContext } from '@/server/session';
 
@@ -15,20 +16,15 @@ export async function POST(req: Request) {
   const fd = await req.formData();
   const file = fd.get('file');
   if (!(file instanceof File)) return new Response('No file', { status: 400 });
+  const image = {
+    name: file.name,
+    mimeType: file.type,
+    data: Buffer.from(await file.arrayBuffer()),
+  };
   try {
-    const f = await storeFile(db, {
-      contextId: courseId,
-      component: 'course',
-      area: 'editor',
-      path: `/${Date.now()}/`,
-      name: file.name,
-      mimeType: file.type,
-      data: Buffer.from(await file.arrayBuffer()),
-      uploadedById: ctx.perm.userId,
-      maxBytes: 10 * 1024 * 1024,
-      allowedTypes: /^image\/(png|jpeg|gif|webp)$/,
-    });
-    return Response.json({ url: fileUrl(f) });
+    // size, type and malware are checked before the transaction opens
+    await checkFile(db, { ...image, ...EDITOR_IMAGE });
+    return Response.json(await storeEditorImage.run(ctx, { courseId, ...image }));
   } catch (e) {
     // a rejected file (size, type, malware) is 422; an unreachable virus scanner is 503
     if (e instanceof ValidationError)
