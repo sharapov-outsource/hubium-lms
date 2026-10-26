@@ -1,8 +1,9 @@
 name: Nightly
 
+# The long checks, run by hand (Actions → Nightly → Run workflow, or gh workflow run
+# nightly.yml --ref <branch>): before a release and after changes to nodes, the installer or
+# the proxies. Not scheduled.
 on:
-  schedule:
-    - cron: '41 2 * * *'
   workflow_dispatch:
 
 jobs:
