@@ -37,7 +37,7 @@
     "fast-xml-parser": "5.11.2",
     "fflate": "0.8.3",
     "ldapts": "9.2.0",
-    "nodemailer": "10.1.0",
+    "nodemailer": "10.1.4",
     "pdf-lib": "1.17.1",
     "pg": "8.23.1",
     "pg-boss": "12.37.1",
