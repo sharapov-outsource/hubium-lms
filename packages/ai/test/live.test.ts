@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { AnthropicProvider } from '../src/index.ts';
 
-// Opt-in smoke test against the real Claude API (nightly CI with a secret, or locally):
+// Opt-in smoke test against the real Claude API (the Nightly workflow with a secret, or locally):
 //   ANTHROPIC_API_KEY=... pnpm --filter @hubium/ai test
 const key = process.env.ANTHROPIC_API_KEY;
 const model = process.env.HUBIUM_LIVE_MODEL ?? 'claude-opus-5-5';

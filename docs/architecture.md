@@ -904,7 +904,7 @@ interface EmbeddingProvider { model: string; dims: number; embed(texts: string[]
 
 **Acceptance**
 - CI uses a deterministic mock provider (recorded fixtures) for all AI e2e tests.
-- A nightly opt-in live smoke test against Claude runs when a secret is present.
+- An opt-in live smoke test against Claude runs in the long checks (`nightly.yml`, by hand) when a secret is present.
 - Tests prove a hidden activity's chunks are never retrieved, and that the tutor is unavailable during an in-progress quiz.
 - Exceeding a quota returns a localised limit message and logs `LIMITED`.
 - Every call creates an `AiUsage` row with token counts.
@@ -962,8 +962,8 @@ interface EmbeddingProvider { model: string; dims: number; embed(texts: string[]
   - `check`: Biome, shellcheck, dependency-cruiser (`apps`, `packages`, `modules`), the licence allowlist, migrations applied to a fresh database and compared with the schema (with the hand-made indexes), typecheck, unit and integration tests, build;
   - `e2e`: Playwright in one job against the built app;
   - `docker` and `native`: the production images and the release archive installed with `install-hubium.sh`, then `e2e/stack` and an upgrade in place;
-  - CodeQL and osv-scanner run in their own workflows.
-- **Nightly** (`nightly.yml`): a dependency audit with osv-scanner, the live Claude API smoke test (when its secret is set), and the local embeddings test against Ollama.
+  - CodeQL runs in its own workflow, weekly.
+- **Nightly** (`nightly.yml`), run by hand, not scheduled: a dependency audit with osv-scanner, the live Claude API smoke test (when its secret is set), the local embeddings test against Ollama, the whole e2e suite through a local node, an installation behind nginx, and the lab of a cloud and branch servers (`e2e/lab`).
 - **Release** (`release.yml`, see `docs/releasing.md`): a `vX.Y.Z` tag equal to `package.json`'s version runs the whole CI, builds the images for amd64 and arm64 and the release archives, and publishes them, with a GitHub release, only once the checks and installations of these builds have passed. Dependencies are updated by hand.
 
 ---

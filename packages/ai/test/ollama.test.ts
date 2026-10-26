@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { OpenAiCompatEmbeddings } from '../src/index.ts';
 
-// Opt-in check of the ai-local compose profile (nightly CI, or locally after
+// Opt-in check of the ai-local compose profile (the Nightly workflow, or locally after
 // `docker compose --profile ai-local up -d ollama-pull` with port 11434 published):
 //   OLLAMA_URL=http://127.0.0.1:11434/v1 pnpm --filter @hubium/ai test
 const url = process.env.OLLAMA_URL;
